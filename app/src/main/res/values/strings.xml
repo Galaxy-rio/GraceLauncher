@@ -1,0 +1,18 @@
+<resources>
+    <string name="app_name">Grace Launcher</string>
+    <string name="alphabet_scroller">Alphabet quick scroll</string>
+    <string name="back_home">Back to home</string>
+    <string name="jump_to_letter">Apps starting with %1$s</string>
+    <string name="date_calendar_action">%1$s. Open or connect calendar</string>
+    <string name="clock_action">%1$s. Open clock</string>
+    <string name="event_soon">in &lt;1m</string>
+    <string name="event_in_minutes">in %1$dm</string>
+    <string name="event_in_hours">in %1$dh</string>
+    <string name="event_in_hours_minutes">in %1$dh %2$dm</string>
+    <string name="event_in_days">in %1$dd</string>
+    <string name="event_ongoing">now</string>
+    <string name="all_day">all day</string>
+    <string name="added_to_favorites">Added to favorites</string>
+    <string name="removed_from_favorites">Removed from favorites</string>
+    <string name="app_unavailable">This app can’t be opened</string>
+</resources>

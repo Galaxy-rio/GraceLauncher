@@ -1,0 +1,206 @@
+package com.galaxyrio.gracelauncher.ui.components
+
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import com.galaxyrio.gracelauncher.R
+import kotlin.math.exp
+import kotlin.math.roundToInt
+
+@Stable
+private class ScrubState {
+    var active by mutableStateOf(false)
+    var fingerY by mutableFloatStateOf(0f)
+    var fingerX by mutableFloatStateOf(0f)
+    var selectedIndex by mutableIntStateOf(0)
+}
+
+/**
+ * This is the only alphabet touch surface, shared by home and the app list.
+ * Keep the pointer coroutine independent of selection callbacks so opening the
+ * list or changing a section never interrupts a finger already on the screen.
+ */
+@Composable
+fun AlphabetRail(
+    letters: List<String>,
+    selectedLetter: String?,
+    height: Dp,
+    onLetterSelected: (String?) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    if (letters.isEmpty()) return
+    val entries = remember(letters) { listOf<String?>(null) + letters }
+    val state = remember { ScrubState() }
+    val currentOnSelect by rememberUpdatedState(onLetterSelected)
+    val haptics = LocalHapticFeedback.current
+    val density = LocalDensity.current
+    var railHeightPx by remember { mutableIntStateOf(1) }
+    val cellHeight = height / entries.size
+    val cellHeightPx = with(density) { cellHeight.toPx() }
+    val waveRadius = with(density) { 82.dp.toPx() }
+    val basePull = with(density) { 50.dp.toPx() }
+    val railWidth = with(density) { 48.dp.toPx() }
+    val indicatorSize = with(density) { 46.dp.toPx() }
+    val wave by animateFloatAsState(
+        targetValue = if (state.active) 1f else 0f,
+        animationSpec = spring(dampingRatio = 0.86f, stiffness = 700f),
+        label = "alphabetWave",
+    )
+    val railDescription = stringResource(R.string.alphabet_scroller)
+    val homeDescription = stringResource(R.string.back_home)
+
+    Box(
+        modifier = modifier
+            .width(48.dp)
+            .height(height)
+            .testTag("alphabet_rail")
+            .onSizeChanged { railHeightPx = it.height.coerceAtLeast(1) }
+            .semantics { contentDescription = railDescription }
+            .pointerInput(entries) {
+                awaitEachGesture {
+                    val down = awaitFirstDown()
+                    val pointerId = down.id
+                    var change = down
+                    var previousIndex = -1
+                    state.active = true
+                    try {
+                        while (true) {
+                            if (!change.pressed) {
+                                change.consume()
+                                break
+                            }
+                            state.fingerY = change.position.y.coerceIn(0f, railHeightPx.toFloat())
+                            state.fingerX = change.position.x
+                            val index = alphabetIndexAt(
+                                y = state.fingerY,
+                                height = railHeightPx.toFloat(),
+                                count = entries.size,
+                            )
+                            state.selectedIndex = index
+                            if (index != previousIndex) {
+                                previousIndex = index
+                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                                currentOnSelect(entries[index])
+                            }
+                            change.consume()
+                            change = awaitPointerEvent().changes.firstOrNull { it.id == pointerId } ?: break
+                        }
+                    } finally {
+                        state.active = false
+                    }
+                }
+            },
+    ) {
+        entries.forEachIndexed { index, letter ->
+            val isSelected = if (state.active) state.selectedIndex == index else selectedLetter == letter
+            val description = if (letter == null) homeDescription else stringResource(R.string.jump_to_letter, letter)
+            Box(
+                modifier = Modifier
+                    .width(48.dp)
+                    .height(cellHeight)
+                    .offset { IntOffset(0, (index * cellHeightPx).roundToInt()) }
+                    .testTag(if (letter == null) "alphabet_home" else "alphabet:$letter")
+                    .graphicsLayer {
+                        // Pointer coordinates are read in the draw phase, without relaying
+                        // every move through the launcher or the LazyColumn composition.
+                        val distance = (index + 0.5f) * cellHeightPx - state.fingerY
+                        val gaussian = exp(-(distance * distance) / (2f * waveRadius * waveRadius))
+                        val extraPull = ((railWidth - state.fingerX) * 0.35f).coerceIn(0f, basePull)
+                        translationX = -(basePull + extraPull) * gaussian * wave
+                    }
+                    .semantics {
+                        contentDescription = description
+                        role = Role.Button
+                        onClick {
+                            currentOnSelect(letter)
+                            true
+                        }
+                    },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = letter ?: "☆",
+                    color = Color.White.copy(alpha = if (isSelected) 1f else 0.83f),
+                    style = TextStyle(
+                        fontSize = if (letter == null) 19.sp else 12.sp,
+                        lineHeight = if (letter == null) 20.sp else 16.sp,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                        shadow = WallpaperTextShadow,
+                    ),
+                )
+            }
+        }
+
+        // Niagara's transient thumb preview; section headings and rail letters
+        // themselves are always plain text without a surface or pill.
+        Box(
+            modifier = Modifier
+                .size(46.dp)
+                .graphicsLayer {
+                    val extraPull = ((railWidth - state.fingerX) * 0.35f).coerceIn(0f, basePull)
+                    translationX = -(basePull + extraPull + indicatorSize * 0.62f) * wave
+                    translationY = (state.fingerY - indicatorSize / 2f)
+                        .coerceIn(0f, (railHeightPx - indicatorSize).coerceAtLeast(0f))
+                    alpha = if (state.selectedIndex > 0) wave else 0f
+                    scaleX = 0.85f + wave * 0.15f
+                    scaleY = scaleX
+                }
+                .background(Color.White, CircleShape)
+                .clearAndSetSemantics {},
+            contentAlignment = Alignment.Center,
+        ) {
+            Text(
+                text = entries.getOrNull(state.selectedIndex).orEmpty(),
+                color = Color(0xFF202020),
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Medium,
+            )
+        }
+    }
+}
+
+internal fun alphabetIndexAt(y: Float, height: Float, count: Int): Int {
+    if (count <= 1 || height <= 0f) return 0
+    return ((y.coerceIn(0f, height) / height) * count).toInt().coerceIn(0, count - 1)
+}

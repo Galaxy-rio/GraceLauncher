@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Grace 启动器</string>
+    <string name="alphabet_scroller">字母快速索引</string>
+    <string name="back_home">返回主屏幕</string>
+    <string name="jump_to_letter">%1$s 开头的应用</string>
+    <string name="date_calendar_action">%1$s。打开或连接日历</string>
+    <string name="clock_action">%1$s。打开时钟</string>
+    <string name="event_soon">不到1分钟后</string>
+    <string name="event_in_minutes">%1$d分钟后</string>
+    <string name="event_in_hours">%1$d小时后</string>
+    <string name="event_in_hours_minutes">%1$d小时%2$d分后</string>
+    <string name="event_in_days">%1$d天后</string>
+    <string name="event_ongoing">进行中</string>
+    <string name="all_day">全天</string>
+    <string name="added_to_favorites">已添加到收藏</string>
+    <string name="removed_from_favorites">已从收藏移除</string>
+    <string name="app_unavailable">无法打开这个应用</string>
+</resources>
