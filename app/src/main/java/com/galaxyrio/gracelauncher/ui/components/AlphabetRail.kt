@@ -45,6 +45,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.R
+import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import kotlin.math.exp
 import kotlin.math.roundToInt
 
@@ -68,11 +69,14 @@ fun AlphabetRail(
     height: Dp,
     onLetterSelected: (String?) -> Unit,
     modifier: Modifier = Modifier,
+    onScrubFinished: () -> Unit = {},
 ) {
     if (letters.isEmpty()) return
+    val appearance = LocalLauncherAppearance.current
     val entries = remember(letters) { listOf<String?>(null) + letters }
     val state = remember { ScrubState() }
     val currentOnSelect by rememberUpdatedState(onLetterSelected)
+    val currentOnScrubFinished by rememberUpdatedState(onScrubFinished)
     val haptics = LocalHapticFeedback.current
     val density = LocalDensity.current
     var railHeightPx by remember { mutableIntStateOf(1) }
@@ -128,6 +132,7 @@ fun AlphabetRail(
                         }
                     } finally {
                         state.active = false
+                        currentOnScrubFinished()
                     }
                 }
             },
@@ -154,21 +159,27 @@ fun AlphabetRail(
                         role = Role.Button
                         onClick {
                             currentOnSelect(letter)
+                            currentOnScrubFinished()
                             true
                         }
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                Text(
-                    text = letter ?: "☆",
-                    color = Color.White.copy(alpha = if (isSelected) 1f else 0.83f),
-                    style = TextStyle(
-                        fontSize = if (letter == null) 19.sp else 12.sp,
-                        lineHeight = if (letter == null) 20.sp else 16.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        shadow = WallpaperTextShadow,
-                    ),
-                )
+                val color = appearance.text.copy(alpha = if (isSelected) 1f else 0.85f)
+                if (letter == null) {
+                    LauncherIcon(LauncherSymbol.Star, Modifier.size(18.dp), tint = color)
+                } else {
+                    Text(
+                        text = letter,
+                        color = color,
+                        style = TextStyle(
+                            fontSize = 14.sp,
+                            lineHeight = 16.sp,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            shadow = appearance.textShadow,
+                        ),
+                    )
+                }
             }
         }
 

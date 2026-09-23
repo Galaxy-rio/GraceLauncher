@@ -4,7 +4,9 @@ import com.galaxyrio.gracelauncher.data.CountdownUnit
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.data.eventCountdown
 import com.galaxyrio.gracelauncher.data.nextVisibleEvent
+import com.galaxyrio.gracelauncher.data.agendaDays
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -47,5 +49,28 @@ class ScheduleTimingTest {
             eventCountdown(allDay, Instant.parse("2026-09-22T16:00:00Z"), shanghai).unit)
         assertEquals(null,
             nextVisibleEvent(listOf(allDay), Instant.parse("2026-09-23T16:00:00Z"), shanghai))
+    }
+
+    @Test
+    fun agendaExpandsAllDayEventsButNotTheirExclusiveEndDate() {
+        val holiday = event(Instant.parse("2026-09-25T00:00:00Z"), Instant.parse("2026-09-28T00:00:00Z"), true)
+        val today = LocalDate.parse("2026-09-22")
+        val days = agendaDays(listOf(holiday), today, ZoneId.of("America/Los_Angeles"))
+        assertEquals(listOf(today, today.plusDays(3), today.plusDays(4), today.plusDays(5)), days.keys.toList())
+        assertEquals(emptyList<ScheduleEvent>(), days[today])
+        assertEquals(listOf(holiday), days[today.plusDays(3)])
+    }
+
+    @Test
+    fun agendaKeepsOnlyVisibleDaysAndSeparatesRecurringInstances() {
+        val today = LocalDate.parse("2026-09-22")
+        val old = event(Instant.parse("2026-09-20T08:00:00Z"), Instant.parse("2026-09-20T09:00:00Z"))
+        val first = event(Instant.parse("2026-09-22T08:00:00Z"), Instant.parse("2026-09-22T09:00:00Z"))
+        val second = first.copy(startsAt = first.startsAt.plusSeconds(86400), endsAt = first.endsAt.plusSeconds(86400))
+        val distant = event(Instant.parse("2026-10-10T08:00:00Z"), Instant.parse("2026-10-10T09:00:00Z"))
+        val days = agendaDays(listOf(old, first, second, distant), today, ZoneId.of("UTC"))
+        assertEquals(listOf(today, today.plusDays(1)), days.keys.toList())
+        assertEquals(listOf(first), days[today])
+        assertEquals(listOf(second), days[today.plusDays(1)])
     }
 }

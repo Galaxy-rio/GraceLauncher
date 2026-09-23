@@ -9,6 +9,8 @@ data class LauncherApp(
     val componentName: ComponentName,
     val label: String,
     val icon: ImageBitmap?,
+    val monochromeIcon: ImageBitmap? = null,
+    val originalLabel: String = label,
 ) {
     val key: String = componentName.flattenToString()
     val packageName: String = componentName.packageName

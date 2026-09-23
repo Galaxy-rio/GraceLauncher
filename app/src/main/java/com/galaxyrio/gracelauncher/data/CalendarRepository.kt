@@ -8,9 +8,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class CalendarRepository(private val context: Context) {
-    suspend fun upcomingEvents(limit: Int = 3): List<ScheduleEvent> = withContext(Dispatchers.IO) {
+    suspend fun upcomingEvents(): List<ScheduleEvent> = withContext(Dispatchers.IO) {
         val now = Instant.now()
-        val horizon = now.plus(Duration.ofDays(7))
+        val horizon = now.plus(Duration.ofDays(14))
         val projection = arrayOf(
             CalendarContract.Instances.EVENT_ID,
             CalendarContract.Instances.TITLE,
@@ -24,7 +24,8 @@ class CalendarRepository(private val context: Context) {
         CalendarContract.Instances.query(
             context.contentResolver,
             projection,
-            now.toEpochMilli(),
+            // Include UTC all-day instances that may still be today in the user's zone.
+            now.minus(Duration.ofDays(1)).toEpochMilli(),
             horizon.toEpochMilli(),
         )?.use { cursor ->
             val idIndex = cursor.getColumnIndexOrThrow(CalendarContract.Instances.EVENT_ID)
@@ -36,7 +37,7 @@ class CalendarRepository(private val context: Context) {
             val colorIndex = cursor.getColumnIndexOrThrow(CalendarContract.Instances.CALENDAR_COLOR)
 
             buildList {
-                while (cursor.moveToNext() && size < limit) {
+                while (cursor.moveToNext()) {
                     val title = cursor.getString(titleIndex)?.trim().orEmpty()
                     if (title.isBlank()) continue
                     add(

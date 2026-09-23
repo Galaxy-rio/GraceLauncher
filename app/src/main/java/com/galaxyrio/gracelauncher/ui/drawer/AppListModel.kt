@@ -26,7 +26,10 @@ class AppListModel(apps: List<LauncherApp>) {
             grouped.getValue(letter).forEach { add(DrawerItem.App(it)) }
         }
     }
-    val headerIndices: Map<String, Int> = items.mapIndexedNotNull { index, item ->
-        if (item is DrawerItem.Header) item.section to index else null
-    }.toMap()
+    fun itemsFor(letter: String?): List<DrawerItem> =
+        if (letter == null) items else items.filter { it.section == letter }
+
+    /** Position in the complete list to restore when the transient index selection ends. */
+    fun indexOfSection(letter: String): Int =
+        items.indexOfFirst { it is DrawerItem.Header && it.section == letter }.coerceAtLeast(0)
 }

@@ -2,7 +2,8 @@ package com.galaxyrio.gracelauncher.ui.home
 
 import android.text.format.DateFormat
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -15,13 +16,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
-import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -35,14 +37,15 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.R
-import com.galaxyrio.gracelauncher.data.CountdownUnit
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
-import com.galaxyrio.gracelauncher.data.eventCountdown
 import com.galaxyrio.gracelauncher.data.nextVisibleEvent
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
+import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
-import com.galaxyrio.gracelauncher.ui.components.WallpaperTextShadow
+import com.galaxyrio.gracelauncher.ui.components.eventRemainingText
+import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
+import com.galaxyrio.gracelauncher.ui.theme.rememberBatteryPercent
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.util.Date
@@ -53,14 +56,15 @@ fun HomeScreen(
     uiState: LauncherUiState,
     topSpace: Dp,
     viewportHeight: Dp,
-    onOpenDrawer: () -> Unit,
     onLaunchApp: (LauncherApp) -> Unit,
-    onToggleFavorite: (LauncherApp) -> Unit,
+    onAppDetails: (LauncherApp) -> Unit,
+    onAppShortcuts: (LauncherApp, Rect) -> Unit,
     onDateClick: () -> Unit,
     onClockClick: () -> Unit,
     modifier: Modifier = Modifier,
+    rowGestures: AppRowGestures = AppRowGestures(),
+    highlightedAppKey: String? = null,
 ) {
-    val currentOpenDrawer by rememberUpdatedState(onOpenDrawer)
     val now by produceState(initialValue = Instant.now()) {
         while (true) {
             value = Instant.now()
@@ -70,28 +74,16 @@ fun HomeScreen(
     val event = nextVisibleEvent(uiState.events, now)
     val favorites = uiState.favoriteApps
     val configuration = LocalConfiguration.current
-    val estimatedHeight = topSpace + (116f * configuration.fontScale).dp + (favorites.size * 60).dp
+    val estimatedHeight = topSpace + (146f * configuration.fontScale).dp + (favorites.size * 56).dp + 72.dp
     val canScroll = estimatedHeight > viewportHeight
 
     LazyColumn(
         modifier = modifier
             .fillMaxSize()
-            .testTag("home_content")
-            .pointerInput(canScroll) {
-                if (canScroll) return@pointerInput
-                var upwardDrag = 0f
-                detectVerticalDragGestures(
-                    onDragStart = { upwardDrag = 0f },
-                    onDragEnd = {
-                        if (upwardDrag > 48.dp.toPx()) currentOpenDrawer()
-                    },
-                    onDragCancel = { upwardDrag = 0f },
-                ) { change, amount ->
-                    upwardDrag = (upwardDrag - amount).coerceAtLeast(0f)
-                    change.consume()
-                }
-            },
-        contentPadding = PaddingValues(start = 28.dp, end = 68.dp, top = topSpace, bottom = 24.dp),
+            .testTag("home_content"),
+        // The row's 8dp inset keeps icons aligned at 44dp while giving its
+        // rounded touch surface breathing room around the icon.
+        contentPadding = PaddingValues(start = 36.dp, end = 60.dp, top = topSpace, bottom = 72.dp),
         userScrollEnabled = canScroll,
     ) {
         item(key = "date", contentType = "date") {
@@ -101,13 +93,16 @@ fun HomeScreen(
                 onDateClick = onDateClick,
                 onClockClick = onClockClick,
             )
-            Spacer(Modifier.height(18.dp))
+            Spacer(Modifier.height(12.dp))
         }
         items(favorites, key = LauncherApp::key, contentType = { "app" }) { app ->
             LauncherAppRow(
                 app = app,
                 onClick = { onLaunchApp(app) },
-                onLongClick = { onToggleFavorite(app) },
+                onLongClick = { onAppDetails(app) },
+                onSwipeRight = { onAppShortcuts(app, it) },
+                gestures = rowGestures,
+                highlighted = highlightedAppKey == app.key,
             )
         }
     }
@@ -120,6 +115,8 @@ private fun DateHeader(
     onDateClick: () -> Unit,
     onClockClick: () -> Unit,
 ) {
+    val appearance = LocalLauncherAppearance.current
+    val battery = rememberBatteryPercent()
     val context = LocalContext.current
     val locale = LocalConfiguration.current.locales[0]
     val clockPattern = if (DateFormat.is24HourFormat(context)) "H:mm" else "h:mm"
@@ -131,35 +128,38 @@ private fun DateHeader(
 
     Column {
         Text(
-            text = clockText,
+            text = clockText.replace(':', ' '),
             modifier = Modifier
                 .testTag("home_clock")
                 .semantics { contentDescription = clockDescription }
-                .clickable(onClick = onClockClick),
-            color = Color.White,
+                .clip(RoundedCornerShape(20.dp))
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = ripple(color = appearance.text), onClick = onClockClick)
+                .padding(horizontal = 8.dp),
+            color = appearance.text,
             style = TextStyle(
-                fontSize = 42.sp,
-                lineHeight = 50.sp,
-                fontWeight = FontWeight.Light,
-                letterSpacing = (-0.8).sp,
+                fontSize = 72.sp,
+                lineHeight = 82.sp,
+                fontWeight = FontWeight.Thin,
+                letterSpacing = (-3).sp,
                 fontFeatureSettings = "tnum",
-                shadow = WallpaperTextShadow,
+                shadow = appearance.textShadow,
             ),
         )
         Spacer(Modifier.height(5.dp))
         Text(
-            text = dateText,
+            text = dateText + (battery?.let { "  $it%" } ?: ""),
             modifier = Modifier
                 .testTag("home_date")
                 .semantics { contentDescription = dateDescription }
-                .clickable(onClick = onDateClick)
-                .padding(vertical = 2.dp),
-            color = Color.White.copy(alpha = 0.95f),
+                .clip(RoundedCornerShape(12.dp))
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = ripple(color = appearance.text), onClick = onDateClick)
+                .padding(horizontal = 8.dp, vertical = 2.dp),
+            color = appearance.text,
             style = TextStyle(
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
                 fontWeight = FontWeight.Medium,
-                shadow = WallpaperTextShadow,
+                shadow = appearance.textShadow,
             ),
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
@@ -172,37 +172,27 @@ private fun DateHeader(
 
 @Composable
 private fun ScheduleLine(event: ScheduleEvent, now: Instant, onClick: () -> Unit) {
-    val countdown = eventCountdown(event, now)
-    val remaining = when (countdown.unit) {
-        CountdownUnit.LessThanMinute -> stringResource(R.string.event_soon)
-        CountdownUnit.Minutes -> stringResource(R.string.event_in_minutes, countdown.value)
-        CountdownUnit.Hours -> if (countdown.minutes == 0) {
-            stringResource(R.string.event_in_hours, countdown.value)
-        } else {
-            stringResource(R.string.event_in_hours_minutes, countdown.value, countdown.minutes)
-        }
-        CountdownUnit.Days -> stringResource(R.string.event_in_days, countdown.value)
-        CountdownUnit.Ongoing -> stringResource(R.string.event_ongoing)
-        CountdownUnit.AllDay -> stringResource(R.string.all_day)
-    }
+    val appearance = LocalLauncherAppearance.current
+    val remaining = eventRemainingText(event, now)
     val style = TextStyle(
         fontSize = 14.sp,
         lineHeight = 20.sp,
         fontWeight = FontWeight.Medium,
-        shadow = WallpaperTextShadow,
+        shadow = appearance.textShadow,
     )
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("schedule_line")
-            .clickable(onClick = onClick)
-            .padding(top = 2.dp),
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = ripple(color = appearance.text), onClick = onClick)
+            .padding(horizontal = 8.dp, vertical = 2.dp),
     ) {
         Text(
             text = event.title,
             modifier = Modifier.weight(1f, fill = false),
             style = style,
-            color = Color.White,
+            color = appearance.text,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,
         )
@@ -210,7 +200,7 @@ private fun ScheduleLine(event: ScheduleEvent, now: Instant, onClick: () -> Unit
         Text(
             text = "· $remaining",
             style = style,
-            color = Color.White.copy(alpha = 0.93f),
+            color = appearance.text.copy(alpha = 0.93f),
             maxLines = 1,
         )
     }

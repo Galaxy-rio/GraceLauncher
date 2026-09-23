@@ -2,6 +2,7 @@ package com.galaxyrio.gracelauncher.data
 
 import java.time.Duration
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
 
@@ -10,8 +11,29 @@ enum class CountdownUnit { LessThanMinute, Minutes, Hours, Days, Ongoing, AllDay
 data class EventCountdown(val unit: CountdownUnit, val value: Int = 0, val minutes: Int = 0)
 
 // Calendar Provider stores all-day boundaries as UTC dates, not local timestamps.
-private fun ScheduleEvent.localBoundary(instant: Instant, zone: ZoneId): Instant =
+internal fun ScheduleEvent.localBoundary(instant: Instant, zone: ZoneId): Instant =
     if (isAllDay) instant.atZone(ZoneOffset.UTC).toLocalDate().atStartOfDay(zone).toInstant() else instant
+
+/** Expand multi-day occurrences without treating the exclusive all-day end as another day. */
+fun agendaDays(
+    events: List<ScheduleEvent>,
+    today: LocalDate,
+    zone: ZoneId = ZoneId.systemDefault(),
+    dayCount: Long = 14,
+): Map<LocalDate, List<ScheduleEvent>> {
+    val days = sortedMapOf<LocalDate, MutableList<ScheduleEvent>>()
+    days[today] = mutableListOf()
+    val horizon = today.plusDays(dayCount)
+    events.sortedBy { it.localBoundary(it.startsAt, zone) }.forEach { event ->
+        var day = maxOf(today, event.localBoundary(event.startsAt, zone).atZone(zone).toLocalDate())
+        val lastDay = event.localBoundary(event.endsAt, zone).minusNanos(1).atZone(zone).toLocalDate()
+        while (day <= lastDay && day < horizon) {
+            days.getOrPut(day) { mutableListOf() }.add(event)
+            day = day.plusDays(1)
+        }
+    }
+    return days
+}
 
 fun nextVisibleEvent(
     events: List<ScheduleEvent>,

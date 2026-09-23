@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
@@ -25,10 +26,12 @@
         android:theme="@style/Theme.GraceLauncher">
         <activity
             android:name=".MainActivity"
+            android:clearTaskOnLaunch="true"
             android:excludeFromRecents="true"
             android:exported="true"
             android:launchMode="singleTask"
             android:stateNotNeeded="true"
+            android:taskAffinity=""
             android:theme="@style/Theme.GraceLauncher"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
@@ -37,6 +40,13 @@
                 <category android:name="android.intent.category.HOME" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
+        </activity>
+        <activity
+            android:name=".LauncherEntryActivity"
+            android:excludeFromRecents="true"
+            android:exported="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.NoDisplay">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 

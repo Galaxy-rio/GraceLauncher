@@ -2,33 +2,65 @@ package com.galaxyrio.gracelauncher
 
 import android.content.ComponentName
 import android.graphics.Bitmap
+import android.os.SystemClock
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.SemanticsNodeInteraction
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotDisplayed
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.captureToImage
-import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.longClick
+import androidx.compose.ui.test.swipeRight
+import androidx.compose.ui.test.swipeUp
+import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
+import com.galaxyrio.gracelauncher.data.LauncherShortcut
+import com.galaxyrio.gracelauncher.data.ShortcutResult
+import com.galaxyrio.gracelauncher.data.ShortcutStatus
+import com.galaxyrio.gracelauncher.data.WallpaperTextMode
+import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherScreen
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.ScheduleStatus
 import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
 import java.io.File
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneOffset
+import kotlinx.coroutines.CompletableDeferred
+import kotlin.math.abs
+import kotlin.math.roundToInt
 import org.junit.Rule
 import org.junit.Test
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
@@ -39,19 +71,36 @@ class LauncherInteractionTest {
         LauncherApp(ComponentName("test.${label.lowercase()}", "$label.Activity"), label, null)
     }
 
-    private fun showLauncher(events: List<ScheduleEvent> = emptyList()) {
+    private fun showLauncher(
+        events: List<ScheduleEvent> = emptyList(),
+        initialDrawerOpen: Boolean = false,
+        actions: LauncherActions = LauncherActions(),
+        status: ScheduleStatus = ScheduleStatus.Ready,
+        displayedApps: List<LauncherApp> = apps,
+        favoriteCount: Int = 5,
+        onLaunch: (LauncherApp) -> Unit = {},
+        onToggle: () -> Unit = {},
+        onRequestCalendar: () -> Unit = {},
+    ) {
         compose.setContent {
+            var favorites by remember { mutableStateOf(displayedApps.take(favoriteCount).mapTo(linkedSetOf(), LauncherApp::key).toSet()) }
             GraceLauncherTheme(dynamicColor = false) {
                 Box(Modifier.fillMaxSize().background(Color(0xFF152431))) {
                     LauncherScreen(
                         uiState = LauncherUiState(
-                            apps = apps,
-                            favoriteKeys = apps.take(5).mapTo(linkedSetOf(), LauncherApp::key),
+                            apps = displayedApps,
+                            favoriteKeys = favorites,
                             isLoadingApps = false,
                             events = events,
-                            scheduleStatus = ScheduleStatus.Ready,
+                            scheduleStatus = status,
+                            textMode = WallpaperTextMode.Light,
                         ),
-                        onDateClick = {}, onClockClick = {}, onLaunchApp = {}, onToggleFavorite = {},
+                        onDateClick = onRequestCalendar, onClockClick = {}, onLaunchApp = onLaunch,
+                        onToggleFavorite = {
+                            favorites = if (it.key in favorites) favorites - it.key else favorites + it.key
+                            onToggle()
+                        },
+                        actions = actions, initialDrawerOpen = initialDrawerOpen,
                     )
                 }
             }
@@ -89,12 +138,13 @@ class LauncherInteractionTest {
 
         rail.performTouchInput { moveTo(Offset(centerX, height * 0.625f), delayMillis = 250) }
         compose.onNodeWithTag("section:C").assertIsDisplayed()
-        compose.onNodeWithTag("section:A").assertIsNotDisplayed()
+        compose.onNodeWithTag("section:A").assertDoesNotExist()
+        compose.onNodeWithTag("section:Z").assertDoesNotExist()
         saveScreenshot("drawer-wave.png")
 
         rail.performTouchInput { moveTo(Offset(centerX, height * 0.875f), delayMillis = 250) }
         compose.onNodeWithTag("section:Z").assertIsDisplayed()
-        compose.onNodeWithTag("section:C").assertIsNotDisplayed()
+        compose.onNodeWithTag("section:C").assertDoesNotExist()
 
         rail.performTouchInput { moveTo(Offset(centerX, height * 0.125f), delayMillis = 250) }
         compose.onNodeWithTag("home_clock").assertIsDisplayed()
@@ -104,6 +154,9 @@ class LauncherInteractionTest {
             up()
         }
         compose.onNodeWithTag("section:C").assertIsDisplayed()
+        listOf("A", "C", "Z").forEach {
+            compose.onNodeWithTag("section:$it").assertIsDisplayed()
+        }
         listOf("All apps", "Search apps", "Back to home").forEach {
             compose.onNodeWithText(it).assertDoesNotExist()
         }
@@ -120,13 +173,358 @@ class LauncherInteractionTest {
         compose.onNodeWithTag("home_date").assertIsDisplayed()
     }
 
+    @Test
+    fun normalDrawerStartsAtTheTopAndContainsAllSections() {
+        showLauncher(initialDrawerOpen = true)
+        listOf("A", "C", "Z").forEach { compose.onNodeWithTag("section:$it").assertIsDisplayed() }
+        val first = compose.onNodeWithTag("section:A").fetchSemanticsNode().boundsInRoot
+        val viewport = compose.onNodeWithTag("app_drawer").fetchSemanticsNode().boundsInRoot
+        assertTrue("Drawer should not reserve its top half", first.top - viewport.top < viewport.height * 0.1f)
+        compose.onNodeWithTag("alphabet:C").performClick()
+        // An accessibility click has no held finger: it jumps into the complete list.
+        listOf("A", "C", "Z").forEach { compose.onNodeWithTag("section:$it").assertIsDisplayed() }
+        compose.onNodeWithTag("alphabet_home").performClick()
+        compose.onNodeWithTag("home_clock").assertIsDisplayed()
+        compose.onNodeWithTag("alphabet:A").performClick()
+        listOf("A", "C", "Z").forEach { compose.onNodeWithTag("section:$it").assertIsDisplayed() }
+    }
+
+    @Test
+    fun cancellingHeldAlphabetSelectionRestoresTheCompleteList() {
+        showLauncher()
+        val rail = compose.onNodeWithTag("alphabet_rail")
+        rail.performTouchInput { down(Offset(centerX, height * 0.625f)) }
+        compose.onNodeWithTag("section:C").assertIsDisplayed()
+        compose.onNodeWithTag("section:A").assertDoesNotExist()
+        compose.onNodeWithTag("section:Z").assertDoesNotExist()
+        rail.performTouchInput { cancel() }
+        listOf("A", "C", "Z").forEach { compose.onNodeWithTag("section:$it").assertIsDisplayed() }
+    }
+
+    @Test
+    fun homeVerticalGesturesNeverOpenDrawerAndFloatingButtonOpensSettings() {
+        showLauncher()
+        compose.onNodeWithTag("home_content").performTouchInput { swipeUp() }
+        compose.onNodeWithTag("home_clock").assertIsDisplayed()
+        compose.onNodeWithTag("app_drawer").assertIsNotDisplayed()
+        compose.onNodeWithTag("home_content").performTouchInput { swipeDown() }
+        compose.onNodeWithTag("home_clock").assertIsDisplayed()
+        compose.onNodeWithTag("app_drawer").assertIsNotDisplayed()
+        compose.onNodeWithTag("open_all_apps").assertDoesNotExist()
+        compose.onNodeWithTag("launcher_settings").performClick()
+        compose.onNodeWithTag("app_drawer").assertIsNotDisplayed()
+        compose.onNodeWithText("Grace settings").assertIsDisplayed()
+    }
+
+    @Test
+    fun rightSwipeOpensProvidedShortcutRowsAndDoesNotLaunchTheApp() {
+        var launches = 0
+        var toggles = 0
+        var openedShortcut: String? = null
+        showLauncher(
+            actions = LauncherActions(
+                shortcuts = { ShortcutResult(ShortcutStatus.Ready, listOf(
+                    LauncherShortcut("compose", it.packageName, "Compose", null),
+                    LauncherShortcut("inbox", it.packageName, "Inbox", null),
+                )) },
+                launchShortcut = { openedShortcut = it.id },
+            ),
+            onLaunch = { launches++ }, onToggle = { toggles++ },
+        )
+        compose.onNodeWithTag("app:${apps[1].key}").performTouchInput { swipeRight(durationMillis = 240) }
+        awaitSurface("shortcut_popup")
+        compose.onNodeWithTag("shortcut_popup").assertIsDisplayed()
+        compose.onNodeWithText("Compose").assertIsDisplayed()
+        compose.onNodeWithText("Inbox").assertIsDisplayed()
+        saveScreenshot("shortcuts-sample.png")
+        assertEquals(0, launches)
+        assertEquals(0, toggles)
+        compose.onNodeWithTag("shortcut:compose").performClick()
+        assertEquals("compose", openedShortcut)
+        compose.onNodeWithTag("shortcut_popup").assertDoesNotExist()
+    }
+
+    @Test
+    fun shortcutsFollowTheFingerBeforeReleaseAndReverseDragCancels() {
+        var launches = 0
+        var prepared = 0
+        val result = CompletableDeferred<ShortcutResult>()
+        showLauncher(
+            actions = LauncherActions(shortcuts = { result.await() }, prepareShortcuts = { prepared++ }),
+            onLaunch = { launches++ },
+        )
+        val row = compose.onNodeWithTag("app:${apps[1].key}")
+        val dragDistance = 40f * InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.density
+        row.performTouchInput {
+            down(Offset(8f, centerY))
+            moveTo(Offset(8f + dragDistance, centerY), delayMillis = 150)
+        }
+        awaitSurface("shortcut_popup")
+        val partial = compose.onNodeWithTag("shortcut_popup").fetchSemanticsNode()
+            .config[SemanticsProperties.ProgressBarRangeInfo].current
+        assertTrue("The panel must reveal during the held gesture", partial > 0f && partial < 1f)
+        compose.onAllNodes(SemanticsMatcher.expectValue(
+            SemanticsProperties.ProgressBarRangeInfo, ProgressBarRangeInfo.Indeterminate,
+        )).assertCountEquals(0)
+        assertTrue("Touch down should warm shortcut data before the gesture commits", prepared > 0)
+        result.complete(ShortcutResult(ShortcutStatus.Ready, listOf(
+            LauncherShortcut("compose", apps[1].packageName, "Compose", null),
+        )))
+        compose.onNodeWithText("Compose").assertIsDisplayed()
+        saveScreenshot("shortcuts-partial.png")
+        row.performTouchInput {
+            moveTo(Offset(8f, centerY), delayMillis = 150)
+            up()
+        }
+        compose.onNodeWithTag("shortcut_popup").assertDoesNotExist()
+        assertEquals(0, launches)
+    }
+
+    @Test
+    fun shortNinetySixDpDragFullyRevealsShortcutsBeforeReleaseAndCanReverse() {
+        showLauncher(actions = shortcutFixtureActions())
+        val row = compose.onNodeWithTag("app:${apps[1].key}")
+        val dragDistance = 96f * deviceDensity()
+        row.performTouchInput {
+            down(Offset(8f, centerY))
+            moveTo(Offset(8f + dragDistance, centerY), delayMillis = 150)
+        }
+        awaitSurface("shortcut_popup")
+        val progress = compose.onNodeWithTag("shortcut_popup").fetchSemanticsNode()
+            .config[SemanticsProperties.ProgressBarRangeInfo].current
+        assertEquals("A 96dp held drag should already reveal the complete panel", 1f, progress, 0.001f)
+        compose.onNodeWithTag("shortcut:compose").assertIsDisplayed()
+        saveScreenshot("shortcuts-short-drag-expanded.png")
+        row.performTouchInput {
+            moveTo(Offset(8f + 200f * deviceDensity(), centerY), delayMillis = 100)
+            moveTo(Offset(8f + 136f * deviceDensity(), centerY), delayMillis = 100)
+        }
+        assertEquals(
+            "Overshoot must not be discarded: a small reversal should leave the panel fully open",
+            1f, compose.onNodeWithTag("shortcut_popup").fetchSemanticsNode()
+                .config[SemanticsProperties.ProgressBarRangeInfo].current, 0.001f,
+        )
+        row.performTouchInput {
+            moveTo(Offset(8f, centerY), delayMillis = 150)
+            up()
+        }
+        compose.onNodeWithTag("shortcut_popup").assertDoesNotExist()
+    }
+
+    @Test
+    fun appSurfaceHighlightsWhileFingerIsHeldAndClearsOnCancel() {
+        showLauncher()
+        val row = compose.onNodeWithTag("app:${apps[1].key}")
+        row.performTouchInput { down(center) }
+        compose.mainClock.advanceTimeBy(160)
+        row.assertIsSelected()
+        saveScreenshot("app-pressed.png")
+        row.performTouchInput { cancel() }
+        row.assertIsNotSelected()
+        compose.onNodeWithTag("app_details").assertDoesNotExist()
+    }
+
+    @Test
+    fun appLaunchProvidesTheIconBoundsForThePublicPlatformTransition() {
+        var launched: LauncherApp? = null
+        var bounds: Rect? = null
+        var fallbackLaunches = 0
+        showLauncher(
+            actions = LauncherActions(launchAppAt = { app, source -> launched = app; bounds = source }),
+            onLaunch = { fallbackLaunches++ },
+        )
+        val row = compose.onNodeWithTag("app:${apps[1].key}")
+        val rowBounds = row.fetchSemanticsNode().boundsInWindow
+        row.performClick()
+        assertEquals(apps[1], launched)
+        assertEquals(0, fallbackLaunches)
+        val iconSize = 40f * InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.density
+        assertEquals(iconSize, bounds?.width ?: 0f, 1f)
+        assertEquals(iconSize, bounds?.height ?: 0f, 1f)
+        val iconBounds = checkNotNull(bounds)
+        val inset = 8f * deviceDensity()
+        assertTrue("The icon needs at least 8dp horizontal breathing room", iconBounds.left - rowBounds.left >= inset - 1f)
+        assertTrue("The icon needs at least 8dp top padding", iconBounds.top - rowBounds.top >= inset - 1f)
+        assertTrue("The icon needs at least 8dp bottom padding", rowBounds.bottom - iconBounds.bottom >= inset - 1f)
+    }
+
+    @Test
+    fun appRowRippleChangesInteriorPixelsButStaysInsideRoundedCorners() {
+        showLauncher()
+        assertRoundedRipple(compose.onNodeWithTag("app:${apps[1].key}"), "ripple-app-row.png")
+    }
+
+    @Test
+    fun settingsActionRippleChangesInteriorPixelsButStaysInsideRoundedCorners() {
+        showLauncher()
+        compose.onNodeWithTag("launcher_settings").performClick()
+        awaitSurface("launcher_sheet")
+        assertRoundedRipple(compose.onNodeWithTag("Edit favorites"), "ripple-settings-action.png")
+    }
+
+    @Test
+    fun shortcutHeaderAndItemRipplesStayInsideTheirOwnRoundedCorners() {
+        showLauncher(actions = shortcutFixtureActions())
+        compose.onNodeWithTag("app:${apps[1].key}").performTouchInput { swipeRight(durationMillis = 200) }
+        awaitSurface("shortcut_popup")
+        assertRoundedRipple(compose.onNodeWithTag("shortcut_header"), "ripple-shortcut-header.png")
+        assertRoundedRipple(compose.onNodeWithTag("shortcut:compose"), "ripple-shortcut-row.png")
+    }
+
+    @Test
+    fun floatingButtonRippleStaysInsideItsCircularSurface() {
+        showLauncher()
+        assertRoundedRipple(compose.onNodeWithTag("launcher_settings"), "ripple-settings-fab.png")
+    }
+
+    @Test
+    fun longPressOpensDetailsAndFavoritesAreEditedOnlyInThePanel() {
+        var toggles = 0
+        showLauncher(onToggle = { toggles++ })
+        compose.onNodeWithTag("app:${apps[1].key}").performTouchInput { longClick() }
+        awaitSurface("app_details")
+        compose.onNodeWithTag("app_details").assertIsDisplayed()
+        listOf("Edit favorites", "App info", "Screen time", "Add to category", "Uninstall", "Advanced", "Grace settings").forEach {
+            compose.onNodeWithText(it).assertIsDisplayed()
+        }
+        assertEquals(0, toggles)
+        val detailsBottom = compose.onNodeWithTag("app_details").fetchSemanticsNode().boundsInRoot.bottom
+        val windowHeight = InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.heightPixels
+        assertTrue("The details sheet should be anchored to the bottom edge", detailsBottom > windowHeight * 0.91f)
+        saveScreenshot("details-sample.png")
+        compose.onNodeWithTag("edit_favorites").performClick()
+        awaitSurface("favorites_sheet")
+        compose.onNodeWithTag("favorites_sheet").assertIsDisplayed()
+        compose.onNodeWithTag("favorite:${apps[1].key}").performClick()
+        assertEquals(1, toggles)
+    }
+
+    @Test
+    fun tappingDateShowsAgendaWithEventsAndNewEventAction() {
+        var created = 0
+        var opened: Long? = null
+        val now = Instant.now()
+        val holiday = LocalDate.now().plusDays(3).atStartOfDay(ZoneOffset.UTC).toInstant()
+        showLauncher(
+            events = listOf(
+                ScheduleEvent(100, "Movie night", now.plusSeconds(1680), now.plusSeconds(7200), false, null, 0xFF53AABB.toInt()),
+                ScheduleEvent(101, "Day off", holiday, holiday.plusSeconds(86400), true, null, 0xFFDC6676.toInt()),
+                ScheduleEvent(102, "Reading", holiday.plusSeconds(86400), holiday.plusSeconds(172800), true, null, 0xFF20A675.toInt()),
+                ScheduleEvent(103, "Design review", now.plusSeconds(518400), now.plusSeconds(522000), false, null, 0xFF8871C8.toInt()),
+            ),
+            actions = LauncherActions(newEvent = { created++ }, openEvent = { opened = it.id }),
+        )
+        compose.onNodeWithTag("home_date").performClick()
+        awaitSurface("agenda_sheet")
+        compose.onNodeWithTag("agenda_sheet").assertIsDisplayed()
+        compose.onNodeWithText("Your agenda").assertIsDisplayed()
+        saveScreenshot("agenda-sample.png")
+        compose.onNodeWithTag("new_event").performClick()
+        assertEquals(1, created)
+        compose.onNodeWithTag("agenda_event:100").performClick()
+        assertEquals(100L, opened)
+    }
+
+    @Test
+    fun permissionsAreRequestedOnlyAfterTheAgendaExplanation() {
+        var requests = 0
+        showLauncher(status = ScheduleStatus.PermissionRequired, onRequestCalendar = { requests++ })
+        compose.onNodeWithTag("home_date").performClick()
+        awaitSurface("agenda_sheet")
+        compose.onNodeWithTag("agenda_sheet").assertIsDisplayed()
+        assertEquals(0, requests)
+        compose.onNodeWithText("Connect calendar").performClick()
+        assertEquals(1, requests)
+    }
+
+    @Test
+    fun fullListsCanScrollToTheirLastAppWithoutOpeningShortcuts() {
+        val manyApps = (1..24).map { index ->
+            LauncherApp(ComponentName("test.app$index", "App.Activity"), "App $index", null)
+        }
+        showLauncher(displayedApps = manyApps, favoriteCount = 24)
+        compose.onNodeWithTag("home_content").performScrollToIndex(24)
+        compose.onNodeWithTag("app:${manyApps.last().key}").assertIsDisplayed()
+        compose.onNodeWithTag("alphabet:A").performClick()
+        compose.onNodeWithTag("app:${manyApps[2].key}").performTouchInput { swipeUp() }
+        compose.onNodeWithTag("shortcut_popup").assertDoesNotExist()
+        compose.onNodeWithTag("app_drawer").performScrollToIndex(24)
+        compose.onNodeWithTag("app:${manyApps.last().key}").assertIsDisplayed()
+    }
+
+    private fun awaitSurface(tag: String) {
+        // Modal windows attach asynchronously on a cold instrumentation launch.
+        compose.waitUntil(timeoutMillis = 5_000) {
+            compose.onAllNodesWithTag(tag).fetchSemanticsNodes(atLeastOneRootRequired = false).isNotEmpty()
+        }
+    }
+
+    private fun shortcutFixtureActions() = LauncherActions(shortcuts = {
+        ShortcutResult(ShortcutStatus.Ready, listOf(
+            LauncherShortcut("compose", it.packageName, "Compose", null),
+            LauncherShortcut("inbox", it.packageName, "Inbox", null),
+        ))
+    })
+
+    private fun deviceDensity() =
+        InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.density
+
+    /** Exercise the real rendered ripple, not just pressed/selected accessibility state. */
+    private fun assertRoundedRipple(node: SemanticsNodeInteraction, screenshotName: String) {
+        compose.waitForIdle()
+        val before = node.captureToImage().asAndroidBitmap()
+        val density = deviceDensity()
+        val previousAutoAdvance = compose.mainClock.autoAdvance
+        compose.mainClock.autoAdvance = false
+        try {
+            // Close to the curve so even an early ripple would visibly leak without clipping.
+            node.performTouchInput { down(Offset(width - 12f * density, 12f * density)) }
+            compose.mainClock.advanceTimeBy(100)
+            // Android's Material ripple draws on RenderThread, independent of Compose's clock.
+            SystemClock.sleep(140)
+            val pressed = node.captureToImage().asAndroidBitmap()
+            val interiorX = (before.width - 12f * density).roundToInt().coerceIn(1, before.width - 2)
+            val interiorY = (12f * density).roundToInt().coerceIn(1, before.height - 2)
+            val cornerX = (before.width - 1f * density).roundToInt().coerceIn(1, before.width - 2)
+            val cornerY = density.roundToInt().coerceIn(1, before.height - 2)
+            assertTrue(
+                "A real ripple should change interior pixels for $screenshotName",
+                patchDifference(before, pressed, interiorX, interiorY) > 3,
+            )
+            assertTrue(
+                "Ripple leaked outside the rounded corner for $screenshotName",
+                patchDifference(before, pressed, cornerX, cornerY) <= 2,
+            )
+            saveScreenshot(screenshotName)
+        } finally {
+            node.performTouchInput { cancel() }
+            compose.mainClock.autoAdvance = previousAutoAdvance
+            compose.waitForIdle()
+        }
+    }
+
+    private fun patchDifference(before: Bitmap, after: Bitmap, x: Int, y: Int): Int {
+        var largest = 0
+        for (dx in -1..1) for (dy in -1..1) {
+            val first = before.getPixel(x + dx, y + dy)
+            val second = after.getPixel(x + dx, y + dy)
+            for (shift in listOf(0, 8, 16)) {
+                largest = maxOf(largest, abs(((first shr shift) and 255) - ((second shr shift) and 255)))
+            }
+        }
+        return largest
+    }
+
     private fun saveScreenshot(name: String) {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val directory = context.getExternalFilesDir("ui-verification")!!
         directory.mkdirs()
-        val bitmap = compose.onRoot().captureToImage().asAndroidBitmap()
-        File(directory, name).outputStream().use {
+        compose.waitForIdle()
+        val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        val output = File(directory, name)
+        output.outputStream().use {
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
         }
+        Log.i("GraceUiVerification", "Screenshot: ${output.absolutePath}")
     }
 }

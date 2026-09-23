@@ -9,39 +9,43 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.data.LauncherApp
+import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
-import com.galaxyrio.gracelauncher.ui.components.WallpaperTextShadow
+import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 
 @Composable
 fun AppDrawerScreen(
     model: AppListModel,
     listState: LazyListState,
-    topSpace: Dp,
-    viewportHeight: Dp,
+    selectedLetter: String?,
     onLaunchApp: (LauncherApp) -> Unit,
-    onToggleFavorite: (LauncherApp) -> Unit,
+    onAppDetails: (LauncherApp) -> Unit,
+    onAppShortcuts: (LauncherApp, Rect) -> Unit,
     modifier: Modifier = Modifier,
+    rowGestures: AppRowGestures = AppRowGestures(),
+    highlightedAppKey: String? = null,
 ) {
+    val appearance = LocalLauncherAppearance.current
+    val visibleItems = remember(model, selectedLetter) { model.itemsFor(selectedLetter) }
     LazyColumn(
         state = listState,
         modifier = modifier
             .fillMaxSize()
-            .padding(start = 28.dp, end = 72.dp, top = topSpace)
+            .padding(start = 36.dp, end = 56.dp)
             .testTag("app_drawer"),
-        // Enough trailing space to bring even the last section to the same reading position.
-        contentPadding = PaddingValues(bottom = (viewportHeight - topSpace - 96.dp).coerceAtLeast(24.dp)),
+        contentPadding = PaddingValues(top = 16.dp, bottom = 24.dp),
     ) {
         items(
-            items = model.items,
+            items = visibleItems,
             key = DrawerItem::key,
             contentType = { if (it is DrawerItem.Header) "header" else "app" },
         ) { item ->
@@ -49,21 +53,24 @@ fun AppDrawerScreen(
                 is DrawerItem.Header -> Text(
                     text = item.section,
                     modifier = Modifier
-                        .height(36.dp)
-                        .padding(top = 6.dp)
+                        .height(44.dp)
+                        .padding(start = 8.dp, end = 8.dp, top = 12.dp)
                         .testTag("section:${item.section}"),
-                    color = Color.White,
+                    color = appearance.text,
                     style = TextStyle(
                         fontSize = 18.sp,
                         lineHeight = 24.sp,
                         fontWeight = FontWeight.Normal,
-                        shadow = WallpaperTextShadow,
+                        shadow = appearance.textShadow,
                     ),
                 )
                 is DrawerItem.App -> LauncherAppRow(
                     app = item.app,
                     onClick = { onLaunchApp(item.app) },
-                    onLongClick = { onToggleFavorite(item.app) },
+                    onLongClick = { onAppDetails(item.app) },
+                    onSwipeRight = { onAppShortcuts(item.app, it) },
+                    gestures = rowGestures,
+                    highlighted = highlightedAppKey == item.app.key,
                 )
             }
         }
