@@ -2,6 +2,8 @@ package com.galaxyrio.gracelauncher.ui
 
 import androidx.compose.ui.geometry.Rect
 import com.galaxyrio.gracelauncher.data.LauncherApp
+import com.galaxyrio.gracelauncher.data.LauncherFolder
+import com.galaxyrio.gracelauncher.data.LauncherSettings
 import com.galaxyrio.gracelauncher.data.LauncherShortcut
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.data.ShortcutResult
@@ -22,6 +24,10 @@ data class LauncherActions(
     val refreshAgenda: () -> Unit = {},
     val textMode: (WallpaperTextMode) -> Unit = {},
     val themedIcons: (Boolean) -> Unit = {},
+    val updateSettings: ((LauncherSettings) -> LauncherSettings) -> Unit = {},
+    val setHiddenApps: (Set<String>) -> Unit = {},
+    val saveFolder: (LauncherFolder) -> Unit = {},
+    val deleteFolder: (String) -> Unit = {},
     val shortcuts: suspend (LauncherApp) -> ShortcutResult = { ShortcutResult(ShortcutStatus.DefaultLauncherRequired) },
     val cachedShortcuts: (LauncherApp) -> ShortcutResult? = { null },
     val prepareShortcuts: (LauncherApp) -> Unit = {},

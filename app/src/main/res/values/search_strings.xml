@@ -1,0 +1,8 @@
+<resources>
+    <string name="search_apps">Search apps</string>
+    <string name="search_no_results">No matching apps</string>
+    <string name="launcher_fab_description">Search apps. Touch and hold for settings.</string>
+    <string name="drawer_folders">Folders</string>
+    <string name="add_to_folder">Add to folder</string>
+    <string name="create_app_folder">New folder in app list</string>
+</resources>

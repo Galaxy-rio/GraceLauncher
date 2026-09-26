@@ -30,6 +30,7 @@ import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -55,16 +56,21 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.res.stringResource
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
+import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
+
+// Retained desktop lists keep their scroll position under full-screen pages,
+// but must cancel the long press that opened the page before being unplaced.
+internal val LocalLauncherInputEnabled = staticCompositionLocalOf { true }
 
 @Composable
 fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp) {
     if (LocalLauncherAppearance.current.themedIcons && app.monochromeIcon != null) {
-        Box(modifier.size(size).clip(CircleShape).background(Color(0xFFCAC5FF)), contentAlignment = Alignment.Center) {
+        Box(modifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
             Image(
                 bitmap = app.monochromeIcon,
                 contentDescription = null,
-                colorFilter = ColorFilter.tint(Color(0xFF332774)),
+                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onPrimaryContainer),
                 // Adaptive monochrome drawables include the platform's safe-zone inset.
                 modifier = Modifier.size(size).graphicsLayer { scaleX = 1.4f; scaleY = 1.4f },
             )
@@ -92,6 +98,20 @@ fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp) {
 }
 
 @Composable
+fun FolderIcon(modifier: Modifier = Modifier, size: Dp = 40.dp) {
+    Box(
+        modifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
+        contentAlignment = Alignment.Center,
+    ) {
+        LauncherIcon(
+            LauncherSymbol.Folder,
+            modifier = Modifier.size(size * 0.6f),
+            tint = MaterialTheme.colorScheme.onPrimaryContainer,
+        )
+    }
+}
+
+@Composable
 fun LauncherAppRow(
     app: LauncherApp,
     onClick: () -> Unit,
@@ -101,9 +121,70 @@ fun LauncherAppRow(
     gestures: AppRowGestures = AppRowGestures(),
     highlighted: Boolean = false,
 ) {
+    LauncherRow(
+        rowKey = "app:${app.key}",
+        label = app.label,
+        onClick = { _, iconBounds -> gestures.onLaunchAt?.invoke(app, iconBounds) ?: onClick() },
+        onLongClick = onLongClick,
+        onOpen = onSwipeRight,
+        onPrepare = { gestures.onPrepare(app) },
+        onDrag = { bounds, progress -> gestures.onDrag(app, bounds, progress) },
+        onDragEnd = gestures.onDragEnd,
+        openDescription = stringResource(R.string.app_shortcuts),
+        detailsDescription = stringResource(R.string.app_actions),
+        modifier = modifier,
+        highlighted = highlighted,
+    ) { iconModifier -> AppIcon(app, modifier = iconModifier, size = 40.dp) }
+}
+
+@Composable
+fun FolderRow(
+    folder: LauncherFolder,
+    onOpen: (Rect) -> Unit,
+    onLongClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    onDrag: (Rect, Float) -> Unit = { _, _ -> },
+    onDragEnd: (Boolean) -> Unit = {},
+    highlighted: Boolean = false,
+) {
+    LauncherRow(
+        rowKey = "folder:${folder.id}",
+        label = folder.name,
+        onClick = { bounds, _ -> onOpen(bounds) },
+        onLongClick = onLongClick,
+        onOpen = onOpen,
+        onPrepare = {},
+        onDrag = onDrag,
+        onDragEnd = onDragEnd,
+        openDescription = stringResource(R.string.open_folder),
+        detailsDescription = stringResource(R.string.folder_actions),
+        modifier = modifier,
+        highlighted = highlighted,
+    ) { iconModifier -> FolderIcon(modifier = iconModifier) }
+}
+
+/** Apps and folders share hit targets, ripple clipping, and one swipe recognizer. */
+@Composable
+private fun LauncherRow(
+    rowKey: String,
+    label: String,
+    onClick: (rowBounds: Rect, iconBounds: Rect) -> Unit,
+    onLongClick: () -> Unit,
+    onOpen: (Rect) -> Unit,
+    onPrepare: () -> Unit,
+    onDrag: (Rect, Float) -> Unit,
+    onDragEnd: (Boolean) -> Unit,
+    openDescription: String,
+    detailsDescription: String,
+    modifier: Modifier,
+    highlighted: Boolean,
+    icon: @Composable (Modifier) -> Unit,
+) {
     val appearance = LocalLauncherAppearance.current
-    val currentSwipe by rememberUpdatedState(onSwipeRight)
-    val currentGestures by rememberUpdatedState(gestures)
+    val inputEnabled = LocalLauncherInputEnabled.current
+    val currentPrepare by rememberUpdatedState(onPrepare)
+    val currentDrag by rememberUpdatedState(onDrag)
+    val currentDragEnd by rememberUpdatedState(onDragEnd)
     var bounds by remember { mutableStateOf(Rect.Zero) }
     var iconBounds by remember { mutableStateOf(Rect.Zero) }
     var dragOffset by remember { mutableFloatStateOf(0f) }
@@ -112,37 +193,37 @@ fun LauncherAppRow(
     val highlight by animateColorAsState(
         // Press feedback comes from Material ripple. Only a selected details
         // row retains a subtle state layer after the pointer has been released.
-        if (highlighted) Color(0xFFCAC5FF).copy(alpha = 0.12f) else Color.Transparent,
-        animationSpec = tween(100), label = "appPressSurface",
+        if (highlighted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f) else Color.Transparent,
+        animationSpec = tween(100), label = "launcherRowPressSurface",
     )
-    val shortcutsDescription = stringResource(R.string.app_shortcuts)
-    val detailsDescription = stringResource(R.string.app_actions)
     Row(
         modifier = modifier
             .fillMaxWidth()
             .height(56.dp)
-            .testTag("app:${app.key}")
+            .testTag(rowKey)
             .onGloballyPositioned { bounds = it.boundsInWindow() }
             .clip(RoundedCornerShape(18.dp))
             .background(highlight)
-            .pointerInput(app.key) {
+            .pointerInput(rowKey, inputEnabled) {
+                if (!inputEnabled) return@pointerInput
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                    currentGestures.onPrepare(app)
+                    currentPrepare()
                 }
             }
-            .pointerInput(app.key) {
+            .pointerInput(rowKey, inputEnabled) {
+                if (!inputEnabled) return@pointerInput
                 val distance = 72.dp.toPx()
                 val commitDistance = 32.dp.toPx()
                 var revealed = false
                 detectHorizontalDragGestures(
                     onDragStart = { dragOffset = 0f; revealed = false },
                     onDragCancel = {
-                        if (revealed) currentGestures.onDragEnd(false)
+                        if (revealed) currentDragEnd(false)
                         dragOffset = 0f
                     },
                     onDragEnd = {
-                        if (revealed) currentGestures.onDragEnd(dragOffset >= commitDistance)
+                        if (revealed) currentDragEnd(dragOffset >= commitDistance)
                         dragOffset = 0f
                     },
                 ) { change, amount ->
@@ -152,29 +233,30 @@ fun LauncherAppRow(
                     dragOffset += amount
                     if (dragOffset > 0f || revealed) {
                         revealed = true
-                        currentGestures.onDrag(app, bounds, (dragOffset / distance).coerceIn(0f, 1f))
+                        currentDrag(bounds, (dragOffset / distance).coerceIn(0f, 1f))
                     }
                 }
             }
             .semantics {
                 selected = pressed || highlighted
                 customActions = listOf(
-                    CustomAccessibilityAction(shortcutsDescription) { currentSwipe(bounds); true },
+                    CustomAccessibilityAction(openDescription) { onOpen(bounds); true },
                     CustomAccessibilityAction(detailsDescription) { onLongClick(); true },
                 )
             }
             .combinedClickable(
+                enabled = inputEnabled,
                 interactionSource = interactionSource, indication = ripple(bounded = true, color = appearance.text),
-                onClick = { currentGestures.onLaunchAt?.invoke(app, iconBounds) ?: onClick() },
+                onClick = { onClick(bounds, iconBounds) },
                 onLongClick = onLongClick,
             )
             .padding(horizontal = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        AppIcon(app, modifier = Modifier.onGloballyPositioned { iconBounds = it.boundsInWindow() }, size = 40.dp)
+        icon(Modifier.onGloballyPositioned { iconBounds = it.boundsInWindow() })
         Spacer(Modifier.width(20.dp))
         Text(
-            text = app.label,
+            text = label,
             style = MaterialTheme.typography.bodyLarge.merge(
                 TextStyle(fontWeight = FontWeight.Normal, letterSpacing = 0.2.sp, shadow = appearance.textShadow),
             ),

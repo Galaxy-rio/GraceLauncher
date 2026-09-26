@@ -8,6 +8,8 @@ import androidx.compose.ui.unit.sp
 private val DefaultMaterialTypography = Typography()
 
 val Typography = Typography(
+    // Includes Expressive emphasized roles used by the flexible app bar.
+    fontFamily = LauncherFontFamily,
     displayLarge = TextStyle(
         fontFamily = LauncherFontFamily,
         fontWeight = FontWeight.Light,

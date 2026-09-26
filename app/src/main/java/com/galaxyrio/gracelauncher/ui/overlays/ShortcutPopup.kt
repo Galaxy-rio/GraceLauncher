@@ -64,10 +64,6 @@ fun ShortcutPopup(
     onDismiss: () -> Unit,
     reveal: ShortcutRevealState = remember { ShortcutRevealState() },
 ) {
-    val windowSize = LocalWindowInfo.current.containerSize
-    val density = LocalDensity.current
-    val margin = with(density) { 32.dp.roundToPx() }
-    val maxListHeight = with(density) { windowSize.height.toDp() } * 0.55f
     var retry by remember { mutableIntStateOf(0) }
     val loadShortcuts by rememberUpdatedState(actions.shortcuts)
     val initialResult = remember(app.key, hasAccess) { actions.cachedShortcuts(app) ?: ShortcutResult(ShortcutStatus.Loading) }
@@ -75,19 +71,97 @@ fun ShortcutPopup(
         // Keep cached content while refreshing; never insert a progress indicator.
         value = loadShortcuts(app)
     }
+    SwipeRevealPanel(
+        anchor = anchor,
+        reveal = reveal,
+        panelTag = "shortcut_popup",
+        title = stringResource(R.string.app_shortcuts),
+        onDismiss = onDismiss,
+    ) { maxListHeight ->
+        Row(
+            Modifier.fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .testTag("shortcut_header")
+                .clip(RoundedCornerShape(16.dp))
+                .clickable(onClick = onLaunchApp)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            LauncherIcon(LauncherSymbol.Launch, Modifier.size(19.dp))
+            Spacer(Modifier.width(10.dp))
+            Text(app.label, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        when (result.status) {
+            // Cold apps may need one binder query; keep the layout quiet.
+            ShortcutStatus.Loading -> Spacer(Modifier.height(56.dp))
+            ShortcutStatus.DefaultLauncherRequired -> {
+                Text(stringResource(R.string.shortcut_permission), Modifier.padding(horizontal = 12.dp, vertical = 12.dp), style = MaterialTheme.typography.bodyMedium)
+                TextButton(onClick = actions.requestDefaultHome) { Text(stringResource(R.string.set_default_launcher)) }
+            }
+            ShortcutStatus.Error -> {
+                Text(stringResource(R.string.shortcut_error), Modifier.padding(horizontal = 12.dp, vertical = 12.dp))
+                TextButton(onClick = { retry++ }) { Text(stringResource(R.string.retry)) }
+            }
+            ShortcutStatus.Ready -> {
+                if (result.shortcuts.isEmpty()) Text(stringResource(R.string.no_shortcuts), Modifier.padding(horizontal = 12.dp, vertical = 18.dp), style = MaterialTheme.typography.bodyMedium)
+                LazyColumn(Modifier.heightIn(max = maxListHeight)) {
+                    items(result.shortcuts, key = { it.id }) { shortcut ->
+                        var iconBounds by remember { mutableStateOf(Rect.Zero) }
+                        Row(
+                            Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("shortcut:${shortcut.id}")
+                                .clip(RoundedCornerShape(16.dp))
+                                .clickable {
+                                    actions.launchShortcutAt?.invoke(shortcut, iconBounds) ?: actions.launchShortcut(shortcut)
+                                    onDismiss()
+                                }.padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Box(Modifier.size(36.dp).onGloballyPositioned { iconBounds = it.boundsInWindow() }) {
+                                if (shortcut.icon != null) {
+                                    Image(shortcut.icon, null, Modifier.fillMaxSize())
+                                } else {
+                                    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.primaryContainer, CircleShape), contentAlignment = Alignment.Center) {
+                                        LauncherIcon(LauncherSymbol.Launch, Modifier.size(18.dp), MaterialTheme.colorScheme.onPrimaryContainer)
+                                    }
+                                }
+                            }
+                            Spacer(Modifier.width(22.dp))
+                            Text(shortcut.label, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** One same-window reveal/positioning implementation for app shortcuts and folders. */
+@Composable
+internal fun SwipeRevealPanel(
+    anchor: Rect,
+    reveal: ShortcutRevealState,
+    panelTag: String,
+    title: String,
+    onDismiss: () -> Unit,
+    content: @Composable ColumnScope.(maxListHeight: Dp) -> Unit,
+) {
+    val windowSize = LocalWindowInfo.current.containerSize
+    val density = LocalDensity.current
+    val margin = with(density) { 32.dp.roundToPx() }
+    val maxListHeight = with(density) { windowSize.height.toDp() } * 0.55f
+    val currentOnDismiss by rememberUpdatedState(onDismiss)
     val settledProgress by animateFloatAsState(
         targetValue = if (reveal.dragging) reveal.progress else if (reveal.expanded) 1f else 0f,
         animationSpec = if (reveal.dragging) snap() else spring(dampingRatio = 0.86f, stiffness = 600f),
-        label = "shortcutReveal",
-        finishedListener = { if (!reveal.dragging && !reveal.expanded) onDismiss() },
+        label = "swipePanelReveal",
+        finishedListener = { if (!reveal.dragging && !reveal.expanded) currentOnDismiss() },
     )
     // Draw direct pointer progress instead of chasing a sequence of animations.
     val progress = if (reveal.dragging) reveal.progress else settledProgress
     LaunchedEffect(reveal.dragging, reveal.expanded) {
-        if (!reveal.dragging && !reveal.expanded && reveal.progress == 0f) onDismiss()
+        if (!reveal.dragging && !reveal.expanded && reveal.progress == 0f) currentOnDismiss()
     }
     var origin by remember { mutableStateOf(Offset.Zero) }
-    val title = stringResource(R.string.app_shortcuts)
     Box(Modifier.fillMaxSize().onGloballyPositioned { origin = it.boundsInWindow().topLeft }) {
         Box(Modifier.matchParentSize().clickable(
             interactionSource = remember { MutableInteractionSource() }, indication = null,
@@ -98,70 +172,17 @@ fun ShortcutPopup(
             content = {
                 LauncherPanelTheme {
                     Surface(
-                        modifier = Modifier.testTag("shortcut_popup").semantics {
+                        modifier = Modifier.testTag(panelTag).semantics {
                             paneTitle = title
                             dismiss { onDismiss(); true }
                             progressBarRangeInfo = ProgressBarRangeInfo(progress, 0f..1f)
                         },
-                        shape = ShortcutRevealShape(progress),
+                        shape = SwipeRevealShape(progress),
                         color = MaterialTheme.colorScheme.surface,
                         shadowElevation = 16.dp * progress,
                     ) {
                         Column(Modifier.padding(horizontal = 6.dp, vertical = 12.dp)) {
-                            Row(
-                                Modifier.fillMaxWidth()
-                                    .heightIn(min = 48.dp)
-                                    .testTag("shortcut_header")
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .clickable(onClick = onLaunchApp)
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                LauncherIcon(LauncherSymbol.Launch, Modifier.size(19.dp))
-                                Spacer(Modifier.width(10.dp))
-                                Text(app.label, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                            }
-                            when (result.status) {
-                                // Cold apps may need one binder query; keep the layout quiet.
-                                ShortcutStatus.Loading -> Spacer(Modifier.height(56.dp))
-                                ShortcutStatus.DefaultLauncherRequired -> {
-                                    Text(stringResource(R.string.shortcut_permission), Modifier.padding(horizontal = 12.dp, vertical = 12.dp), style = MaterialTheme.typography.bodyMedium)
-                                    TextButton(onClick = actions.requestDefaultHome) { Text(stringResource(R.string.set_default_launcher)) }
-                                }
-                                ShortcutStatus.Error -> {
-                                    Text(stringResource(R.string.shortcut_error), Modifier.padding(horizontal = 12.dp, vertical = 12.dp))
-                                    TextButton(onClick = { retry++ }) { Text(stringResource(R.string.retry)) }
-                                }
-                                ShortcutStatus.Ready -> {
-                                    if (result.shortcuts.isEmpty()) Text(stringResource(R.string.no_shortcuts), Modifier.padding(horizontal = 12.dp, vertical = 18.dp), style = MaterialTheme.typography.bodyMedium)
-                                    LazyColumn(Modifier.heightIn(max = maxListHeight)) {
-                                        items(result.shortcuts, key = { it.id }) { shortcut ->
-                                            var iconBounds by remember { mutableStateOf(Rect.Zero) }
-                                            Row(
-                                                Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("shortcut:${shortcut.id}")
-                                                    .clip(RoundedCornerShape(16.dp))
-                                                    .clickable {
-                                                        actions.launchShortcutAt?.invoke(shortcut, iconBounds) ?: actions.launchShortcut(shortcut)
-                                                        onDismiss()
-                                                    }.padding(horizontal = 12.dp, vertical = 8.dp),
-                                                verticalAlignment = Alignment.CenterVertically,
-                                            ) {
-                                                Box(Modifier.size(36.dp).onGloballyPositioned { iconBounds = it.boundsInWindow() }) {
-                                                    if (shortcut.icon != null) {
-                                                        Image(shortcut.icon, null, Modifier.fillMaxSize())
-                                                    } else {
-                                                        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.primaryContainer, CircleShape), contentAlignment = Alignment.Center) {
-                                                            LauncherIcon(LauncherSymbol.Launch, Modifier.size(18.dp), MaterialTheme.colorScheme.onPrimaryContainer)
-                                                        }
-                                                    }
-                                                }
-                                                Spacer(Modifier.width(22.dp))
-                                                Text(shortcut.label, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            content(maxListHeight)
                         }
                     }
                 }
@@ -182,7 +203,7 @@ fun ShortcutPopup(
 }
 
 /** Reveal full-size content under a bowed right edge, without stretching icons/text. */
-private class ShortcutRevealShape(private val progress: Float) : Shape {
+private class SwipeRevealShape(private val progress: Float) : Shape {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
         val fraction = progress.coerceIn(0f, 1f)
         val right = size.width * fraction

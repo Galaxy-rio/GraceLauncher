@@ -12,7 +12,7 @@ import com.galaxyrio.gracelauncher.R
 
 enum class LauncherSymbol {
     Star, Info, Hourglass, Category, Delete, Chevron, Settings, Launch,
-    Plus, Edit, Apps, Check, Palette, Home, Search
+    Plus, Edit, Apps, Check, Palette, Home, Search, Folder
 }
 
 /** Official Material Symbols Outlined: optical size 24, weight 400, grade 0, fill 0. */
@@ -40,6 +40,7 @@ fun LauncherIcon(
                 LauncherSymbol.Palette -> R.drawable.ms_palette
                 LauncherSymbol.Home -> R.drawable.ms_home
                 LauncherSymbol.Search -> R.drawable.ms_search
+                LauncherSymbol.Folder -> R.drawable.ms_folder
             },
         ),
         // These icons decorate parent-labelled actions, which own accessibility semantics.

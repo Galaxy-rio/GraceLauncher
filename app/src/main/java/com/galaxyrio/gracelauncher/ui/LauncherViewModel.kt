@@ -5,6 +5,7 @@ import android.app.Application
 import android.content.pm.PackageManager
 import android.graphics.Rect
 import android.os.Bundle
+import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -12,7 +13,11 @@ import com.galaxyrio.gracelauncher.data.AppRepository
 import com.galaxyrio.gracelauncher.data.CalendarRepository
 import com.galaxyrio.gracelauncher.data.FavoritesStore
 import com.galaxyrio.gracelauncher.data.LauncherApp
+import com.galaxyrio.gracelauncher.data.LauncherDatabase
+import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.LauncherPreferences
+import com.galaxyrio.gracelauncher.data.LauncherSettings
+import com.galaxyrio.gracelauncher.data.LauncherSettingsRepository
 import com.galaxyrio.gracelauncher.data.LauncherShortcut
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.data.ShortcutRepository
@@ -24,8 +29,11 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 enum class ScheduleStatus {
     PermissionRequired,
@@ -45,9 +53,19 @@ data class LauncherUiState(
     val categories: Map<String, String> = emptyMap(),
     val textMode: WallpaperTextMode = WallpaperTextMode.Auto,
     val themedIcons: Boolean = true,
+    val settings: LauncherSettings = LauncherSettings(),
+    val hiddenAppKeys: Set<String> = emptySet(),
+    val folders: List<LauncherFolder> = emptyList(),
+    val isLoadingSettings: Boolean = false,
+    val settingsLoadFailed: Boolean = false,
+    val settingsSaveFailed: Boolean = false,
 ) {
+    val visibleApps: List<LauncherApp>
+        get() = if (isLoadingSettings || settingsLoadFailed) emptyList()
+        else apps.filterNot { it.key in hiddenAppKeys }
+
     val favoriteApps: List<LauncherApp>
-        get() = apps.filter { it.key in favoriteKeys }
+        get() = visibleApps.filter { it.key in favoriteKeys }
 }
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
@@ -56,11 +74,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val favoritesStore = FavoritesStore(application)
     private val preferences = LauncherPreferences(application)
     private val shortcutRepository = ShortcutRepository(application)
+    private val settingsRepository = LauncherSettingsRepository(LauncherDatabase.getInstance(application))
+    private val settingsWriteMutex = Mutex()
 
     private val _uiState = MutableStateFlow(LauncherUiState(
         categories = preferences.categories(),
         textMode = preferences.textMode,
         themedIcons = preferences.themedIcons,
+        isLoadingSettings = true,
     ))
     val uiState = _uiState.asStateFlow()
 
@@ -71,8 +92,34 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private var scheduleLoadJob: Job? = null
 
     init {
+        viewModelScope.launch {
+            settingsRepository.snapshots
+                .catch { error ->
+                    if (error is CancellationException) throw error
+                    Log.e("LauncherViewModel", "Unable to read launcher settings", error)
+                    _uiState.update { it.copy(isLoadingSettings = false, settingsLoadFailed = true) }
+                }
+                .collect { snapshot ->
+                    val previous = _uiState.value
+                    _uiState.update {
+                        it.copy(
+                            settings = snapshot.settings,
+                            hiddenAppKeys = snapshot.hiddenAppKeys,
+                            folders = snapshot.folders,
+                            isLoadingSettings = false,
+                            settingsLoadFailed = false,
+                        )
+                    }
+                    if (previous.isLoadingSettings ||
+                        previous.settings.calendarAgenda != snapshot.settings.calendarAgenda
+                    ) refreshSchedule()
+                    if (previous.isLoadingSettings || previous.hiddenAppKeys != snapshot.hiddenAppKeys) {
+                        val favorites = _uiState.value.favoriteApps
+                        viewModelScope.launch { shortcutRepository.prefetch(favorites) }
+                    }
+                }
+        }
         refreshApps()
-        refreshSchedule()
     }
 
     fun refreshApps() {
@@ -104,6 +151,13 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun refreshSchedule() {
+        if (_uiState.value.isLoadingSettings || _uiState.value.settingsLoadFailed ||
+            !_uiState.value.settings.calendarAgenda
+        ) {
+            scheduleLoadJob?.cancel()
+            _uiState.update { it.copy(events = emptyList(), scheduleStatus = ScheduleStatus.Ready) }
+            return
+        }
         val application = getApplication<Application>()
         val hasPermission = ContextCompat.checkSelfPermission(
             application,
@@ -172,6 +226,40 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun setThemedIcons(enabled: Boolean) {
         preferences.themedIcons(enabled)
         _uiState.update { it.copy(themedIcons = enabled) }
+    }
+
+    fun updateSettings(transform: (LauncherSettings) -> LauncherSettings) = persistSettings {
+        settingsRepository.mutateSettings(transform)
+    }
+
+    fun setHiddenApps(keys: Set<String>) {
+        val snapshot = keys.toSet()
+        persistSettings { settingsRepository.setHiddenApps(snapshot) }
+    }
+
+    fun saveFolder(folder: LauncherFolder) {
+        val snapshot = folder.copy(appKeys = folder.appKeys.toList())
+        persistSettings { settingsRepository.saveFolder(snapshot) }
+    }
+
+    fun deleteFolder(id: String) = persistSettings {
+        settingsRepository.deleteFolder(id)
+    }
+
+    /** Room emissions update the UI only after the operation has committed. */
+    private fun persistSettings(write: suspend () -> Unit) {
+        viewModelScope.launch {
+            settingsWriteMutex.withLock {
+                try {
+                    write()
+                    _uiState.update { it.copy(settingsSaveFailed = false) }
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    Log.e("LauncherViewModel", "Unable to save launcher settings", error)
+                    _uiState.update { it.copy(settingsSaveFailed = true) }
+                }
+            }
+        }
     }
 
     fun toggleFavorite(app: LauncherApp): Boolean {

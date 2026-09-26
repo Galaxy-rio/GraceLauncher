@@ -1,11 +1,15 @@
 package com.galaxyrio.gracelauncher.ui.components
 
+import android.graphics.Paint
+import android.graphics.Rect
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
@@ -25,9 +29,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
@@ -47,7 +53,9 @@ import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.LauncherFontFamily
+import com.galaxyrio.gracelauncher.ui.theme.launcherTypeface
 import kotlin.math.exp
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 @Stable
@@ -78,7 +86,7 @@ fun AlphabetRail(
     val state = remember { ScrubState() }
     val currentOnSelect by rememberUpdatedState(onLetterSelected)
     val currentOnScrubFinished by rememberUpdatedState(onScrubFinished)
-    val haptics = LocalHapticFeedback.current
+    val haptics by rememberUpdatedState(LocalHapticFeedback.current)
     val density = LocalDensity.current
     var railHeightPx by remember { mutableIntStateOf(1) }
     val cellHeight = height / entries.size
@@ -87,6 +95,10 @@ fun AlphabetRail(
     val basePull = with(density) { 50.dp.toPx() }
     val railWidth = with(density) { 48.dp.toPx() }
     val indicatorSize = with(density) { 46.dp.toPx() }
+    val indicatorGap = with(density) { 14.dp.toPx() }
+    // Leave room for the rail's widest glyph (or its 18dp home star),
+    // independently of the larger indicator's radius and animation scale.
+    val railGlyphHalfWidth = with(density) { maxOf(18.dp.toPx(), 14.sp.toPx()) / 2f }
     val wave by animateFloatAsState(
         targetValue = if (state.active) 1f else 0f,
         animationSpec = spring(dampingRatio = 0.86f, stiffness = 700f),
@@ -192,10 +204,14 @@ fun AlphabetRail(
                 .size(46.dp)
                 .graphicsLayer {
                     val extraPull = ((railWidth - state.fingerX) * 0.35f).coerceIn(0f, basePull)
-                    translationX = -(basePull + extraPull + indicatorSize * 0.62f) * wave
+                    // Use an edge-to-edge gap instead of a radius multiplier.
+                    // Only the shared wave pull animates, so the bubble never
+                    // crowds the rail while it appears or follows the finger.
+                    translationX = railWidth / 2f - indicatorSize - railGlyphHalfWidth - indicatorGap -
+                        (basePull + extraPull) * wave
                     translationY = (state.fingerY - indicatorSize / 2f)
                         .coerceIn(0f, (railHeightPx - indicatorSize).coerceAtLeast(0f))
-                    alpha = if (state.selectedIndex > 0) wave else 0f
+                    alpha = wave
                     scaleX = 0.85f + wave * 0.15f
                     scaleY = scaleX
                 }
@@ -203,11 +219,59 @@ fun AlphabetRail(
                 .clearAndSetSemantics {},
             contentAlignment = Alignment.Center,
         ) {
-            Text(
-                text = entries.getOrNull(state.selectedIndex).orEmpty(),
-                color = Color(0xFF202020),
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Medium,
+            Box(
+                Modifier.fillMaxSize().testTag("alphabet_indicator"),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (state.selectedIndex == 0) {
+                    LauncherIcon(
+                        LauncherSymbol.Star,
+                        Modifier.size(28.dp).testTag("alphabet_indicator_star"),
+                        tint = Color(0xFF202020),
+                    )
+                } else {
+                    CenteredIndicatorGlyph(entries.getOrNull(state.selectedIndex).orEmpty())
+                }
+            }
+        }
+    }
+}
+
+/** Center the visible glyph, not the font's asymmetric ascent/descent line box. */
+@Composable
+private fun CenteredIndicatorGlyph(letter: String) {
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val fontSize = with(density) { 28.sp.toPx() }
+    val inset = with(density) { 6.dp.toPx() }
+    val paint = remember(context) {
+        Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+            typeface = launcherTypeface(context, FontWeight.Medium.weight)
+            color = android.graphics.Color.rgb(32, 32, 32)
+        }
+    }
+    val glyphBounds = remember { Rect() }
+    Canvas(Modifier.fillMaxSize()) {
+        if (letter.isNotEmpty()) {
+            paint.textSize = fontSize
+            paint.getTextBounds(letter, 0, letter.length, glyphBounds)
+            // Keep wide letters inside the circle at larger accessibility sizes.
+            val fit = min(
+                1f,
+                min(
+                    (size.width - inset * 2f).coerceAtLeast(1f) / glyphBounds.width().coerceAtLeast(1),
+                    (size.height - inset * 2f).coerceAtLeast(1f) / glyphBounds.height().coerceAtLeast(1),
+                ),
+            )
+            if (fit < 1f) {
+                paint.textSize = fontSize * fit
+                paint.getTextBounds(letter, 0, letter.length, glyphBounds)
+            }
+            drawContext.canvas.nativeCanvas.drawText(
+                letter,
+                center.x - glyphBounds.exactCenterX(),
+                center.y - glyphBounds.exactCenterY(),
+                paint,
             )
         }
     }

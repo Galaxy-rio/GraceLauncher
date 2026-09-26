@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
@@ -28,34 +29,34 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
-import com.galaxyrio.gracelauncher.data.WallpaperTextMode
+import com.galaxyrio.gracelauncher.data.LauncherFolder
+import com.galaxyrio.gracelauncher.data.FolderPlacement
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AppIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
+import com.galaxyrio.gracelauncher.ui.settings.LauncherSettingsScreen
+import com.galaxyrio.gracelauncher.ui.search.AppSearchScreen
+import java.util.UUID
 
 sealed interface LauncherOverlay {
     data class Shortcuts(val app: LauncherApp, val anchor: Rect, val reveal: ShortcutRevealState = ShortcutRevealState()) : LauncherOverlay
     data class AppDetails(val app: LauncherApp) : LauncherOverlay
+    data class Folder(val folder: LauncherFolder, val anchor: Rect, val reveal: ShortcutRevealState = ShortcutRevealState()) : LauncherOverlay
+    data class FolderSettings(val folderId: String) : LauncherOverlay
     data class Categories(val app: LauncherApp) : LauncherOverlay
     data class CategoryApps(val name: String) : LauncherOverlay
     data object Agenda : LauncherOverlay
     data object Favorites : LauncherOverlay
     data object Settings : LauncherOverlay
+    data object Search : LauncherOverlay
 }
 
 @Composable
 internal fun LauncherPanelTheme(content: @Composable () -> Unit) {
-    MaterialTheme(
-        colorScheme = lightColorScheme(
-            primary = Color(0xFF5F5891), onPrimary = Color.White,
-            primaryContainer = Color(0xFFE6E0FF), onPrimaryContainer = Color(0xFF302952),
-            surface = Color(0xFFFFFBFF), onSurface = Color(0xFF211F29),
-            onSurfaceVariant = Color(0xFF706C76), surfaceContainerHigh = Color(0xFFF0EBF5),
-        ),
-        content = content,
-    )
+    // Panels share the chosen dynamic/custom scheme and dark mode with settings.
+    content()
 }
 
 @Composable
@@ -73,6 +74,41 @@ fun LauncherOverlays(
     onRequestCalendar: () -> Unit,
 ) {
     if (overlay == null) return
+    if (overlay == LauncherOverlay.Settings || overlay is LauncherOverlay.FolderSettings) {
+        LauncherSettingsScreen(
+            uiState = uiState, actions = actions, onBack = { onChange(null) },
+            initialPage = if (overlay is LauncherOverlay.FolderSettings) "folders" else null,
+            initialFolderId = (overlay as? LauncherOverlay.FolderSettings)?.folderId,
+        )
+        return
+    }
+    if (overlay == LauncherOverlay.Search) {
+        AppSearchScreen(
+            uiState, actions,
+            onLaunch = { onChange(null); onLaunchApp(it) },
+            onDetails = { onChange(LauncherOverlay.AppDetails(it)) },
+            onDismiss = { onChange(null) },
+        )
+        return
+    }
+    if (overlay is LauncherOverlay.Folder) {
+        val folder = uiState.folders.firstOrNull { it.id == overlay.folder.id }
+        if (folder == null) {
+            LaunchedEffect(overlay.folder.id) { onChange(null) }
+            return
+        }
+        val members = folder.appKeys.mapNotNull { key -> uiState.visibleApps.firstOrNull { it.key == key } }
+        FolderPopup(
+            folder = folder, apps = members, anchor = overlay.anchor, reveal = overlay.reveal,
+            onDismiss = { onChange(null) },
+            onLaunchApp = { app, bounds ->
+                onChange(null)
+                actions.launchAppAt?.invoke(app, bounds) ?: onLaunchApp(app)
+            },
+            onEdit = { onChange(LauncherOverlay.FolderSettings(folder.id)) },
+        )
+        return
+    }
     if (overlay is LauncherOverlay.Shortcuts) {
         ShortcutPopup(
             app = overlay.app, anchor = overlay.anchor, hasAccess = uiState.hasShortcutAccess, actions = actions,
@@ -92,7 +128,10 @@ fun LauncherOverlays(
             contentColor = MaterialTheme.colorScheme.onSurface,
             scrimColor = Color.Black.copy(alpha = 0.6f),
             dragHandle = null,
-            properties = ModalBottomSheetProperties(isAppearanceLightStatusBars = false, isAppearanceLightNavigationBars = true),
+            properties = ModalBottomSheetProperties(
+                isAppearanceLightStatusBars = false,
+                isAppearanceLightNavigationBars = MaterialTheme.colorScheme.surface.luminance() > 0.5f,
+            ),
         ) {
           // Limit the content, not the dialog's anchoring window: the sheet must
           // always meet the physical bottom edge, including on tall displays.
@@ -106,8 +145,8 @@ fun LauncherOverlays(
                 LauncherOverlay.Favorites -> FavoritesSheet(uiState, onToggleFavorite) { onChange(null) }
                 is LauncherOverlay.Categories -> CategoryPicker(overlay.app, uiState, actions) { onChange(LauncherOverlay.AppDetails(overlay.app)) }
                 is LauncherOverlay.CategoryApps -> CategoryAppsSheet(overlay.name, uiState) { onChange(null); onLaunchApp(it) }
-                LauncherOverlay.Settings -> SettingsSheet(uiState, actions, onChange)
-                is LauncherOverlay.Shortcuts -> Unit
+                LauncherOverlay.Settings, LauncherOverlay.Search, is LauncherOverlay.Shortcuts,
+                is LauncherOverlay.Folder, is LauncherOverlay.FolderSettings -> Unit
             }
           }
         }
@@ -133,7 +172,7 @@ private fun AppDetailsSheet(app: LauncherApp, actions: LauncherActions, onChange
         DetailsAction(LauncherSymbol.Star, stringResource(R.string.edit_favorites), "edit_favorites") { onChange(LauncherOverlay.Favorites) }
         DetailsAction(LauncherSymbol.Info, stringResource(R.string.app_info)) { onChange(null); actions.appInfo(app) }
         DetailsAction(LauncherSymbol.Hourglass, stringResource(R.string.screen_time)) { onChange(null); actions.screenTime(app) }
-        DetailsAction(LauncherSymbol.Category, stringResource(R.string.add_to_category)) { onChange(LauncherOverlay.Categories(app)) }
+        DetailsAction(LauncherSymbol.Folder, stringResource(R.string.add_to_folder)) { onChange(LauncherOverlay.Categories(app)) }
         DetailsAction(LauncherSymbol.Delete, stringResource(R.string.uninstall)) { onChange(null); actions.uninstall(app) }
         DetailsAction(LauncherSymbol.Chevron, stringResource(R.string.advanced), "advanced") { advanced = !advanced }
         AnimatedVisibility(advanced) {
@@ -195,7 +234,7 @@ private fun FavoritesSheet(uiState: LauncherUiState, onToggle: (LauncherApp) -> 
             TextButton(onClick = onDone) { Text(stringResource(R.string.done)) }
         }
         LazyColumn(Modifier.heightIn(max = panelWindowHeight() * 0.65f)) {
-            items(uiState.apps, key = LauncherApp::key) { app ->
+            items(uiState.visibleApps, key = LauncherApp::key) { app ->
                 val checked = app.key in uiState.favoriteKeys
                 Row(
                     Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("favorite:${app.key}")
@@ -219,23 +258,22 @@ private fun FavoritesSheet(uiState: LauncherUiState, onToggle: (LauncherApp) -> 
 @Composable
 private fun CategoryPicker(app: LauncherApp, uiState: LauncherUiState, actions: LauncherActions, onDone: () -> Unit) {
     var creating by remember { mutableStateOf(false) }
-    val categories = uiState.categories.values.distinct().sorted()
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 32.dp)) {
-        PanelTitle(stringResource(R.string.add_to_category))
+        PanelTitle(stringResource(R.string.add_to_folder))
         Text(app.label, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        categories.forEach { category ->
-            PanelAction(if (uiState.categories[app.key] == category) LauncherSymbol.Check else LauncherSymbol.Category, category) {
-                actions.categorize(app, category); onDone()
+        uiState.folders.forEach { folder ->
+            val isMember = app.key in folder.appKeys
+            PanelAction(if (isMember) LauncherSymbol.Check else LauncherSymbol.Folder, folder.name) {
+                actions.saveFolder(folder.copy(appKeys = if (isMember) folder.appKeys - app.key else folder.appKeys + app.key))
+                onDone()
             }
         }
-        PanelAction(LauncherSymbol.Plus, stringResource(R.string.new_category)) { creating = true }
-        if (app.key in uiState.categories) PanelAction(LauncherSymbol.Delete, stringResource(R.string.remove_category)) {
-            actions.categorize(app, null); onDone()
-        }
+        PanelAction(LauncherSymbol.Plus, stringResource(R.string.create_app_folder)) { creating = true }
         Spacer(Modifier.height(24.dp))
     }
-    if (creating) TextEntryDialog(stringResource(R.string.new_category), "", { creating = false }, {
-        actions.categorize(app, it); creating = false; onDone()
+    if (creating) TextEntryDialog(stringResource(R.string.create_app_folder), "", { creating = false }, {
+        actions.saveFolder(LauncherFolder(UUID.randomUUID().toString(), it, listOf(app.key), FolderPlacement.AppList))
+        creating = false; onDone()
     })
 }
 
@@ -244,7 +282,7 @@ private fun CategoryAppsSheet(name: String, uiState: LauncherUiState, onLaunch: 
     Column(Modifier.fillMaxWidth().padding(horizontal = 32.dp)) {
         PanelTitle(name)
         LazyColumn(Modifier.heightIn(max = panelWindowHeight() * 0.65f)) {
-            items(uiState.apps.filter { uiState.categories[it.key] == name }, key = LauncherApp::key) { app ->
+            items(uiState.visibleApps.filter { uiState.categories[it.key] == name }, key = LauncherApp::key) { app ->
                 Row(
                     Modifier.fillMaxWidth().heightIn(min = 56.dp)
                         .clip(RoundedCornerShape(16.dp))
@@ -257,48 +295,6 @@ private fun CategoryAppsSheet(name: String, uiState: LauncherUiState, onLaunch: 
                     Text(app.label, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-        }
-        Spacer(Modifier.height(24.dp))
-    }
-}
-
-@Composable
-private fun SettingsSheet(uiState: LauncherUiState, actions: LauncherActions, onChange: (LauncherOverlay?) -> Unit) {
-    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 32.dp)) {
-        PanelTitle(stringResource(R.string.grace_settings))
-        PanelAction(LauncherSymbol.Apps, stringResource(R.string.set_default_launcher)) { actions.requestDefaultHome() }
-        PanelAction(LauncherSymbol.Star, stringResource(R.string.edit_favorites)) { onChange(LauncherOverlay.Favorites) }
-        Spacer(Modifier.height(16.dp))
-        Text(stringResource(R.string.wallpaper_text), style = MaterialTheme.typography.titleSmall)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            WallpaperTextMode.entries.forEach { mode ->
-                val label = when (mode) {
-                    WallpaperTextMode.Auto -> R.string.text_auto
-                    WallpaperTextMode.Light -> R.string.text_light
-                    WallpaperTextMode.Dark -> R.string.text_dark
-                }
-                FilterChip(selected = uiState.textMode == mode, onClick = { actions.textMode(mode) }, label = { Text(stringResource(label)) })
-            }
-        }
-        Row(
-            Modifier.fillMaxWidth().heightIn(min = 64.dp)
-                .clip(RoundedCornerShape(16.dp))
-                .toggleable(value = uiState.themedIcons, role = Role.Switch, onValueChange = actions.themedIcons)
-                .padding(horizontal = 12.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.themed_icons))
-                Text(stringResource(R.string.themed_icons_description), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            Spacer(Modifier.width(12.dp))
-            Switch(checked = uiState.themedIcons, onCheckedChange = null)
-        }
-        val categories = uiState.apps.mapNotNull { uiState.categories[it.key] }.distinct().sorted()
-        if (categories.isNotEmpty()) {
-            Spacer(Modifier.height(16.dp))
-            Text(stringResource(R.string.categories), style = MaterialTheme.typography.titleSmall)
-            categories.forEach { category -> PanelAction(LauncherSymbol.Category, category) { onChange(LauncherOverlay.CategoryApps(category)) } }
         }
         Spacer(Modifier.height(24.dp))
     }

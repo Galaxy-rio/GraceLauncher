@@ -38,11 +38,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
+import com.galaxyrio.gracelauncher.data.LauncherFolder
+import com.galaxyrio.gracelauncher.data.FolderPlacement
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.data.nextVisibleEvent
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
+import com.galaxyrio.gracelauncher.ui.components.FolderRow
 import com.galaxyrio.gracelauncher.ui.components.eventRemainingText
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.LauncherFontFamily
@@ -65,6 +68,10 @@ fun HomeScreen(
     modifier: Modifier = Modifier,
     rowGestures: AppRowGestures = AppRowGestures(),
     highlightedAppKey: String? = null,
+    onOpenFolder: (LauncherFolder, Rect) -> Unit = { _, _ -> },
+    onEditFolder: (LauncherFolder) -> Unit = {},
+    onFolderDrag: (LauncherFolder, Rect, Float) -> Unit = { _, _, _ -> },
+    onFolderDragEnd: (Boolean) -> Unit = {},
 ) {
     val now by produceState(initialValue = Instant.now()) {
         while (true) {
@@ -72,10 +79,11 @@ fun HomeScreen(
             delay(60_000 - System.currentTimeMillis() % 60_000)
         }
     }
-    val event = nextVisibleEvent(uiState.events, now)
+    val event = if (uiState.settings.calendarAgenda) nextVisibleEvent(uiState.events, now) else null
     val favorites = uiState.favoriteApps
+    val folders = uiState.folders.filter { it.placement == FolderPlacement.Favorites }
     val configuration = LocalConfiguration.current
-    val estimatedHeight = topSpace + (146f * configuration.fontScale).dp + (favorites.size * 56).dp + 72.dp
+    val estimatedHeight = topSpace + (146f * configuration.fontScale).dp + ((favorites.size + folders.size) * 56).dp + 72.dp
     val canScroll = estimatedHeight > viewportHeight
 
     LazyColumn(
@@ -93,6 +101,7 @@ fun HomeScreen(
                 event = event,
                 onDateClick = onDateClick,
                 onClockClick = onClockClick,
+                showBattery = uiState.settings.showBatteryPercentage,
             )
             Spacer(Modifier.height(12.dp))
         }
@@ -106,6 +115,15 @@ fun HomeScreen(
                 highlighted = highlightedAppKey == app.key,
             )
         }
+        items(folders, key = { "folder:${it.id}" }, contentType = { "folder" }) { folder ->
+            FolderRow(
+                folder = folder,
+                onOpen = { onOpenFolder(folder, it) },
+                onLongClick = { onEditFolder(folder) },
+                onDrag = { bounds, progress -> onFolderDrag(folder, bounds, progress) },
+                onDragEnd = onFolderDragEnd,
+            )
+        }
     }
 }
 
@@ -115,9 +133,10 @@ private fun DateHeader(
     event: ScheduleEvent?,
     onDateClick: () -> Unit,
     onClockClick: () -> Unit,
+    showBattery: Boolean,
 ) {
     val appearance = LocalLauncherAppearance.current
-    val battery = rememberBatteryPercent()
+    val battery = if (showBattery) rememberBatteryPercent() else null
     val context = LocalContext.current
     val locale = LocalConfiguration.current.locales[0]
     val clockPattern = if (DateFormat.is24HourFormat(context)) "H:mm" else "h:mm"

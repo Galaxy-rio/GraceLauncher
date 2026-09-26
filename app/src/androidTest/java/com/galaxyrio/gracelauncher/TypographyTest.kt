@@ -23,10 +23,12 @@ import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.longClick
 import androidx.compose.ui.test.onAllNodesWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.text.TextLayoutResult
@@ -70,9 +72,14 @@ class TypographyTest {
                 "titleLarge" to titleLarge, "titleMedium" to titleMedium, "titleSmall" to titleSmall,
                 "bodyLarge" to bodyLarge, "bodyMedium" to bodyMedium, "bodySmall" to bodySmall,
                 "labelLarge" to labelLarge, "labelMedium" to labelMedium, "labelSmall" to labelSmall,
+                "displayLargeEmphasized" to displayLargeEmphasized, "displayMediumEmphasized" to displayMediumEmphasized, "displaySmallEmphasized" to displaySmallEmphasized,
+                "headlineLargeEmphasized" to headlineLargeEmphasized, "headlineMediumEmphasized" to headlineMediumEmphasized, "headlineSmallEmphasized" to headlineSmallEmphasized,
+                "titleLargeEmphasized" to titleLargeEmphasized, "titleMediumEmphasized" to titleMediumEmphasized, "titleSmallEmphasized" to titleSmallEmphasized,
+                "bodyLargeEmphasized" to bodyLargeEmphasized, "bodyMediumEmphasized" to bodyMediumEmphasized, "bodySmallEmphasized" to bodySmallEmphasized,
+                "labelLargeEmphasized" to labelLargeEmphasized, "labelMediumEmphasized" to labelMediumEmphasized, "labelSmallEmphasized" to labelSmallEmphasized,
             )
         }
-        assertEquals(15, roles.size)
+        assertEquals(30, roles.size)
         roles.forEach { (name, style) -> assertEquals(name, LauncherFontFamily, style.fontFamily) }
     }
 
@@ -97,15 +104,19 @@ class TypographyTest {
     }
 
     @Test
-    fun settingsPanelInheritsFamilyIncludingSmallTextAndFilterChips() {
+    fun fullScreenSettingsInheritFamilyIncludingSmallTextAndSegmentedItems() {
         showLauncher()
-        compose.onNodeWithTag("launcher_settings").performClick()
-        awaitSurface("launcher_sheet")
-        assertTextFamily(compose.onNodeWithText(string(R.string.grace_settings), useUnmergedTree = true))
-        assertTextFamily(compose.onNodeWithText(string(R.string.wallpaper_text), useUnmergedTree = true))
-        assertTextFamily(compose.onNodeWithText(string(R.string.text_auto), useUnmergedTree = true))
-        val description = compose.onNodeWithText(string(R.string.themed_icons_description), useUnmergedTree = true)
-        description.performScrollTo()
+        compose.onNodeWithTag("launcher_fab").performTouchInput { longClick() }
+        awaitSurface("settings_root")
+        // The flexible app bar keeps both expanded and collapsed titles composed.
+        val titles = compose.onAllNodesWithText(string(R.string.settings_title), useUnmergedTree = true)
+        assertTrue(titles.fetchSemanticsNodes().isNotEmpty())
+        repeat(titles.fetchSemanticsNodes().size) { assertTextFamily(titles[it]) }
+        assertTextFamily(compose.onNodeWithText(string(R.string.settings_productivity_summary), useUnmergedTree = true))
+        compose.onNodeWithTag("settings_category_themes").performClick()
+        assertTextFamily(compose.onNodeWithText(string(R.string.settings_dynamic_colors_summary), useUnmergedTree = true))
+        compose.onNodeWithTag("settings_list").performScrollToNode(hasTestTag("settings_themed_icons"))
+        val description = compose.onNodeWithText(string(R.string.settings_themed_icons_summary), useUnmergedTree = true)
         assertTextFamily(description)
         saveScreenshot("typography-settings.png")
     }

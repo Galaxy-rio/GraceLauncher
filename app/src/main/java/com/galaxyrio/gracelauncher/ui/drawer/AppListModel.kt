@@ -2,6 +2,10 @@ package com.galaxyrio.gracelauncher.ui.drawer
 
 import com.galaxyrio.gracelauncher.data.LauncherAlphabet
 import com.galaxyrio.gracelauncher.data.LauncherApp
+import com.galaxyrio.gracelauncher.data.LauncherFolder
+import com.galaxyrio.gracelauncher.data.FolderPlacement
+
+const val FolderSection = "◇"
 
 sealed interface DrawerItem {
     val key: String
@@ -15,21 +19,32 @@ sealed interface DrawerItem {
         override val key = app.key
         override val section = app.section
     }
+    data class Folder(val folder: LauncherFolder) : DrawerItem {
+        override val key = "folder:${folder.id}"
+        override val section = FolderSection
+    }
 }
 
-class AppListModel(apps: List<LauncherApp>) {
+class AppListModel(apps: List<LauncherApp>, folders: List<LauncherFolder> = emptyList()) {
     private val grouped = apps.groupBy(LauncherApp::section)
-    val letters: List<String> = LauncherAlphabet.filter(grouped::containsKey)
+    private val appLetters = LauncherAlphabet.filter(grouped::containsKey)
+    private val drawerFolders = folders.filter { it.placement == FolderPlacement.AppList }
+    val letters: List<String> = appLetters + if (drawerFolders.isEmpty()) emptyList() else listOf(FolderSection)
     val items: List<DrawerItem> = buildList {
-        letters.forEach { letter ->
+        appLetters.forEach { letter ->
             add(DrawerItem.Header(letter))
             grouped.getValue(letter).forEach { add(DrawerItem.App(it)) }
         }
+        if (drawerFolders.isNotEmpty()) {
+            add(DrawerItem.Header(FolderSection))
+            drawerFolders.forEach { add(DrawerItem.Folder(it)) }
+        }
     }
-    fun itemsFor(letter: String?): List<DrawerItem> =
-        if (letter == null) items else items.filter { it.section == letter }
+    private val sectionIndices = items.mapIndexedNotNull { index, item ->
+        (item as? DrawerItem.Header)?.let { it.section to index }
+    }.toMap()
 
-    /** Position in the complete list to restore when the transient index selection ends. */
+    /** Every index refers to the same complete list, even while other groups are hidden. */
     fun indexOfSection(letter: String): Int =
-        items.indexOfFirst { it is DrawerItem.Header && it.section == letter }.coerceAtLeast(0)
+        sectionIndices[letter] ?: 0
 }

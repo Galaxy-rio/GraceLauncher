@@ -18,6 +18,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,7 +29,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.FloatingActionButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -42,12 +47,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
@@ -61,9 +71,11 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.net.toUri
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
+import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.ui.components.AlphabetRail
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
+import com.galaxyrio.gracelauncher.ui.components.LocalLauncherInputEnabled
 import com.galaxyrio.gracelauncher.platform.AppLaunchTransition
 import com.galaxyrio.gracelauncher.ui.overlays.ShortcutRevealState
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
@@ -76,6 +88,7 @@ import com.galaxyrio.gracelauncher.ui.overlays.LauncherOverlays
 import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherAppearance
+import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherHaptics
 import java.time.Duration
 import java.time.Instant
 import kotlinx.coroutines.delay
@@ -93,6 +106,14 @@ fun LauncherRoute(viewModel: LauncherViewModel) {
     ) { viewModel.refreshSchedule() }
     val homeRoleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         viewModel.refreshApps()
+    }
+    LaunchedEffect(uiState.settingsSaveFailed, uiState.settingsLoadFailed) {
+        val error = when {
+            uiState.settingsLoadFailed -> R.string.settings_storage_load_error
+            uiState.settingsSaveFailed -> R.string.settings_storage_save_error
+            else -> null
+        }
+        if (error != null) Toast.makeText(context, error, Toast.LENGTH_LONG).show()
     }
 
     LaunchedEffect(viewModel, lifecycle) {
@@ -153,6 +174,16 @@ fun LauncherRoute(viewModel: LauncherViewModel) {
             refreshAgenda = viewModel::refreshSchedule,
             textMode = viewModel::setTextMode,
             themedIcons = viewModel::setThemedIcons,
+            updateSettings = { change ->
+                val enableCalendar = change(uiState.settings).calendarAgenda && !uiState.settings.calendarAgenda
+                viewModel.updateSettings(change)
+                if (enableCalendar) {
+                    permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+                }
+            },
+            setHiddenApps = viewModel::setHiddenApps,
+            saveFolder = viewModel::saveFolder,
+            deleteFolder = viewModel::deleteFolder,
             shortcuts = viewModel::loadShortcuts,
             cachedShortcuts = viewModel::cachedShortcuts,
             prepareShortcuts = viewModel::prepareShortcuts,
@@ -189,17 +220,20 @@ internal fun LauncherScreen(
     var drawerOpen by rememberSaveable { mutableStateOf(initialDrawerOpen) }
     var selectedLetter by remember { mutableStateOf<String?>(null) }
     var overlay by remember { mutableStateOf<LauncherOverlay?>(null) }
-    val model = remember(uiState.apps) { AppListModel(uiState.apps) }
+    val visibleApps = uiState.visibleApps
+    val model = remember(visibleApps, uiState.folders) { AppListModel(visibleApps, uiState.folders) }
     val drawerState = rememberLazyListState()
-    val sectionState = rememberLazyListState()
     val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons)
     val view = LocalView.current
     val context = LocalContext.current
+    val haptics = rememberLauncherHaptics(uiState.settings.allowHapticFeedback)
+    val fullScreen = overlay == LauncherOverlay.Settings || overlay == LauncherOverlay.Search || overlay is LauncherOverlay.FolderSettings
+    val darkSystemIcons = if (fullScreen) MaterialTheme.colorScheme.surface.luminance() > 0.5f else appearance.darkText
     SideEffect {
         (context as? Activity)?.window?.let { window ->
             WindowInsetsControllerCompat(window, view).apply {
-                isAppearanceLightStatusBars = appearance.darkText
-                isAppearanceLightNavigationBars = appearance.darkText
+                isAppearanceLightStatusBars = darkSystemIcons
+                isAppearanceLightNavigationBars = darkSystemIcons
             }
         }
     }
@@ -235,9 +269,8 @@ internal fun LauncherScreen(
     }
 
     val finishScrubbing: () -> Unit = {
-        selectedLetter?.let { letter ->
-            drawerState.requestScrollToItem(model.indexOfSection(letter))
-        }
+        // The list is already positioned. Only remove the temporary mask;
+        // scrolling here would cause a jump between the held and released views.
         selectedLetter = null
     }
     val rowGestures = AppRowGestures(
@@ -259,12 +292,29 @@ internal fun LauncherScreen(
         },
     )
     val highlightedAppKey = (overlay as? LauncherOverlay.AppDetails)?.app?.key
-    CompositionLocalProvider(LocalLauncherAppearance provides appearance) {
+    val openFolder: (LauncherFolder, Rect) -> Unit = { folder, bounds -> overlay = LauncherOverlay.Folder(folder, bounds) }
+    val editFolder: (LauncherFolder) -> Unit = { overlay = LauncherOverlay.FolderSettings(it.id) }
+    val dragFolder: (LauncherFolder, Rect, Float) -> Unit = { folder, bounds, progress ->
+        val current = overlay as? LauncherOverlay.Folder
+        if (current?.folder?.id == folder.id) current.reveal.progress = progress
+        else overlay = LauncherOverlay.Folder(folder, bounds, ShortcutRevealState(progress, dragging = true))
+    }
+    val endFolderDrag: (Boolean) -> Unit = { commit ->
+        (overlay as? LauncherOverlay.Folder)?.reveal?.let { it.expanded = commit; it.dragging = false }
+    }
+    val popupReveal = when (val current = overlay) {
+        is LauncherOverlay.Shortcuts -> current.reveal
+        is LauncherOverlay.Folder -> current.reveal
+        else -> null
+    }
+    CompositionLocalProvider(LocalLauncherAppearance provides appearance, LocalHapticFeedback provides haptics) {
+      CompositionLocalProvider(LocalLauncherInputEnabled provides !fullScreen) {
       BoxWithConstraints(
-        modifier = Modifier.fillMaxSize().background(scrim).safeDrawingPadding()
-            .then(if ((overlay as? LauncherOverlay.Shortcuts)?.reveal?.dragging == false) Modifier.clearAndSetSemantics {} else Modifier),
+        modifier = Modifier.fillMaxSize().retainedPage(visible = !fullScreen).background(scrim).safeDrawingPadding()
+            .then(if (popupReveal?.dragging == false) Modifier.clearAndSetSemantics {} else Modifier),
     ) {
         val homeTop = (maxHeight * if (maxHeight < 600.dp) 0.12f else 0.32f).coerceIn(24.dp, 320.dp)
+        val drawerTop = maxHeight * 0.28f
         val railHeight = ((model.letters.size + 1) * 18).dp.coerceAtMost(maxHeight * 0.65f)
         val railTop = (maxHeight * 0.39f).coerceAtMost(maxHeight - railHeight - 72.dp).coerceAtLeast(0.dp)
 
@@ -279,21 +329,30 @@ internal fun LauncherScreen(
             onClockClick = onClockClick,
             rowGestures = rowGestures,
             highlightedAppKey = highlightedAppKey,
+            onOpenFolder = openFolder,
+            onEditFolder = editFolder,
+            onFolderDrag = dragFolder,
+            onFolderDragEnd = endFolderDrag,
             modifier = Modifier.retainedPage(visible = !drawerOpen)
                 .graphicsLayer { alpha = 1f - drawerAlpha.value },
         )
 
-        // A held index temporarily isolates one group; releasing restores the
-        // continuous full list at that group's header, not a separate page.
+        // One complete list and one scroll state for both held and released
+        // views. Content padding anchors headings without reserving a viewport.
         AppDrawerScreen(
             model = model,
-            listState = if (selectedLetter == null) drawerState else sectionState,
+            listState = drawerState,
             selectedLetter = selectedLetter,
+            topSpace = drawerTop,
             onLaunchApp = onLaunchApp,
             onAppDetails = { overlay = LauncherOverlay.AppDetails(it) },
             onAppShortcuts = { app, bounds -> overlay = LauncherOverlay.Shortcuts(app, bounds) },
             rowGestures = rowGestures,
             highlightedAppKey = highlightedAppKey,
+            onOpenFolder = openFolder,
+            onEditFolder = editFolder,
+            onFolderDrag = dragFolder,
+            onFolderDragEnd = endFolderDrag,
             modifier = Modifier.retainedPage(visible = drawerOpen)
                 .graphicsLayer { alpha = drawerAlpha.value },
         )
@@ -308,7 +367,10 @@ internal fun LauncherScreen(
                     selectedLetter = null
                 } else {
                     selectedLetter = letter
-                    sectionState.requestScrollToItem(0)
+                    // Offset zero uses the list's leading content padding.
+                    // LazyColumn clamps this request when the remaining apps
+                    // cannot fill the viewport; do not append phantom space.
+                    drawerState.requestScrollToItem(model.indexOfSection(letter))
                     drawerOpen = true
                 }
             },
@@ -316,16 +378,30 @@ internal fun LauncherScreen(
             onScrubFinished = finishScrubbing,
         )
         if (!drawerOpen) {
-            val settingsDescription = stringResource(R.string.grace_settings)
-            FloatingActionButton(
-                onClick = { overlay = LauncherOverlay.Settings },
+            val fabDescription = stringResource(R.string.launcher_fab_description)
+            val settingsLabel = stringResource(R.string.grace_settings)
+            Surface(
                 modifier = Modifier.align(Alignment.BottomEnd).padding(end = 56.dp, bottom = 22.dp).size(54.dp)
-                    .testTag("launcher_settings").semantics { contentDescription = settingsDescription },
-                shape = CircleShape, containerColor = Color(0xFF9087D3), contentColor = Color.White,
+                    .testTag("launcher_fab").clip(CircleShape)
+                    .combinedClickable(
+                        enabled = !fullScreen,
+                        interactionSource = remember { MutableInteractionSource() }, indication = ripple(),
+                        role = Role.Button, onLongClickLabel = settingsLabel,
+                        onClick = { overlay = LauncherOverlay.Search },
+                        onLongClick = { overlay = LauncherOverlay.Settings },
+                    ).semantics { contentDescription = fabDescription },
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.primary,
+                shadowElevation = 6.dp,
             ) {
-                LauncherIcon(LauncherSymbol.Settings, Modifier.size(25.dp))
+                Box(contentAlignment = Alignment.Center) {
+                    // Use the app's real foreground path, without its adaptive background.
+                    Icon(painterResource(R.drawable.ic_launcher_foreground), null, Modifier.size(48.dp))
+                }
             }
         }
+      }
       }
       LauncherOverlays(
           overlay = overlay, uiState = uiState, actions = actions, onChange = { overlay = it },

@@ -175,12 +175,12 @@ class LauncherInteractionTest {
     }
 
     @Test
-    fun normalDrawerStartsAtTheTopAndContainsAllSections() {
+    fun normalDrawerReservesLeadingSpaceAndContainsAllSections() {
         showLauncher(initialDrawerOpen = true)
         listOf("A", "C", "Z").forEach { compose.onNodeWithTag("section:$it").assertIsDisplayed() }
         val first = compose.onNodeWithTag("section:A").fetchSemanticsNode().boundsInRoot
         val viewport = compose.onNodeWithTag("app_drawer").fetchSemanticsNode().boundsInRoot
-        assertTrue("Drawer should not reserve its top half", first.top - viewport.top < viewport.height * 0.1f)
+        assertTrue("Drawer should start below a scrollable leading area", first.top - viewport.top in viewport.height * 0.27f..viewport.height * 0.34f)
         compose.onNodeWithTag("alphabet:C").performClick()
         // An accessibility click has no held finger: it jumps into the complete list.
         listOf("A", "C", "Z").forEach { compose.onNodeWithTag("section:$it").assertIsDisplayed() }
@@ -203,7 +203,7 @@ class LauncherInteractionTest {
     }
 
     @Test
-    fun homeVerticalGesturesNeverOpenDrawerAndFloatingButtonOpensSettings() {
+    fun homeVerticalGesturesNeverOpenDrawerAndFloatingButtonLongPressOpensSettings() {
         showLauncher()
         compose.onNodeWithTag("home_content").performTouchInput { swipeUp() }
         compose.onNodeWithTag("home_clock").assertIsDisplayed()
@@ -212,9 +212,10 @@ class LauncherInteractionTest {
         compose.onNodeWithTag("home_clock").assertIsDisplayed()
         compose.onNodeWithTag("app_drawer").assertIsNotDisplayed()
         compose.onNodeWithTag("open_all_apps").assertDoesNotExist()
-        compose.onNodeWithTag("launcher_settings").performClick()
+        compose.onNodeWithTag("launcher_fab").performTouchInput { longClick() }
         compose.onNodeWithTag("app_drawer").assertIsNotDisplayed()
-        compose.onNodeWithText("Grace settings").assertIsDisplayed()
+        compose.onNodeWithTag("settings_root").assertIsDisplayed()
+        compose.onNodeWithTag("launcher_sheet").assertDoesNotExist()
     }
 
     @Test
@@ -358,9 +359,9 @@ class LauncherInteractionTest {
     @Test
     fun settingsActionRippleChangesInteriorPixelsButStaysInsideRoundedCorners() {
         showLauncher()
-        compose.onNodeWithTag("launcher_settings").performClick()
-        awaitSurface("launcher_sheet")
-        assertRoundedRipple(compose.onNodeWithTag("Edit favorites"), "ripple-settings-action.png")
+        compose.onNodeWithTag("launcher_fab").performTouchInput { longClick() }
+        awaitSurface("settings_root")
+        assertRoundedRipple(compose.onNodeWithTag("settings_category_productivity"), "ripple-settings-action.png")
     }
 
     @Test
@@ -375,7 +376,7 @@ class LauncherInteractionTest {
     @Test
     fun floatingButtonRippleStaysInsideItsCircularSurface() {
         showLauncher()
-        assertRoundedRipple(compose.onNodeWithTag("launcher_settings"), "ripple-settings-fab.png")
+        assertRoundedRipple(compose.onNodeWithTag("launcher_fab"), "ripple-settings-fab.png")
     }
 
     @Test
@@ -385,7 +386,7 @@ class LauncherInteractionTest {
         compose.onNodeWithTag("app:${apps[1].key}").performTouchInput { longClick() }
         awaitSurface("app_details")
         compose.onNodeWithTag("app_details").assertIsDisplayed()
-        listOf("Edit favorites", "App info", "Screen time", "Add to category", "Uninstall", "Advanced", "Grace settings").forEach {
+        listOf("Edit favorites", "App info", "Screen time", "Add to folder", "Uninstall", "Advanced", "Grace settings").forEach {
             compose.onNodeWithText(it).assertIsDisplayed()
         }
         assertEquals(0, toggles)
@@ -414,7 +415,7 @@ class LauncherInteractionTest {
         saveScreenshot("details-aligned.png")
 
         listOf(
-            "edit_favorites", "App info", "Screen time", "Add to category", "Uninstall",
+            "edit_favorites", "App info", "Screen time", "Add to folder", "Uninstall",
             "advanced", "Rename app", "Open store page", "grace_settings",
         ).forEach { tag ->
             // Keep the target visible on shorter screens; horizontal anchors do not scroll.
