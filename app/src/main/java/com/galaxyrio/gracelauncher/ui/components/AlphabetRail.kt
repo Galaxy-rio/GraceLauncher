@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
+import com.galaxyrio.gracelauncher.ui.theme.LauncherFontFamily
 import kotlin.math.exp
 import kotlin.math.roundToInt
 
@@ -173,6 +174,7 @@ fun AlphabetRail(
                         text = letter,
                         color = color,
                         style = TextStyle(
+                            fontFamily = LauncherFontFamily,
                             fontSize = 14.sp,
                             lineHeight = 16.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,

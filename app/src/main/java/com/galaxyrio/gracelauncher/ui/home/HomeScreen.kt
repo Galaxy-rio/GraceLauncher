@@ -45,6 +45,7 @@ import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
 import com.galaxyrio.gracelauncher.ui.components.eventRemainingText
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
+import com.galaxyrio.gracelauncher.ui.theme.LauncherFontFamily
 import com.galaxyrio.gracelauncher.ui.theme.rememberBatteryPercent
 import java.text.SimpleDateFormat
 import java.time.Instant
@@ -137,6 +138,7 @@ private fun DateHeader(
                 .padding(horizontal = 8.dp),
             color = appearance.text,
             style = TextStyle(
+                fontFamily = LauncherFontFamily,
                 fontSize = 72.sp,
                 lineHeight = 82.sp,
                 fontWeight = FontWeight.Thin,
@@ -156,6 +158,7 @@ private fun DateHeader(
                 .padding(horizontal = 8.dp, vertical = 2.dp),
             color = appearance.text,
             style = TextStyle(
+                fontFamily = LauncherFontFamily,
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
                 fontWeight = FontWeight.Medium,
@@ -175,6 +178,7 @@ private fun ScheduleLine(event: ScheduleEvent, now: Instant, onClick: () -> Unit
     val appearance = LocalLauncherAppearance.current
     val remaining = eventRemainingText(event, now)
     val style = TextStyle(
+        fontFamily = LauncherFontFamily,
         fontSize = 14.sp,
         lineHeight = 20.sp,
         fontWeight = FontWeight.Medium,

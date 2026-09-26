@@ -21,6 +21,7 @@ import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
+import com.galaxyrio.gracelauncher.ui.theme.LauncherFontFamily
 
 @Composable
 fun AppDrawerScreen(
@@ -58,6 +59,7 @@ fun AppDrawerScreen(
                         .testTag("section:${item.section}"),
                     color = appearance.text,
                     style = TextStyle(
+                        fontFamily = LauncherFontFamily,
                         fontSize = 18.sp,
                         lineHeight = 24.sp,
                         fontWeight = FontWeight.Normal,

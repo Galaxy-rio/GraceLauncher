@@ -114,31 +114,37 @@ fun LauncherOverlays(
     }
 }
 
+private val DetailsContentInset = 12.dp
+private val DetailsIconColumnWidth = 34.dp
+private val DetailsIconTextSpacing = 20.dp
+
 @Composable
 private fun AppDetailsSheet(app: LauncherApp, actions: LauncherActions, onChange: (LauncherOverlay?) -> Unit) {
     var advanced by remember(app.key) { mutableStateOf(false) }
     var rename by remember(app.key) { mutableStateOf(false) }
-    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 32.dp, end = 32.dp, top = 22.dp, bottom = 12.dp).testTag("app_details")) {
-        Row(Modifier.padding(bottom = 8.dp).heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-            AppIcon(app, size = 34.dp)
-            Spacer(Modifier.width(20.dp))
-            Text(app.label, fontSize = 25.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    // Extend touch surfaces into the gutter, keeping their inset content on the
+    // same two columns as the header (icon center and text leading edge).
+    Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 12.dp).testTag("app_details")) {
+        Row(Modifier.padding(horizontal = DetailsContentInset).padding(bottom = 8.dp).heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+            AppIcon(app, modifier = Modifier.testTag("app_details_icon"), size = DetailsIconColumnWidth)
+            Spacer(Modifier.width(DetailsIconTextSpacing))
+            Text(app.label, modifier = Modifier.testTag("app_details_title"), fontSize = 25.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        PanelAction(LauncherSymbol.Star, stringResource(R.string.edit_favorites), "edit_favorites") { onChange(LauncherOverlay.Favorites) }
-        PanelAction(LauncherSymbol.Info, stringResource(R.string.app_info)) { onChange(null); actions.appInfo(app) }
-        PanelAction(LauncherSymbol.Hourglass, stringResource(R.string.screen_time)) { onChange(null); actions.screenTime(app) }
-        PanelAction(LauncherSymbol.Category, stringResource(R.string.add_to_category)) { onChange(LauncherOverlay.Categories(app)) }
-        PanelAction(LauncherSymbol.Delete, stringResource(R.string.uninstall)) { onChange(null); actions.uninstall(app) }
-        PanelAction(LauncherSymbol.Chevron, stringResource(R.string.advanced), "advanced") { advanced = !advanced }
+        DetailsAction(LauncherSymbol.Star, stringResource(R.string.edit_favorites), "edit_favorites") { onChange(LauncherOverlay.Favorites) }
+        DetailsAction(LauncherSymbol.Info, stringResource(R.string.app_info)) { onChange(null); actions.appInfo(app) }
+        DetailsAction(LauncherSymbol.Hourglass, stringResource(R.string.screen_time)) { onChange(null); actions.screenTime(app) }
+        DetailsAction(LauncherSymbol.Category, stringResource(R.string.add_to_category)) { onChange(LauncherOverlay.Categories(app)) }
+        DetailsAction(LauncherSymbol.Delete, stringResource(R.string.uninstall)) { onChange(null); actions.uninstall(app) }
+        DetailsAction(LauncherSymbol.Chevron, stringResource(R.string.advanced), "advanced") { advanced = !advanced }
         AnimatedVisibility(advanced) {
-            Column(Modifier.padding(start = 8.dp)) {
-                PanelAction(LauncherSymbol.Edit, stringResource(R.string.rename_app)) { rename = true }
-                PanelAction(LauncherSymbol.Launch, stringResource(R.string.store_page)) { onChange(null); actions.storePage(app) }
-                Text(app.packageName, Modifier.padding(start = 46.dp, bottom = 14.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column {
+                DetailsAction(LauncherSymbol.Edit, stringResource(R.string.rename_app)) { rename = true }
+                DetailsAction(LauncherSymbol.Launch, stringResource(R.string.store_page)) { onChange(null); actions.storePage(app) }
+                Text(app.packageName, Modifier.padding(start = DetailsContentInset + DetailsIconColumnWidth + DetailsIconTextSpacing, end = DetailsContentInset, bottom = 14.dp).testTag("app_details_package"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
-        HorizontalDivider(Modifier.padding(top = 6.dp, bottom = 8.dp), thickness = 1.dp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-        PanelAction(LauncherSymbol.Settings, stringResource(R.string.grace_settings), "grace_settings") { onChange(LauncherOverlay.Settings) }
+        HorizontalDivider(Modifier.padding(horizontal = DetailsContentInset).padding(top = 6.dp, bottom = 8.dp), thickness = 1.dp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+        DetailsAction(LauncherSymbol.Settings, stringResource(R.string.grace_settings), "grace_settings") { onChange(LauncherOverlay.Settings) }
     }
     if (rename) TextEntryDialog(
         title = stringResource(R.string.rename_app), initial = app.label,
@@ -148,7 +154,19 @@ private fun AppDetailsSheet(app: LauncherApp, actions: LauncherActions, onChange
 }
 
 @Composable
-internal fun PanelAction(symbol: LauncherSymbol, label: String, tag: String = label, onClick: () -> Unit) {
+private fun DetailsAction(symbol: LauncherSymbol, label: String, tag: String = label, onClick: () -> Unit) {
+    PanelAction(symbol, label, tag, iconColumnWidth = DetailsIconColumnWidth, iconTextSpacing = DetailsIconTextSpacing, onClick = onClick)
+}
+
+@Composable
+internal fun PanelAction(
+    symbol: LauncherSymbol,
+    label: String,
+    tag: String = label,
+    iconColumnWidth: Dp = 23.dp,
+    iconTextSpacing: Dp = 23.dp,
+    onClick: () -> Unit,
+) {
     Row(
         Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag(tag)
             .clip(RoundedCornerShape(16.dp))
@@ -156,9 +174,11 @@ internal fun PanelAction(symbol: LauncherSymbol, label: String, tag: String = la
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        LauncherIcon(symbol, Modifier.size(23.dp))
-        Spacer(Modifier.width(23.dp))
-        Text(label, fontSize = 16.sp, letterSpacing = 0.2.sp)
+        Box(Modifier.width(iconColumnWidth), contentAlignment = Alignment.Center) {
+            LauncherIcon(symbol, Modifier.size(23.dp).testTag("$tag:icon"))
+        }
+        Spacer(Modifier.width(iconTextSpacing))
+        Text(label, Modifier.testTag("$tag:label"), fontSize = 16.sp, letterSpacing = 0.2.sp)
     }
 }
 

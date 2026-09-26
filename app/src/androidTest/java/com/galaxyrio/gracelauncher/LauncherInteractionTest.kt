@@ -33,6 +33,7 @@ import androidx.compose.ui.test.swipeRight
 import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -397,6 +398,40 @@ class LauncherInteractionTest {
         compose.onNodeWithTag("favorites_sheet").assertIsDisplayed()
         compose.onNodeWithTag("favorite:${apps[1].key}").performClick()
         assertEquals(1, toggles)
+    }
+
+    @Test
+    fun detailsActionsAndExpandedAdvancedRowsAlignWithTheAppHeader() {
+        showLauncher()
+        compose.onNodeWithTag("app:${apps[1].key}").performTouchInput { longClick() }
+        awaitSurface("app_details")
+        val headerIcon = compose.onNodeWithTag("app_details_icon", useUnmergedTree = true)
+            .fetchSemanticsNode().boundsInRoot
+        val headerTitle = compose.onNodeWithTag("app_details_title", useUnmergedTree = true)
+            .fetchSemanticsNode().boundsInRoot
+        compose.onNodeWithTag("advanced").performScrollTo().performClick()
+        compose.onNodeWithTag("app_details_title", useUnmergedTree = true).performScrollTo()
+        saveScreenshot("details-aligned.png")
+
+        listOf(
+            "edit_favorites", "App info", "Screen time", "Add to category", "Uninstall",
+            "advanced", "Rename app", "Open store page", "grace_settings",
+        ).forEach { tag ->
+            // Keep the target visible on shorter screens; horizontal anchors do not scroll.
+            compose.onNodeWithTag(tag).performScrollTo()
+            val icon = compose.onNodeWithTag("$tag:icon", useUnmergedTree = true)
+                .fetchSemanticsNode().boundsInRoot
+            val label = compose.onNodeWithTag("$tag:label", useUnmergedTree = true)
+                .fetchSemanticsNode().boundsInRoot
+            assertEquals("$tag icon should share the header icon's center", headerIcon.center.x, icon.center.x, 1f)
+            assertEquals("$tag label should share the app name's left edge", headerTitle.left, label.left, 1f)
+        }
+        val packageNode = compose.onNodeWithTag("app_details_package", useUnmergedTree = true)
+        packageNode.performScrollTo()
+        assertEquals(
+            "The advanced package name should not introduce another text indent",
+            headerTitle.left, packageNode.fetchSemanticsNode().boundsInRoot.left, 1f,
+        )
     }
 
     @Test

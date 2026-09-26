@@ -58,7 +58,7 @@ fun AgendaSheet(uiState: LauncherUiState, actions: LauncherActions, onRequestCal
                 Text(stringResource(R.string.calendar_permission_description), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Spacer(Modifier.height(12.dp))
                 Button(onClick = onRequestCalendar) { Text(stringResource(R.string.connect_calendar)) }
-                PanelAction(LauncherSymbol.Plus, stringResource(R.string.new_event), "new_event", actions.newEvent)
+                PanelAction(LauncherSymbol.Plus, stringResource(R.string.new_event), "new_event", onClick = actions.newEvent)
             }
             ScheduleStatus.Error -> {
                 Text(stringResource(R.string.calendar_error))

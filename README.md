@@ -24,6 +24,7 @@
 - 收藏、应用别名、分类和外观设置保存在本地；分类列表可从 Grace 设置中打开
 - 支持 Android 13+ 应用提供的单色主题图标，缺少单色资源时保留原始图标
 - 英文与简体中文界面
+- 全局 Josefin Sans 可变字体；中文、日文、韩文及其他已打包文字使用 Noto Sans 系列逐字形回退，字体随应用离线提供
 
 天气暂未接入，也没有声明网络权限。
 
@@ -72,7 +73,17 @@ ui/
 
 系统 shortcut 通常要求应用成为默认启动器。未获得权限时会显示说明与设置默认桌面的入口；没有 shortcut 的应用会显示空状态，不伪造账号或快捷方式。当前只处理主用户资料。使用时间页面取决于系统是否提供对应设置 Activity；卸载始终通过系统确认，不静默卸载。
 
-应用保留设备原有壁纸，不捆绑参考截图中的字体、图标包或品牌图形；时钟使用系统细体，主题图标只使用各应用公开的单色资源。
+应用保留设备原有壁纸，不捆绑参考截图中的图标包或品牌图形；主题图标只使用各应用公开的单色资源。
+
+## 字体
+
+所有应用内 Compose 文字（包括时钟、索引、设置、底部面板和输入框）统一使用 [Josefin Sans](https://fonts.google.com/specimen/Josefin+Sans)，保留原有字号，并使用该字体支持的 100–700 可变字重。Android 10+ 使用公开 `Typeface.CustomFallbackBuilder` 按字形依次回退到 Noto Sans、完整 Noto Sans CJK、Noto Sans Arabic / Hebrew / Devanagari / Thai，因此中英文混排不会把整行改成另一种字体。完整 CJK 文件保留 `locl`，由文本语言选择中日韩地域字形。
+
+字体均随 APK 打包，无网络请求；字体原始资源约 38.3 MiB，主要来自完整 CJK 字库。来源、SHA-256、OFL 授权和校验脚本见 [third_party/fonts/NOTICE.md](third_party/fonts/NOTICE.md)，APK 内亦包含授权声明。未打包的少数文字与 emoji 继续由系统字体兜底。
+
+兼容限制：Android 9（API 28）没有公开的自定义字形回退链 API，仍使用 Josefin Sans，但缺字回退遵循设备的系统字体（AOSP 使用 Noto，OEM 可能不同）；不使用隐藏 API。系统拥有的权限弹窗、系统设置与 Toast 不受应用字体控制。
+
+## 平台说明
 
 系统转场的能力边界：普通第三方启动器可提供公开的打开动画参数，但不能通过公开 SDK 接管 Quickstep/Recents 的交互式返回图标动画。实际打开/关闭效果仍由 Android/OEM 决定；拆分 HOME 入口避免普通应用任务分类，但无法承诺所有厂商导航手势下都不缩放。测试桌面入口应启动 `.LauncherEntryActivity` 或系统 HOME，不要用缺少 HOME 类别的显式 MainActivity Intent。
 

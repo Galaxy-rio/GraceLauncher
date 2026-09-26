@@ -33,6 +33,11 @@ android {
     buildFeatures {
         compose = true
     }
+    androidResources {
+        // Map the large offline CJK font directly instead of inflating it on
+        // the UI thread; variable weights share the same native font buffer.
+        noCompress += "ttf"
+    }
 }
 
 dependencies {
