@@ -2,6 +2,7 @@ package com.galaxyrio.gracelauncher
 
 import android.Manifest
 import android.app.ActivityOptions
+import android.app.Notification
 import android.os.Build
 import android.graphics.Bitmap
 import android.media.MediaMetadata
@@ -9,11 +10,14 @@ import android.media.session.MediaSession
 import android.media.session.PlaybackState
 import android.os.Handler
 import android.os.Looper
+import android.os.Process
+import android.service.notification.StatusBarNotification
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.galaxyrio.gracelauncher.data.media.MediaCommand
 import com.galaxyrio.gracelauncher.data.media.MediaSessionRepository
 import com.galaxyrio.gracelauncher.data.media.MediaSnapshot
+import com.galaxyrio.gracelauncher.data.media.MediaNotificationStore
 import com.galaxyrio.gracelauncher.data.media.mediaPlayerLaunchOptions
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.flow.first
@@ -32,13 +36,18 @@ class MediaSessionRepositoryTest {
     private val context = instrumentation.targetContext
     private lateinit var repository: MediaSessionRepository
     private val sessions = mutableListOf<MediaSession>()
+    private val notificationStore = MediaNotificationStore()
     private var allowed = true
     private val actions = PlaybackState.ACTION_PLAY or PlaybackState.ACTION_PAUSE or
         PlaybackState.ACTION_SKIP_TO_NEXT or PlaybackState.ACTION_SKIP_TO_PREVIOUS
 
     @Before fun setUp() {
         instrumentation.uiAutomation.adoptShellPermissionIdentity(Manifest.permission.MEDIA_CONTENT_CONTROL)
-        main { repository = MediaSessionRepository(context, hasAccess = { allowed }); repository.setEnabled(true) }
+        main {
+            notificationStore.connected(emptyList())
+            repository = MediaSessionRepository(context, hasAccess = { allowed }, notifications = notificationStore.state)
+            repository.setEnabled(true)
+        }
     }
 
     @After fun tearDown() {
@@ -56,7 +65,7 @@ class MediaSessionRepositoryTest {
         .putString(MediaMetadata.METADATA_KEY_TITLE, title)
         .putString(MediaMetadata.METADATA_KEY_ARTIST, "Fixture artist")
         .putBitmap(MediaMetadata.METADATA_KEY_ALBUM_ART, artwork).build()
-    private fun session(title: String, state: Int = PlaybackState.STATE_PLAYING, supported: Long = actions): MediaSession {
+    private fun session(title: String, state: Int = PlaybackState.STATE_PLAYING, supported: Long = actions, notified: Boolean = true): MediaSession {
         lateinit var result: MediaSession
         main {
             result = MediaSession(context, "grace-test:$title").also {
@@ -65,9 +74,20 @@ class MediaSessionRepositoryTest {
                 it.setPlaybackState(playback(state, supported))
                 it.isActive = true
             }
+            if (notified) notificationStore.posted(notification(result))
             repository.refresh()
         }
         return result
+    }
+
+    @Suppress("DEPRECATION")
+    private fun notification(player: MediaSession, id: Int = System.identityHashCode(player), media: Boolean = true): StatusBarNotification {
+        val builder = Notification.Builder(context, "grace-media-fixture")
+            .setSmallIcon(R.drawable.ms_music_note)
+            .setContentTitle("Notification text must not become song metadata")
+        if (media) builder.setStyle(Notification.MediaStyle().setMediaSession(player.sessionToken))
+        return StatusBarNotification(context.packageName, context.packageName, id, null, Process.myUid(),
+            0, 0, builder.build(), Process.myUserHandle(), System.currentTimeMillis())
     }
 
     @Test fun metadataArtworkAndTransportControlsFollowTheRealController() {
@@ -127,12 +147,85 @@ class MediaSessionRepositoryTest {
         main { assertFalse(repository.command(current.sessionId, MediaCommand.TogglePlayback)) }
     }
 
-    @Test fun playingSessionWinsAndStoppedSessionsDisappear() {
+    @Test fun playingNotificationWinsOverPausedNotification() {
         session("Grace paused fixture", PlaybackState.STATE_PAUSED)
         val playing = session("Grace active fixture")
         val current = await { it.nowPlaying?.title == "Grace active fixture" }.nowPlaying!!
         main { playing.setPlaybackState(playback(PlaybackState.STATE_STOPPED)) }
         await { it.nowPlaying?.sessionId != current.sessionId }
+    }
+
+    @Test fun pausedNotificationStaysUntilRemovedAndLateSessionCallbacksCannotReviveIt() {
+        val player = session("Grace paused notification", PlaybackState.STATE_PAUSED)
+        val current = await { it.nowPlaying?.title == "Grace paused notification" }.nowPlaying!!
+        assertFalse(current.playing)
+        main { notificationStore.removed(notification(player).key) }
+        await { it.nowPlaying == null }
+        main {
+            player.setMetadata(metadata("Late metadata"))
+            player.setPlaybackState(playback(PlaybackState.STATE_PLAYING))
+            repository.refresh()
+            assertNull(repository.state.value.nowPlaying)
+            assertFalse(repository.command(current.sessionId, MediaCommand.TogglePlayback))
+            notificationStore.posted(notification(player))
+        }
+        val reposted = await { it.nowPlaying?.title == "Late metadata" }.nowPlaying!!
+        assertNotEquals(current.sessionId, reposted.sessionId)
+    }
+
+    @Test fun evenPlayingSessionsWithoutNotificationsStayHidden() {
+        val player = session("Grace unnotified", notified = false)
+        assertNull(repository.state.value.nowPlaying)
+        val visible = session("Grace visible paused", PlaybackState.STATE_PAUSED)
+        await { it.nowPlaying?.title == "Grace visible paused" }
+        main { player.setPlaybackState(playback(PlaybackState.STATE_PLAYING)); repository.refresh() }
+        assertEquals("Grace visible paused", repository.state.value.nowPlaying?.title)
+        // Both sessions belong to the same package: package-only matching is not sufficient.
+        main { notificationStore.removed(notification(visible).key) }
+        await { it.nowPlaying == null }
+    }
+
+    @Test fun stoppedOrInactiveSessionStillShowsWhileItsNotificationExists() {
+        val player = session("Grace retained notification", PlaybackState.STATE_PAUSED)
+        val current = await { it.nowPlaying?.title == "Grace retained notification" }.nowPlaying!!
+        main {
+            player.setPlaybackState(playback(PlaybackState.STATE_STOPPED, PlaybackState.ACTION_PLAY))
+            player.isActive = false
+            repository.refresh()
+        }
+        val retained = await { it.nowPlaying?.sessionId == current.sessionId && it.nowPlaying.canToggle && !it.nowPlaying.canNext }.nowPlaying!!
+        assertFalse(retained.playing)
+        main { notificationStore.removed(notification(player).key) }
+        await { it.nowPlaying == null }
+    }
+
+    @Test fun reconnectRebuildsOnlyTheCurrentNotificationSnapshot() {
+        val player = session("Grace reconnect", PlaybackState.STATE_PAUSED)
+        await { it.nowPlaying?.title == "Grace reconnect" }
+        main { notificationStore.disconnected() }
+        await { it.nowPlaying == null }
+        main { notificationStore.connected(listOf(notification(player))) }
+        await { it.nowPlaying?.title == "Grace reconnect" }
+        main {
+            notificationStore.disconnected()
+            notificationStore.posted(notification(player)) // Ignore late callbacks while disconnected.
+            notificationStore.connected(emptyList())
+            repository.refresh()
+        }
+        assertNull(repository.state.value.nowPlaying)
+    }
+
+    @Test fun duplicateNotificationsAreCountedAndAnOrdinaryReplacementRemovesTheMediaRef() {
+        val player = session("Grace duplicates", PlaybackState.STATE_PAUSED)
+        await { it.nowPlaying?.title == "Grace duplicates" }
+        main {
+            notificationStore.posted(notification(player, id = 42))
+            notificationStore.removed(notification(player).key)
+            repository.refresh()
+        }
+        assertEquals("Grace duplicates", repository.state.value.nowPlaying?.title)
+        main { notificationStore.posted(notification(player, id = 42, media = false)) }
+        await { it.nowPlaying == null }
     }
 
     @Test fun missingOrUnreadableArtworkDoesNotBlockSongInformation() {

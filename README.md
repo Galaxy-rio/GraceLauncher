@@ -111,11 +111,11 @@ ui/
 
 ## 音乐控件
 
-长按桌面右下按钮 → Productivity → Media player。此开关默认开启并存入 Room；第一次使用需点击“允许媒体控制”，阅读说明后前往系统设置为 Grace Launcher 开启**通知使用权**。取消授权或没有可用媒体会话时，主页不显示占位卡片；关闭开关后停止监听。
+长按桌面右下按钮 → Productivity → Media player。此开关默认开启并存入 Room；第一次使用需点击“允许媒体控制”，阅读说明后前往系统设置为 Grace Launcher 开启**通知使用权**。取消授权、没有媒体通知或对应会话不可用时，主页不显示占位卡片；关闭开关后停止媒体会话监听。
 
-使用 Android `MediaSessionManager` / `MediaController` / `TransportControls`，通过系统绑定的 `NotificationListenerService` 获得查询其他播放器会话的资格。仅处理媒体元数据和播放状态，不查询、读取或保存通知内容，不需要网络、音频文件读取权限，也不内置播放器。通知使用权本身是系统授予的较宽权限，用户可随时在系统设置撤销。
+使用 Android `MediaSessionManager` / `MediaController` / `TransportControls`，通过系统绑定的 `NotificationListenerService` 识别媒体通知的发布与移除。只在内存中保留媒体通知的标识、包名和 `EXTRA_MEDIA_SESSION` token；不读取或保存其他通知的文字内容。歌曲信息和控制操作仍来自对应的媒体会话，不需要网络、音频文件读取权限，也不内置播放器。通知使用权本身是系统授予的较宽权限，用户可随时在系统设置撤销。
 
-多个播放器同时存在时优先正在播放的会话，同优先级遵循系统顺序；暂停时保留控件，停止或会话销毁后隐藏。按钮按播放器声明的操作能力启用，缺少封面时使用 Material 音符；封面在后台缩小解码，歌曲切换会取消旧封面任务。仅响应公开了 MediaSession 的播放器，不能控制未提供会话的应用，也不实现系统面板的历史播放恢复。
+显示由**媒体通知是否存在**决定，不单凭播放状态：暂停甚至停止后通知还在就保留；通知被关闭、移除或授权断开就隐藏，后台残留的暂停会话不会重新唤出控件。启动或重新绑定时读取现有通知快照，按精确的会话 token 匹配（不是只按应用包名）。多个媒体通知同时存在时优先正在播放的会话，同优先级遵循系统顺序；真正销毁的会话不再可控。按钮按播放器声明的操作能力启用，缺少封面时使用 Material 音符；封面在后台缩小解码，歌曲切换会取消旧封面任务。仅响应带有 MediaSession token 的媒体通知；系统快捷设置独立缓存的历史播放恢复卡片没有公开的可见性 API，不作为仍在播放的通知处理。
 
 平台依据：[MediaSessionManager](https://developer.android.com/reference/android/media/session/MediaSessionManager)、[NotificationListenerService](https://developer.android.com/reference/android/service/notification/NotificationListenerService)、[TransportControls](https://developer.android.com/reference/android/media/session/MediaController.TransportControls)。
 

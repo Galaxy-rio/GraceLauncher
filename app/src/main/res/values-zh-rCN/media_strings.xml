@@ -4,7 +4,7 @@
     <string name="media_player_summary">在主屏幕显示播放控件</string>
     <string name="media_allow_controls">允许媒体控制</string>
     <string name="media_access_required">需要开启通知使用权</string>
-    <string name="media_access_explanation">Android 要求开启通知使用权才能显示其他应用的音乐。请在下一页为 Grace Launcher 开启。Grace 仅通过媒体会话获取歌曲信息和控制播放，不读取或保存通知内容。你可以随时在系统设置中撤销授权。</string>
+    <string name="media_access_explanation">Android 要求开启通知使用权才能显示其他应用的音乐。请在下一页为 Grace Launcher 开启。Grace 仅识别媒体通知是否存在，通过对应的媒体会话获取歌曲信息和控制播放，不读取或保存其他通知的文字内容。你可以随时在系统设置中撤销授权。</string>
     <string name="media_open_settings">打开设置</string>
     <string name="media_play">播放</string>
     <string name="media_pause">暂停</string>

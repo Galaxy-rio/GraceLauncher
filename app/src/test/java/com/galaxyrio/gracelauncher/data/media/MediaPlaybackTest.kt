@@ -13,7 +13,7 @@ class MediaPlaybackTest {
         assertEquals(1, playbackPriority(PlaybackState.STATE_PAUSED))
     }
 
-    @Test fun finishedAndInvalidSessionsDoNotRemainOnHome() {
+    @Test fun nonPlayingSessionsHaveLowestSelectionPriority() {
         listOf(PlaybackState.STATE_NONE, PlaybackState.STATE_STOPPED, PlaybackState.STATE_ERROR, -1).forEach {
             assertEquals(0, playbackPriority(it))
         }

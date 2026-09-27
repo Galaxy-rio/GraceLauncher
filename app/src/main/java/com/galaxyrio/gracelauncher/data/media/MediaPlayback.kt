@@ -19,7 +19,7 @@ data class NowPlaying(
 
 data class MediaSnapshot(val hasAccess: Boolean = false, val nowPlaying: NowPlaying? = null, val failed: Boolean = false)
 
-/** Playing/buffering wins over paused. Stopped, destroyed and empty sessions stay off HOME. */
+/** Only ranks notified players. Notification presence, not playback state, controls visibility. */
 internal fun playbackPriority(state: Int): Int = when (state) {
     PlaybackState.STATE_PLAYING, PlaybackState.STATE_BUFFERING, PlaybackState.STATE_CONNECTING,
     PlaybackState.STATE_FAST_FORWARDING, PlaybackState.STATE_REWINDING,

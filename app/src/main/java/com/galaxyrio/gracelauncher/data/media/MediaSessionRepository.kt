@@ -26,6 +26,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -33,9 +34,10 @@ import kotlinx.coroutines.withContext
 
 /** MediaSession controllers, not a local music player or a notification-content scraper. */
 @MainThread
-class MediaSessionRepository(
+internal class MediaSessionRepository(
     private val context: Context,
     private val hasAccess: () -> Boolean = { MediaAccess.isGranted(context) },
+    private val notifications: StateFlow<MediaNotificationSnapshot> = mediaNotifications.state,
 ) {
     private val manager = context.getSystemService(MediaSessionManager::class.java)
     private val handler = Handler(Looper.getMainLooper())
@@ -43,6 +45,7 @@ class MediaSessionRepository(
     private val _state = MutableStateFlow(MediaSnapshot())
     val state = _state.asStateFlow()
     private val entries = linkedMapOf<MediaSession.Token, Entry>()
+    private val destroyedTokens = mutableSetOf<MediaSession.Token>()
     private var order = emptyList<MediaSession.Token>()
     private var enabled = false
     private var listening = false
@@ -54,14 +57,14 @@ class MediaSessionRepository(
         if (enabled && hasAccess()) sync(controllers.orEmpty()) else refresh()
     }
 
-    init { scope.launch { MediaAccess.connectionChanges.collect { refresh() } } }
+    init { scope.launch { notifications.collect { refresh() } } }
 
     fun setEnabled(value: Boolean) { enabled = value; refresh() }
 
     fun refresh() {
         if (closed) return
         val granted = hasAccess()
-        if (!enabled || !granted) {
+        if (!enabled || !granted || !notifications.value.connected || notifications.value.notifications.isEmpty()) {
             detach()
             _state.value = MediaSnapshot(hasAccess = granted)
             return
@@ -93,6 +96,7 @@ class MediaSessionRepository(
             override fun onPlaybackStateChanged(state: PlaybackState?) { playback = state; publish() }
             override fun onMetadataChanged(value: MediaMetadata?) { metadata = value; publish() }
             override fun onSessionDestroyed() {
+                destroyedTokens += controller.sessionToken
                 entries.remove(controller.sessionToken)
                 runCatching { controller.unregisterCallback(this) }
                 publish()
@@ -102,11 +106,22 @@ class MediaSessionRepository(
 
     private fun sync(controllers: List<MediaController>) {
         if (closed) return
-        val tokens = controllers.map { it.sessionToken }.toSet()
+        val visible = notifications.value
+        val tokens = visible.notifications.map { it.token }.toSet()
+        destroyedTokens.retainAll(tokens)
         entries.keys.filter { it !in tokens }.forEach { token ->
             entries.remove(token)?.let { runCatching { it.controller.unregisterCallback(it.callback) } }
         }
-        controllers.forEach { controller ->
+        val notifiedControllers = controllers.filter { visible.contains(it.packageName, it.sessionToken) }.toMutableList()
+        // Some players leave a notification while deactivating their session. Its token
+        // still provides the controller even when getActiveSessions no longer lists it.
+        visible.notifications.forEach { ref ->
+            if (notifiedControllers.none { it.sessionToken == ref.token } && ref.token !in destroyedTokens) {
+                runCatching { entries[ref.token]?.controller ?: MediaController(context, ref.token) }.getOrNull()
+                    ?.takeIf { it.packageName == ref.packageName }?.let { notifiedControllers += it }
+            }
+        }
+        notifiedControllers.filter { it.sessionToken !in destroyedTokens }.forEach { controller ->
             if (controller.sessionToken !in entries) runCatching {
                 Entry(controller).also { entry ->
                     controller.registerCallback(entry.callback, handler)
@@ -114,14 +129,18 @@ class MediaSessionRepository(
                 }
             }
         }
-        order = controllers.map { it.sessionToken }
+        order = notifiedControllers.map { it.sessionToken }
         publish()
     }
 
     private fun publish() {
         if (closed || !enabled) return
-        // The system supplies priority order; among these, prefer an actually playing session.
-        val entry = order.mapNotNull(entries::get).filter { playbackPriority(it.playback?.state ?: 0) > 0 }
+        // A paused session can outlive its dismissed notification indefinitely. Never
+        // show it (or revive it on a later metadata callback) without that notification.
+        val entry = order.mapNotNull(entries::get).filter {
+            notifications.value.contains(it.controller.packageName, it.controller.sessionToken) &&
+                it.controller.sessionToken !in destroyedTokens && (it.metadata != null || it.playback != null)
+        }
             .maxByOrNull { playbackPriority(it.playback?.state ?: 0) }
         selected = entry
         if (entry == null) {
@@ -158,7 +177,9 @@ class MediaSessionRepository(
     /** The rendered session id guards against a stale tap controlling a different player. */
     fun command(sessionId: String, command: MediaCommand): Boolean {
         val entry = selected?.takeIf { it.id == sessionId } ?: return false
-        if (!enabled || !hasAccess()) { refresh(); return false }
+        if (!enabled || !hasAccess() || !notifications.value.contains(entry.controller.packageName, entry.controller.sessionToken)) {
+            refresh(); return false
+        }
         val current = _state.value.nowPlaying ?: return false
         return runCatching {
             val controls = entry.controller.transportControls

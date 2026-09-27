@@ -6,10 +6,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.provider.Settings
-import android.service.notification.NotificationListenerService
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
 
 object MediaAccess {
     fun component(context: Context) = ComponentName(context, MediaNotificationListener::class.java)
@@ -26,14 +22,4 @@ object MediaAccess {
         }
         return Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
     }
-
-    private val changes = MutableStateFlow(0L)
-    internal val connectionChanges = changes.asStateFlow()
-    internal fun connectionChanged() { changes.update { it + 1 } }
-}
-
-/** Authorizes MediaSessionManager only. Never requests, inspects or stores notification contents. */
-class MediaNotificationListener : NotificationListenerService() {
-    override fun onListenerConnected() { MediaAccess.connectionChanged() }
-    override fun onListenerDisconnected() { MediaAccess.connectionChanged() }
 }

@@ -4,7 +4,7 @@
     <string name="media_player_summary">Show playback on your home screen</string>
     <string name="media_allow_controls">Allow media controls</string>
     <string name="media_access_required">Notification access is required</string>
-    <string name="media_access_explanation">Android requires notification access to show music from other apps. Enable it for Grace Launcher on the next screen. Grace only uses media sessions for song information and playback controls; it does not read or store notification contents. You can revoke access at any time in system settings.</string>
+    <string name="media_access_explanation">Android requires notification access to show music from other apps. Enable it for Grace Launcher on the next screen. Grace checks whether a media notification exists and uses its media session for song information and playback controls. It does not read or store other notification text. You can revoke access at any time in system settings.</string>
     <string name="media_open_settings">Open settings</string>
     <string name="media_play">Play</string>
     <string name="media_pause">Pause</string>
