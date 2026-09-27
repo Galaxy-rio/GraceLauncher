@@ -14,7 +14,7 @@ Weather data is provided through [Breezy Weather](https://github.com/breezy-weat
 
 ## Screenshots
 
-| Home | Agenda & weather | Music controls | App list · C |
+| Home | Agenda & weather | Music controls | App list |
 | --- | --- | --- | --- |
 | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01-home.png" alt="Home screen with favorites and current weather" width="190"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02-agenda.png" alt="Calendar agenda with hourly weather forecasts and events" width="190"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03-music.png" alt="Home screen with music playback controls" width="190"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04-app-list-c.png" alt="Alphabetical app list while browsing the letter C" width="190"> |
 
