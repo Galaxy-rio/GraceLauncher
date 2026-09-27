@@ -15,6 +15,9 @@
 .cxx
 local.properties
 
+# Local maintainer notes and submission drafts
+/.local/
+
 # Local release artifacts and signing secrets
 /app/release/
 *.apk

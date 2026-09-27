@@ -28,7 +28,7 @@ The final APK size depends on its packaging/compression settings.
 ## System fonts for Chinese, Japanese and Korean
 
 CJK text uses Android's `sans-serif` system fallback. The app does not bundle
-a CJK font. The former 36,144,788-byte font was removed to reduce APK size.
+a CJK font.
 Text locale is forwarded to Android shaping so regional glyph selection follows
 the operating system. CJK appearance and available weights therefore depend on
 the device's installed fonts. No network access is required.

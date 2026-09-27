@@ -28,10 +28,6 @@ Install OpenJDK 21, Android SDK Platform 37 and Build Tools 36.1.0, then build t
 
 The APK will be generated at `app/build/outputs/apk/debug/app-debug.apk`.
 
-## F-Droid release preparation
-
-English and Simplified Chinese store metadata live in `fastlane/metadata/android/`, with four English screenshots. See the [release guide (中文)](docs/FDROID.zh-CN.md) for signing and the GitLab submission steps. The [build metadata template](fdroid/com.galaxyrio.gracelauncher.yml.template) still needs the final release commit and public signing certificate fingerprint; it is not a completed F-Droid submission.
-
 ## Privacy
 
 Grace Launcher does not request network access. Notification access is required to display notifications and control active media sessions on the home screen. All launcher data is stored locally on your device.
