@@ -42,6 +42,7 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.media.MediaCommand
 import com.galaxyrio.gracelauncher.data.media.NowPlaying
 import com.galaxyrio.gracelauncher.ui.components.LocalLauncherInputEnabled
+import com.galaxyrio.gracelauncher.ui.components.SwipeDismissContainer
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 
 /** A wallpaper-native row: no card, progress bar or duplicated player heading. */
@@ -50,6 +51,7 @@ internal fun HomeMediaPlayer(
     media: NowPlaying,
     onCommand: (String, MediaCommand) -> Unit,
     modifier: Modifier = Modifier,
+    onDismiss: (String, Long) -> Boolean = { _, _ -> false },
 ) {
     val appearance = LocalLauncherAppearance.current
     val enabled = LocalLauncherInputEnabled.current
@@ -57,7 +59,15 @@ internal fun HomeMediaPlayer(
     val openPlayer = { onCommand(media.sessionId, MediaCommand.OpenPlayer) }
     val disabledColor = appearance.text.copy(alpha = 0.38f)
 
-    BoxWithConstraints(modifier.fillMaxWidth().padding(horizontal = 8.dp).testTag("home_media_player")) {
+    SwipeDismissContainer(
+        itemKey = media.sessionId to media.revision,
+        onDismiss = { onDismiss(media.sessionId, media.revision) },
+        modifier = modifier.fillMaxWidth().testTag("home_media_player"),
+        enabled = enabled,
+        backgroundColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.18f),
+        contentColor = appearance.text,
+    ) {
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
         // Keep all three controls at 48dp even on a 320dp-wide phone.
         val coverSize = (maxWidth - 160.dp).coerceIn(48.dp, 88.dp)
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -132,5 +142,6 @@ internal fun HomeMediaPlayer(
                 }
             }
         }
+    }
     }
 }

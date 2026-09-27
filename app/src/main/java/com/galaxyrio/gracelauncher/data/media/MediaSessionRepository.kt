@@ -92,9 +92,21 @@ internal class MediaSessionRepository(
         }.getOrDefault(controller.packageName)
         var playback: PlaybackState? = controller.playbackState
         var metadata: MediaMetadata? = controller.metadata
+        var revision = 0L
+        var dismissed = false
         val callback = object : MediaController.Callback() {
-            override fun onPlaybackStateChanged(state: PlaybackState?) { playback = state; publish() }
-            override fun onMetadataChanged(value: MediaMetadata?) { metadata = value; publish() }
+            override fun onPlaybackStateChanged(state: PlaybackState?) {
+                // Position/timestamp heartbeats are not new playback. A swipe must
+                // survive those callbacks and a normal onResume/refresh.
+                if (playback?.state != state?.state || playback?.activeQueueItemId != state?.activeQueueItemId) {
+                    revision++; dismissed = false
+                }
+                playback = state; publish()
+            }
+            override fun onMetadataChanged(value: MediaMetadata?) {
+                if (metadata.trackIdentity() != value.trackIdentity()) { revision++; dismissed = false }
+                metadata = value; publish()
+            }
             override fun onSessionDestroyed() {
                 destroyedTokens += controller.sessionToken
                 entries.remove(controller.sessionToken)
@@ -142,6 +154,7 @@ internal class MediaSessionRepository(
                 it.controller.sessionToken !in destroyedTokens && (it.metadata != null || it.playback != null)
         }
             .maxByOrNull { playbackPriority(it.playback?.state ?: 0) }
+            ?.takeUnless { it.dismissed }
         selected = entry
         if (entry == null) {
             artJob?.cancel(); artRequest = null
@@ -163,7 +176,8 @@ internal class MediaSessionRepository(
         val previousArt = _state.value.nowPlaying?.artwork.takeIf { request == artRequest }
         _state.update { it.copy(nowPlaying = NowPlaying(entry.id, entry.playerName, title, artist, previousArt, playing,
             canToggle = supports(PlaybackState.ACTION_PLAY_PAUSE) || supports(if (playing) PlaybackState.ACTION_PAUSE else PlaybackState.ACTION_PLAY),
-            canPrevious = supports(PlaybackState.ACTION_SKIP_TO_PREVIOUS), canNext = supports(PlaybackState.ACTION_SKIP_TO_NEXT))) }
+            canPrevious = supports(PlaybackState.ACTION_SKIP_TO_PREVIOUS), canNext = supports(PlaybackState.ACTION_SKIP_TO_NEXT),
+            revision = entry.revision)) }
         if (request != artRequest) {
             artRequest = request
             artJob?.cancel()
@@ -172,6 +186,14 @@ internal class MediaSessionRepository(
                 if (request == artRequest) _state.update { it.copy(nowPlaying = it.nowPlaying?.copy(artwork = bitmap)) }
             }
         }
+    }
+
+    /** Local dismissal only: never cancel the system notification or send pause/stop. */
+    fun dismiss(sessionId: String, revision: Long): Boolean {
+        val entry = selected?.takeIf { it.id == sessionId && it.revision == revision } ?: return false
+        entry.dismissed = true
+        publish()
+        return true
     }
 
     /** The rendered session id guards against a stale tap controlling a different player. */
@@ -251,8 +273,13 @@ internal class MediaSessionRepository(
 
 private fun MediaMetadata?.text(key: String): String? = runCatching { this?.getText(key)?.toString()?.trim()?.takeIf { it.isNotEmpty() } }.getOrNull()
 private fun MediaMetadata?.bitmap(key: String): Bitmap? = runCatching { this?.getBitmap(key) }.getOrNull()
+private fun MediaMetadata?.trackIdentity(): List<String?> = listOf(
+    text(MediaMetadata.METADATA_KEY_MEDIA_ID), text(MediaMetadata.METADATA_KEY_TITLE),
+    text(MediaMetadata.METADATA_KEY_DISPLAY_TITLE), text(MediaMetadata.METADATA_KEY_ARTIST),
+    text(MediaMetadata.METADATA_KEY_ALBUM),
+)
 
-/** Called only from a visible, user-clicked cover/title; never from a session callback. */
+/** Only for visible, user-clicked media/notification content; never from a background callback. */
 @Suppress("DEPRECATION")
 internal fun mediaPlayerLaunchOptions(): ActivityOptions = ActivityOptions.makeBasic().apply {
     if (Build.VERSION.SDK_INT >= 36) {

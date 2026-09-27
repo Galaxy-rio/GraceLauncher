@@ -6,9 +6,11 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,6 +23,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
@@ -37,12 +40,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -53,10 +59,12 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.res.stringResource
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
+import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 
 // Retained desktop lists keep their scroll position under full-screen pages,
@@ -120,6 +128,7 @@ fun LauncherAppRow(
     onSwipeRight: (Rect) -> Unit = {},
     gestures: AppRowGestures = AppRowGestures(),
     highlighted: Boolean = false,
+    notification: AppNotification? = null,
 ) {
     LauncherRow(
         rowKey = "app:${app.key}",
@@ -134,6 +143,7 @@ fun LauncherAppRow(
         detailsDescription = stringResource(R.string.app_actions),
         modifier = modifier,
         highlighted = highlighted,
+        notification = notification,
     ) { iconModifier -> AppIcon(app, modifier = iconModifier, size = 40.dp) }
 }
 
@@ -178,6 +188,7 @@ private fun LauncherRow(
     detailsDescription: String,
     modifier: Modifier,
     highlighted: Boolean,
+    notification: AppNotification? = null,
     icon: @Composable (Modifier) -> Unit,
 ) {
     val appearance = LocalLauncherAppearance.current
@@ -199,7 +210,7 @@ private fun LauncherRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .height(56.dp)
+            .heightIn(min = 56.dp)
             .testTag(rowKey)
             .onGloballyPositioned { bounds = it.boundsInWindow() }
             .clip(RoundedCornerShape(18.dp))
@@ -250,20 +261,42 @@ private fun LauncherRow(
                 onClick = { onClick(bounds, iconBounds) },
                 onLongClick = onLongClick,
             )
-            .padding(horizontal = 8.dp),
+            .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         icon(Modifier.onGloballyPositioned { iconBounds = it.boundsInWindow() })
         Spacer(Modifier.width(20.dp))
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodyLarge.merge(
-                TextStyle(fontWeight = FontWeight.Normal, letterSpacing = 0.2.sp, shadow = appearance.textShadow),
-            ),
-            color = appearance.text,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = label + (notification?.let { " · ${notificationAge(it.postedAt)}" } ?: ""),
+                style = MaterialTheme.typography.bodyLarge.merge(
+                    TextStyle(fontWeight = FontWeight.Normal, letterSpacing = 0.2.sp, shadow = appearance.textShadow),
+                ),
+                color = appearance.text,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (notification != null) {
+                Spacer(Modifier.height(2.dp))
+                listOf(notification.title, notification.text.replace('\n', ' ')).filter { it.isNotBlank() }.forEach { line ->
+                    Text(line, color = appearance.text.copy(alpha = 0.88f),
+                        style = MaterialTheme.typography.bodyMedium.copy(shadow = appearance.textShadow),
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        }
+        if (notification != null) {
+            IconButton(
+                onClick = { onPrepare(); onOpen(bounds) },
+                enabled = inputEnabled,
+                modifier = Modifier.size(48.dp).testTag("notification_arrow:$rowKey")
+                    .semantics { contentDescription = openDescription },
+            ) {
+                LauncherIcon(LauncherSymbol.Chevron,
+                    Modifier.rotate(if (LocalLayoutDirection.current == LayoutDirection.Ltr) -90f else 90f),
+                    tint = appearance.text)
+            }
+        }
     }
 }
 

@@ -146,6 +146,13 @@ fun LauncherRoute(
     }
 
     val actions = LauncherActions(
+        dismissMedia = viewModel::dismissMedia,
+        dismissNotification = viewModel::dismissNotification,
+        openNotification = { key, revision ->
+            viewModel.openNotification(key, revision).also { opened ->
+                if (!opened) Toast.makeText(context, R.string.notification_unavailable, Toast.LENGTH_SHORT).show()
+            }
+        },
         requestMediaAccess = {
             runCatching { mediaAccessLauncher.launch(MediaAccess.settingsIntent(context)) }
                 .onFailure { openSystemApp(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
@@ -394,6 +401,7 @@ internal fun LauncherScreen(
             onFolderDrag = dragFolder,
             onFolderDragEnd = endFolderDrag,
             onMediaCommand = actions.controlMedia,
+            onDismissMedia = actions.dismissMedia,
             modifier = Modifier.retainedPage(visible = !drawerOpen || (overlay == null && backProgress.value > 0f))
                 .graphicsLayer { alpha = 1f - drawerVisibility },
         )
@@ -402,6 +410,7 @@ internal fun LauncherScreen(
         // views. Content padding anchors headings without reserving a viewport.
         AppDrawerScreen(
             model = model,
+            notifications = uiState.notifications,
             listState = drawerState,
             selectedLetter = selectedLetter,
             topSpace = drawerTop,

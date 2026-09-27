@@ -111,13 +111,23 @@ ui/
 
 ## 音乐控件
 
-长按桌面右下按钮 → Productivity → Media player。此开关默认开启并存入 Room；第一次使用需点击“允许媒体控制”，阅读说明后前往系统设置为 Grace Launcher 开启**通知使用权**。取消授权、没有媒体通知或对应会话不可用时，主页不显示占位卡片；关闭开关后停止媒体会话监听。
+长按桌面右下按钮 → Productivity → Media player。此开关默认开启并存入 Room；第一次使用需点击“允许通知与媒体访问”，阅读说明后前往系统设置为 Grace Launcher 开启**通知使用权**。取消授权、没有媒体通知或对应会话不可用时，主页不显示占位卡片；关闭开关后停止媒体会话监听，不影响应用消息通知。
 
-使用 Android `MediaSessionManager` / `MediaController` / `TransportControls`，通过系统绑定的 `NotificationListenerService` 识别媒体通知的发布与移除。只在内存中保留媒体通知的标识、包名和 `EXTRA_MEDIA_SESSION` token；不读取或保存其他通知的文字内容。歌曲信息和控制操作仍来自对应的媒体会话，不需要网络、音频文件读取权限，也不内置播放器。通知使用权本身是系统授予的较宽权限，用户可随时在系统设置撤销。
+使用 Android `MediaSessionManager` / `MediaController` / `TransportControls`，通过系统绑定的 `NotificationListenerService` 识别媒体通知的发布与移除。媒体通知只保留标识、包名和 `EXTRA_MEDIA_SESSION` token；歌曲信息和控制操作来自对应的媒体会话，不需要网络、音频文件读取权限，也不内置播放器。通知使用权本身是系统授予的较宽权限，用户可随时在系统设置撤销。
+
+音乐控件支持左右划走：只隐藏当前桌面控件，不取消系统媒体通知，也不调用暂停或停止。会话继续监听；播放/暂停、切歌等状态变化后重新显示。进度时间戳、封面加载、重复状态回调和普通页面刷新不会重新唤出控件。划走状态仅保留在当前运行会话内，不写入数据库。
 
 显示由**媒体通知是否存在**决定，不单凭播放状态：暂停甚至停止后通知还在就保留；通知被关闭、移除或授权断开就隐藏，后台残留的暂停会话不会重新唤出控件。启动或重新绑定时读取现有通知快照，按精确的会话 token 匹配（不是只按应用包名）。多个媒体通知同时存在时优先正在播放的会话，同优先级遵循系统顺序；真正销毁的会话不再可控。按钮按播放器声明的操作能力启用，缺少封面时使用 Material 音符；封面在后台缩小解码，歌曲切换会取消旧封面任务。仅响应带有 MediaSession token 的媒体通知；系统快捷设置独立缓存的历史播放恢复卡片没有公开的可见性 API，不作为仍在播放的通知处理。
 
 平台依据：[MediaSessionManager](https://developer.android.com/reference/android/media/session/MediaSessionManager)、[NotificationListenerService](https://developer.android.com/reference/android/service/notification/NotificationListenerService)、[TransportControls](https://developer.android.com/reference/android/media/session/MediaController.TransportControls)。
+
+## 应用通知
+
+收藏和应用列表在应用名称下显示最新通知的标题、正文摘要和时间。点击右侧箭头或右滑应用，可打开同一个快捷方式面板：上方为通知，下方为快捷方式，共用一个滚动列表。支持普通、长文本、收件箱及 MessagingStyle 通知；分组有子通知时不重复显示汇总通知。通知正文可点击以打开系统提供的 contentIntent。
+
+通知卡片可左右划走，调用系统 `cancelNotification(key)` 只清除对应通知，等待系统移除回调同步列表。不可清除的常驻通知不能划走；过期的滑动/点击不会操作已经更新的另一版通知。通知更新、新增、移除、权限断开实时同步。不跨个人/工作资料匹配，不显示 secret 或被暂停应用的通知；尊重 Android 提供的脱敏内容，不绕过敏感信息限制。
+
+通知文字、图标和操作意图只在内存中保留，不写入 Room、文件或日志，也不上传。媒体播放器开关关闭时，仍可在 Productivity → App Organization 申请通知使用权。
 
 ## 字体
 
@@ -142,7 +152,7 @@ ui/
 - 收藏应用拖拽排序与布局编辑模式
 - 更完整的多语言首字母分组
 - 工作资料与 Private Space 支持
-- 通知预览与小组件
+- 系统小组件
 - 更完整的主题编辑器与逐应用图标选择
 - 更细粒度的应用更新与图标缓存预热
 

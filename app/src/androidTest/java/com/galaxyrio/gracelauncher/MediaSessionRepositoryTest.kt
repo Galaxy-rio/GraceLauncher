@@ -239,6 +239,46 @@ class MediaSessionRepositoryTest {
         assertTrue(current.canToggle)
     }
 
+    @Test fun localDismissDoesNotControlPlaybackAndSurvivesProgressRefreshUntilStateChanges() {
+        val player = session("Swipe fixture")
+        val controls = AtomicInteger()
+        main {
+            player.setCallback(object : MediaSession.Callback() {
+                override fun onPause() { controls.incrementAndGet() }
+                override fun onStop() { controls.incrementAndGet() }
+            }, Handler(Looper.getMainLooper()))
+        }
+        val current = await { it.nowPlaying?.title == "Swipe fixture" }.nowPlaying!!
+        main {
+            assertTrue(repository.dismiss(current.sessionId, current.revision))
+            assertNull(repository.state.value.nowPlaying)
+            player.setPlaybackState(PlaybackState.Builder().setState(PlaybackState.STATE_PLAYING, 12_345, 1f).setActions(actions).build())
+            player.setMetadata(metadata("Swipe fixture", Bitmap.createBitmap(32, 32, Bitmap.Config.ARGB_8888)))
+            repository.refresh()
+        }
+        instrumentation.waitForIdleSync()
+        main { assertNull(repository.state.value.nowPlaying); assertEquals(0, controls.get()) }
+        assertEquals(PlaybackState.STATE_PLAYING, player.controller.playbackState!!.state)
+        main { player.setPlaybackState(playback(PlaybackState.STATE_PAUSED)) }
+        val restored = await { it.nowPlaying?.playing == false }.nowPlaying!!
+        assertTrue(restored.revision > current.revision)
+        assertEquals(current.sessionId, restored.sessionId)
+        main { assertFalse(repository.dismiss(current.sessionId, current.revision)) }
+    }
+
+    @Test fun aNewTrackRevealsLocallyDismissedPlayerWithoutCancellingItsNotification() {
+        val player = session("First track", PlaybackState.STATE_PAUSED)
+        val current = await { it.nowPlaying?.title == "First track" }.nowPlaying!!
+        main {
+            repository.dismiss(current.sessionId, current.revision)
+            assertEquals(1, notificationStore.state.value.notifications.size)
+            player.setMetadata(metadata("Second track"))
+        }
+        val restored = await { it.nowPlaying?.title == "Second track" }.nowPlaying!!
+        assertFalse(restored.playing)
+        assertTrue(restored.revision > current.revision)
+    }
+
     @Suppress("DEPRECATION")
     @Test fun playerPendingIntentUsesTheStrictestAvailableForegroundOptIn() {
         if (Build.VERSION.SDK_INT >= 34) {

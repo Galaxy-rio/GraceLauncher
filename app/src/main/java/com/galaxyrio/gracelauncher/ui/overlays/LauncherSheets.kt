@@ -115,6 +115,7 @@ fun LauncherOverlays(
         ShortcutPopup(
             app = overlay.app, anchor = overlay.anchor, hasAccess = uiState.hasShortcutAccess, actions = actions,
             reveal = overlay.reveal,
+            notifications = uiState.notifications[overlay.app.packageName].orEmpty(),
             onLaunchApp = { onChange(null); onLaunchApp(overlay.app) }, onDismiss = { onChange(null) },
         )
         return

@@ -38,4 +38,7 @@ data class LauncherActions(
     val launchShortcut: (LauncherShortcut) -> Unit = {},
     val requestMediaAccess: () -> Unit = {},
     val controlMedia: (String, MediaCommand) -> Unit = { _, _ -> },
+    val dismissMedia: (String, Long) -> Boolean = { _, _ -> false },
+    val dismissNotification: (String, Long) -> Boolean = { _, _ -> false },
+    val openNotification: (String, Long) -> Boolean = { _, _ -> false },
 )

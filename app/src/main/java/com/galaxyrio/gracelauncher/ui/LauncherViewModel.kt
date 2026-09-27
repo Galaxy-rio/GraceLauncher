@@ -34,6 +34,8 @@ import com.galaxyrio.gracelauncher.data.media.MediaCommand
 import com.galaxyrio.gracelauncher.data.media.MediaSessionRepository
 import com.galaxyrio.gracelauncher.data.media.MediaSnapshot
 import com.galaxyrio.gracelauncher.data.media.NowPlaying
+import com.galaxyrio.gracelauncher.data.notifications.AppNotification
+import com.galaxyrio.gracelauncher.data.notifications.appNotifications
 import java.text.Collator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -78,6 +80,7 @@ data class LauncherUiState(
     // Unknown until the first system query, avoiding a banner flash for an existing default.
     val isDefaultHome: Boolean? = null,
     val media: MediaSnapshot = MediaSnapshot(),
+    val notifications: Map<String, List<AppNotification>> = emptyMap(),
 ) {
     val homeMedia: NowPlaying?
         get() = media.nowPlaying.takeIf {
@@ -127,6 +130,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     init {
+        viewModelScope.launch {
+            appNotifications.state.collect { notifications -> _uiState.update { it.copy(notifications = notifications) } }
+        }
         viewModelScope.launch {
             mediaRepository.state.collect { media -> _uiState.update { it.copy(media = media) } }
         }
@@ -288,6 +294,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun controlMedia(sessionId: String, command: MediaCommand): Boolean = mediaRepository.command(sessionId, command)
+    fun dismissMedia(sessionId: String, revision: Long): Boolean = mediaRepository.dismiss(sessionId, revision)
+    fun dismissNotification(key: String, revision: Long): Boolean = appNotifications.dismiss(key, revision)
+    fun openNotification(key: String, revision: Long): Boolean = appNotifications.open(getApplication(), key, revision)
 
     fun renameApp(app: LauncherApp, label: String) {
         preferences.rename(app.key, label)

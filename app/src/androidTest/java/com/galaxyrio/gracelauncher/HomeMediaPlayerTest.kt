@@ -48,13 +48,21 @@ class HomeMediaPlayerTest {
         textMode = WallpaperTextMode.Light, media = MediaSnapshot(true, track),
     ))
     private val commands = mutableListOf<Pair<String, MediaCommand>>()
+    private var dismissals = 0
 
     private fun home() {
         compose.setContent {
             GraceLauncherTheme(dynamicColor = false) {
                 Box(Modifier.fillMaxSize().background(Color(0xFF23312E))) {
                     LauncherScreen(state, onDateClick = {}, onClockClick = {}, onLaunchApp = {}, onToggleFavorite = {},
-                        actions = LauncherActions(controlMedia = { id, command -> commands += id to command }))
+                        actions = LauncherActions(controlMedia = { id, command -> commands += id to command },
+                            dismissMedia = { id, revision ->
+                                assertEquals(track.sessionId, id)
+                                assertEquals(state.media.nowPlaying!!.revision, revision)
+                                dismissals++
+                                state = state.copy(media = state.media.copy(nowPlaying = null))
+                                true
+                            }))
                 }
             }
         }
@@ -145,6 +153,31 @@ class HomeMediaPlayerTest {
         compose.runOnIdle { assertEquals(1, requests); state = state.copy(media = MediaSnapshot(true)) }
         compose.onNodeWithTag("media_access").assertDoesNotExist()
         screenshot("media-player-setting.png")
+    }
+
+    @Test fun bothSwipeDirectionsDismissWithoutPlaybackCommandsAndNewRevisionCanReturn() {
+        home()
+        compose.onNodeWithTag("home_media_player").performTouchInput { swipeLeft() }
+        compose.onNodeWithTag("home_media_player").assertDoesNotExist()
+        compose.runOnIdle {
+            assertEquals(1, dismissals); assertTrue(commands.isEmpty())
+            state = state.copy(media = MediaSnapshot(true, track.copy(playing = false, revision = 1)))
+        }
+        compose.onNodeWithTag("home_media_player").assertIsDisplayed().performTouchInput { swipeRight() }
+        compose.onNodeWithTag("home_media_player").assertDoesNotExist()
+        compose.runOnIdle { assertEquals(2, dismissals); assertTrue(commands.isEmpty()) }
+    }
+
+    @Test fun cancelledSwipeReturnsToItsPlaceAndDoesNotOpenThePlayer() {
+        home()
+        compose.onNodeWithTag("home_media_player").performTouchInput {
+            down(center)
+            moveBy(androidx.compose.ui.geometry.Offset(-50f, 0f), 250)
+            moveBy(androidx.compose.ui.geometry.Offset.Zero, 250)
+            up()
+        }
+        compose.onNodeWithTag("home_media_player").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(0, dismissals); assertTrue(commands.isEmpty()) }
     }
 
     private fun screenshot(name: String) {

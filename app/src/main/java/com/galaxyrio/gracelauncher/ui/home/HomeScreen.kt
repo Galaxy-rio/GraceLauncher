@@ -74,6 +74,7 @@ fun HomeScreen(
     onFolderDrag: (LauncherFolder, Rect, Float) -> Unit = { _, _, _ -> },
     onFolderDragEnd: (Boolean) -> Unit = {},
     onMediaCommand: (String, MediaCommand) -> Unit = { _, _ -> },
+    onDismissMedia: (String, Long) -> Boolean = { _, _ -> false },
 ) {
     val now by produceState(initialValue = Instant.now()) {
         while (true) {
@@ -87,7 +88,8 @@ fun HomeScreen(
     val configuration = LocalConfiguration.current
     val media = uiState.homeMedia
     val mediaHeight = if (media != null) (108f * configuration.fontScale.coerceAtLeast(1f)).dp else 0.dp
-    val estimatedHeight = topSpace + (146f * configuration.fontScale).dp + mediaHeight + ((favorites.size + folders.size) * 56).dp + 72.dp
+    val notificationHeight = (favorites.count { !uiState.notifications[it.packageName].isNullOrEmpty() } * 44 * configuration.fontScale).dp
+    val estimatedHeight = topSpace + (146f * configuration.fontScale).dp + mediaHeight + notificationHeight + ((favorites.size + folders.size) * 56).dp + 72.dp
     val canScroll = estimatedHeight > viewportHeight
 
     LazyColumn(
@@ -110,7 +112,7 @@ fun HomeScreen(
             Spacer(Modifier.height(12.dp))
         }
         if (media != null) item(key = "media", contentType = "media") {
-            HomeMediaPlayer(media, onMediaCommand)
+            HomeMediaPlayer(media, onMediaCommand, onDismiss = onDismissMedia)
             Spacer(Modifier.height(12.dp))
         }
         items(favorites, key = LauncherApp::key, contentType = { "app" }) { app ->
@@ -121,6 +123,7 @@ fun HomeScreen(
                 onSwipeRight = { onAppShortcuts(app, it) },
                 gestures = rowGestures,
                 highlighted = highlightedAppKey == app.key,
+                notification = uiState.notifications[app.packageName]?.firstOrNull(),
             )
         }
         items(folders, key = { "folder:${it.id}" }, contentType = { "folder" }) { folder ->

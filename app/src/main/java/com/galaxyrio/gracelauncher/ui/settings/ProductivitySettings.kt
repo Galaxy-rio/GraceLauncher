@@ -77,6 +77,11 @@ internal fun ProductivitySettings(
                 ) { showMediaAccessDialog = true }
             }
             item { SettingsHeading(stringResource(R.string.settings_app_organization)) }
+            if (!settings.mediaPlayer && !uiState.media.hasAccess) item {
+                SettingsActionItem(stringResource(R.string.notification_allow), stringResource(R.string.media_access_required),
+                    0, 1, "notifications_access") { showMediaAccessDialog = true }
+                Spacer(Modifier.height(12.dp))
+            }
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_hide_apps), pluralStringResource(R.plurals.settings_hidden_count, uiState.hiddenAppKeys.size, uiState.hiddenAppKeys.size),

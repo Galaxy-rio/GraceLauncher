@@ -41,6 +41,7 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.ShortcutResult
 import com.galaxyrio.gracelauncher.data.ShortcutStatus
+import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
@@ -63,6 +64,7 @@ fun ShortcutPopup(
     onLaunchApp: () -> Unit,
     onDismiss: () -> Unit,
     reveal: ShortcutRevealState = remember { ShortcutRevealState() },
+    notifications: List<AppNotification> = emptyList(),
 ) {
     var retry by remember { mutableIntStateOf(0) }
     val loadShortcuts by rememberUpdatedState(actions.shortcuts)
@@ -91,21 +93,36 @@ fun ShortcutPopup(
             Spacer(Modifier.width(10.dp))
             Text(app.label, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
+        LazyColumn(Modifier.heightIn(max = maxListHeight).testTag("shortcut_list")) {
+            items(notifications, key = { "notification:${it.key}" }) { notification ->
+                NotificationPopupItem(
+                    app, notification,
+                    onOpen = { if (actions.openNotification(notification.key, notification.revision)) onDismiss() },
+                    onDismiss = { actions.dismissNotification(notification.key, notification.revision) },
+                    modifier = Modifier.animateItem(),
+                    gesturesEnabled = !reveal.dragging && reveal.expanded,
+                )
+            }
         when (result.status) {
             // Cold apps may need one binder query; keep the layout quiet.
-            ShortcutStatus.Loading -> Spacer(Modifier.height(56.dp))
-            ShortcutStatus.DefaultLauncherRequired -> {
+            ShortcutStatus.Loading -> if (notifications.isEmpty()) item { Spacer(Modifier.height(56.dp)) }
+            ShortcutStatus.DefaultLauncherRequired -> item {
+                Column {
                 Text(stringResource(R.string.shortcut_permission), Modifier.padding(horizontal = 12.dp, vertical = 12.dp), style = MaterialTheme.typography.bodyMedium)
                 TextButton(onClick = actions.requestDefaultHome) { Text(stringResource(R.string.set_default_launcher)) }
+                }
             }
-            ShortcutStatus.Error -> {
+            ShortcutStatus.Error -> item {
+                Column {
                 Text(stringResource(R.string.shortcut_error), Modifier.padding(horizontal = 12.dp, vertical = 12.dp))
                 TextButton(onClick = { retry++ }) { Text(stringResource(R.string.retry)) }
+                }
             }
             ShortcutStatus.Ready -> {
-                if (result.shortcuts.isEmpty()) Text(stringResource(R.string.no_shortcuts), Modifier.padding(horizontal = 12.dp, vertical = 18.dp), style = MaterialTheme.typography.bodyMedium)
-                LazyColumn(Modifier.heightIn(max = maxListHeight)) {
-                    items(result.shortcuts, key = { it.id }) { shortcut ->
+                if (result.shortcuts.isEmpty() && notifications.isEmpty()) item {
+                    Text(stringResource(R.string.no_shortcuts), Modifier.padding(horizontal = 12.dp, vertical = 18.dp), style = MaterialTheme.typography.bodyMedium)
+                }
+                    items(result.shortcuts, key = { "shortcut:${it.id}" }) { shortcut ->
                         var iconBounds by remember { mutableStateOf(Rect.Zero) }
                         Row(
                             Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("shortcut:${shortcut.id}")
@@ -129,8 +146,8 @@ fun ShortcutPopup(
                             Text(shortcut.label, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                     }
-                }
             }
+        }
         }
     }
 }

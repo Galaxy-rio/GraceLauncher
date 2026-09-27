@@ -1,11 +1,13 @@
 package com.galaxyrio.gracelauncher.data.media
 
 import android.app.Notification
+import android.app.NotificationManager
 import android.media.session.MediaSession
 import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import androidx.annotation.MainThread
+import com.galaxyrio.gracelauncher.data.notifications.appNotifications
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -58,22 +60,42 @@ internal class MediaNotificationStore {
 
 internal val mediaNotifications = MediaNotificationStore()
 
-/** Visibility follows posted/removed media notifications, including paused players. */
+/** One system binding feeds app messages and media-notification visibility independently. */
 class MediaNotificationListener : NotificationListenerService() {
     override fun onListenerConnected() {
         // Bootstrap only after binding, so existing paused notifications survive a launcher restart.
         try {
-            mediaNotifications.connected(activeNotifications.orEmpty().toList())
+            val notifications = activeNotifications.orEmpty().toList()
+            mediaNotifications.connected(notifications)
+            appNotifications.connected(notifications) { key -> runCatching { cancelNotification(key) }.isSuccess }
+            updateAppRanking(currentRanking)
         } catch (_: RuntimeException) {
             mediaNotifications.disconnected()
+            appNotifications.disconnected()
         }
     }
 
-    override fun onNotificationPosted(sbn: StatusBarNotification) { mediaNotifications.posted(sbn) }
-    override fun onNotificationRemoved(sbn: StatusBarNotification) { mediaNotifications.removed(sbn.key) }
-    override fun onListenerDisconnected() { mediaNotifications.disconnected() }
+    override fun onNotificationPosted(sbn: StatusBarNotification) {
+        updateAppRanking(currentRanking)
+        mediaNotifications.posted(sbn)
+        appNotifications.posted(sbn)
+    }
+    override fun onNotificationRemoved(sbn: StatusBarNotification) {
+        mediaNotifications.removed(sbn.key)
+        appNotifications.removed(sbn.key)
+    }
+    override fun onNotificationRankingUpdate(rankingMap: RankingMap) { updateAppRanking(rankingMap) }
+    private fun updateAppRanking(rankingMap: RankingMap?) {
+        appNotifications.ranking { key ->
+            val ranking = Ranking()
+            rankingMap == null || !rankingMap.getRanking(key, ranking) ||
+                (!ranking.isSuspended && ranking.importance != NotificationManager.IMPORTANCE_NONE)
+        }
+    }
+    override fun onListenerDisconnected() { mediaNotifications.disconnected(); appNotifications.disconnected() }
     override fun onDestroy() {
         mediaNotifications.disconnected()
+        appNotifications.disconnected()
         super.onDestroy()
     }
 }

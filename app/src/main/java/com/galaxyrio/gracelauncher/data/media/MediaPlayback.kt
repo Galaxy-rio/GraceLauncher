@@ -15,6 +15,7 @@ data class NowPlaying(
     val canToggle: Boolean,
     val canPrevious: Boolean,
     val canNext: Boolean,
+    val revision: Long = 0,
 )
 
 data class MediaSnapshot(val hasAccess: Boolean = false, val nowPlaying: NowPlaying? = null, val failed: Boolean = false)

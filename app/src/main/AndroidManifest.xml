@@ -26,7 +26,7 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.GraceLauncher"
         tools:targetApi="33">
-        <!-- System-managed binding only; follows media-notification presence and sessions. -->
+        <!-- System-managed binding for app notification previews and media sessions. -->
         <service
             android:name=".data.media.MediaNotificationListener"
             android:label="@string/media_service_name"

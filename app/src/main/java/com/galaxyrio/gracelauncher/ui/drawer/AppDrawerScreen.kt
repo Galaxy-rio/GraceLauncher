@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
+import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
@@ -46,6 +47,7 @@ fun AppDrawerScreen(
     onEditFolder: (LauncherFolder) -> Unit = {},
     onFolderDrag: (LauncherFolder, Rect, Float) -> Unit = { _, _, _ -> },
     onFolderDragEnd: (Boolean) -> Unit = {},
+    notifications: Map<String, List<AppNotification>> = emptyMap(),
 ) {
     val appearance = LocalLauncherAppearance.current
     LazyColumn(
@@ -91,6 +93,7 @@ fun AppDrawerScreen(
                         onSwipeRight = { onAppShortcuts(item.app, it) },
                         gestures = rowGestures,
                         highlighted = highlightedAppKey == item.app.key,
+                        notification = notifications[item.app.packageName]?.firstOrNull(),
                     )
                     is DrawerItem.Folder -> FolderRow(
                         folder = item.folder,
