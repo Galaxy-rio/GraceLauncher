@@ -41,7 +41,7 @@ class LauncherSettingsPersistenceTest {
     private fun openRepository(): LauncherSettingsRepository {
         database?.close()
         val reopened = Room.databaseBuilder(context, LauncherDatabase::class.java, databaseName)
-            .addMigrations(LauncherDatabase.Migration1To2, LauncherDatabase.Migration2To3).build()
+            .addMigrations(LauncherDatabase.Migration1To2, LauncherDatabase.Migration2To3, LauncherDatabase.Migration3To4).build()
         database = reopened
         return LauncherSettingsRepository(reopened)
     }
@@ -113,6 +113,38 @@ class LauncherSettingsPersistenceTest {
     }
 
     @Test
+    fun versionThreeAddsOptInWeatherWithoutChangingExistingPreferences() = runBlocking {
+        val schema = InstrumentationRegistry.getInstrumentation().context.assets
+            .open("com.galaxyrio.gracelauncher.data.LauncherDatabase/3.json")
+            .bufferedReader().use { JSONObject(it.readText()).getJSONObject("database") }
+        context.openOrCreateDatabase(databaseName, 0, null).use { legacy ->
+            val entities = schema.getJSONArray("entities")
+            for (index in 0 until entities.length()) {
+                val entity = entities.getJSONObject(index)
+                val table = entity.getString("tableName")
+                fun execute(sql: String) = legacy.execSQL(sql.replace('$' + "{TABLE_NAME}", table))
+                execute(entity.getString("createSql"))
+                entity.optJSONArray("indices")?.let { indices ->
+                    for (i in 0 until indices.length()) execute(indices.getJSONObject(i).getString("createSql"))
+                }
+            }
+            val setup = schema.getJSONArray("setupQueries")
+            for (index in 0 until setup.length()) legacy.execSQL(setup.getString(index))
+            legacy.execSQL("INSERT INTO launcher_settings VALUES (0, 0, 1, 0, 0, -14129574, 'Dark', 'test.icons', 0)")
+            legacy.version = 3
+        }
+        val settings = withTimeout(10_000) { openRepository().snapshots.first().settings }
+        assertEquals(LauncherSettings(calendarAgenda = false, allowHapticFeedback = false,
+            useDynamicColors = false, themeColor = -14129574, darkMode = ThemeMode.Dark,
+            iconPackPackage = "test.icons", mediaPlayer = false), settings)
+        assertFalse(settings.weatherEnabled)
+        assertEquals(7, settings.weatherForecastDays)
+        val selected = settings.copy(weatherEnabled = true, weatherLocationId = "city&source", weatherForecastDays = 5)
+        LauncherSettingsRepository(requireNotNull(database)).updateSettings(selected)
+        assertEquals(selected, withTimeout(10_000) { openRepository().snapshots.first().settings })
+    }
+
+    @Test
     fun settingsHiddenAppsAndOrderedFoldersSurviveDatabaseRecreation() = runBlocking {
         val repository = openRepository()
         val settings = LauncherSettings(
@@ -124,6 +156,9 @@ class LauncherSettingsPersistenceTest {
             darkMode = ThemeMode.Dark,
             iconPackPackage = "me.morirain.dev.iconpack.pure",
             mediaPlayer = false,
+            weatherEnabled = true,
+            weatherForecastDays = 10,
+            weatherLocationId = "beijing&china",
         )
         val folder = LauncherFolder(
             id = "work",

@@ -22,6 +22,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalConfiguration
@@ -43,6 +44,7 @@ import com.galaxyrio.gracelauncher.data.FolderPlacement
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.data.nextVisibleEvent
 import com.galaxyrio.gracelauncher.data.media.MediaCommand
+import com.galaxyrio.gracelauncher.data.weather.WeatherCurrent
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
@@ -51,6 +53,7 @@ import com.galaxyrio.gracelauncher.ui.components.eventRemainingText
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.LauncherFontFamily
 import com.galaxyrio.gracelauncher.ui.theme.rememberBatteryPercent
+import com.galaxyrio.gracelauncher.ui.weather.HomeWeather
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.util.Date
@@ -108,6 +111,9 @@ fun HomeScreen(
                 onDateClick = onDateClick,
                 onClockClick = onClockClick,
                 showBattery = uiState.settings.showBatteryPercentage,
+                weather = uiState.weather.snapshot?.current.takeIf {
+                    uiState.settings.weatherEnabled && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
+                },
             )
             Spacer(Modifier.height(12.dp))
         }
@@ -145,6 +151,7 @@ private fun DateHeader(
     onDateClick: () -> Unit,
     onClockClick: () -> Unit,
     showBattery: Boolean,
+    weather: WeatherCurrent?,
 ) {
     val appearance = LocalLauncherAppearance.current
     val battery = if (showBattery) rememberBatteryPercent() else null
@@ -153,7 +160,7 @@ private fun DateHeader(
     val clockText = formatHomeClock(now, DateFormat.is24HourFormat(context), locale)
     val datePattern = DateFormat.getBestDateTimePattern(locale, "MMMEd")
     val dateText = SimpleDateFormat(datePattern, locale).format(Date.from(now))
-    val dateDescription = stringResource(R.string.date_calendar_action, dateText)
+    val dateDescription = stringResource(if (weather != null) R.string.weather_agenda_action else R.string.date_calendar_action, dateText)
     val clockDescription = stringResource(R.string.clock_action, clockText)
 
     Column {
@@ -177,25 +184,35 @@ private fun DateHeader(
             ),
         )
         Spacer(Modifier.height(5.dp))
-        Text(
-            text = dateText + (battery?.let { "  $it%" } ?: ""),
+        Row(
             modifier = Modifier
                 .testTag("home_date")
                 .semantics { contentDescription = dateDescription }
                 .clip(RoundedCornerShape(12.dp))
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = ripple(color = appearance.text), onClick = onDateClick)
                 .padding(horizontal = 8.dp, vertical = 2.dp),
-            color = appearance.text,
-            style = TextStyle(
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val dateStyle = TextStyle(
                 fontFamily = LauncherFontFamily,
                 fontSize = 14.sp,
                 lineHeight = 20.sp,
                 fontWeight = FontWeight.Medium,
                 shadow = appearance.textShadow,
-            ),
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+            )
+            Text(
+                text = dateText + (battery?.let { "  $it%" } ?: ""),
+                modifier = Modifier.weight(1f, fill = false).testTag("home_date_text"),
+                color = appearance.text,
+                style = dateStyle,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            if (weather?.temperature != null) {
+                Spacer(Modifier.width(10.dp))
+                HomeWeather(weather, appearance.text, dateStyle)
+            }
+        }
         if (event != null) {
             ScheduleLine(event = event, now = now, onClick = onDateClick)
         }

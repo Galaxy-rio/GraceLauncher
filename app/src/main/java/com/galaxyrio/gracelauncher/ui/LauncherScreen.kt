@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.ContentUris
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.AlarmClock
@@ -15,6 +16,7 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.app.ActivityCompat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
@@ -70,6 +72,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.net.toUri
+import androidx.core.content.ContextCompat
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
@@ -80,6 +83,7 @@ import com.galaxyrio.gracelauncher.ui.components.LocalLauncherInputEnabled
 import com.galaxyrio.gracelauncher.platform.AppLaunchTransition
 import com.galaxyrio.gracelauncher.platform.DefaultHome
 import com.galaxyrio.gracelauncher.data.media.MediaAccess
+import com.galaxyrio.gracelauncher.data.weather.BreezyWeatherRepository
 import com.galaxyrio.gracelauncher.ui.overlays.ShortcutRevealState
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
@@ -121,6 +125,11 @@ fun LauncherRoute(
     val mediaAccessLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         viewModel.refreshApps()
     }
+    val breezyRepository = remember(context) { BreezyWeatherRepository(context) }
+    var weatherPermissionRequested by rememberSaveable { mutableStateOf(false) }
+    val weatherPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        viewModel.refreshWeather()
+    }
     LaunchedEffect(uiState.settingsSaveFailed, uiState.settingsLoadFailed) {
         val error = when {
             uiState.settingsLoadFailed -> R.string.settings_storage_load_error
@@ -135,6 +144,7 @@ fun LauncherRoute(
             while (true) {
                 delay(60_000)
                 viewModel.refreshSchedule()
+                viewModel.refreshWeather(force = false)
             }
         }
     }
@@ -146,6 +156,30 @@ fun LauncherRoute(
     }
 
     val actions = LauncherActions(
+        refreshWeather = { viewModel.refreshWeather() },
+        requestWeatherAccess = {
+            when {
+                breezyRepository.installedPackage() == null -> viewModel.refreshWeather()
+                ContextCompat.checkSelfPermission(context, BreezyWeatherRepository.READ_PERMISSION) == PackageManager.PERMISSION_GRANTED ->
+                    viewModel.refreshWeather()
+                weatherPermissionRequested && (context as? Activity)?.let {
+                    ActivityCompat.shouldShowRequestPermissionRationale(it, BreezyWeatherRepository.READ_PERMISSION)
+                } != true -> openSystemApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    Uri.fromParts("package", context.packageName, null)))
+                else -> {
+                    weatherPermissionRequested = true
+                    weatherPermissionLauncher.launch(BreezyWeatherRepository.READ_PERMISSION)
+                }
+            }
+        },
+        openBreezyWeather = {
+            val intent = context.packageManager.getLaunchIntentForPackage(BreezyWeatherRepository.PACKAGE_NAME)
+            if (intent != null) openSystemApp(intent)
+            else Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
+        },
+        installBreezyWeather = {
+            openSystemApp(Intent(Intent.ACTION_VIEW, "https://github.com/breezy-weather/breezy-weather/releases".toUri()))
+        },
         dismissMedia = viewModel::dismissMedia,
         dismissNotification = viewModel::dismissNotification,
         openNotification = { key, revision ->
@@ -393,7 +427,11 @@ internal fun LauncherScreen(
             onLaunchApp = onLaunchApp,
             onAppDetails = { overlay = LauncherOverlay.AppDetails(it) },
             onAppShortcuts = { app, bounds -> overlay = LauncherOverlay.Shortcuts(app, bounds) },
-            onDateClick = { overlay = LauncherOverlay.Agenda },
+            onDateClick = {
+                actions.refreshWeather()
+                actions.refreshAgenda()
+                overlay = LauncherOverlay.Agenda
+            },
             onClockClick = onClockClick,
             rowGestures = rowGestures,
             highlightedAppKey = highlightedAppKey,

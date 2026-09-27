@@ -42,4 +42,8 @@ data class LauncherActions(
     val dismissMedia: (String, Long) -> Boolean = { _, _ -> false },
     val dismissNotification: (String, Long) -> Boolean = { _, _ -> false },
     val openNotification: (String, Long) -> Boolean = { _, _ -> false },
+    val requestWeatherAccess: () -> Unit = {},
+    val refreshWeather: () -> Unit = {},
+    val openBreezyWeather: () -> Unit = {},
+    val installBreezyWeather: () -> Unit = {},
 )

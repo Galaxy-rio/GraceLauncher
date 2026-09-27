@@ -11,6 +11,9 @@ data class LauncherSettings(
     val darkMode: ThemeMode = ThemeMode.System,
     val iconPackPackage: String? = null,
     val mediaPlayer: Boolean = true,
+    val weatherEnabled: Boolean = false,
+    val weatherForecastDays: Int = 7,
+    val weatherLocationId: String? = null,
 )
 
 enum class FolderPlacement { Favorites, AppList }

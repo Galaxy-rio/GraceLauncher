@@ -44,6 +44,9 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
             darkMode = settings.darkMode.name,
             iconPackPackage = settings.iconPackPackage,
             mediaPlayer = settings.mediaPlayer,
+            weatherEnabled = settings.weatherEnabled,
+            weatherForecastDays = settings.weatherForecastDays.coerceIn(1, 14),
+            weatherLocationId = settings.weatherLocationId,
         ))
     }
 
@@ -84,4 +87,7 @@ private fun LauncherSettingsEntity.toSettings() = LauncherSettings(
     darkMode = ThemeMode.entries.firstOrNull { it.name == darkMode } ?: ThemeMode.System,
     iconPackPackage = iconPackPackage,
     mediaPlayer = mediaPlayer,
+    weatherEnabled = weatherEnabled,
+    weatherForecastDays = weatherForecastDays.coerceIn(1, 14),
+    weatherLocationId = weatherLocationId,
 )

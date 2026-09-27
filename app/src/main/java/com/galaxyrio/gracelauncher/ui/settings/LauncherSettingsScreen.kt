@@ -60,7 +60,7 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 
 internal enum class SettingsPage {
-    Root, Productivity, Themes, Advanced, About, HiddenApps, Folders, FolderEditor,
+    Root, Productivity, Weather, Themes, Advanced, About, HiddenApps, Folders, FolderEditor,
     Changelog, Licenses, AppLicense,
 }
 
@@ -158,6 +158,7 @@ fun LauncherSettingsScreen(
                 } else when (page) {
                     SettingsPage.Root -> SettingsHome(uiState.isDefaultHome, actions.requestDefaultHome, back, navigate)
                     SettingsPage.Productivity -> ProductivitySettings(uiState, actions, back, navigate)
+                    SettingsPage.Weather -> WeatherSettings(uiState, actions, back)
                     SettingsPage.Themes -> ThemeSettings(uiState, actions, back)
                     SettingsPage.Advanced -> SettingsScaffold(stringResource(R.string.settings_advanced), "settings_advanced", back) { padding ->
                         Box(

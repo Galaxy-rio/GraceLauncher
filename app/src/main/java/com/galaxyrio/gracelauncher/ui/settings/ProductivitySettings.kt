@@ -58,7 +58,11 @@ internal fun ProductivitySettings(
                 ) { value -> actions.updateSettings { current -> current.copy(calendarAgenda = value) } }
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_weather), stringResource(R.string.settings_coming_soon), 1, 3, "settings_weather", enabled = false) { }
+                SettingsActionItem(
+                    stringResource(R.string.settings_weather),
+                    stringResource(if (settings.weatherEnabled) R.string.weather_settings_enabled_summary else R.string.weather_settings_disabled_summary),
+                    1, 3, "settings_weather",
+                ) { navigate(SettingsPage.Weather) }
             }
             item {
                 SettingsToggleItem(

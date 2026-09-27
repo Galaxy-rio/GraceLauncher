@@ -3,12 +3,14 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="org.breezyweather.READ_PROVIDER" />
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
 
     <queries>
+        <package android:name="org.breezyweather" />
         <intent>
             <action android:name="android.intent.action.MAIN" />
             <category android:name="android.intent.category.LAUNCHER" />
@@ -26,6 +28,17 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.GraceLauncher"
         tools:targetApi="33">
+        <!-- The official Breezy notifier requires an exported receiver and defines no
+             sender permission. Payloads are ignored; signals only coalesce a read of
+             the permission-protected, package-verified provider while enabled. -->
+        <receiver
+            android:name=".platform.BreezyWeatherUpdateReceiver"
+            android:exported="true"
+            tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="org.breezyweather.ACTION_UPDATE_NOTIFIER" />
+            </intent-filter>
+        </receiver>
         <!-- System-managed binding for app notification previews and media sessions. -->
         <service
             android:name=".data.media.MediaNotificationListener"

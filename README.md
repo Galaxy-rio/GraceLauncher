@@ -38,7 +38,7 @@
 - 英文与简体中文界面
 - 全局 Josefin Sans 可变字体；中文、日文、韩文及其他已打包文字使用 Noto Sans 系列逐字形回退，字体随应用离线提供
 
-天气、小组件、时钟样式和字体选择暂为明确标注的占位项；Advanced 页面显示“Coming soon”。没有声明网络权限。
+天气支持可选的 Breezy Weather 集成；小组件、时钟样式和字体选择暂为明确标注的占位项，Advanced 页面显示“Coming soon”。没有声明网络权限。
 
 ## 代码结构
 
@@ -47,6 +47,7 @@ data/
   AppRepository.kt       已安装应用枚举、图标读取与启动
   icons/                 图标包发现、appfilter 映射、日历图标、遮罩合成与有界缓存
   media/                 系统媒体会话、权限状态、封面加载与播放控制
+  weather/               Breezy Weather 本地 Provider 协议、天气模型和读取状态
   CalendarRepository.kt  Calendar Provider 日程读取
   FavoritesStore.kt      收藏应用持久化
   LauncherPreferences.kt 应用别名、分类和外观持久化
@@ -95,7 +96,7 @@ ui/
 
 ## 第三方图标包
 
-长按桌面右下按钮 → Themes → Icon pack，选择已安装的图标包即可生效，无需重启；选 System icons 恢复原图标。选择存入 Room；当前数据库 v3 保留 v1、v2 的无损升级路径。
+长按桌面右下按钮 → Themes → Icon pack，选择已安装的图标包即可生效，无需重启；选 System icons 恢复原图标。选择存入 Room；当前数据库 v4 保留 v1、v2、v3 的无损升级路径。
 
 支持常见 ADW / Nova / Apex / Lawnchair 图标包协议，读取 `res/xml`、`res/raw` 或 `assets` 下的 `appfilter.xml`：
 
@@ -109,6 +110,20 @@ ui/
 已使用设备上安装的 Pure Icon Pack 验证真实资源、日期图标、兜底合成和设置切换。各图标包仍需由用户单独安装；目前不提供逐应用图标替换、图标包应用按钮协议或动态时钟指针。
 
 协议参考：[Kvaesitso 图标包开发文档](https://kvaesitso.mm20.de/docs/developer-guide/integrations/icon-packs)。
+
+## 天气
+
+长按桌面右下按钮 → Productivity → Weather。内置天气默认关闭，要求单独安装 [Breezy Weather](https://github.com/breezy-weather/breezy-weather/releases)，在其中添加城市并刷新天气，再为 Grace Launcher 授予 `org.breezyweather.READ_PROVIDER` 权限。拒绝权限后可在天气设置中再次授权或打开系统应用权限设置。无需为 Grace 授予位置或网络权限；没有 Breezy 时不提供其他天气 API 兜底。
+
+首页在日期、电量右侧显示天气图标与当前温度，共同打开日程面板。面板按日期合并天气与日程：日期同一行右侧显示每日天气及最高/最低温，今天下方提供可横向滑动的逐小时预报；默认展示七天，可改为 3/5/7/10/14 天，实际数量受 Breezy 所选数据源限制。缺少日历权限不影响天气显示，关闭天气也不会关闭原有日程。
+
+天气读取遵循 Breezy 官方数据共享协议：先核对 Provider 主版本，再读取有限数量的地点，一次只获取一个地点的天气，并省略分钟降水、预警和气候常值等未展示字段。温度沿用 Breezy 的单位；缺失字段不生成虚构数值。协议不兼容、未添加地点、未刷新天气、权限撤销和卸载分别有状态提示。地点、天气数据和更新时间只在内存中保留，Room 只保存开关、城市 ID 和预报天数。
+
+本地读取不会触发 Breezy 联网刷新，数据新鲜度由 Breezy 负责；需要更新时可从天气页打开 Breezy。返回桌面或打开日程时重新读取，界面可见时每十五分钟检查一次本地数据；如需及时接收更新，可在 Breezy 设置 → 外部模块 → 位置更新通知中启用 Grace Launcher。通知只触发重新查询，不信任广播中传入的天气或地点数据。界面注明位置、数据来源和更新时间，保留可点击的来源与许可链接，并提示旧数据。官方共享协议仍处于早期阶段，主版本不兼容时会提示更新应用。
+
+系统小组件承载目前尚未实现，本次天气集成不包含厂商/第三方小组件托管。
+
+协议与示例：[Breezy Weather Data Sharing Library](https://github.com/breezy-weather/breezy-weather-data-sharing-lib)、[官方 ContentProvider 公告](https://github.com/breezy-weather/breezy-weather/discussions/2089)。
 
 ## 音乐控件
 

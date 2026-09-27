@@ -31,6 +31,9 @@ data class LauncherSettingsEntity(
     val darkMode: String,
     val iconPackPackage: String? = null,
     @ColumnInfo(defaultValue = "1") val mediaPlayer: Boolean = true,
+    @ColumnInfo(defaultValue = "0") val weatherEnabled: Boolean = false,
+    @ColumnInfo(defaultValue = "7") val weatherForecastDays: Int = 7,
+    val weatherLocationId: String? = null,
 )
 
 @Entity(tableName = "hidden_apps")
@@ -114,7 +117,7 @@ abstract class LauncherSettingsDao {
 @Database(
     entities = [LauncherSettingsEntity::class, HiddenAppEntity::class,
         LauncherFolderEntity::class, FolderAppEntity::class],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class LauncherDatabase : RoomDatabase() {
@@ -133,6 +136,14 @@ abstract class LauncherDatabase : RoomDatabase() {
             }
         }
 
+        val Migration3To4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN weatherEnabled INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN weatherForecastDays INTEGER NOT NULL DEFAULT 7")
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN weatherLocationId TEXT DEFAULT NULL")
+            }
+        }
+
         @Volatile private var instance: LauncherDatabase? = null
 
         fun getInstance(context: Context): LauncherDatabase = instance ?: synchronized(this) {
@@ -140,7 +151,7 @@ abstract class LauncherDatabase : RoomDatabase() {
                 context.applicationContext,
                 LauncherDatabase::class.java,
                 "grace_launcher.db",
-            ).addMigrations(Migration1To2, Migration2To3).build().also { instance = it }
+            ).addMigrations(Migration1To2, Migration2To3, Migration3To4).build().also { instance = it }
         }
     }
 }

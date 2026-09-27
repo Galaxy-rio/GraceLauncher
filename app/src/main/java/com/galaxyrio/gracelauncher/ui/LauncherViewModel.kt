@@ -9,6 +9,7 @@ import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Rect
 import android.os.Bundle
+import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
@@ -30,20 +31,26 @@ import com.galaxyrio.gracelauncher.data.icons.IconPackInfo
 import com.galaxyrio.gracelauncher.data.icons.IconPackRepository
 import com.galaxyrio.gracelauncher.data.icons.IconPackStatus
 import com.galaxyrio.gracelauncher.platform.DefaultHome
+import com.galaxyrio.gracelauncher.platform.BreezyWeatherUpdates
 import com.galaxyrio.gracelauncher.data.media.MediaCommand
 import com.galaxyrio.gracelauncher.data.media.MediaSessionRepository
 import com.galaxyrio.gracelauncher.data.media.MediaSnapshot
 import com.galaxyrio.gracelauncher.data.media.NowPlaying
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.data.notifications.appNotifications
+import com.galaxyrio.gracelauncher.data.weather.BreezyWeatherRepository
+import com.galaxyrio.gracelauncher.data.weather.WeatherState
+import com.galaxyrio.gracelauncher.data.weather.WeatherStatus
 import java.text.Collator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -82,6 +89,7 @@ data class LauncherUiState(
     val media: MediaSnapshot = MediaSnapshot(),
     val notifications: Map<String, List<AppNotification>> = emptyMap(),
     val favoriteOrder: List<String> = emptyList(),
+    val weather: WeatherState = WeatherState(),
 ) {
     val homeMedia: NowPlaying?
         get() = media.nowPlaying.takeIf {
@@ -108,6 +116,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val shortcutRepository = ShortcutRepository(application)
     private val settingsRepository = LauncherSettingsRepository(LauncherDatabase.getInstance(application))
     private val mediaRepository = MediaSessionRepository(application)
+    private val weatherRepository = BreezyWeatherRepository(application)
     private val settingsWriteMutex = Mutex()
 
     private val _uiState = MutableStateFlow(LauncherUiState(
@@ -123,6 +132,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private var appLoadJob: Job? = null
     private var scheduleLoadJob: Job? = null
+    private var weatherLoadJob: Job? = null
+    private var lastWeatherRefresh = 0L
     private val packageReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) {
             if (intent?.action == Intent.ACTION_PACKAGE_REMOVED && intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) return
@@ -134,6 +145,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     init {
+        viewModelScope.launch {
+            BreezyWeatherUpdates.events.collectLatest {
+                // Refresh after the final signal, so a forecast update following
+                // a current-conditions update is never lost to a leading-edge throttle.
+                delay(500)
+                refreshWeather()
+            }
+        }
         viewModelScope.launch {
             appNotifications.state.collect { notifications -> _uiState.update { it.copy(notifications = notifications) } }
         }
@@ -159,6 +178,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     Log.e("LauncherViewModel", "Unable to read launcher settings", error)
                     _uiState.update { it.copy(isLoadingSettings = false, settingsLoadFailed = true) }
                     mediaRepository.setEnabled(false)
+                    refreshWeather()
                 }
                 .collect { snapshot ->
                     val previous = _uiState.value
@@ -178,6 +198,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         mediaRepository.setEnabled(snapshot.settings.mediaPlayer)
                     }
                     if (previous.isLoadingSettings || previous.settings.iconPackPackage != snapshot.settings.iconPackPackage) refreshApps()
+                    if (previous.isLoadingSettings || previous.settings.weatherEnabled != snapshot.settings.weatherEnabled ||
+                        previous.settings.weatherLocationId != snapshot.settings.weatherLocationId
+                    ) refreshWeather()
                     if (previous.isLoadingSettings || previous.hiddenAppKeys != snapshot.hiddenAppKeys) {
                         val favorites = _uiState.value.favoriteApps
                         viewModelScope.launch { shortcutRepository.prefetch(favorites) }
@@ -189,6 +212,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun refreshApps() {
         mediaRepository.refresh()
+        refreshWeather()
         // Both HOME and the standalone settings Activity call this on resume;
         // also refresh after the role request, including cancellation.
         val isDefaultHome = DefaultHome.isDefault(getApplication())
@@ -240,6 +264,29 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     if (it is CancellationException) throw it
                     _uiState.update { it.copy(isLoadingApps = false, appLoadFailed = true) }
                 }
+        }
+    }
+
+    /** Only reads Breezy's local provider; never initiates a network weather request. */
+    fun refreshWeather(force: Boolean = true) {
+        val state = _uiState.value
+        if (state.isLoadingSettings || state.settingsLoadFailed || !state.settings.weatherEnabled) {
+            weatherLoadJob?.cancel()
+            lastWeatherRefresh = 0L
+            _uiState.update { it.copy(weather = WeatherState()) }
+            return
+        }
+        if (!force && (weatherLoadJob?.isActive == true ||
+                SystemClock.elapsedRealtime() - lastWeatherRefresh < 15 * 60_000L)) return
+        weatherLoadJob?.cancel()
+        val locationId = state.settings.weatherLocationId
+        weatherLoadJob = viewModelScope.launch {
+            val previous = _uiState.value.weather
+            _uiState.update { it.copy(weather = previous.copy(status = WeatherStatus.Loading,
+                snapshot = previous.snapshot.takeIf { previous.selectedLocationId == locationId || locationId == null })) }
+            val weather = weatherRepository.load(locationId)
+            lastWeatherRefresh = SystemClock.elapsedRealtime()
+            _uiState.update { it.copy(weather = weather) }
         }
     }
 

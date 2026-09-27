@@ -18,18 +18,25 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
-import com.galaxyrio.gracelauncher.data.agendaDays
+import com.galaxyrio.gracelauncher.data.weather.WeatherStatus
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.ScheduleStatus
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import com.galaxyrio.gracelauncher.ui.components.eventRemainingText
+import com.galaxyrio.gracelauncher.ui.weather.DailyWeather
+import com.galaxyrio.gracelauncher.ui.weather.HourlyWeather
+import com.galaxyrio.gracelauncher.ui.weather.WeatherSourceNote
+import com.galaxyrio.gracelauncher.ui.weather.weatherAgendaDays
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -55,62 +62,127 @@ fun AgendaSheet(uiState: LauncherUiState, actions: LauncherActions, onRequestCal
         }
     }
     val today = now.atZone(zone).toLocalDate()
-    val groups = remember(uiState.events, today, zone) { agendaDays(uiState.events, today, zone) }
+    val weatherEnabled = uiState.settings.weatherEnabled && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
+    val weather = uiState.weather.snapshot.takeIf { weatherEnabled }
+    val forecastDays = uiState.settings.weatherForecastDays
+    val forecasts = remember(weather?.daily, today, forecastDays) {
+        weather?.daily.orEmpty().filter { it.date >= today && it.date < today.plusDays(forecastDays.toLong()) }.associateBy { it.date }
+    }
+    val events = uiState.events.takeIf { uiState.settings.calendarAgenda }.orEmpty()
+    val groups = remember(events, forecasts, today, zone, forecastDays) {
+        weatherAgendaDays(events, forecasts.keys.toList(), today, forecastDays, zone)
+    }
     val dateFormat = remember(locale) { DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, "MMMEd"), locale) }
+    val compactDateFormat = remember(locale) { DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, "MMMd"), locale) }
+    val numericDateFormat = remember(locale) { DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, "Md"), locale) }
     Column(Modifier.fillMaxWidth().height(panelWindowHeight() * 0.66f).padding(horizontal = 30.dp).testTag("agenda_sheet")) {
         PanelTitle(stringResource(R.string.your_agenda))
-        when (uiState.scheduleStatus) {
-            ScheduleStatus.PermissionRequired -> {
-                Text(stringResource(R.string.calendar_permission_description), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Spacer(Modifier.height(12.dp))
-                Button(onClick = onRequestCalendar) { Text(stringResource(R.string.connect_calendar)) }
-                PanelAction(LauncherSymbol.Plus, stringResource(R.string.new_event), "new_event", onClick = actions.newEvent)
-            }
-            ScheduleStatus.Error -> {
-                Text(stringResource(R.string.calendar_error))
-                TextButton(onClick = actions.refreshAgenda) { Text(stringResource(R.string.retry)) }
-            }
-            else -> {
-                if (uiState.scheduleStatus == ScheduleStatus.Loading && uiState.events.isEmpty()) LinearProgressIndicator(Modifier.fillMaxWidth())
-                LazyColumn(Modifier.fillMaxWidth().weight(1f), contentPadding = PaddingValues(bottom = 20.dp)) {
-                    groups.forEach { (date, events) ->
-                        item(key = "day:$date") {
-                            Row(Modifier.padding(top = 6.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(date.format(dateFormat), modifier = Modifier.testTag("agenda_date:$date"), fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                                Spacer(Modifier.width(10.dp))
-                                val difference = ChronoUnit.DAYS.between(today, date).toInt()
-                                Text(
-                                    if (difference == 0) stringResource(R.string.today) else stringResource(R.string.event_in_days, difference),
-                                    fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+        if ((uiState.settings.calendarAgenda && uiState.scheduleStatus == ScheduleStatus.Loading && events.isEmpty()) ||
+            (weatherEnabled && uiState.weather.status == WeatherStatus.Loading && weather == null)) {
+            LinearProgressIndicator(Modifier.fillMaxWidth())
+        }
+        LazyColumn(Modifier.fillMaxWidth().weight(1f).testTag("agenda_list"), contentPadding = PaddingValues(bottom = 20.dp)) {
+            groups.forEach { (date, dayEvents) ->
+                item(key = "day:$date") {
+                    BoxWithConstraints(Modifier.fillMaxWidth()) {
+                        val forecast = forecasts[date]
+                        val current = weather?.current.takeIf { date == today }
+                        val hasWeather = forecast != null || current != null
+                        val compact = hasWeather && (maxWidth < 300.dp || configuration.fontScale >= 1.3f)
+                        val rowDateFormat = when {
+                            compact && maxWidth.value / configuration.fontScale < 150f -> numericDateFormat
+                            compact -> compactDateFormat
+                            else -> dateFormat
                         }
-                        if (date == today) item(key = "new_event") {
-                            Row(
-                                Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("new_event")
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .clickable(role = Role.Button, onClick = actions.newEvent)
-                                    .padding(horizontal = AgendaItemInset, vertical = 8.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Box(Modifier.width(AgendaLeadingWidth), contentAlignment = Alignment.Center) {
-                                    LauncherIcon(LauncherSymbol.Plus, modifier = Modifier.testTag("new_event:icon"), tint = MaterialTheme.colorScheme.primary)
+                        val difference = ChronoUnit.DAYS.between(today, date).toInt()
+                        val relativeDay = if (difference == 0) stringResource(R.string.today) else stringResource(R.string.event_in_days, difference)
+                        val spokenDate = "${date.format(dateFormat)}, $relativeDay"
+                        Row(Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 10.dp).testTag("agenda_day:$date"), verticalAlignment = Alignment.CenterVertically) {
+                            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically) {
+                                Text(date.format(rowDateFormat), modifier = Modifier.weight(1f, fill = false).testTag("agenda_date:$date")
+                                    .semantics { contentDescription = spokenDate },
+                                    fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                if (!compact) {
+                                    Spacer(Modifier.width(8.dp))
+                                    Text(relativeDay, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
                                 }
-                                Spacer(Modifier.width(AgendaContentGap))
-                                Text(stringResource(R.string.new_event), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
+                            }
+                            if (hasWeather) {
+                                Spacer(Modifier.width(10.dp))
+                                DailyWeather(forecast, current, Modifier.testTag("agenda_weather:$date"))
                             }
                         }
-                        items(events, key = { "$date:${it.id}:${it.startsAt}" }) { event ->
-                            AgendaEvent(event, now) { actions.openEvent(event) }
-                        }
-                        item(key = "space:$date") { Spacer(Modifier.height(20.dp)) }
-                    }
-                    if (uiState.events.isEmpty() && uiState.scheduleStatus == ScheduleStatus.Ready) item {
-                        Text(stringResource(R.string.no_upcoming_events), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
+                if (date == today) {
+                    if (weather != null) item(key = "today_weather") {
+                        HourlyWeather(weather, now)
+                        WeatherSourceNote(weather, now, actions.openBreezyWeather)
+                    }
+                    else if (weatherEnabled && uiState.weather.status != WeatherStatus.Loading) item(key = "weather_unavailable") {
+                        WeatherConnectionNotice(uiState.weather.status, actions)
+                    }
+                    // Calendar access is independent of weather access: keep the forecast visible
+                    // when the user has not connected a calendar, or its provider fails.
+                    if (uiState.settings.calendarAgenda) {
+                        when (uiState.scheduleStatus) {
+                            ScheduleStatus.PermissionRequired -> item(key = "calendar_permission") {
+                                Text(stringResource(R.string.calendar_permission_description), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(Modifier.height(8.dp))
+                                Button(onClick = onRequestCalendar) { Text(stringResource(R.string.connect_calendar)) }
+                            }
+                            ScheduleStatus.Error -> item(key = "calendar_error") {
+                                Text(stringResource(R.string.calendar_error))
+                                TextButton(onClick = actions.refreshAgenda) { Text(stringResource(R.string.retry)) }
+                            }
+                            else -> Unit
+                        }
+                        item(key = "new_event") {
+                            NewAgendaEvent(actions.newEvent)
+                        }
+                    }
+                }
+                items(dayEvents, key = { "$date:${it.id}:${it.startsAt}" }) { event ->
+                    AgendaEvent(event, now) { actions.openEvent(event) }
+                }
+                item(key = "space:$date") { Spacer(Modifier.height(20.dp)) }
+            }
+            if (uiState.settings.calendarAgenda && events.isEmpty() && uiState.scheduleStatus == ScheduleStatus.Ready) item {
+                Text(stringResource(R.string.no_upcoming_events), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+    }
+}
+
+@Composable
+private fun WeatherConnectionNotice(status: WeatherStatus, actions: LauncherActions) {
+    val (message, label, onClick) = when (status) {
+        WeatherStatus.Disabled, WeatherStatus.Loading -> return
+        WeatherStatus.NotInstalled -> Triple(R.string.weather_settings_not_installed, R.string.weather_settings_install, actions.installBreezyWeather)
+        WeatherStatus.PermissionRequired -> Triple(R.string.weather_settings_permission, R.string.weather_settings_allow, actions.requestWeatherAccess)
+        WeatherStatus.UnsupportedVersion -> Triple(R.string.weather_settings_incompatible, R.string.weather_settings_install, actions.installBreezyWeather)
+        WeatherStatus.NoLocations -> Triple(R.string.weather_settings_no_locations, R.string.weather_settings_open, actions.openBreezyWeather)
+        WeatherStatus.NoWeather, WeatherStatus.Ready -> Triple(R.string.weather_settings_no_data, R.string.weather_settings_open, actions.openBreezyWeather)
+        WeatherStatus.Error -> Triple(R.string.weather_settings_unavailable, R.string.retry, actions.refreshWeather)
+    }
+    Text(stringResource(message), color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 13.sp)
+    TextButton(onClick = onClick, modifier = Modifier.testTag("weather_connection_action")) { Text(stringResource(label)) }
+}
+
+@Composable
+private fun NewAgendaEvent(onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("new_event")
+            .clip(RoundedCornerShape(16.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = AgendaItemInset, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Box(Modifier.width(AgendaLeadingWidth), contentAlignment = Alignment.Center) {
+            LauncherIcon(LauncherSymbol.Plus, modifier = Modifier.testTag("new_event:icon"), tint = MaterialTheme.colorScheme.primary)
+        }
+        Spacer(Modifier.width(AgendaContentGap))
+        Text(stringResource(R.string.new_event), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
     }
 }
 
