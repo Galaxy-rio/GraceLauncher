@@ -30,6 +30,15 @@ import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.data.WallpaperTextMode
 import com.galaxyrio.gracelauncher.data.media.MediaSnapshot
 import com.galaxyrio.gracelauncher.data.media.NowPlaying
+import com.galaxyrio.gracelauncher.data.weather.WeatherCondition
+import com.galaxyrio.gracelauncher.data.weather.WeatherCurrent
+import com.galaxyrio.gracelauncher.data.weather.WeatherDay
+import com.galaxyrio.gracelauncher.data.weather.WeatherHour
+import com.galaxyrio.gracelauncher.data.weather.WeatherLocation
+import com.galaxyrio.gracelauncher.data.weather.WeatherSnapshot
+import com.galaxyrio.gracelauncher.data.weather.WeatherState
+import com.galaxyrio.gracelauncher.data.weather.WeatherStatus
+import com.galaxyrio.gracelauncher.data.weather.WeatherTemperature
 import com.galaxyrio.gracelauncher.ui.LauncherScreen
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.ScheduleStatus
@@ -92,7 +101,9 @@ class StoreScreenshotTest {
         val favorites = listOf("Phone", "Messages", "Browser", "Camera", "Music", "Notes")
             .map { label -> apps.single { it.label == label }.key }
         val now = Instant.now()
-        val tomorrow = now.atZone(ZoneId.systemDefault()).toLocalDate().plusDays(1)
+        val zone = ZoneId.systemDefault()
+        val today = now.atZone(zone).toLocalDate()
+        val tomorrow = today.plusDays(1)
         fun event(id: Long, title: String, start: Instant, minutes: Long, color: Int) =
             ScheduleEvent(id, title, start, start.plusSeconds(minutes * 60), false, null, color)
         val events = listOf(
@@ -101,12 +112,40 @@ class StoreScreenshotTest {
             event(3, "Morning walk", tomorrow.atTime(8, 0).atZone(ZoneId.systemDefault()).toInstant(), 45, 0xFF81C7B4.toInt()),
             event(4, "Read a chapter", tomorrow.atTime(19, 0).atZone(ZoneId.systemDefault()).toInstant(), 30, 0xFFE9BD8C.toInt()),
         )
+        fun temperature(value: Int) = WeatherTemperature(value.toDouble(), "c")
+        val weather = WeatherSnapshot(
+            location = WeatherLocation("store-demo", "San Francisco", zone),
+            current = WeatherCurrent(
+                temperature(24), WeatherCondition.PartlyCloudy,
+                now.atZone(zone).hour in 6..18, "Partly cloudy",
+            ),
+            hourly = (1..12).map { hour ->
+                val at = now.plusSeconds(hour * 3600L)
+                WeatherHour(
+                    at, temperature(listOf(25, 26, 25, 24, 23, 22, 21, 20, 19, 18, 18, 17)[hour - 1]),
+                    if (hour <= 3) WeatherCondition.Clear else WeatherCondition.PartlyCloudy,
+                    at.atZone(zone).hour in 6..18, null,
+                )
+            },
+            daily = listOf(
+                WeatherCondition.PartlyCloudy, WeatherCondition.Clear, WeatherCondition.Rain,
+                WeatherCondition.Cloudy, WeatherCondition.Clear,
+            ).mapIndexed { day, condition ->
+                WeatherDay(today.plusDays(day.toLong()), temperature(26 - day), temperature(18 - day / 2), condition, null)
+            },
+            updatedAt = now.minusSeconds(5 * 60),
+            attribution = "Sample forecast",
+        )
         var state by mutableStateOf(LauncherUiState(
             apps = apps, favoriteKeys = favorites.toSet(), favoriteOrder = favorites,
             isLoadingApps = false, isDefaultHome = true,
             textMode = WallpaperTextMode.Light,
             scheduleStatus = ScheduleStatus.Ready, events = events,
-            settings = LauncherSettings(showBatteryPercentage = false, useDynamicColors = false),
+            weather = WeatherState(WeatherStatus.Ready, weather, listOf(weather.location)),
+            settings = LauncherSettings(
+                showBatteryPercentage = false, useDynamicColors = false,
+                weatherEnabled = true, weatherForecastDays = 5,
+            ),
         ))
         compose.setContent {
             GraceLauncherTheme(darkTheme = true, dynamicColor = false, seedColor = Color(0xFF82CDBB)) {
@@ -120,11 +159,15 @@ class StoreScreenshotTest {
         }
 
         compose.onNodeWithTag("home_clock").assertIsDisplayed()
+        compose.onNodeWithTag("home_weather", useUnmergedTree = true).assertIsDisplayed()
         save("01-home.png")
 
         compose.onNodeWithTag("home_date").performClick()
         compose.onNodeWithTag("agenda_sheet").assertIsDisplayed()
+        compose.onNodeWithTag("weather_hourly").assertIsDisplayed()
+        compose.onNodeWithTag("weather_location").assertIsDisplayed()
         compose.onNodeWithTag("agenda_event:1").assertIsDisplayed()
+        compose.onNodeWithTag("agenda_event:2").assertIsDisplayed()
         save("02-agenda.png")
         androidx.test.espresso.Espresso.pressBack()
         compose.waitForIdle()
@@ -156,6 +199,9 @@ class StoreScreenshotTest {
 
     private fun save(name: String) {
         compose.waitForIdle()
+        // Allow platform drawing and window transitions to settle after Compose
+        // publishes its updated semantics, before capturing the displayed frame.
+        instrumentation.uiAutomation.waitForIdle(500, 5_000)
         // The shell captures real dialogs and insets. Downloads survives the test
         // runner uninstalling the test APK, unlike app-scoped external storage.
         val directory = "/sdcard/Download/grace-launcher-store-screenshots"

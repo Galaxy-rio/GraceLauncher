@@ -7,10 +7,16 @@ Grace Launcher is an open-source Android launcher inspired by the design of [Nia
 - A list-based home screen and app drawer, inspired by Niagara Launcher
 - A home screen music player with media controls
 - Notifications directly on the home screen
-- An integrated calendar agenda
+- An integrated calendar agenda with weather forecasts
 - Weather information on the home screen
 
 Weather data is provided through [Breezy Weather](https://github.com/breezy-weather/breezy-weather), which must be installed and configured separately.
+
+## Screenshots
+
+| Home | Agenda & weather | Music controls | App list · C |
+| --- | --- | --- | --- |
+| <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/01-home.png" alt="Home screen with favorites and current weather" width="190"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/02-agenda.png" alt="Calendar agenda with hourly weather forecasts and events" width="190"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/03-music.png" alt="Home screen with music playback controls" width="190"> | <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/04-app-list-c.png" alt="Alphabetical app list while browsing the letter C" width="190"> |
 
 ## Build from source
 

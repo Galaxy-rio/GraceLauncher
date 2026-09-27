@@ -18,7 +18,7 @@
 | Material Symbols 天气图标来源与 Apache-2.0 许可 | `third_party/material-symbols/NOTICE.md`、`LICENSE` |
 | 内置字体来源与 OFL-1.1 许可 | `third_party/fonts/NOTICE.md`、`licenses/` |
 
-截图顺序：`01-home.png` 主页、`02-agenda.png` 日程、`03-music.png` 音乐、`04-app-list-c.png` 字母 C。全部为 1080 × 2400 的模拟器原始截图，使用实际生产界面和英文示例内容；没有后期合成界面。示例应用图标来自项目现有 Material Symbols，日程和歌曲为虚构数据，不随发布包提供。
+截图顺序：`01-home.png` 主页、`02-agenda.png` 日程与天气、`03-music.png` 音乐、`04-app-list-c.png` 字母 C。全部为 1080 × 2400 的模拟器原始截图，使用实际生产界面和英文示例内容；没有后期合成界面。示例应用图标来自项目现有 Material Symbols，日程、歌曲和天气为虚构展示数据，不随发布包提供。README 直接引用这四张图片。
 
 2026-09-27 本机验证结果：33 项单元测试、5 项字体回退测试和 1 项中文大字号日程界面测试通过，截图任务通过，`lintRelease` 为 0 错误、262 警告（其中 239 项为缺失翻译），`assembleRelease` 和 APK 对齐检查通过。天气图标的官方路径、浅色/深色界面以及发布包内的许可均已核对。四张 PNG 的完整性、尺寸和两种语言的文案长度均已核对。签名辅助脚本已通过语法检查并验证会拒绝调试签名；正式签名的完整流程和 `fdroid lint/build` 尚待实际发布与 GitLab CI 验证。
 
