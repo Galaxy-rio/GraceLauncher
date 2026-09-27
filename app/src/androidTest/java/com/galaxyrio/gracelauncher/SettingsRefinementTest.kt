@@ -166,6 +166,16 @@ class SettingsRefinementTest {
         screenshot("settings-changelog-empty.png")
     }
 
+    @Test fun advancedShowsComingSoonAndCanReturnToSettings() {
+        showSettings()
+        clickSetting("settings_category_advanced")
+        compose.onNodeWithTag("settings_advanced_coming_soon")
+            .assertIsDisplayed().assertTextEquals("Coming soon")
+        screenshot("settings-advanced-coming-soon.png")
+        compose.onNodeWithTag("settings_back").performClick()
+        compose.onNodeWithTag("settings_root").assertIsDisplayed()
+    }
+
     @Test fun licensesShowGplAndRealDependenciesWithoutFontOrIconLinks() {
         val libraries = runBlocking { LicensesRepository(context).getLibraries() }
         assertTrue(libraries.size > 10)
@@ -174,8 +184,10 @@ class SettingsRefinementTest {
         val target = libraries.first { it.artifactId.contains("material-kolor") }
         showSettings()
         clickSetting("settings_category_about")
+        compose.onNodeWithTag("settings_open_licenses").performScrollTo().assertTextContains("License")
         clickSetting("settings_open_licenses")
         compose.waitUntil(10_000) { compose.onAllNodesWithTag("licenses_search").fetchSemanticsNodes().isNotEmpty() }
+        compose.onNodeWithText("License").assertIsDisplayed()
         compose.onNodeWithTag("licenses_count").assertTextEquals(context.resources.getQuantityString(R.plurals.licenses_count, libraries.size, libraries.size))
         compose.onNodeWithTag("app_license_gpl3").assertTextEquals("GNU GPLv3")
         compose.onNodeWithTag("settings_font_licenses").assertDoesNotExist()

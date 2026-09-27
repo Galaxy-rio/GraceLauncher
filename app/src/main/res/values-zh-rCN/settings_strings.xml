@@ -79,7 +79,7 @@
     <string name="settings_about_app">应用</string>
     <string name="settings_changelog">更新日志</string>
     <string name="settings_changelog_summary">版本更新记录</string>
-    <string name="settings_licenses">开源许可证</string>
+    <string name="settings_licenses">许可证</string>
     <string name="settings_licenses_summary">GPLv3 与第三方组件许可证</string>
     <string name="settings_license_unavailable">无法打开随附的许可证文本。</string>
     <string name="settings_license_loading">正在读取许可证…</string>

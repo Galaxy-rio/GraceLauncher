@@ -83,7 +83,7 @@
     <string name="settings_about_app">Application</string>
     <string name="settings_changelog">Changelog</string>
     <string name="settings_changelog_summary">Release notes</string>
-    <string name="settings_licenses">Open-source licenses</string>
+    <string name="settings_licenses">License</string>
     <string name="settings_licenses_summary">GPLv3 and third-party libraries</string>
     <string name="settings_license_unavailable">The bundled license text could not be opened.</string>
     <string name="settings_license_loading">Loading license…</string>
