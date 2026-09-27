@@ -13,9 +13,11 @@ import android.provider.CalendarContract
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -83,6 +85,7 @@ import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import com.galaxyrio.gracelauncher.ui.drawer.AppDrawerScreen
 import com.galaxyrio.gracelauncher.ui.drawer.AppListModel
 import com.galaxyrio.gracelauncher.ui.home.HomeScreen
+import com.galaxyrio.gracelauncher.ui.settings.LauncherSettingsScreen
 import com.galaxyrio.gracelauncher.ui.overlays.LauncherOverlay
 import com.galaxyrio.gracelauncher.ui.overlays.LauncherOverlays
 import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
@@ -92,11 +95,18 @@ import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherHaptics
 import java.time.Duration
 import java.time.Instant
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
 @Composable
-fun LauncherRoute(viewModel: LauncherViewModel) {
+fun LauncherRoute(
+    viewModel: LauncherViewModel,
+    settingsOnly: Boolean = false,
+    onCloseSettings: () -> Unit = {},
+) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val launchView = LocalView.current
@@ -131,79 +141,92 @@ fun LauncherRoute(viewModel: LauncherViewModel) {
         }
     }
 
-    LauncherScreen(
-        uiState = uiState,
-        returnHomeRequests = viewModel.returnHomeRequests,
-        onDateClick = {
-            permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+    val actions = LauncherActions(
+        requestDefaultHome = {
+            val roleManager = if (Build.VERSION.SDK_INT >= 29) context.getSystemService(RoleManager::class.java) else null
+            if (Build.VERSION.SDK_INT >= 29 && roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_HOME) && !roleManager.isRoleHeld(RoleManager.ROLE_HOME)) {
+                homeRoleLauncher.launch(roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME))
+            } else openSystemApp(Intent(Settings.ACTION_HOME_SETTINGS))
         },
-        onClockClick = { openSystemApp(Intent(AlarmClock.ACTION_SHOW_ALARMS)) },
-        onLaunchApp = { app ->
-            if (!viewModel.launch(app)) {
+        appInfo = { openSystemApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", it.packageName, null))) },
+        screenTime = { app ->
+            if (Build.VERSION.SDK_INT >= 29) {
+                openSystemApp(Intent(Settings.ACTION_APP_USAGE_SETTINGS).putExtra(Intent.EXTRA_PACKAGE_NAME, app.packageName))
+            } else Toast.makeText(context, R.string.action_unavailable, Toast.LENGTH_SHORT).show()
+        },
+        uninstall = { openSystemApp(Intent(Intent.ACTION_DELETE, Uri.fromParts("package", it.packageName, null))) },
+        rename = viewModel::renameApp,
+        categorize = viewModel::categorize,
+        storePage = { openSystemApp(Intent(Intent.ACTION_VIEW, "https://play.google.com/store/apps/details?id=${it.packageName}".toUri())) },
+        newEvent = {
+            openSystemApp(Intent(Intent.ACTION_INSERT, CalendarContract.Events.CONTENT_URI)
+                .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, System.currentTimeMillis())
+                .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, System.currentTimeMillis() + 3_600_000))
+        },
+        openEvent = {
+            openSystemApp(Intent(Intent.ACTION_VIEW, ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, it.id))
+                .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, it.startsAt.toEpochMilli())
+                .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, it.endsAt.toEpochMilli()))
+        },
+        refreshAgenda = viewModel::refreshSchedule,
+        textMode = viewModel::setTextMode,
+        themedIcons = viewModel::setThemedIcons,
+        refreshIconPacks = viewModel::refreshApps,
+        updateSettings = { change ->
+            val enableCalendar = change(uiState.settings).calendarAgenda && !uiState.settings.calendarAgenda
+            viewModel.updateSettings(change)
+            if (enableCalendar) {
+                permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+            }
+        },
+        setHiddenApps = viewModel::setHiddenApps,
+        saveFolder = viewModel::saveFolder,
+        deleteFolder = viewModel::deleteFolder,
+        shortcuts = viewModel::loadShortcuts,
+        cachedShortcuts = viewModel::cachedShortcuts,
+        prepareShortcuts = viewModel::prepareShortcuts,
+        launchAppAt = { app, bounds ->
+            val transition = AppLaunchTransition.fromIcon(launchView, bounds.toAndroidRect())
+            if (!viewModel.launch(app, transition?.sourceBounds, transition?.options)) {
                 Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
             }
         },
-        onToggleFavorite = { viewModel.toggleFavorite(it) },
-        actions = LauncherActions(
-            requestDefaultHome = {
-                val roleManager = if (Build.VERSION.SDK_INT >= 29) context.getSystemService(RoleManager::class.java) else null
-                if (Build.VERSION.SDK_INT >= 29 && roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_HOME) && !roleManager.isRoleHeld(RoleManager.ROLE_HOME)) {
-                    homeRoleLauncher.launch(roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME))
-                } else openSystemApp(Intent(Settings.ACTION_HOME_SETTINGS))
-            },
-            appInfo = { openSystemApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", it.packageName, null))) },
-            screenTime = { app ->
-                if (Build.VERSION.SDK_INT >= 29) {
-                    openSystemApp(Intent(Settings.ACTION_APP_USAGE_SETTINGS).putExtra(Intent.EXTRA_PACKAGE_NAME, app.packageName))
-                } else Toast.makeText(context, R.string.action_unavailable, Toast.LENGTH_SHORT).show()
-            },
-            uninstall = { openSystemApp(Intent(Intent.ACTION_DELETE, Uri.fromParts("package", it.packageName, null))) },
-            rename = viewModel::renameApp,
-            categorize = viewModel::categorize,
-            storePage = { openSystemApp(Intent(Intent.ACTION_VIEW, "https://play.google.com/store/apps/details?id=${it.packageName}".toUri())) },
-            newEvent = {
-                openSystemApp(Intent(Intent.ACTION_INSERT, CalendarContract.Events.CONTENT_URI)
-                    .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, System.currentTimeMillis())
-                    .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, System.currentTimeMillis() + 3_600_000))
-            },
-            openEvent = {
-                openSystemApp(Intent(Intent.ACTION_VIEW, ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, it.id))
-                    .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, it.startsAt.toEpochMilli())
-                    .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, it.endsAt.toEpochMilli()))
-            },
-            refreshAgenda = viewModel::refreshSchedule,
-            textMode = viewModel::setTextMode,
-            themedIcons = viewModel::setThemedIcons,
-            updateSettings = { change ->
-                val enableCalendar = change(uiState.settings).calendarAgenda && !uiState.settings.calendarAgenda
-                viewModel.updateSettings(change)
-                if (enableCalendar) {
-                    permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
-                }
-            },
-            setHiddenApps = viewModel::setHiddenApps,
-            saveFolder = viewModel::saveFolder,
-            deleteFolder = viewModel::deleteFolder,
-            shortcuts = viewModel::loadShortcuts,
-            cachedShortcuts = viewModel::cachedShortcuts,
-            prepareShortcuts = viewModel::prepareShortcuts,
-            launchAppAt = { app, bounds ->
-                val transition = AppLaunchTransition.fromIcon(launchView, bounds.toAndroidRect())
-                if (!viewModel.launch(app, transition?.sourceBounds, transition?.options)) {
-                    Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
-                }
-            },
-            launchShortcutAt = { shortcut, bounds ->
-                val transition = AppLaunchTransition.fromIcon(launchView, bounds.toAndroidRect())
-                if (!viewModel.launchShortcut(shortcut, transition?.sourceBounds, transition?.options)) {
-                    Toast.makeText(context, R.string.shortcut_error, Toast.LENGTH_SHORT).show()
-                }
-            },
-            launchShortcut = {
-                if (!viewModel.launchShortcut(it)) Toast.makeText(context, R.string.shortcut_error, Toast.LENGTH_SHORT).show()
-            },
-        ),
+        launchShortcutAt = { shortcut, bounds ->
+            val transition = AppLaunchTransition.fromIcon(launchView, bounds.toAndroidRect())
+            if (!viewModel.launchShortcut(shortcut, transition?.sourceBounds, transition?.options)) {
+                Toast.makeText(context, R.string.shortcut_error, Toast.LENGTH_SHORT).show()
+            }
+        },
+        launchShortcut = {
+            if (!viewModel.launchShortcut(it)) Toast.makeText(context, R.string.shortcut_error, Toast.LENGTH_SHORT).show()
+        },
     )
+    if (settingsOnly) {
+        // Do not register a root back callback here: Android owns the predictive
+        // cross-task/back-to-home animation of this regular settings Activity.
+        val lightBars = MaterialTheme.colorScheme.surface.luminance() > 0.5f
+        SideEffect {
+            (context as? Activity)?.window?.let { window ->
+                WindowInsetsControllerCompat(window, launchView).apply {
+                    isAppearanceLightStatusBars = lightBars
+                    isAppearanceLightNavigationBars = lightBars
+                }
+            }
+        }
+        LauncherSettingsScreen(uiState, actions, onCloseSettings, handleRootBack = false)
+    } else {
+        LauncherScreen(
+            uiState = uiState,
+            returnHomeRequests = viewModel.returnHomeRequests,
+            onDateClick = { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) },
+            onClockClick = { openSystemApp(Intent(AlarmClock.ACTION_SHOW_ALARMS)) },
+            onLaunchApp = { app ->
+                if (!viewModel.launch(app)) Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
+            },
+            onToggleFavorite = viewModel::toggleFavorite,
+            actions = actions,
+        )
+    }
 }
 
 @Composable
@@ -228,6 +251,7 @@ internal fun LauncherScreen(
     val context = LocalContext.current
     val haptics = rememberLauncherHaptics(uiState.settings.allowHapticFeedback)
     val fullScreen = overlay == LauncherOverlay.Settings || overlay == LauncherOverlay.Search || overlay is LauncherOverlay.FolderSettings
+    val backProgress = remember { Animatable(0f) }
     val darkSystemIcons = if (fullScreen) MaterialTheme.colorScheme.surface.luminance() > 0.5f else appearance.darkText
     SideEffect {
         (context as? Activity)?.window?.let { window ->
@@ -244,11 +268,24 @@ internal fun LauncherScreen(
     LaunchedEffect(model.letters) {
         if (selectedLetter !in model.letters) selectedLetter = null
     }
-    BackHandler {
+    BackHandler(enabled = overlay != LauncherOverlay.Search && !(overlay == null && drawerOpen)) {
         when {
             overlay != null -> overlay = null
             selectedLetter != null -> selectedLetter = null
             else -> drawerOpen = false
+        }
+    }
+    PredictiveBackHandler(enabled = overlay == LauncherOverlay.Search || (overlay == null && drawerOpen)) { events ->
+        val fromSearch = overlay == LauncherOverlay.Search
+        try {
+            events.collect { backProgress.snapTo(it.progress) }
+            backProgress.animateTo(1f, tween(180))
+            if (fromSearch) overlay = null else drawerOpen = false
+            selectedLetter = null
+            backProgress.snapTo(0f)
+        } catch (cancelled: CancellationException) {
+            withContext(NonCancellable) { backProgress.animateTo(0f, tween(180)) }
+            throw cancelled
         }
     }
 
@@ -307,10 +344,20 @@ internal fun LauncherScreen(
         is LauncherOverlay.Folder -> current.reveal
         else -> null
     }
+    // Once a predictive pop commits, keep HOME fully visible instead of fading
+    // it in a second time while the old drawer's exit alpha finishes settling.
+    val drawerVisibility = if (drawerOpen) {
+        drawerAlpha.value * if (overlay == null) (1f - backProgress.value) else 1f
+    } else 0f
     CompositionLocalProvider(LocalLauncherAppearance provides appearance, LocalHapticFeedback provides haptics) {
-      CompositionLocalProvider(LocalLauncherInputEnabled provides !fullScreen) {
+      CompositionLocalProvider(LocalLauncherInputEnabled provides (!fullScreen && backProgress.value == 0f)) {
       BoxWithConstraints(
-        modifier = Modifier.fillMaxSize().retainedPage(visible = !fullScreen).background(scrim).safeDrawingPadding()
+        // Settings can reveal this retained page during a predictive root back.
+        // It remains non-interactive and absent from accessibility while covered.
+        modifier = Modifier.fillMaxSize()
+            .retainedPage(visible = !fullScreen || overlay == LauncherOverlay.Settings || overlay is LauncherOverlay.FolderSettings || backProgress.value > 0f)
+            .then(if (fullScreen || backProgress.value > 0f) Modifier.clearAndSetSemantics {} else Modifier)
+            .background(scrim).safeDrawingPadding()
             .then(if (popupReveal?.dragging == false) Modifier.clearAndSetSemantics {} else Modifier),
     ) {
         val homeTop = (maxHeight * if (maxHeight < 600.dp) 0.12f else 0.32f).coerceIn(24.dp, 320.dp)
@@ -333,8 +380,8 @@ internal fun LauncherScreen(
             onEditFolder = editFolder,
             onFolderDrag = dragFolder,
             onFolderDragEnd = endFolderDrag,
-            modifier = Modifier.retainedPage(visible = !drawerOpen)
-                .graphicsLayer { alpha = 1f - drawerAlpha.value },
+            modifier = Modifier.retainedPage(visible = !drawerOpen || (overlay == null && backProgress.value > 0f))
+                .graphicsLayer { alpha = 1f - drawerVisibility },
         )
 
         // One complete list and one scroll state for both held and released
@@ -354,7 +401,7 @@ internal fun LauncherScreen(
             onFolderDrag = dragFolder,
             onFolderDragEnd = endFolderDrag,
             modifier = Modifier.retainedPage(visible = drawerOpen)
-                .graphicsLayer { alpha = drawerAlpha.value },
+                .graphicsLayer { alpha = drawerVisibility },
         )
 
         AlphabetRail(
@@ -406,6 +453,7 @@ internal fun LauncherScreen(
       LauncherOverlays(
           overlay = overlay, uiState = uiState, actions = actions, onChange = { overlay = it },
           onLaunchApp = onLaunchApp, onToggleFavorite = onToggleFavorite, onRequestCalendar = onDateClick,
+          searchBackProgress = backProgress.value,
       )
     }
 }

@@ -20,6 +20,12 @@ current content tint.
 
 ## Sources
 
+- `ms_account_balance.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/account_balance/materialsymbolsoutlined/account_balance_24px.svg
+- `ms_person.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/person/materialsymbolsoutlined/person_24px.svg
+- `ms_code.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/code/materialsymbolsoutlined/code_24px.svg
+- `ms_link.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/link/materialsymbolsoutlined/link_24px.svg
+- `ms_close.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/close/materialsymbolsoutlined/close_24px.svg
+
 - `ms_star.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/star/materialsymbolsoutlined/star_24px.svg
 - `ms_info.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/info/materialsymbolsoutlined/info_24px.svg
 - `ms_hourglass_empty.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/hourglass_empty/materialsymbolsoutlined/hourglass_empty_24px.svg

@@ -141,16 +141,36 @@ internal fun SettingsToggleItem(
     tag: String,
     onCheckedChange: (Boolean) -> Unit,
 ) {
+    val shapes = ListItemDefaults.segmentedShapes(index = index, count = count)
+    val colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright)
     SegmentedListItem(
         checked = checked,
         onCheckedChange = onCheckedChange,
         enabled = LocalSettingsStorageState.current.canEdit,
         modifier = Modifier.testTag(tag),
-        shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
-        colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
+        // A preference toggle is not a selected list item. Keep the group's
+        // outline and colors stable; only the switch reflects the saved value.
+        shapes = shapes.copy(
+            selectedShape = shapes.shape, pressedShape = shapes.shape,
+            focusedShape = shapes.shape, hoveredShape = shapes.shape, draggedShape = shapes.shape,
+        ),
+        colors = colors.copy(
+            selectedContainerColor = colors.containerColor,
+            selectedContentColor = colors.contentColor,
+            selectedLeadingContentColor = colors.leadingContentColor,
+            selectedTrailingContentColor = colors.trailingContentColor,
+            selectedOverlineContentColor = colors.overlineContentColor,
+            selectedSupportingContentColor = colors.supportingContentColor,
+        ),
         content = { Text(title) },
         supportingContent = { Text(summary) },
         // The whole segmented item is the sole toggle and accessibility target.
-        trailingContent = { Switch(checked = checked, onCheckedChange = null) },
+        trailingContent = {
+            Switch(
+                checked = checked, onCheckedChange = null,
+                enabled = LocalSettingsStorageState.current.canEdit,
+                modifier = Modifier.testTag("${tag}_switch"),
+            )
+        },
     )
 }

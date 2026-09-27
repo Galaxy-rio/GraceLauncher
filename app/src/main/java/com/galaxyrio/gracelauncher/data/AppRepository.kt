@@ -12,14 +12,20 @@ import android.os.Process
 import android.graphics.drawable.AdaptiveIconDrawable
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
+import com.galaxyrio.gracelauncher.SettingsActivity
+import com.galaxyrio.gracelauncher.data.icons.IconPackRepository
 import java.text.Collator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 
-class AppRepository(private val context: Context) {
+class AppRepository(private val context: Context, private val iconPacks: IconPackRepository = IconPackRepository(context)) {
     private val packageManager = context.packageManager
 
-    suspend fun loadApps(): List<LauncherApp> = withContext(Dispatchers.IO) {
+    suspend fun loadApps(iconPackPackage: String? = null): List<LauncherApp> = withContext(Dispatchers.IO) {
+        val pack = iconPacks.load(iconPackPackage)
+        val coroutine = currentCoroutineContext()
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val resolved = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             packageManager.queryIntentActivities(
@@ -33,17 +39,21 @@ class AppRepository(private val context: Context) {
 
         val collator = Collator.getInstance().apply { strength = Collator.PRIMARY }
         resolved.asSequence()
-            .filter { it.activityInfo.packageName != context.packageName }
             .mapNotNull { resolveInfo ->
+                coroutine.ensureActive()
                 val activityInfo = resolveInfo.activityInfo ?: return@mapNotNull null
+                // Expose only our settings entry, never the launcher/HOME activity.
+                if (activityInfo.packageName == context.packageName &&
+                    activityInfo.name != SettingsActivity::class.java.name) return@mapNotNull null
                 val component = ComponentName(activityInfo.packageName, activityInfo.name)
                 val label = resolveInfo.loadLabel(packageManager)
                     .toString()
                     .trim()
                     .ifBlank { activityInfo.name.substringAfterLast('.') }
                 val drawable = runCatching { resolveInfo.loadIcon(packageManager) }.getOrNull()
-                val icon = runCatching { drawable?.toBitmap(144, 144)?.asImageBitmap() }.getOrNull()
-                val monochrome = if (Build.VERSION.SDK_INT >= 33) {
+                val packed = pack?.iconFor(component, drawable)
+                val icon = packed?.bitmap ?: runCatching { drawable?.toBitmap(144, 144)?.asImageBitmap() }.getOrNull()
+                val monochrome = if (packed != null) packed.monochrome else if (Build.VERSION.SDK_INT >= 33) {
                     runCatching {
                         (drawable as? AdaptiveIconDrawable)?.monochrome?.toBitmap(144, 144)?.let { bitmap ->
                             val pixels = IntArray(bitmap.width * bitmap.height)
@@ -55,7 +65,8 @@ class AppRepository(private val context: Context) {
                         }
                     }.getOrNull()
                 } else null
-                LauncherApp(componentName = component, label = label, icon = icon, monochromeIcon = monochrome)
+                LauncherApp(componentName = component, label = label, icon = icon, monochromeIcon = monochrome,
+                    iconPackPackage = pack?.packageName?.takeIf { packed != null }, monochromeScale = packed?.monochromeScale ?: 1.4f)
             }
             .distinctBy(LauncherApp::key)
             .sortedWith { left, right -> collator.compare(left.label, right.label) }

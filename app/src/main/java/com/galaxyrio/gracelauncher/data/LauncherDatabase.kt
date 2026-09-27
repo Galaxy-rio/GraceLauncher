@@ -15,6 +15,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
 import androidx.room.Upsert
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
 
 @Entity(tableName = "launcher_settings")
@@ -26,6 +28,7 @@ data class LauncherSettingsEntity(
     val useDynamicColors: Boolean,
     val themeColor: Int,
     val darkMode: String,
+    val iconPackPackage: String? = null,
 )
 
 @Entity(tableName = "hidden_apps")
@@ -109,13 +112,19 @@ abstract class LauncherSettingsDao {
 @Database(
     entities = [LauncherSettingsEntity::class, HiddenAppEntity::class,
         LauncherFolderEntity::class, FolderAppEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class LauncherDatabase : RoomDatabase() {
     abstract fun settingsDao(): LauncherSettingsDao
 
     companion object {
+        val Migration1To2 = object : Migration(1, 2) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN iconPackPackage TEXT DEFAULT NULL")
+            }
+        }
+
         @Volatile private var instance: LauncherDatabase? = null
 
         fun getInstance(context: Context): LauncherDatabase = instance ?: synchronized(this) {
@@ -123,7 +132,7 @@ abstract class LauncherDatabase : RoomDatabase() {
                 context.applicationContext,
                 LauncherDatabase::class.java,
                 "grace_launcher.db",
-            ).build().also { instance = it }
+            ).addMigrations(Migration1To2).build().also { instance = it }
         }
     }
 }

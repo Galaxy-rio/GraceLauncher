@@ -6,6 +6,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -15,6 +17,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.SemanticsNodeInteraction
 import androidx.compose.ui.test.captureToImage
@@ -41,6 +44,10 @@ class AlphabetIndicatorTest {
     @get:Rule val compose = createComposeRule()
 
     private val letters = listOf("C", "G", "I", "W", "#")
+    private var indicatorColor = 0
+    private var indicatorInkColor = 0
+    private val themeSeed = mutableStateOf(Color(0xFF6750A4))
+    private val darkTheme = mutableStateOf(true)
 
     @Test
     fun indicatorCentersTheActualInkOfNarrowWideAndNonAlphabeticGlyphs() {
@@ -144,7 +151,9 @@ class AlphabetIndicatorTest {
     private fun showRail() {
         compose.setContent {
             var selected by remember { mutableStateOf<String?>(null) }
-            GraceLauncherTheme(dynamicColor = false) {
+            GraceLauncherTheme(dynamicColor = false, seedColor = themeSeed.value, darkTheme = darkTheme.value) {
+                val colors = MaterialTheme.colorScheme
+                SideEffect { indicatorColor = colors.primary.toArgb(); indicatorInkColor = colors.onPrimary.toArgb() }
                 Box(
                     Modifier.fillMaxSize().background(Color(0xFF142333)).testTag("alphabet_test_canvas"),
                 ) {
@@ -182,15 +191,15 @@ class AlphabetIndicatorTest {
             val pixels = IntArray(bitmap.width * bitmap.height)
             bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
             val circle = findPixels(PixelBounds(0, 0, bitmap.width - 1, bitmap.height - 1), bitmap.width, pixels) { _, _, color ->
-                isBright(color)
+                isIndicator(color)
             }
-            assertEquals("Favorites uses the same white 46dp circle", 46f * density(), circle.width.toFloat(), 2f)
+            assertEquals("Favorites uses the same theme-colored 46dp circle", 46f * density(), circle.width.toFloat(), 2f)
             val radius = minOf(circle.width, circle.height) / 2f - 2f
             val star = findPixels(circle, bitmap.width, pixels) { x, y, color ->
                 val dx = x - circle.centerX
                 val dy = y - circle.centerY
                 dx * dx + dy * dy < radius * radius &&
-                    ((color shr 16) and 255) < 140 && ((color shr 8) and 255) < 140 && (color and 255) < 140
+                    matchesColor(color, indicatorInkColor)
             }
             assertTrue("The star must actually render inside the circle", star.width > 12f * density() && star.height > 12f * density())
         } finally {
@@ -205,7 +214,7 @@ class AlphabetIndicatorTest {
         try {
             val pixels = IntArray(bitmap.width * bitmap.height)
             bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-            assertEquals("Releasing or cancelling must fade the white indicator completely", 0, pixels.count(::isBright))
+            assertEquals("Releasing or cancelling must fade the themed indicator completely", 0, pixels.count(::isIndicator))
         } finally {
             bitmap.recycle()
         }
@@ -240,13 +249,13 @@ class AlphabetIndicatorTest {
         // Child Canvas bounds include the ancestor layer's wave transform.
         val circle = findPixels(
             region(compose.onNodeWithTag("alphabet_indicator", useUnmergedTree = true)), bitmap.width, pixels,
-        ) { _, _, color -> isBright(color) }
+        ) { _, _, color -> isIndicator(color) }
         val radius = minOf(circle.width, circle.height) / 2f - 2f
         val glyph = findPixels(circle, bitmap.width, pixels) { x, y, color ->
             val dx = x - circle.centerX
             val dy = y - circle.centerY
             dx * dx + dy * dy < radius * radius &&
-                ((color shr 16) and 255) < 140 && ((color shr 8) and 255) < 140 && (color and 255) < 140
+                matchesColor(color, indicatorInkColor)
         }
         val railInk = findPixels(
             region(compose.onNodeWithText(letter, useUnmergedTree = true)), bitmap.width, pixels,
@@ -282,6 +291,32 @@ class AlphabetIndicatorTest {
 
     private fun isBright(color: Int) =
         ((color shr 16) and 255) >= 235 && ((color shr 8) and 255) >= 235 && (color and 255) >= 235
+
+    private fun isIndicator(color: Int) = matchesColor(color, indicatorColor)
+
+    private fun matchesColor(actual: Int, expected: Int) = listOf(0, 8, 16).all { shift ->
+        kotlin.math.abs(((actual shr shift) and 255) - ((expected shr shift) and 255)) <= 12
+    }
+
+    @Test
+    fun letterAndFavoriteIndicatorsFollowLiveAccentAndDarkModeChanges() {
+        showRail()
+        withHeldC { rail ->
+            listOf(false, true).forEach { dark ->
+                listOf(Color(0xFFB3261E), Color(0xFF009688)).forEach { seed ->
+                    compose.runOnIdle { darkTheme.value = dark; themeSeed.value = seed }
+                    compose.waitForIdle()
+                    val letter = inspect("C")
+                    assertCenteredInk(letter, "C with $seed / dark=$dark")
+                    assertRailGap(letter, "Themed C")
+                    rail.performTouchInput { moveTo(Offset(centerX, height * 0.5f / (letters.size + 1)), delayMillis = 32) }
+                    assertVisibleFavoriteIndicator()
+                    rail.performTouchInput { moveTo(Offset(centerX, height * fraction("C")), delayMillis = 32) }
+                }
+            }
+            saveScreenshot("alphabet-indicator-themed.png")
+        }
+    }
 
     private fun assertCenteredInk(pixels: IndicatorPixels, label: String) {
         assertEquals("$label glyph is horizontally centered by ink", pixels.circle.centerX, pixels.glyph.centerX, 2f)

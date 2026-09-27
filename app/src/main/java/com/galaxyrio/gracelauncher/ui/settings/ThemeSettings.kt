@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -32,12 +34,14 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.ThemeMode
 import com.galaxyrio.gracelauncher.data.WallpaperTextMode
+import com.galaxyrio.gracelauncher.data.icons.IconPackStatus
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
@@ -52,6 +56,12 @@ internal fun ThemeSettings(uiState: LauncherUiState, actions: LauncherActions, o
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     val settings = uiState.settings
     when (dialog) {
+        "icons" -> IconPackPicker(
+            uiState = uiState,
+            onSelect = { pkg -> actions.updateSettings { it.copy(iconPackPackage = pkg) }; dialog = null },
+            onRefresh = actions.refreshIconPacks,
+            onDismiss = { dialog = null },
+        )
         "theme" -> SettingsSelectionDialog(
             title = stringResource(R.string.settings_theme_mode),
             items = ThemeMode.entries, selectedItem = settings.darkMode,
@@ -88,7 +98,16 @@ internal fun ThemeSettings(uiState: LauncherUiState, actions: LauncherActions, o
                 SettingsActionItem(stringResource(R.string.settings_clock_style), stringResource(R.string.settings_coming_soon), 0, 3, "settings_clock_style", enabled = false) { }
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_icon_pack), stringResource(R.string.settings_coming_soon), 1, 3, "settings_icon_pack", enabled = false) { }
+                val packName = uiState.iconPacks.firstOrNull { it.packageName == settings.iconPackPackage }?.label
+                val summary = when {
+                    settings.iconPackPackage == null -> stringResource(R.string.icon_pack_system)
+                    uiState.iconPackStatus == IconPackStatus.Unavailable -> stringResource(R.string.icon_pack_unavailable)
+                    else -> packName ?: settings.iconPackPackage
+                }
+                SettingsActionItem(stringResource(R.string.settings_icon_pack), summary, 1, 3, "settings_icon_pack") {
+                    dialog = "icons"
+                    actions.refreshIconPacks()
+                }
             }
             item {
                 SettingsActionItem(stringResource(R.string.settings_font), stringResource(R.string.settings_coming_soon), 2, 3, "settings_font", enabled = false) { }
@@ -188,21 +207,28 @@ private fun <T> SettingsSelectionDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
         text = {
-            Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
-                items.forEachIndexed { index, item ->
-                    SegmentedListItem(
-                        selected = item == selectedItem, onClick = { onSelect(item) },
-                        enabled = LocalSettingsStorageState.current.canEdit,
-                        shapes = ListItemDefaults.segmentedShapes(index, items.size),
-                        colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
-                        modifier = Modifier.testTag("$tag:${itemKey(item)}"),
-                        content = { Text(itemLabel(item)) },
-                        trailingContent = { RadioButton(selected = item == selectedItem, onClick = null) },
-                    )
+            Column(Modifier.heightIn(max = 440.dp).verticalScroll(rememberScrollState()).selectableGroup()) {
+                items.forEach { item ->
+                    val enabled = LocalSettingsStorageState.current.canEdit
+                    Row(
+                        modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp)
+                            .testTag("$tag:${itemKey(item)}")
+                            .selectable(
+                                selected = item == selectedItem, enabled = enabled,
+                                role = Role.RadioButton, onClick = { onSelect(item) },
+                            )
+                            .padding(horizontal = 4.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        RadioButton(selected = item == selectedItem, onClick = null, enabled = enabled)
+                        Text(itemLabel(item), style = MaterialTheme.typography.bodyLarge)
+                    }
                 }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_cancel)) } },
+        confirmButton = {},
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_cancel)) } },
     )
 }
 

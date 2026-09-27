@@ -28,19 +28,21 @@
 - 隐藏应用同时从收藏、抽屉、搜索和文件夹内容中移除；隐藏不删除收藏关系或文件夹成员，取消隐藏即可恢复
 - 文件夹可创建在收藏或应用列表底部，支持编辑名称/成员/位置与确认删除；点击或右滑展开，和 shortcut 共用连续展开面板；右侧 ◇ 可定位底部文件夹
 - Themes 默认跟随系统动态颜色，也可选种子色生成完整调色板；深浅模式支持系统/浅色/深色，保留壁纸文字和单色图标选项
-- About 包含实际应用版本、当前版本说明和离线字体/图标/框架许可页
+- About 包含实际应用版本、待维护者填写的更新日志、GPLv3 正文和真实依赖的许可证列表
 - 新设置、隐藏应用和文件夹使用 Room 数据库本地持久化；原收藏、别名和壁纸外观偏好保留，升级不重置
 - 支持 Android 13+ 应用提供的单色主题图标，缺少单色资源时保留原始图标
+- Themes → Icon pack 可选择已安装的第三方图标包或恢复系统图标；收藏、应用列表、搜索、文件夹成员与应用详情共用同一套图标
 - 英文与简体中文界面
 - 全局 Josefin Sans 可变字体；中文、日文、韩文及其他已打包文字使用 Noto Sans 系列逐字形回退，字体随应用离线提供
 
-天气、媒体播放器、小组件、时钟样式、图标包和字体选择暂为明确标注的占位项；Advanced 分类留空。没有声明网络权限。
+天气、媒体播放器、小组件、时钟样式和字体选择暂为明确标注的占位项；Advanced 分类留空。没有声明网络权限。
 
 ## 代码结构
 
 ```text
 data/
   AppRepository.kt       已安装应用枚举、图标读取与启动
+  icons/                 图标包发现、appfilter 映射、日历图标、遮罩合成与有界缓存
   CalendarRepository.kt  Calendar Provider 日程读取
   FavoritesStore.kt      收藏应用持久化
   LauncherPreferences.kt 应用别名、分类和外观持久化
@@ -85,7 +87,24 @@ ui/
 
 系统 shortcut 通常要求应用成为默认启动器。未获得权限时会显示说明与设置默认桌面的入口；没有 shortcut 的应用会显示空状态，不伪造账号或快捷方式。当前只处理主用户资料。使用时间页面取决于系统是否提供对应设置 Activity；卸载始终通过系统确认，不静默卸载。
 
-应用保留设备原有壁纸，不捆绑参考截图中的图标包或品牌图形；主题图标只使用各应用公开的单色资源。
+应用保留设备原有壁纸，不捆绑参考截图中的图标包或品牌图形；第三方图标直接读取用户已安装的图标包资源，不执行图标包代码，也不复制到 APK 内。
+
+## 第三方图标包
+
+长按桌面右下按钮 → Themes → Icon pack，选择已安装的图标包即可生效，无需重启；选 System icons 恢复原图标。选择存入 Room，数据库从 v1 无损升级至 v2。
+
+支持常见 ADW / Nova / Apex / Lawnchair 图标包协议，读取 `res/xml`、`res/raw` 或 `assets` 下的 `appfilter.xml`：
+
+- 按启动 Activity 匹配，兼容完整/简写 ComponentInfo；包级兜底只采用明确或无歧义的映射。
+- 支持 `calendar` 日期图标；跨日、时区变化和回到桌面时刷新。
+- 未适配的应用使用图标包声明的 `iconback` / `iconmask` / `iconupon` / `scale`，未提供这些资源时保留应用原图标。
+- 普通图标包保留自身颜色；明确提供单色层或声明 themed-icon 协议的图标包可随现有“主题图标”开关取色。
+- 图标包安装、更新、卸载后刷新；已选择的包不可用时回退系统图标，保留选择以便重新安装后恢复。
+- 后台解析，按包版本缓存映射并限制位图缓存大小；快速切换会取消过期加载，避免旧结果覆盖新选择。
+
+已使用设备上安装的 Pure Icon Pack 验证真实资源、日期图标、兜底合成和设置切换。各图标包仍需由用户单独安装；目前不提供逐应用图标替换、图标包应用按钮协议或动态时钟指针。
+
+协议参考：[Kvaesitso 图标包开发文档](https://kvaesitso.mm20.de/docs/developer-guide/integrations/icon-packs)。
 
 ## 字体
 
@@ -97,7 +116,11 @@ ui/
 
 ## 平台说明
 
-系统转场的能力边界：普通第三方启动器可提供公开的打开动画参数，但不能通过公开 SDK 接管 Quickstep/Recents 的交互式返回图标动画。实际打开/关闭效果仍由 Android/OEM 决定；拆分 HOME 入口避免普通应用任务分类，但无法承诺所有厂商导航手势下都不缩放。测试桌面入口应启动 `.LauncherEntryActivity` 或系统 HOME，不要用缺少 HOME 类别的显式 MainActivity Intent。
+系统转场的能力边界：普通第三方启动器可提供公开的打开动画参数，但不能通过公开 SDK 接管 Quickstep/Recents 的交互式返回图标动画。实际打开/关闭效果仍由 Android/OEM 决定；拆分 HOME 入口避免普通应用任务分类，但无法承诺所有厂商导航手势下都不缩放。桌面使用系统 HOME 入口；应用列表只展示 `.SettingsActivity`（Grace settings），不展示 HOME Activity。预览桌面请发送限定包名的 `MAIN` + `HOME` Intent，不要使用缺少 HOME 类别的显式 MainActivity Intent。
+
+设置采用 Navigation Compose：层级切换沿逻辑方向移动 30 dp、总时长 300 ms，淡出 90 ms 后淡入 210 ms，与 Sudoku 的设置动效一致。子页面支持预测式返回的预览、取消和提交；从桌面进入设置时，根页面返回可预览桌面。独立设置 Activity 的根返回交给系统执行跨任务动画；Android 15+ 默认可用，Android 13/14 需开启系统的预测式返回开发者选项。桌面本身的返回不退出 HOME。
+
+实现依据：[Android 预测式返回](https://developer.android.com/develop/ui/compose/system/predictive-back-setup)。
 
 平台依据：[ActivityOptions](https://developer.android.com/reference/android/app/ActivityOptions)、[LauncherApps](https://developer.android.com/reference/android/content/pm/LauncherApps)、[AOSP Quickstep 权限和服务](https://android.googlesource.com/platform/packages/apps/Launcher3/+/master/quickstep/AndroidManifest.xml)。
 
@@ -107,7 +130,15 @@ ui/
 - 更完整的多语言首字母分组
 - 工作资料与 Private Space 支持
 - 通知预览、媒体卡片与小组件
-- 更完整的主题编辑器与第三方图标包
-- 安装/卸载广播监听和图标缓存预热
+- 更完整的主题编辑器与逐应用图标选择
+- 更细粒度的应用更新与图标缓存预热
 
 交互结构参考 [Niagara Launcher](https://niagaralauncher.app/) 与开源项目 [Victoria Launcher](https://github.com/adelmonte/victoria-launcher)。项目没有复制它们的专有素材。
+
+## 许可证
+
+Copyright (C) 2026 Grace Launcher contributors.
+
+本项目的原创代码以 **GNU GPL 第 3 版（SPDX: GPL-3.0-only）** 发布。你可以依照该许可证使用、修改与再分发；本程序不提供任何担保，包括适销性或特定用途适用性的默示担保。完整条款见 [LICENSE](LICENSE)，应用内“About → Open-source licenses → GNU GPLv3 → Full text”也可离线阅读相同正文。
+
+第三方库、字体及 Material Symbols 仍遵循各自的许可，项目的 GPL 声明不替换它们的许可。原始声明保留在 `third_party/` 及 APK 中；许可证页不再展示独立的字体或图标许可证链接。

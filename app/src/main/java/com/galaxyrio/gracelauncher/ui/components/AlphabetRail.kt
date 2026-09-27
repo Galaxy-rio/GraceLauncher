@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -30,6 +31,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -215,7 +217,7 @@ fun AlphabetRail(
                     scaleX = 0.85f + wave * 0.15f
                     scaleY = scaleX
                 }
-                .background(Color.White, CircleShape)
+                .background(MaterialTheme.colorScheme.primary, CircleShape)
                 .clearAndSetSemantics {},
             contentAlignment = Alignment.Center,
         ) {
@@ -227,10 +229,10 @@ fun AlphabetRail(
                     LauncherIcon(
                         LauncherSymbol.Star,
                         Modifier.size(28.dp).testTag("alphabet_indicator_star"),
-                        tint = Color(0xFF202020),
+                        tint = MaterialTheme.colorScheme.onPrimary,
                     )
                 } else {
-                    CenteredIndicatorGlyph(entries.getOrNull(state.selectedIndex).orEmpty())
+                    CenteredIndicatorGlyph(entries.getOrNull(state.selectedIndex).orEmpty(), MaterialTheme.colorScheme.onPrimary)
                 }
             }
         }
@@ -239,7 +241,7 @@ fun AlphabetRail(
 
 /** Center the visible glyph, not the font's asymmetric ascent/descent line box. */
 @Composable
-private fun CenteredIndicatorGlyph(letter: String) {
+private fun CenteredIndicatorGlyph(letter: String, color: Color) {
     val context = LocalContext.current
     val density = LocalDensity.current
     val fontSize = with(density) { 28.sp.toPx() }
@@ -247,12 +249,12 @@ private fun CenteredIndicatorGlyph(letter: String) {
     val paint = remember(context) {
         Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
             typeface = launcherTypeface(context, FontWeight.Medium.weight)
-            color = android.graphics.Color.rgb(32, 32, 32)
         }
     }
     val glyphBounds = remember { Rect() }
     Canvas(Modifier.fillMaxSize()) {
         if (letter.isNotEmpty()) {
+            paint.color = color.toArgb()
             paint.textSize = fontSize
             paint.getTextBounds(letter, 0, letter.length, glyphBounds)
             // Keep wide letters inside the circle at larger accessibility sizes.

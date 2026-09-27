@@ -13,10 +13,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.LayoutDirection
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.ui.LauncherActions
@@ -35,6 +39,8 @@ internal fun AppSearchScreen(
     onLaunch: (LauncherApp) -> Unit,
     onDetails: (LauncherApp) -> Unit,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    backProgress: Float = 0f,
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     val focusRequester = remember { FocusRequester() }
@@ -44,7 +50,12 @@ internal fun AppSearchScreen(
         visibleApps.filter { it.label.contains(term, ignoreCase = true) || it.originalLabel.contains(term, ignoreCase = true) }
     }
     LaunchedEffect(Unit) { focusRequester.requestFocus() }
-    Surface(Modifier.fillMaxSize().testTag("app_search"), color = MaterialTheme.colorScheme.surface) {
+    val backDistance = with(LocalDensity.current) { 30.dp.toPx() } *
+        if (LocalLayoutDirection.current == LayoutDirection.Ltr) 1 else -1
+    Surface(modifier.fillMaxSize().testTag("app_search").graphicsLayer {
+        alpha = 1f - backProgress
+        translationX = backDistance * backProgress
+    }, color = MaterialTheme.colorScheme.surface) {
         Column(Modifier.safeDrawingPadding().imePadding().padding(horizontal = 16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 12.dp, bottom = 16.dp)) {
                 OutlinedTextField(

@@ -72,7 +72,7 @@ fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp) {
                 contentDescription = null,
                 colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onPrimaryContainer),
                 // Adaptive monochrome drawables include the platform's safe-zone inset.
-                modifier = Modifier.size(size).graphicsLayer { scaleX = 1.4f; scaleY = 1.4f },
+                modifier = Modifier.size(size).graphicsLayer { scaleX = app.monochromeScale; scaleY = app.monochromeScale },
             )
         }
     } else if (app.icon != null) {

@@ -2,6 +2,10 @@ package com.galaxyrio.gracelauncher.ui
 
 import android.Manifest
 import android.app.Application
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Rect
 import android.os.Bundle
@@ -22,6 +26,9 @@ import com.galaxyrio.gracelauncher.data.LauncherShortcut
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.data.ShortcutRepository
 import com.galaxyrio.gracelauncher.data.WallpaperTextMode
+import com.galaxyrio.gracelauncher.data.icons.IconPackInfo
+import com.galaxyrio.gracelauncher.data.icons.IconPackRepository
+import com.galaxyrio.gracelauncher.data.icons.IconPackStatus
 import java.text.Collator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -59,6 +66,10 @@ data class LauncherUiState(
     val isLoadingSettings: Boolean = false,
     val settingsLoadFailed: Boolean = false,
     val settingsSaveFailed: Boolean = false,
+    val iconPacks: List<IconPackInfo> = emptyList(),
+    val isLoadingIconPacks: Boolean = false,
+    val iconPacksLoadFailed: Boolean = false,
+    val iconPackStatus: IconPackStatus = IconPackStatus.System,
 ) {
     val visibleApps: List<LauncherApp>
         get() = if (isLoadingSettings || settingsLoadFailed) emptyList()
@@ -69,7 +80,8 @@ data class LauncherUiState(
 }
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
-    private val appRepository = AppRepository(application)
+    private val iconPacks = IconPackRepository(application)
+    private val appRepository = AppRepository(application, iconPacks)
     private val calendarRepository = CalendarRepository(application)
     private val favoritesStore = FavoritesStore(application)
     private val preferences = LauncherPreferences(application)
@@ -90,8 +102,29 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private var appLoadJob: Job? = null
     private var scheduleLoadJob: Job? = null
+    private val packageReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action == Intent.ACTION_PACKAGE_REMOVED && intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) return
+            refreshApps()
+        }
+    }
+    private val dateReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) { refreshApps() }
+    }
 
     init {
+        ContextCompat.registerReceiver(application, packageReceiver, IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_REPLACED)
+            addAction(Intent.ACTION_PACKAGE_CHANGED)
+            addDataScheme("package")
+        }, ContextCompat.RECEIVER_NOT_EXPORTED)
+        ContextCompat.registerReceiver(application, dateReceiver, IntentFilter().apply {
+            addAction(Intent.ACTION_DATE_CHANGED)
+            addAction(Intent.ACTION_TIME_CHANGED)
+            addAction(Intent.ACTION_TIMEZONE_CHANGED)
+        }, ContextCompat.RECEIVER_NOT_EXPORTED)
         viewModelScope.launch {
             settingsRepository.snapshots
                 .catch { error ->
@@ -113,6 +146,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     if (previous.isLoadingSettings ||
                         previous.settings.calendarAgenda != snapshot.settings.calendarAgenda
                     ) refreshSchedule()
+                    if (previous.isLoadingSettings || previous.settings.iconPackPackage != snapshot.settings.iconPackPackage) refreshApps()
                     if (previous.isLoadingSettings || previous.hiddenAppKeys != snapshot.hiddenAppKeys) {
                         val favorites = _uiState.value.favoriteApps
                         viewModelScope.launch { shortcutRepository.prefetch(favorites) }
@@ -123,12 +157,27 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun refreshApps() {
+        // Wait for the stored pack choice: do not flash system icons on cold start.
+        if (_uiState.value.isLoadingSettings || _uiState.value.settingsLoadFailed) return
         appLoadJob?.cancel()
         appLoadJob = viewModelScope.launch {
             _uiState.update {
-                it.copy(isLoadingApps = true, appLoadFailed = false, hasShortcutAccess = shortcutRepository.hasAccess())
+                it.copy(isLoadingApps = true, appLoadFailed = false, isLoadingIconPacks = true, hasShortcutAccess = shortcutRepository.hasAccess())
             }
-            runCatching { appRepository.loadApps() }
+            try {
+                val installed = iconPacks.installedPacks()
+                _uiState.update { it.copy(iconPacks = installed, isLoadingIconPacks = false, iconPacksLoadFailed = false) }
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                _uiState.update { it.copy(isLoadingIconPacks = false, iconPacksLoadFailed = true) }
+            }
+            val selectedPack = _uiState.value.settings.iconPackPackage
+            val status = when {
+                selectedPack == null -> IconPackStatus.System
+                iconPacks.load(selectedPack) != null -> IconPackStatus.Ready
+                else -> IconPackStatus.Unavailable
+            }
+            runCatching { appRepository.loadApps(selectedPack) }
                 .onSuccess { apps ->
                     val renames = preferences.renames()
                     val collator = Collator.getInstance()
@@ -138,6 +187,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         it.copy(
                             apps = displayedApps,
                             favoriteKeys = favoritesStore.favoritesFor(apps),
+                            // Settings also has an independent Activity/ViewModel.
+                            // Refresh legacy preferences when returning to HOME.
+                            categories = preferences.categories(),
+                            textMode = preferences.textMode,
+                            themedIcons = preferences.themedIcons,
+                            iconPackStatus = status,
                             isLoadingApps = false,
                         )
                     }
@@ -200,6 +255,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         shortcutRepository.launch(shortcut, bounds, options)
 
     override fun onCleared() {
+        getApplication<Application>().unregisterReceiver(packageReceiver)
+        getApplication<Application>().unregisterReceiver(dateReceiver)
         shortcutRepository.close()
     }
 

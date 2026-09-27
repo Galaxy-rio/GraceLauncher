@@ -9,6 +9,7 @@ data class LauncherSettings(
     val useDynamicColors: Boolean = true,
     val themeColor: Int = 0xFF6750A4.toInt(),
     val darkMode: ThemeMode = ThemeMode.System,
+    val iconPackPackage: String? = null,
 )
 
 enum class FolderPlacement { Favorites, AppList }

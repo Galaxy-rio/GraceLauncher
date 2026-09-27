@@ -8,13 +8,9 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
-import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.runtime.getValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.galaxyrio.gracelauncher.data.ThemeMode
+import com.galaxyrio.gracelauncher.ui.LauncherAppTheme
 import com.galaxyrio.gracelauncher.ui.LauncherRoute
 import com.galaxyrio.gracelauncher.ui.LauncherViewModel
-import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
 
 class MainActivity : ComponentActivity() {
     private val launcherViewModel: LauncherViewModel by viewModels()
@@ -26,17 +22,7 @@ class MainActivity : ComponentActivity() {
             navigationBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
         )
         setContent {
-            val state by launcherViewModel.uiState.collectAsStateWithLifecycle()
-            val dark = when (state.settings.darkMode) {
-                ThemeMode.System -> isSystemInDarkTheme()
-                ThemeMode.Light -> false
-                ThemeMode.Dark -> true
-            }
-            GraceLauncherTheme(
-                darkTheme = dark,
-                dynamicColor = state.settings.useDynamicColors,
-                seedColor = androidx.compose.ui.graphics.Color(state.settings.themeColor),
-            ) {
+            LauncherAppTheme(launcherViewModel) {
                 LauncherRoute(viewModel = launcherViewModel)
             }
         }

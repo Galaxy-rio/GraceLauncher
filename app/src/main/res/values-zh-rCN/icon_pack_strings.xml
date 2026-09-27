@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="icon_pack_system">系统图标</string>
+    <string name="icon_pack_description">选择已安装的图标包。未适配的应用将使用图标包的兜底样式或应用原始图标。</string>
+    <string name="icon_pack_empty">未安装图标包，安装后返回此处即可选择。</string>
+    <string name="icon_pack_unavailable">图标包不可用 · 已使用系统图标</string>
+    <string name="icon_pack_missing">%1$s 不可用，重新安装前将使用系统图标。</string>
+    <string name="icon_pack_load_failed">无法读取图标包，请重试。</string>
+</resources>

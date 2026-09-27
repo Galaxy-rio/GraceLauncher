@@ -72,6 +72,7 @@ fun LauncherOverlays(
     onLaunchApp: (LauncherApp) -> Unit,
     onToggleFavorite: (LauncherApp) -> Unit,
     onRequestCalendar: () -> Unit,
+    searchBackProgress: Float = 0f,
 ) {
     if (overlay == null) return
     if (overlay == LauncherOverlay.Settings || overlay is LauncherOverlay.FolderSettings) {
@@ -88,6 +89,7 @@ fun LauncherOverlays(
             onLaunch = { onChange(null); onLaunchApp(it) },
             onDetails = { onChange(LauncherOverlay.AppDetails(it)) },
             onDismiss = { onChange(null) },
+            backProgress = searchBackProgress,
         )
         return
     }

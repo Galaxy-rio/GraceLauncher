@@ -24,6 +24,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.json.JSONObject
 
 @RunWith(AndroidJUnit4::class)
 class LauncherSettingsPersistenceTest {
@@ -39,9 +40,47 @@ class LauncherSettingsPersistenceTest {
 
     private fun openRepository(): LauncherSettingsRepository {
         database?.close()
-        val reopened = Room.databaseBuilder(context, LauncherDatabase::class.java, databaseName).build()
+        val reopened = Room.databaseBuilder(context, LauncherDatabase::class.java, databaseName)
+            .addMigrations(LauncherDatabase.Migration1To2).build()
         database = reopened
         return LauncherSettingsRepository(reopened)
+    }
+
+    @Test
+    fun versionOneMigratesWithoutLosingSettingsHiddenAppsOrFolderOrder() = runBlocking {
+        val schema = InstrumentationRegistry.getInstrumentation().context.assets
+            .open("com.galaxyrio.gracelauncher.data.LauncherDatabase/1.json")
+            .bufferedReader().use { JSONObject(it.readText()).getJSONObject("database") }
+        context.openOrCreateDatabase(databaseName, 0, null).use { legacy ->
+            val entities = schema.getJSONArray("entities")
+            for (index in 0 until entities.length()) {
+                val entity = entities.getJSONObject(index)
+                val table = entity.getString("tableName")
+                fun execute(sql: String) = legacy.execSQL(sql.replace('$' + "{TABLE_NAME}", table))
+                execute(entity.getString("createSql"))
+                entity.optJSONArray("indices")?.let { indices ->
+                    for (i in 0 until indices.length()) execute(indices.getJSONObject(i).getString("createSql"))
+                }
+            }
+            val setup = schema.getJSONArray("setupQueries")
+            for (index in 0 until setup.length()) legacy.execSQL(setup.getString(index))
+            legacy.execSQL("INSERT INTO launcher_settings VALUES (0, 0, 1, 0, 0, -14129574, 'Dark')")
+            legacy.execSQL("INSERT INTO hidden_apps VALUES ('mail/MailActivity')")
+            legacy.execSQL("INSERT INTO folders VALUES ('work', 'Work', 'Favorites')")
+            legacy.execSQL("INSERT INTO folder_apps VALUES ('work', 'notes/NotesActivity', 0)")
+            legacy.execSQL("INSERT INTO folder_apps VALUES ('work', 'mail/MailActivity', 1)")
+            legacy.version = 1
+        }
+        val repository = openRepository()
+        val migrated = withTimeout(10_000) { repository.snapshots.first() }
+        assertEquals(LauncherSettings(calendarAgenda = false, allowHapticFeedback = false,
+            useDynamicColors = false, themeColor = -14129574, darkMode = ThemeMode.Dark), migrated.settings)
+        assertEquals(setOf("mail/MailActivity"), migrated.hiddenAppKeys)
+        assertEquals(listOf(LauncherFolder("work", "Work", listOf("notes/NotesActivity", "mail/MailActivity"),
+            FolderPlacement.Favorites)), migrated.folders)
+        repository.mutateSettings { it.copy(iconPackPackage = "me.morirain.dev.iconpack.pure") }
+        val reopened = withTimeout(10_000) { openRepository().snapshots.first() }
+        assertEquals(migrated.copy(settings = migrated.settings.copy(iconPackPackage = "me.morirain.dev.iconpack.pure")), reopened)
     }
 
     @Test
@@ -54,6 +93,7 @@ class LauncherSettingsPersistenceTest {
             useDynamicColors = false,
             themeColor = 0xFF28665A.toInt(),
             darkMode = ThemeMode.Dark,
+            iconPackPackage = "me.morirain.dev.iconpack.pure",
         )
         val folder = LauncherFolder(
             id = "work",

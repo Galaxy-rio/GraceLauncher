@@ -139,8 +139,7 @@ private fun DateHeader(
     val battery = if (showBattery) rememberBatteryPercent() else null
     val context = LocalContext.current
     val locale = LocalConfiguration.current.locales[0]
-    val clockPattern = if (DateFormat.is24HourFormat(context)) "H:mm" else "h:mm"
-    val clockText = SimpleDateFormat(clockPattern, locale).format(Date.from(now))
+    val clockText = formatHomeClock(now, DateFormat.is24HourFormat(context), locale)
     val datePattern = DateFormat.getBestDateTimePattern(locale, "MMMEd")
     val dateText = SimpleDateFormat(datePattern, locale).format(Date.from(now))
     val dateDescription = stringResource(R.string.date_calendar_action, dateText)

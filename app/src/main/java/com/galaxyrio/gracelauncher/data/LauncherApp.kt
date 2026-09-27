@@ -11,6 +11,8 @@ data class LauncherApp(
     val icon: ImageBitmap?,
     val monochromeIcon: ImageBitmap? = null,
     val originalLabel: String = label,
+    val iconPackPackage: String? = null,
+    val monochromeScale: Float = 1.4f,
 ) {
     val key: String = componentName.flattenToString()
     val packageName: String = componentName.packageName

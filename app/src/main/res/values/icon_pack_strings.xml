@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="icon_pack_system">System icons</string>
+    <string name="icon_pack_description">Choose an installed icon pack. Unsupported icons use the pack’s fallback style or the original app icon.</string>
+    <string name="icon_pack_empty">No icon packs installed. Install one, then return here.</string>
+    <string name="icon_pack_unavailable">Icon pack unavailable · using system icons</string>
+    <string name="icon_pack_missing">%1$s is unavailable. Using system icons until it is installed again.</string>
+    <string name="icon_pack_load_failed">Could not load icon packs. Try again.</string>
+</resources>

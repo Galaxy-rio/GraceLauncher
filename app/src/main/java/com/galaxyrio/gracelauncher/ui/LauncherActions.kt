@@ -24,6 +24,7 @@ data class LauncherActions(
     val refreshAgenda: () -> Unit = {},
     val textMode: (WallpaperTextMode) -> Unit = {},
     val themedIcons: (Boolean) -> Unit = {},
+    val refreshIconPacks: () -> Unit = {},
     val updateSettings: ((LauncherSettings) -> LauncherSettings) -> Unit = {},
     val setHiddenApps: (Set<String>) -> Unit = {},
     val saveFolder: (LauncherFolder) -> Unit = {},

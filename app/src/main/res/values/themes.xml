@@ -12,4 +12,10 @@
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:windowDisablePreview">true</item>
     </style>
+    <!-- Settings is a regular application task, never a second HOME task. -->
+    <style name="Theme.GraceLauncher.Settings" parent="Theme.GraceLauncher">
+        <item name="android:windowShowWallpaper">false</item>
+        <item name="android:windowBackground">?android:attr/colorBackground</item>
+        <item name="android:windowDisablePreview">false</item>
+    </style>
 </resources>

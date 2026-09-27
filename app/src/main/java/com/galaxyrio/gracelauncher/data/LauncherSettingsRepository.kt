@@ -42,6 +42,7 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
             useDynamicColors = settings.useDynamicColors,
             themeColor = settings.themeColor,
             darkMode = settings.darkMode.name,
+            iconPackPackage = settings.iconPackPackage,
         ))
     }
 
@@ -80,4 +81,5 @@ private fun LauncherSettingsEntity.toSettings() = LauncherSettings(
     useDynamicColors = useDynamicColors,
     themeColor = themeColor,
     darkMode = ThemeMode.entries.firstOrNull { it.name == darkMode } ?: ThemeMode.System,
+    iconPackPackage = iconPackPackage,
 )
