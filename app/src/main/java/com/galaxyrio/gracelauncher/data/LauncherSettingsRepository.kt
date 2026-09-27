@@ -43,6 +43,7 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
             themeColor = settings.themeColor,
             darkMode = settings.darkMode.name,
             iconPackPackage = settings.iconPackPackage,
+            mediaPlayer = settings.mediaPlayer,
         ))
     }
 
@@ -82,4 +83,5 @@ private fun LauncherSettingsEntity.toSettings() = LauncherSettings(
     themeColor = themeColor,
     darkMode = ThemeMode.entries.firstOrNull { it.name == darkMode } ?: ThemeMode.System,
     iconPackPackage = iconPackPackage,
+    mediaPlayer = mediaPlayer,
 )

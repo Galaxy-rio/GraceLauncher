@@ -41,7 +41,7 @@ class LauncherSettingsPersistenceTest {
     private fun openRepository(): LauncherSettingsRepository {
         database?.close()
         val reopened = Room.databaseBuilder(context, LauncherDatabase::class.java, databaseName)
-            .addMigrations(LauncherDatabase.Migration1To2).build()
+            .addMigrations(LauncherDatabase.Migration1To2, LauncherDatabase.Migration2To3).build()
         database = reopened
         return LauncherSettingsRepository(reopened)
     }
@@ -84,6 +84,35 @@ class LauncherSettingsPersistenceTest {
     }
 
     @Test
+    fun versionTwoPreservesIconPackAndAddsPersistentMediaPreference() = runBlocking {
+        val schema = InstrumentationRegistry.getInstrumentation().context.assets
+            .open("com.galaxyrio.gracelauncher.data.LauncherDatabase/2.json")
+            .bufferedReader().use { JSONObject(it.readText()).getJSONObject("database") }
+        context.openOrCreateDatabase(databaseName, 0, null).use { legacy ->
+            val entities = schema.getJSONArray("entities")
+            for (index in 0 until entities.length()) {
+                val entity = entities.getJSONObject(index)
+                val table = entity.getString("tableName")
+                fun execute(sql: String) = legacy.execSQL(sql.replace('$' + "{TABLE_NAME}", table))
+                execute(entity.getString("createSql"))
+                entity.optJSONArray("indices")?.let { indices ->
+                    for (i in 0 until indices.length()) execute(indices.getJSONObject(i).getString("createSql"))
+                }
+            }
+            val setup = schema.getJSONArray("setupQueries")
+            for (index in 0 until setup.length()) legacy.execSQL(setup.getString(index))
+            legacy.execSQL("INSERT INTO launcher_settings VALUES (0, 0, 1, 0, 0, -14129574, 'Dark', 'me.morirain.dev.iconpack.pure')")
+            legacy.version = 2
+        }
+        val repository = openRepository()
+        val settings = withTimeout(10_000) { repository.snapshots.first().settings }
+        assertTrue(settings.mediaPlayer)
+        assertEquals("me.morirain.dev.iconpack.pure", settings.iconPackPackage)
+        repository.mutateSettings { it.copy(mediaPlayer = false) }
+        assertEquals(settings.copy(mediaPlayer = false), withTimeout(10_000) { openRepository().snapshots.first().settings })
+    }
+
+    @Test
     fun settingsHiddenAppsAndOrderedFoldersSurviveDatabaseRecreation() = runBlocking {
         val repository = openRepository()
         val settings = LauncherSettings(
@@ -94,6 +123,7 @@ class LauncherSettingsPersistenceTest {
             themeColor = 0xFF28665A.toInt(),
             darkMode = ThemeMode.Dark,
             iconPackPackage = "me.morirain.dev.iconpack.pure",
+            mediaPlayer = false,
         )
         val folder = LauncherFolder(
             id = "work",

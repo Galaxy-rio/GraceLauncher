@@ -18,12 +18,14 @@
 - 大号细体时钟、短日期和实时电量；点击时钟打开闹钟
 - 可选日历权限；主页仅显示最近一条日程的标题与相对剩余时间，无日程时隐藏
 - 点击日期或日程打开底部日程面板：未来 14 天、日期分组、日历颜色、全天/跨日日程；支持打开日程与通过系统日历新建日程
+- 主页音乐控件：日程下方显示专辑封面、歌曲与作者，支持上一首、播放/暂停、下一首；直接控制系统媒体会话，点击封面或歌曲可回到播放器
 - 应用右滑时快捷方式浮层随手指连续展开（越过系统触摸阈值后拖动 72dp 即可完全展开），反向拖回可取消；收藏/按下时预取真实 shortcut，缓存与合并查询，不显示加载条
 - 应用行保留 8dp 图标内边距并使用标准 Material 圆角 ripple；长按打开底部操作面板：编辑收藏、应用信息、使用时间、添加到文件夹、卸载，以及高级选项中的重命名/商店页面
 - 快捷方式、设置、收藏和日程条目使用对应容器形状的点击反馈与内部留白；圆形桌面按钮支持单击与长按
 - 操作图标使用 Google 官方 Material Symbols Outlined 矢量资源（来源和 Apache 2.0 许可证见 `third_party/material-symbols`）
 - HOME 与应用列表入口分离；应用及 shortcut 接入 `LauncherApps` 和基于图标位置的公开 `ActivityOptions.makeClipRevealAnimation`
 - 全屏 Material 3 Expressive 设置：Productivity、Themes、Advanced、About；可折叠大标题、SegmentedListItem 分段圆角列表和本地页面导航
+- 未设为默认桌面时，设置首页在标题与分类之间显示独立的主题色胶囊横幅；点击打开系统选择界面，返回后重新读取默认状态，已是默认桌面时隐藏横幅和额外留白
 - Productivity 支持日程开关、隐藏应用、文件夹、日期电量开关和遵循系统的触觉反馈开关
 - 隐藏应用同时从收藏、抽屉、搜索和文件夹内容中移除；隐藏不删除收藏关系或文件夹成员，取消隐藏即可恢复
 - 文件夹可创建在收藏或应用列表底部，支持编辑名称/成员/位置与确认删除；点击或右滑展开，和 shortcut 共用连续展开面板；右侧 ◇ 可定位底部文件夹
@@ -35,7 +37,7 @@
 - 英文与简体中文界面
 - 全局 Josefin Sans 可变字体；中文、日文、韩文及其他已打包文字使用 Noto Sans 系列逐字形回退，字体随应用离线提供
 
-天气、媒体播放器、小组件、时钟样式和字体选择暂为明确标注的占位项；Advanced 分类留空。没有声明网络权限。
+天气、小组件、时钟样式和字体选择暂为明确标注的占位项；Advanced 分类留空。没有声明网络权限。
 
 ## 代码结构
 
@@ -43,6 +45,7 @@
 data/
   AppRepository.kt       已安装应用枚举、图标读取与启动
   icons/                 图标包发现、appfilter 映射、日历图标、遮罩合成与有界缓存
+  media/                 系统媒体会话、权限状态、封面加载与播放控制
   CalendarRepository.kt  Calendar Provider 日程读取
   FavoritesStore.kt      收藏应用持久化
   LauncherPreferences.kt 应用别名、分类和外观持久化
@@ -55,7 +58,7 @@ platform/
 ui/
   LauncherViewModel.kt   主界面状态与业务入口
   LauncherScreen.kt      主屏幕/应用列表路由与动效
-  home/HomeScreen.kt     日期、日程和收藏列表
+  home/                  日期、日程、系统音乐控件和收藏列表
   drawer/AppListModel.kt  稳定的完整分组列表和字母位置索引
   drawer/AppDrawerScreen.kt  透明背景的分组列表
   components/AlphabetRail.kt  主屏幕与抽屉共用的连续触摸索引
@@ -91,7 +94,7 @@ ui/
 
 ## 第三方图标包
 
-长按桌面右下按钮 → Themes → Icon pack，选择已安装的图标包即可生效，无需重启；选 System icons 恢复原图标。选择存入 Room，数据库从 v1 无损升级至 v2。
+长按桌面右下按钮 → Themes → Icon pack，选择已安装的图标包即可生效，无需重启；选 System icons 恢复原图标。选择存入 Room；当前数据库 v3 保留 v1、v2 的无损升级路径。
 
 支持常见 ADW / Nova / Apex / Lawnchair 图标包协议，读取 `res/xml`、`res/raw` 或 `assets` 下的 `appfilter.xml`：
 
@@ -105,6 +108,16 @@ ui/
 已使用设备上安装的 Pure Icon Pack 验证真实资源、日期图标、兜底合成和设置切换。各图标包仍需由用户单独安装；目前不提供逐应用图标替换、图标包应用按钮协议或动态时钟指针。
 
 协议参考：[Kvaesitso 图标包开发文档](https://kvaesitso.mm20.de/docs/developer-guide/integrations/icon-packs)。
+
+## 音乐控件
+
+长按桌面右下按钮 → Productivity → Media player。此开关默认开启并存入 Room；第一次使用需点击“允许媒体控制”，阅读说明后前往系统设置为 Grace Launcher 开启**通知使用权**。取消授权或没有可用媒体会话时，主页不显示占位卡片；关闭开关后停止监听。
+
+使用 Android `MediaSessionManager` / `MediaController` / `TransportControls`，通过系统绑定的 `NotificationListenerService` 获得查询其他播放器会话的资格。仅处理媒体元数据和播放状态，不查询、读取或保存通知内容，不需要网络、音频文件读取权限，也不内置播放器。通知使用权本身是系统授予的较宽权限，用户可随时在系统设置撤销。
+
+多个播放器同时存在时优先正在播放的会话，同优先级遵循系统顺序；暂停时保留控件，停止或会话销毁后隐藏。按钮按播放器声明的操作能力启用，缺少封面时使用 Material 音符；封面在后台缩小解码，歌曲切换会取消旧封面任务。仅响应公开了 MediaSession 的播放器，不能控制未提供会话的应用，也不实现系统面板的历史播放恢复。
+
+平台依据：[MediaSessionManager](https://developer.android.com/reference/android/media/session/MediaSessionManager)、[NotificationListenerService](https://developer.android.com/reference/android/service/notification/NotificationListenerService)、[TransportControls](https://developer.android.com/reference/android/media/session/MediaController.TransportControls)。
 
 ## 字体
 
@@ -129,7 +142,7 @@ ui/
 - 收藏应用拖拽排序与布局编辑模式
 - 更完整的多语言首字母分组
 - 工作资料与 Private Space 支持
-- 通知预览、媒体卡片与小组件
+- 通知预览与小组件
 - 更完整的主题编辑器与逐应用图标选择
 - 更细粒度的应用更新与图标缓存预热
 

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="media_service_name">Grace Launcher 媒体控制</string>
+    <string name="media_player_summary">在主屏幕显示播放控件</string>
+    <string name="media_allow_controls">允许媒体控制</string>
+    <string name="media_access_required">需要开启通知使用权</string>
+    <string name="media_access_explanation">Android 要求开启通知使用权才能显示其他应用的音乐。请在下一页为 Grace Launcher 开启。Grace 仅通过媒体会话获取歌曲信息和控制播放，不读取或保存通知内容。你可以随时在系统设置中撤销授权。</string>
+    <string name="media_open_settings">打开设置</string>
+    <string name="media_play">播放</string>
+    <string name="media_pause">暂停</string>
+    <string name="media_previous">上一首</string>
+    <string name="media_next">下一首</string>
+    <string name="media_open_player">打开%1$s</string>
+    <string name="media_unknown_title">正在播放</string>
+    <string name="media_control_unavailable">播放器已不可用</string>
+</resources>

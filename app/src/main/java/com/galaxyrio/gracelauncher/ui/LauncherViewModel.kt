@@ -29,6 +29,11 @@ import com.galaxyrio.gracelauncher.data.WallpaperTextMode
 import com.galaxyrio.gracelauncher.data.icons.IconPackInfo
 import com.galaxyrio.gracelauncher.data.icons.IconPackRepository
 import com.galaxyrio.gracelauncher.data.icons.IconPackStatus
+import com.galaxyrio.gracelauncher.platform.DefaultHome
+import com.galaxyrio.gracelauncher.data.media.MediaCommand
+import com.galaxyrio.gracelauncher.data.media.MediaSessionRepository
+import com.galaxyrio.gracelauncher.data.media.MediaSnapshot
+import com.galaxyrio.gracelauncher.data.media.NowPlaying
 import java.text.Collator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -70,7 +75,15 @@ data class LauncherUiState(
     val isLoadingIconPacks: Boolean = false,
     val iconPacksLoadFailed: Boolean = false,
     val iconPackStatus: IconPackStatus = IconPackStatus.System,
+    // Unknown until the first system query, avoiding a banner flash for an existing default.
+    val isDefaultHome: Boolean? = null,
+    val media: MediaSnapshot = MediaSnapshot(),
 ) {
+    val homeMedia: NowPlaying?
+        get() = media.nowPlaying.takeIf {
+            settings.mediaPlayer && media.hasAccess && !isLoadingSettings && !settingsLoadFailed
+        }
+
     val visibleApps: List<LauncherApp>
         get() = if (isLoadingSettings || settingsLoadFailed) emptyList()
         else apps.filterNot { it.key in hiddenAppKeys }
@@ -87,6 +100,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val preferences = LauncherPreferences(application)
     private val shortcutRepository = ShortcutRepository(application)
     private val settingsRepository = LauncherSettingsRepository(LauncherDatabase.getInstance(application))
+    private val mediaRepository = MediaSessionRepository(application)
     private val settingsWriteMutex = Mutex()
 
     private val _uiState = MutableStateFlow(LauncherUiState(
@@ -113,6 +127,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     init {
+        viewModelScope.launch {
+            mediaRepository.state.collect { media -> _uiState.update { it.copy(media = media) } }
+        }
         ContextCompat.registerReceiver(application, packageReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_PACKAGE_ADDED)
             addAction(Intent.ACTION_PACKAGE_REMOVED)
@@ -131,6 +148,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     if (error is CancellationException) throw error
                     Log.e("LauncherViewModel", "Unable to read launcher settings", error)
                     _uiState.update { it.copy(isLoadingSettings = false, settingsLoadFailed = true) }
+                    mediaRepository.setEnabled(false)
                 }
                 .collect { snapshot ->
                     val previous = _uiState.value
@@ -146,6 +164,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     if (previous.isLoadingSettings ||
                         previous.settings.calendarAgenda != snapshot.settings.calendarAgenda
                     ) refreshSchedule()
+                    if (previous.isLoadingSettings || previous.settings.mediaPlayer != snapshot.settings.mediaPlayer) {
+                        mediaRepository.setEnabled(snapshot.settings.mediaPlayer)
+                    }
                     if (previous.isLoadingSettings || previous.settings.iconPackPackage != snapshot.settings.iconPackPackage) refreshApps()
                     if (previous.isLoadingSettings || previous.hiddenAppKeys != snapshot.hiddenAppKeys) {
                         val favorites = _uiState.value.favoriteApps
@@ -157,6 +178,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun refreshApps() {
+        mediaRepository.refresh()
+        // Both HOME and the standalone settings Activity call this on resume;
+        // also refresh after the role request, including cancellation.
+        val isDefaultHome = DefaultHome.isDefault(getApplication())
+        _uiState.update { it.copy(isDefaultHome = isDefaultHome) }
         // Wait for the stored pack choice: do not flash system icons on cold start.
         if (_uiState.value.isLoadingSettings || _uiState.value.settingsLoadFailed) return
         appLoadJob?.cancel()
@@ -258,7 +284,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         getApplication<Application>().unregisterReceiver(packageReceiver)
         getApplication<Application>().unregisterReceiver(dateReceiver)
         shortcutRepository.close()
+        mediaRepository.close()
     }
+
+    fun controlMedia(sessionId: String, command: MediaCommand): Boolean = mediaRepository.command(sessionId, command)
 
     fun renameApp(app: LauncherApp, label: String) {
         preferences.rename(app.key, label)

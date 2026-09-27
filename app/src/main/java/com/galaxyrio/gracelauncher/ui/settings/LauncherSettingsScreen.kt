@@ -8,9 +8,14 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
@@ -22,6 +27,8 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -149,7 +156,7 @@ fun LauncherSettingsScreen(
                 if (!storage.canEdit) {
                     SettingsScaffold(stringResource(R.string.settings_title), "settings_storage_blocked", back) { }
                 } else when (page) {
-                    SettingsPage.Root -> SettingsHome(back, navigate)
+                    SettingsPage.Root -> SettingsHome(uiState.isDefaultHome, actions.requestDefaultHome, back, navigate)
                     SettingsPage.Productivity -> ProductivitySettings(uiState, actions, back, navigate)
                     SettingsPage.Themes -> ThemeSettings(uiState, actions, back)
                     SettingsPage.Advanced -> SettingsScaffold(stringResource(R.string.settings_advanced), "settings_advanced", back) { }
@@ -170,7 +177,13 @@ fun LauncherSettingsScreen(
 }
 
 @Composable
-private fun SettingsHome(onBack: () -> Unit, navigate: (SettingsPage) -> Unit) {
+private fun SettingsHome(
+    isDefaultHome: Boolean?,
+    onSetDefaultHome: () -> Unit,
+    onBack: () -> Unit,
+    navigate: (SettingsPage) -> Unit,
+) {
+    val showDefaultHomeBanner = isDefaultHome == false
     val categories = listOf(
         SettingsPage.Productivity to LauncherSymbol.Star,
         SettingsPage.Themes to LauncherSymbol.Palette,
@@ -179,7 +192,11 @@ private fun SettingsHome(onBack: () -> Unit, navigate: (SettingsPage) -> Unit) {
     )
     SettingsScaffold(stringResource(R.string.settings_title), "settings_root", onBack) { padding ->
         SettingsList(padding) {
-            item { Spacer(Modifier.height(24.dp)) }
+            item(key = "settings_intro") { Spacer(Modifier.height(if (showDefaultHomeBanner) 32.dp else 24.dp)) }
+            if (showDefaultHomeBanner) {
+                item(key = "default_home_banner") { DefaultHomeBanner(onSetDefaultHome) }
+                item(key = "default_home_spacing") { Spacer(Modifier.height(32.dp)) }
+            }
             categories.forEachIndexed { index, (page, symbol) ->
                 item(key = page.name) {
                     val title = when (page) {
@@ -208,6 +225,28 @@ private fun SettingsHome(onBack: () -> Unit, navigate: (SettingsPage) -> Unit) {
                     ) { navigate(page) }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun DefaultHomeBanner(onClick: () -> Unit) {
+    // A separate highlighted action, not a checked switch or a fifth category.
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().testTag("settings_default_home"),
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    ) {
+        Row(
+            Modifier.heightIn(min = 72.dp).padding(horizontal = 24.dp, vertical = 18.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            LauncherIcon(LauncherSymbol.Home, Modifier.size(24.dp))
+            Text(stringResource(R.string.set_default_launcher), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+            LauncherIcon(LauncherSymbol.Launch, Modifier.size(24.dp))
         }
     }
 }

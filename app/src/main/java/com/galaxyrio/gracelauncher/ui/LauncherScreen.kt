@@ -2,7 +2,6 @@ package com.galaxyrio.gracelauncher.ui
 
 import android.Manifest
 import android.app.Activity
-import android.app.role.RoleManager
 import android.content.ContentUris
 import android.content.ComponentName
 import android.content.Intent
@@ -79,6 +78,8 @@ import com.galaxyrio.gracelauncher.ui.components.AlphabetRail
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LocalLauncherInputEnabled
 import com.galaxyrio.gracelauncher.platform.AppLaunchTransition
+import com.galaxyrio.gracelauncher.platform.DefaultHome
+import com.galaxyrio.gracelauncher.data.media.MediaAccess
 import com.galaxyrio.gracelauncher.ui.overlays.ShortcutRevealState
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
@@ -117,6 +118,9 @@ fun LauncherRoute(
     val homeRoleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         viewModel.refreshApps()
     }
+    val mediaAccessLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        viewModel.refreshApps()
+    }
     LaunchedEffect(uiState.settingsSaveFailed, uiState.settingsLoadFailed) {
         val error = when {
             uiState.settingsLoadFailed -> R.string.settings_storage_load_error
@@ -142,11 +146,18 @@ fun LauncherRoute(
     }
 
     val actions = LauncherActions(
+        requestMediaAccess = {
+            runCatching { mediaAccessLauncher.launch(MediaAccess.settingsIntent(context)) }
+                .onFailure { openSystemApp(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
+        },
+        controlMedia = { sessionId, command ->
+            if (!viewModel.controlMedia(sessionId, command)) {
+                Toast.makeText(context, R.string.media_control_unavailable, Toast.LENGTH_SHORT).show()
+            }
+        },
         requestDefaultHome = {
-            val roleManager = if (Build.VERSION.SDK_INT >= 29) context.getSystemService(RoleManager::class.java) else null
-            if (Build.VERSION.SDK_INT >= 29 && roleManager != null && roleManager.isRoleAvailable(RoleManager.ROLE_HOME) && !roleManager.isRoleHeld(RoleManager.ROLE_HOME)) {
-                homeRoleLauncher.launch(roleManager.createRequestRoleIntent(RoleManager.ROLE_HOME))
-            } else openSystemApp(Intent(Settings.ACTION_HOME_SETTINGS))
+            runCatching { homeRoleLauncher.launch(DefaultHome.requestIntent(context)) }
+                .onFailure { openSystemApp(Intent(Settings.ACTION_HOME_SETTINGS)) }
         },
         appInfo = { openSystemApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", it.packageName, null))) },
         screenTime = { app ->
@@ -360,7 +371,9 @@ internal fun LauncherScreen(
             .background(scrim).safeDrawingPadding()
             .then(if (popupReveal?.dragging == false) Modifier.clearAndSetSemantics {} else Modifier),
     ) {
-        val homeTop = (maxHeight * if (maxHeight < 600.dp) 0.12f else 0.32f).coerceIn(24.dp, 320.dp)
+        val regularHomeTop = (maxHeight * if (maxHeight < 600.dp) 0.12f else 0.32f).coerceIn(24.dp, 320.dp)
+        // Make room above the favorites for the transparent now-playing row.
+        val homeTop = (regularHomeTop - if (uiState.homeMedia != null) 108.dp else 0.dp).coerceAtLeast(24.dp)
         val drawerTop = maxHeight * 0.28f
         val railHeight = ((model.letters.size + 1) * 18).dp.coerceAtMost(maxHeight * 0.65f)
         val railTop = (maxHeight * 0.39f).coerceAtMost(maxHeight - railHeight - 72.dp).coerceAtLeast(0.dp)
@@ -380,6 +393,7 @@ internal fun LauncherScreen(
             onEditFolder = editFolder,
             onFolderDrag = dragFolder,
             onFolderDragEnd = endFolderDrag,
+            onMediaCommand = actions.controlMedia,
             modifier = Modifier.retainedPage(visible = !drawerOpen || (overlay == null && backProgress.value > 0f))
                 .graphicsLayer { alpha = 1f - drawerVisibility },
         )

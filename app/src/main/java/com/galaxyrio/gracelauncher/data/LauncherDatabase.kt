@@ -2,6 +2,7 @@ package com.galaxyrio.gracelauncher.data
 
 import android.content.Context
 import androidx.room.Dao
+import androidx.room.ColumnInfo
 import androidx.room.Database
 import androidx.room.Embedded
 import androidx.room.Entity
@@ -29,6 +30,7 @@ data class LauncherSettingsEntity(
     val themeColor: Int,
     val darkMode: String,
     val iconPackPackage: String? = null,
+    @ColumnInfo(defaultValue = "1") val mediaPlayer: Boolean = true,
 )
 
 @Entity(tableName = "hidden_apps")
@@ -112,7 +114,7 @@ abstract class LauncherSettingsDao {
 @Database(
     entities = [LauncherSettingsEntity::class, HiddenAppEntity::class,
         LauncherFolderEntity::class, FolderAppEntity::class],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class LauncherDatabase : RoomDatabase() {
@@ -125,6 +127,12 @@ abstract class LauncherDatabase : RoomDatabase() {
             }
         }
 
+        val Migration2To3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN mediaPlayer INTEGER NOT NULL DEFAULT 1")
+            }
+        }
+
         @Volatile private var instance: LauncherDatabase? = null
 
         fun getInstance(context: Context): LauncherDatabase = instance ?: synchronized(this) {
@@ -132,7 +140,7 @@ abstract class LauncherDatabase : RoomDatabase() {
                 context.applicationContext,
                 LauncherDatabase::class.java,
                 "grace_launcher.db",
-            ).addMigrations(Migration1To2).build().also { instance = it }
+            ).addMigrations(Migration1To2, Migration2To3).build().also { instance = it }
         }
     }
 }

@@ -47,6 +47,7 @@ internal fun ProductivitySettings(
     navigate: (SettingsPage) -> Unit,
 ) {
     val settings = uiState.settings
+    var showMediaAccessDialog by rememberSaveable { mutableStateOf(false) }
     SettingsScaffold(stringResource(R.string.settings_productivity), "settings_productivity", onBack) { padding ->
         SettingsList(padding) {
             item { SettingsHeading(stringResource(R.string.settings_instant_access)) }
@@ -60,7 +61,20 @@ internal fun ProductivitySettings(
                 SettingsActionItem(stringResource(R.string.settings_weather), stringResource(R.string.settings_coming_soon), 1, 3, "settings_weather", enabled = false) { }
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_media_player), stringResource(R.string.settings_coming_soon), 2, 3, "settings_media_player", enabled = false) { }
+                SettingsToggleItem(
+                    stringResource(R.string.settings_media_player), stringResource(R.string.media_player_summary),
+                    settings.mediaPlayer, 2, 3, "settings_media_player",
+                ) { value ->
+                    actions.updateSettings { it.copy(mediaPlayer = value) }
+                    if (value && !uiState.media.hasAccess) showMediaAccessDialog = true
+                }
+            }
+            if (settings.mediaPlayer && !uiState.media.hasAccess) item {
+                Spacer(Modifier.height(12.dp))
+                SettingsActionItem(
+                    stringResource(R.string.media_allow_controls), stringResource(R.string.media_access_required),
+                    0, 1, "media_access",
+                ) { showMediaAccessDialog = true }
             }
             item { SettingsHeading(stringResource(R.string.settings_app_organization)) }
             item {
@@ -96,6 +110,21 @@ internal fun ProductivitySettings(
             }
         }
     }
+    if (showMediaAccessDialog) AlertDialog(
+        onDismissRequest = { showMediaAccessDialog = false },
+        title = { Text(stringResource(R.string.media_allow_controls)) },
+        text = { Text(stringResource(R.string.media_access_explanation)) },
+        confirmButton = {
+            TextButton(onClick = { showMediaAccessDialog = false; actions.requestMediaAccess() }, modifier = Modifier.testTag("media_access_continue")) {
+                Text(stringResource(R.string.media_open_settings))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = { showMediaAccessDialog = false }, modifier = Modifier.testTag("media_access_cancel")) {
+                Text(stringResource(R.string.settings_cancel))
+            }
+        },
+    )
 }
 
 @Composable

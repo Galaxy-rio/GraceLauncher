@@ -9,6 +9,7 @@ import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.data.ShortcutResult
 import com.galaxyrio.gracelauncher.data.ShortcutStatus
 import com.galaxyrio.gracelauncher.data.WallpaperTextMode
+import com.galaxyrio.gracelauncher.data.media.MediaCommand
 
 /** Platform actions are injected so all launcher surfaces can be previewed and tested. */
 data class LauncherActions(
@@ -35,4 +36,6 @@ data class LauncherActions(
     val launchAppAt: ((LauncherApp, Rect) -> Unit)? = null,
     val launchShortcutAt: ((LauncherShortcut, Rect) -> Unit)? = null,
     val launchShortcut: (LauncherShortcut) -> Unit = {},
+    val requestMediaAccess: () -> Unit = {},
+    val controlMedia: (String, MediaCommand) -> Unit = { _, _ -> },
 )

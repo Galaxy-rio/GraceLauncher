@@ -42,6 +42,7 @@ import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.FolderPlacement
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.data.nextVisibleEvent
+import com.galaxyrio.gracelauncher.data.media.MediaCommand
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
@@ -72,6 +73,7 @@ fun HomeScreen(
     onEditFolder: (LauncherFolder) -> Unit = {},
     onFolderDrag: (LauncherFolder, Rect, Float) -> Unit = { _, _, _ -> },
     onFolderDragEnd: (Boolean) -> Unit = {},
+    onMediaCommand: (String, MediaCommand) -> Unit = { _, _ -> },
 ) {
     val now by produceState(initialValue = Instant.now()) {
         while (true) {
@@ -83,7 +85,9 @@ fun HomeScreen(
     val favorites = uiState.favoriteApps
     val folders = uiState.folders.filter { it.placement == FolderPlacement.Favorites }
     val configuration = LocalConfiguration.current
-    val estimatedHeight = topSpace + (146f * configuration.fontScale).dp + ((favorites.size + folders.size) * 56).dp + 72.dp
+    val media = uiState.homeMedia
+    val mediaHeight = if (media != null) (108f * configuration.fontScale.coerceAtLeast(1f)).dp else 0.dp
+    val estimatedHeight = topSpace + (146f * configuration.fontScale).dp + mediaHeight + ((favorites.size + folders.size) * 56).dp + 72.dp
     val canScroll = estimatedHeight > viewportHeight
 
     LazyColumn(
@@ -103,6 +107,10 @@ fun HomeScreen(
                 onClockClick = onClockClick,
                 showBattery = uiState.settings.showBatteryPercentage,
             )
+            Spacer(Modifier.height(12.dp))
+        }
+        if (media != null) item(key = "media", contentType = "media") {
+            HomeMediaPlayer(media, onMediaCommand)
             Spacer(Modifier.height(12.dp))
         }
         items(favorites, key = LauncherApp::key, contentType = { "app" }) { app ->

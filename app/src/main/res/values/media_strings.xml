@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="media_service_name">Grace Launcher media controls</string>
+    <string name="media_player_summary">Show playback on your home screen</string>
+    <string name="media_allow_controls">Allow media controls</string>
+    <string name="media_access_required">Notification access is required</string>
+    <string name="media_access_explanation">Android requires notification access to show music from other apps. Enable it for Grace Launcher on the next screen. Grace only uses media sessions for song information and playback controls; it does not read or store notification contents. You can revoke access at any time in system settings.</string>
+    <string name="media_open_settings">Open settings</string>
+    <string name="media_play">Play</string>
+    <string name="media_pause">Pause</string>
+    <string name="media_previous">Previous track</string>
+    <string name="media_next">Next track</string>
+    <string name="media_open_player">Open %1$s</string>
+    <string name="media_unknown_title">Now playing</string>
+    <string name="media_control_unavailable">The player is no longer available</string>
+</resources>
