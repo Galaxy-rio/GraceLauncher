@@ -33,6 +33,7 @@ data class LauncherActions(
     val shortcuts: suspend (LauncherApp) -> ShortcutResult = { ShortcutResult(ShortcutStatus.DefaultLauncherRequired) },
     val cachedShortcuts: (LauncherApp) -> ShortcutResult? = { null },
     val prepareShortcuts: (LauncherApp) -> Unit = {},
+    val reorderFavorites: (List<String>) -> Unit = {},
     val launchAppAt: ((LauncherApp, Rect) -> Unit)? = null,
     val launchShortcutAt: ((LauncherShortcut, Rect) -> Unit)? = null,
     val launchShortcut: (LauncherShortcut) -> Unit = {},

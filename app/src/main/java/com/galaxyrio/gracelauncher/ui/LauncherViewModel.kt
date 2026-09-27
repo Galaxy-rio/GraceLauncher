@@ -81,6 +81,7 @@ data class LauncherUiState(
     val isDefaultHome: Boolean? = null,
     val media: MediaSnapshot = MediaSnapshot(),
     val notifications: Map<String, List<AppNotification>> = emptyMap(),
+    val favoriteOrder: List<String> = emptyList(),
 ) {
     val homeMedia: NowPlaying?
         get() = media.nowPlaying.takeIf {
@@ -92,7 +93,10 @@ data class LauncherUiState(
         else apps.filterNot { it.key in hiddenAppKeys }
 
     val favoriteApps: List<LauncherApp>
-        get() = visibleApps.filter { it.key in favoriteKeys }
+        get() {
+            val favorites = visibleApps.filter { it.key in favoriteKeys }.associateBy(LauncherApp::key)
+            return (favoriteOrder + favorites.keys).distinct().mapNotNull(favorites::get)
+        }
 }
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
@@ -215,10 +219,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     val collator = Collator.getInstance()
                     val displayedApps = apps.map { it.copy(label = renames[it.key] ?: it.originalLabel) }
                         .sortedWith { a, b -> collator.compare(a.label, b.label) }
+                    val favorites = favoritesStore.favoritesFor(displayedApps)
                     _uiState.update {
                         it.copy(
                             apps = displayedApps,
-                            favoriteKeys = favoritesStore.favoritesFor(apps),
+                            favoriteKeys = favorites.toSet(),
+                            favoriteOrder = favorites,
                             // Settings also has an independent Activity/ViewModel.
                             // Refresh legacy preferences when returning to HOME.
                             categories = preferences.categories(),
@@ -358,10 +364,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun toggleFavorite(app: LauncherApp): Boolean {
-        val updated = favoritesStore.toggle(app.key, _uiState.value.favoriteKeys)
-        _uiState.update { it.copy(favoriteKeys = updated) }
+        val updated = favoritesStore.toggle(app.key, _uiState.value.favoriteOrder)
+        _uiState.update { it.copy(favoriteKeys = updated.toSet(), favoriteOrder = updated) }
         if (app.key in updated) prepareShortcuts(app)
         return app.key in updated
+    }
+
+    fun reorderFavorites(keys: List<String>) {
+        val updated = favoritesStore.reorder(keys, _uiState.value.favoriteOrder)
+        _uiState.update { it.copy(favoriteOrder = updated) }
     }
 
     fun requestReturnHome() {

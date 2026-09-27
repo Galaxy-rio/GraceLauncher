@@ -1,33 +1,59 @@
 package com.galaxyrio.gracelauncher.data
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.core.content.edit
+import org.json.JSONArray
 
-class FavoritesStore(context: Context) {
-    private val preferences = context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE)
+class FavoritesStore internal constructor(private val preferences: SharedPreferences) {
+    constructor(context: Context) : this(context.getSharedPreferences(FILE_NAME, Context.MODE_PRIVATE))
 
-    fun favoritesFor(apps: List<LauncherApp>): Set<String> {
+    fun favoritesFor(apps: List<LauncherApp>): List<String> {
+        preferences.getString(KEY_ORDER, null)?.let { encoded ->
+            runCatching {
+                val array = JSONArray(encoded)
+                List(array.length()) { array.getString(it) }.filter(String::isNotBlank).distinct()
+            }.getOrNull()?.let { return it }
+        }
         if (preferences.contains(KEY_FAVORITES)) {
-            return preferences.getStringSet(KEY_FAVORITES, emptySet()).orEmpty().toSet()
+            val previous = preferences.getStringSet(KEY_FAVORITES, emptySet()).orEmpty()
+            // Sets had no stored order. Preserve the old, name-sorted home layout
+            // during migration, including hidden or temporarily unavailable apps.
+            val installed = apps.map(LauncherApp::key).filter { it in previous }
+            val migrated = installed + (previous - installed.toSet()).sorted()
+            save(migrated)
+            return migrated
         }
 
         val initial = apps.sortedWith(
             compareBy<LauncherApp> { preferredRank(it) }.thenBy { it.label.lowercase() },
-        ).take(DEFAULT_FAVORITE_COUNT).mapTo(linkedSetOf(), LauncherApp::key)
+        ).take(DEFAULT_FAVORITE_COUNT).map(LauncherApp::key)
         save(initial)
         return initial
     }
 
-    fun toggle(appKey: String, current: Set<String>): Set<String> {
-        val updated = current.toMutableSet().apply {
-            if (!add(appKey)) remove(appKey)
-        }
+    fun toggle(appKey: String, current: List<String>): List<String> {
+        val updated = if (appKey in current) current - appKey else current + appKey
         save(updated)
         return updated
     }
 
-    private fun save(keys: Set<String>) {
-        preferences.edit { putStringSet(KEY_FAVORITES, keys) }
+    fun reorder(requested: List<String>, current: List<String>): List<String> {
+        // Only reorder existing members. The editor omits hidden/uninstalled apps;
+        // leave their slots intact so unhiding or reinstalling restores them.
+        val movable = requested.distinct().filter { it in current }
+        val moving = movable.toSet()
+        val replacements = movable.iterator()
+        val updated = current.distinct().map { if (it in moving) replacements.next() else it }
+        save(updated)
+        return updated
+    }
+
+    private fun save(keys: List<String>) {
+        preferences.edit {
+            putString(KEY_ORDER, JSONArray(keys.distinct()).toString())
+            putStringSet(KEY_FAVORITES, keys.toSet())
+        }
     }
 
     private fun preferredRank(app: LauncherApp): Int {
@@ -47,6 +73,7 @@ class FavoritesStore(context: Context) {
     private companion object {
         const val FILE_NAME = "grace_launcher_preferences"
         const val KEY_FAVORITES = "favorite_components"
+        const val KEY_ORDER = "favorite_component_order"
         const val DEFAULT_FAVORITE_COUNT = 6
     }
 }

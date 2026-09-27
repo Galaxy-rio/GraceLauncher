@@ -36,6 +36,12 @@ import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
 import kotlinx.coroutines.delay
 
+// Keep a modest indent beneath each date, with one shared column for the plus
+// and calendar-color marker and another for all agenda text.
+private val AgendaItemInset = 4.dp
+private val AgendaLeadingWidth = 24.dp
+private val AgendaContentGap = 8.dp
+
 @Composable
 fun AgendaSheet(uiState: LauncherUiState, actions: LauncherActions, onRequestCalendar: () -> Unit) {
     val configuration = LocalConfiguration.current
@@ -70,7 +76,7 @@ fun AgendaSheet(uiState: LauncherUiState, actions: LauncherActions, onRequestCal
                     groups.forEach { (date, events) ->
                         item(key = "day:$date") {
                             Row(Modifier.padding(top = 6.dp, bottom = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Text(date.format(dateFormat), fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                                Text(date.format(dateFormat), modifier = Modifier.testTag("agenda_date:$date"), fontSize = 16.sp, fontWeight = FontWeight.Medium)
                                 Spacer(Modifier.width(10.dp))
                                 val difference = ChronoUnit.DAYS.between(today, date).toInt()
                                 Text(
@@ -84,11 +90,13 @@ fun AgendaSheet(uiState: LauncherUiState, actions: LauncherActions, onRequestCal
                                 Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("new_event")
                                     .clip(RoundedCornerShape(16.dp))
                                     .clickable(role = Role.Button, onClick = actions.newEvent)
-                                    .padding(horizontal = 12.dp, vertical = 8.dp),
+                                    .padding(horizontal = AgendaItemInset, vertical = 8.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
-                                LauncherIcon(LauncherSymbol.Plus, tint = MaterialTheme.colorScheme.primary)
-                                Spacer(Modifier.width(14.dp))
+                                Box(Modifier.width(AgendaLeadingWidth), contentAlignment = Alignment.Center) {
+                                    LauncherIcon(LauncherSymbol.Plus, modifier = Modifier.testTag("new_event:icon"), tint = MaterialTheme.colorScheme.primary)
+                                }
+                                Spacer(Modifier.width(AgendaContentGap))
                                 Text(stringResource(R.string.new_event), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
                             }
                         }
@@ -115,11 +123,15 @@ private fun AgendaEvent(event: ScheduleEvent, now: Instant, onClick: () -> Unit)
         Modifier.fillMaxWidth().heightIn(min = if (event.isAllDay) 48.dp else 66.dp).testTag("agenda_event:${event.id}")
             .clip(RoundedCornerShape(16.dp))
             .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
+            .padding(horizontal = AgendaItemInset, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.padding(start = 7.dp, end = 21.dp).width(5.dp).height(if (event.isAllDay) 22.dp else 40.dp)
-            .background(event.calendarColor?.let { Color(it).copy(alpha = 1f) } ?: MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp)))
+        Box(Modifier.width(AgendaLeadingWidth), contentAlignment = Alignment.Center) {
+            Box(Modifier.width(5.dp).height(if (event.isAllDay) 22.dp else 40.dp)
+                .testTag("agenda_event_indicator:${event.id}")
+                .background(event.calendarColor?.let { Color(it).copy(alpha = 1f) } ?: MaterialTheme.colorScheme.primary, RoundedCornerShape(4.dp)))
+        }
+        Spacer(Modifier.width(AgendaContentGap))
         Column(Modifier.weight(1f)) {
             Text(event.title, fontSize = 16.sp)
             if (!event.isAllDay) {

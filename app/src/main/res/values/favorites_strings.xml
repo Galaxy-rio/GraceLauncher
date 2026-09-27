@@ -1,0 +1,8 @@
+<resources>
+    <string name="favorites_selected">Selected</string>
+    <string name="favorites_all_apps">All apps</string>
+    <string name="favorites_empty">Choose apps below to add them to your home screen.</string>
+    <string name="favorites_reorder">Reorder %1$s</string>
+    <string name="favorites_move_up">Move up</string>
+    <string name="favorites_move_down">Move down</string>
+</resources>

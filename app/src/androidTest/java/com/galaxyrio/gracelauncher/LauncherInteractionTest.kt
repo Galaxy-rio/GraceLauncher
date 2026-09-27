@@ -22,6 +22,9 @@ import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onAllNodesWithTag
@@ -454,8 +457,29 @@ class LauncherInteractionTest {
         awaitSurface("agenda_sheet")
         compose.onNodeWithTag("agenda_sheet").assertIsDisplayed()
         compose.onNodeWithText("Your agenda").assertIsDisplayed()
+        val dateLeft = compose.onNodeWithTag("agenda_date:${LocalDate.now()}", useUnmergedTree = true)
+            .fetchSemanticsNode().boundsInRoot.left
+        val eventTitleLeft = compose.onNode(
+            hasText("Movie night") and hasAnyAncestor(hasTestTag("agenda_sheet")), useUnmergedTree = true,
+        )
+            .fetchSemanticsNode().boundsInRoot.left
+        assertEquals("Agenda text keeps a small indent beneath its date", 36f * deviceDensity(), eventTitleLeft - dateLeft, 1f)
+        assertEquals(
+            "New event shares the event title column", eventTitleLeft,
+            compose.onNodeWithText("New event", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.left, 1f,
+        )
+        assertEquals(
+            "Plus and calendar markers share one leading column",
+            compose.onNodeWithTag("new_event:icon", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.center.x,
+            compose.onNodeWithTag("agenda_event_indicator:100", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.center.x, 1f,
+        )
         saveScreenshot("agenda-sample.png")
-        compose.onNodeWithTag("new_event").performClick()
+        compose.onNodeWithTag("agenda_event:101").performScrollTo()
+        assertEquals(
+            "All-day and timed events share the same text column", eventTitleLeft,
+            compose.onNodeWithText("Day off", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot.left, 1f,
+        )
+        compose.onNodeWithTag("new_event").performScrollTo().performClick()
         assertEquals(1, created)
         compose.onNodeWithTag("agenda_event:100").performClick()
         assertEquals(100L, opened)

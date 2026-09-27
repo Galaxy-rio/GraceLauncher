@@ -20,6 +20,11 @@ current content tint.
 
 ## Sources
 
+Favorite reorder handle added 2026-09-27:
+
+- `ms_drag_indicator.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/android/drag_indicator/materialsymbolsoutlined/drag_indicator_24px.xml
+  (Official Android vector; path and 960px viewport retained, tint supplied by Compose.)
+
 Media controls added 2026-09-27 (same official Outlined 24px style):
 
 - `ms_play_arrow.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/play_arrow/materialsymbolsoutlined/play_arrow_24px.svg

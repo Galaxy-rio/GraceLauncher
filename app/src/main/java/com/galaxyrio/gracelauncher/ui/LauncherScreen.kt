@@ -203,6 +203,7 @@ fun LauncherRoute(
         shortcuts = viewModel::loadShortcuts,
         cachedShortcuts = viewModel::cachedShortcuts,
         prepareShortcuts = viewModel::prepareShortcuts,
+        reorderFavorites = viewModel::reorderFavorites,
         launchAppAt = { app, bounds ->
             val transition = AppLaunchTransition.fromIcon(launchView, bounds.toAndroidRect())
             if (!viewModel.launch(app, transition?.sourceBounds, transition?.options)) {

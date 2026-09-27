@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -145,7 +144,7 @@ fun LauncherOverlays(
                     actions = actions, onChange = onChange,
                 )
                 LauncherOverlay.Agenda -> AgendaSheet(uiState, actions, onRequestCalendar)
-                LauncherOverlay.Favorites -> FavoritesSheet(uiState, onToggleFavorite) { onChange(null) }
+                LauncherOverlay.Favorites -> FavoritesSheet(uiState, onToggleFavorite, actions.reorderFavorites) { onChange(null) }
                 is LauncherOverlay.Categories -> CategoryPicker(overlay.app, uiState, actions) { onChange(LauncherOverlay.AppDetails(overlay.app)) }
                 is LauncherOverlay.CategoryApps -> CategoryAppsSheet(overlay.name, uiState) { onChange(null); onLaunchApp(it) }
                 LauncherOverlay.Settings, LauncherOverlay.Search, is LauncherOverlay.Shortcuts,
@@ -227,35 +226,6 @@ internal fun PanelAction(
 @Composable
 internal fun PanelTitle(title: String) {
     Text(title, Modifier.padding(top = 26.dp, bottom = 24.dp), fontSize = 26.sp, lineHeight = 32.sp, fontWeight = FontWeight.Medium)
-}
-
-@Composable
-private fun FavoritesSheet(uiState: LauncherUiState, onToggle: (LauncherApp) -> Unit, onDone: () -> Unit) {
-    Column(Modifier.fillMaxWidth().padding(horizontal = 28.dp).testTag("favorites_sheet")) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.weight(1f)) { PanelTitle(stringResource(R.string.edit_favorites)) }
-            TextButton(onClick = onDone) { Text(stringResource(R.string.done)) }
-        }
-        LazyColumn(Modifier.heightIn(max = panelWindowHeight() * 0.65f)) {
-            items(uiState.visibleApps, key = LauncherApp::key) { app ->
-                val checked = app.key in uiState.favoriteKeys
-                Row(
-                    Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("favorite:${app.key}")
-                        .clip(RoundedCornerShape(16.dp))
-                        .toggleable(value = checked, role = Role.Checkbox, onValueChange = { onToggle(app) })
-                        .padding(horizontal = 12.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    AppIcon(app, size = 34.dp)
-                    Spacer(Modifier.width(18.dp))
-                    Text(app.label, Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Spacer(Modifier.width(12.dp))
-                    Checkbox(checked = checked, onCheckedChange = null)
-                }
-            }
-        }
-        Spacer(Modifier.height(16.dp))
-    }
 }
 
 @Composable
