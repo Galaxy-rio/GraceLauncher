@@ -1,8 +1,0 @@
-<resources>
-    <string name="favorites_selected">已选择</string>
-    <string name="favorites_all_apps">所有应用</string>
-    <string name="favorites_empty">从下方选择应用，将它们添加到桌面。</string>
-    <string name="favorites_reorder">调整%1$s的顺序</string>
-    <string name="favorites_move_up">上移</string>
-    <string name="favorites_move_down">下移</string>
-</resources>

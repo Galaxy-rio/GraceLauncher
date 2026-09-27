@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="open_folder">Open folder</string>
-    <string name="folder_actions">Folder actions</string>
-    <string name="edit_folder">Edit folder</string>
-    <string name="empty_folder">No apps in this folder</string>
-</resources>

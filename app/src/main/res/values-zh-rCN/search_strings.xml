@@ -1,8 +1,0 @@
-<resources>
-    <string name="search_apps">搜索应用</string>
-    <string name="search_no_results">没有匹配的应用</string>
-    <string name="launcher_fab_description">搜索应用，长按打开设置。</string>
-    <string name="drawer_folders">文件夹</string>
-    <string name="add_to_folder">添加到文件夹</string>
-    <string name="create_app_folder">在应用列表中新建文件夹</string>
-</resources>
