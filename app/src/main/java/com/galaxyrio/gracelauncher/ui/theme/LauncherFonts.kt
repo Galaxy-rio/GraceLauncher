@@ -15,7 +15,7 @@ import android.graphics.fonts.FontFamily as PlatformFontFamily
 import android.graphics.fonts.FontStyle as PlatformFontStyle
 
 /**
- * Josefin Sans first, with a native, per-glyph Noto fallback chain on Android 10+.
+ * Josefin Sans first, with bundled Noto fallbacks on Android 10+ and system CJK fonts.
  * Separate weight descriptors preserve real variable-font weights: wrapping a single
  * Android Typeface in Compose FontFamily would ignore subsequent TextStyle weights.
  */
@@ -52,9 +52,8 @@ private val typefaces = mutableMapOf<Int, Typeface>()
  * Josefin Sans variable weight and the device's sans-serif glyph fallback, which is not
  * guaranteed to be our bundled Noto files on OEM devices. No hidden APIs are used.
  *
- * The full (not region-subset) Noto CJK asset contains localized GSUB `locl` forms.
- * Android's shaper selects them from the TextPaint locale supplied by Compose;
- * this Typeface must therefore not force a Chinese locale or disable `locl`.
+ * Chinese, Japanese and Korean use Android's system sans-serif fallback.
+ * Keep the text locale supplied by Compose so Android selects regional glyphs.
  */
 internal fun launcherTypeface(context: Context, weight: Int): Typeface {
     require(weight in 100..700) { "Josefin Sans supports weights between 100 and 700" }
@@ -80,15 +79,14 @@ internal fun launcherTypeface(context: Context, weight: Int): Typeface {
 private object NotoFallbackApi29 {
     private val fallbackAssets = listOf(
         "fonts/noto_sans.ttf",
-        "fonts/noto_sans_cjk.ttf",
         "fonts/noto_sans_arabic.ttf",
         "fonts/noto_sans_hebrew.ttf",
         "fonts/noto_sans_devanagari.ttf",
         "fonts/noto_sans_thai.ttf",
     )
 
-    // Retain each font's native backing buffer once, including the large pan-CJK
-    // asset. All weight instances reuse that buffer instead of re-reading files.
+    // Retain each bundled font's native backing buffer once. All weight
+    // instances reuse that buffer instead of re-reading files.
     // Access is serialized by the outer typeface cache lock.
     private val baseFonts = mutableMapOf<String, PlatformFont>()
 
@@ -114,7 +112,7 @@ private object NotoFallbackApi29 {
         }
         return builder
             .setStyle(PlatformFontStyle(weight, PlatformFontStyle.FONT_SLANT_UPRIGHT))
-            // Emoji and scripts beyond the packaged Noto families stay available.
+            // CJK, emoji and scripts beyond the packaged Noto families use the OS.
             .setSystemFallback("sans-serif")
             .build()
     }

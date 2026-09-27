@@ -8,16 +8,15 @@ plugins {
 
 android {
     namespace = "com.galaxyrio.gracelauncher"
-    compileSdk {
-        version = release(37)
-    }
+    compileSdk = 37
+    buildToolsVersion = "36.1.0"
 
     defaultConfig {
         applicationId = "com.galaxyrio.gracelauncher"
         minSdk = 28
         targetSdk = 37
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -25,7 +24,7 @@ android {
     buildTypes {
         release {
             optimization {
-                enable = false
+                enable = true
             }
         }
     }
@@ -37,9 +36,20 @@ android {
         compose = true
     }
     androidResources {
-        // Map the large offline CJK font directly instead of inflating it on
-        // the UI thread; variable weights share the same native font buffer.
+        // Map bundled fonts directly; variable weights share the same native
+        // font buffer instead of inflating separate copies on the UI thread.
         noCompress += "ttf"
+    }
+    dependenciesInfo {
+        // Disables dependency metadata when building APKs.
+        includeInApk = false
+        // Disables dependency metadata when building Android App Bundles.
+        includeInBundle = false
+    }
+    lint {
+        // Community translations can be incomplete; Android falls back to English.
+        // Keep reporting missing strings without blocking release builds.
+        warning += "MissingTranslation"
     }
 }
 

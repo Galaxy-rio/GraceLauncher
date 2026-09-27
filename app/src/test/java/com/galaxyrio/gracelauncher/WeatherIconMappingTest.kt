@@ -9,39 +9,34 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class WeatherIconMappingTest {
-    @Test fun clearAndPartlyCloudyKeepDayAndNightIndependentOfTheme() {
-        for (dark in listOf(false, true)) {
-            for (condition in listOf(WeatherCondition.Clear, WeatherCondition.PartlyCloudy)) {
-                assertNotEquals(weatherIconResource(condition, true, dark), weatherIconResource(condition, false, dark))
-            }
+    @Test fun clearAndPartlyCloudyKeepDayAndNightDistinct() {
+        for (condition in listOf(WeatherCondition.Clear, WeatherCondition.PartlyCloudy)) {
+            assertNotEquals(weatherIconResource(condition, true), weatherIconResource(condition, false))
         }
-        assertEquals(R.drawable.weather_google_sunny_light, weatherIconResource(WeatherCondition.Clear, true, false))
-        assertEquals(R.drawable.weather_google_clear_night_dark, weatherIconResource(WeatherCondition.Clear, false, true))
+        assertEquals(R.drawable.ms_sunny, weatherIconResource(WeatherCondition.Clear, true))
+        assertEquals(R.drawable.ms_clear_night, weatherIconResource(WeatherCondition.Clear, false))
     }
 
-    @Test fun everySupportedConditionHasOriginalLightAndDarkResources() {
-        val supported = WeatherCondition.entries - setOf(WeatherCondition.Fog, WeatherCondition.Unknown)
+    @Test fun everyKnownConditionIncludingFogHasArtwork() {
+        val supported = WeatherCondition.entries - WeatherCondition.Unknown
         for (condition in supported) {
             for (daylight in listOf(false, true)) {
-                val light = weatherIconResource(condition, daylight, false)
-                val dark = weatherIconResource(condition, daylight, true)
-                assertNotNull(light)
-                assertNotNull(dark)
-                assertNotEquals(light, dark)
+                assertNotNull(weatherIconResource(condition, daylight))
             }
         }
     }
 
-    @Test fun hailAndSleetUseTheCombinedSourceArtwork() {
-        assertEquals(R.drawable.weather_google_sleet_hail_light, weatherIconResource(WeatherCondition.Hail, true, false))
-        assertEquals(R.drawable.weather_google_sleet_hail_dark, weatherIconResource(WeatherCondition.Sleet, false, true))
+    @Test fun nonCelestialConditionsRemainTheSameAtNightButHailAndSleetAreDistinct() {
+        val conditions = WeatherCondition.entries - setOf(WeatherCondition.Clear, WeatherCondition.PartlyCloudy, WeatherCondition.Unknown)
+        for (condition in conditions) {
+            assertEquals(weatherIconResource(condition, true), weatherIconResource(condition, false))
+        }
+        assertNotEquals(weatherIconResource(WeatherCondition.Hail, true), weatherIconResource(WeatherCondition.Sleet, true))
     }
 
-    @Test fun missingArtworkNeverInventsAWeatherCondition() {
-        for (condition in listOf(WeatherCondition.Fog, WeatherCondition.Unknown)) {
-            for (daylight in listOf(false, true)) {
-                for (dark in listOf(false, true)) assertNull(weatherIconResource(condition, daylight, dark))
-            }
+    @Test fun missingForecastNeverInventsAWeatherCondition() {
+        for (daylight in listOf(false, true)) {
+            assertNull(weatherIconResource(WeatherCondition.Unknown, daylight))
         }
     }
 }

@@ -1,16 +1,16 @@
-Google Weather (Outlined), set-5
+Google Material Symbols Outlined — weather icons
 
-Artwork copyright belongs to Google.
-Source collection: https://github.com/mrdarrengriffin/google-weather-icons
-Pinned revision: 7b6464bbf98273d69ae2c2bf8022b9b4ac1981c2
-Original source: https://www.gstatic.com/weather/conditions/v2/svg/
+Copyright Google LLC. Licensed under the Apache License, Version 2.0.
+Upstream: https://github.com/google/material-design-icons
+Revision: bd8cb85bd4bad964fe6918f79665bb40c3a8efef
 
-The source collection describes these assets as being provided for reference
-and educational purposes. It does not provide an open-source redistribution
-or commercial-use license. Inclusion in this app does not grant such rights;
-confirm appropriate authorization before distributing these assets.
-Grace Launcher's code license does not relicense Google's artwork.
+These local VectorDrawables preserve the official Outlined 24px paths and
+960px viewport. The XML theme tint is removed and the path fill is set to
+black so Compose supplies the current UI color; the shapes are unchanged.
 
-The bundled Android vectors preserve the source SVG paths, palette, strokes,
-fill rules and clipping. Original SVG files, mapping, provenance and conversion
-scripts are retained in third_party/google-weather-icons in the source tree.
+Symbols: sunny, clear_night, partly_cloudy_day, partly_cloudy_night, cloud,
+rainy, weather_snowy, thunderstorm, foggy, air, weather_hail, weather_mix.
+
+The full license is included in the APK at
+res/raw/settings_material_symbols_license.txt. Source links and the condition
+mapping are recorded in third_party/material-symbols/NOTICE.md.

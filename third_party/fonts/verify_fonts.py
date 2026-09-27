@@ -15,7 +15,6 @@ SOURCES = Path(__file__).with_name("sources.json")
 SAMPLES = {
     "josefinsans": "Grace Launcher Josefin Sans 0123456789 é à ö ắ",
     "notosans": "Ελληνικά Русский Українська",
-    "notosanscjk": "简体中文繁體漢字日本語ひらがなカタカナ한국어㐀",
     "notosansarabic": "العربية فارسی اردو",
     "notosanshebrew": "עברית שָׁלוֹם",
     "notosansdevanagari": "हिन्दी संस्कृतम्",
@@ -94,6 +93,8 @@ def gsub_metadata(table):
 
 def main():
     records = json.loads(SOURCES.read_text(encoding="utf-8"))["fonts"]
+    assets = {path.relative_to(ROOT).as_posix() for path in (ROOT / "app/src/main/assets/fonts").glob("*.ttf")}
+    assert assets == {record["file"] for record in records}, "Font assets must match the source manifest"
     report = []
     for record in records:
         data = (ROOT / record["file"]).read_bytes()
@@ -105,9 +106,6 @@ def main():
         missing = sorted(set(SAMPLES[record["family"]]) - {chr(point) for point in codepoints})
         assert not missing, f"Missing sample characters in {record['file']}: {missing}"
         gsub = gsub_metadata(font_tables["GSUB"])
-        if record["family"] == "notosanscjk":
-            assert "locl" in gsub["features"], "CJK regional glyph substitution must be retained"
-            assert {"JAN", "KOR", "ZHS", "ZHT", "ZHH"} <= set(gsub["languages"]), "CJK region tags missing"
         report.append({
             "file": record["file"], "bytes": len(data), "axes_min_default_max": axes,
             "unicode_codepoints": len(codepoints), "sample_coverage": "passed", "gsub": gsub,

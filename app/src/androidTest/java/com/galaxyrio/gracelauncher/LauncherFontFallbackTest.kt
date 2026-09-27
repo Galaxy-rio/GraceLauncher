@@ -3,6 +3,7 @@ package com.galaxyrio.gracelauncher
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.Typeface
 import android.graphics.text.PositionedGlyphs
 import android.graphics.text.TextRunShaper
 import android.os.Build
@@ -12,7 +13,6 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.galaxyrio.gracelauncher.ui.theme.launcherTypeface
 import java.util.Locale
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -26,11 +26,14 @@ class LauncherFontFallbackTest {
     private val assetSizes = mutableMapOf<String, Int>()
 
     @Test
-    fun mixedTextUsesJosefinForLatinAndBundledNotoForOtherGlyphs() {
+    fun mixedTextUsesBundledLatinAndGreekFontsWithSystemCjk() {
         val glyphs = shape("A中あ한ΩЖ")
+        val system = shape("A中あ한ΩЖ", typeface = Typeface.create(Typeface.SANS_SERIF, 400, false))
         assertEquals(6, glyphs.glyphCount())
-        listOf("josefin_sans", "noto_sans_cjk", "noto_sans_cjk", "noto_sans_cjk", "noto_sans", "noto_sans")
-            .forEachIndexed { index, asset -> assertFont(glyphs, index, asset) }
+        assertEquals(6, system.glyphCount())
+        assertFont(glyphs, 0, "josefin_sans")
+        (1..3).forEach { index -> assertSystemFont(glyphs, system, index) }
+        (4..5).forEach { index -> assertFont(glyphs, index, "noto_sans") }
     }
 
     @Test
@@ -49,14 +52,14 @@ class LauncherFontFallbackTest {
     }
 
     @Test
-    fun allWeightsUseRealVariableFontInstancesForPrimaryAndFallback() {
+    fun allWeightsUseRealVariableFontInstancesForBundledFonts() {
         (100..700 step 100).forEach { weight ->
             val typeface = launcherTypeface(context, weight)
             assertEquals(weight, typeface.weight)
             assertSame(typeface, launcherTypeface(context, weight))
-            val glyphs = shape("A中", weight)
+            val glyphs = shape("AΩ", weight)
             assertFont(glyphs, 0, "josefin_sans")
-            assertFont(glyphs, 1, "noto_sans_cjk")
+            assertFont(glyphs, 1, "noto_sans")
             repeat(glyphs.glyphCount()) { index ->
                 val font = glyphs.getFont(index)
                 assertEquals(weight, font.style.weight)
@@ -67,12 +70,11 @@ class LauncherFontFallbackTest {
                     assertTrue("Weight must not be synthesized", !glyphs.getFakeBold(index))
                     glyphs.getWeightOverride(index).takeUnless { it == PositionedGlyphs.NO_OVERRIDE }
                 } else null
-                // Both bundled Josefin Sans and Noto CJK default to Thin.
-                val defaultWeight = 100f
+                val defaultWeight = if (index == 0) 100f else 400f
                 assertEquals("Weight $weight, glyph $index", weight.toFloat(), override ?: axis?.styleValue ?: defaultWeight, 0.01f)
             }
         }
-        listOf("A", "中").forEach { text ->
+        listOf("A", "Ω").forEach { text ->
             val thin = inkCoverage(text, 100)
             val normal = inkCoverage(text, 400)
             val bold = inkCoverage(text, 700)
@@ -81,12 +83,21 @@ class LauncherFontFallbackTest {
     }
 
     @Test
-    fun japaneseAndChineseSelectLocalizedFormsFromTheSameCjkFile() {
-        val chinese = shape("骨", locale = Locale.SIMPLIFIED_CHINESE)
-        val japanese = shape("骨", locale = Locale.JAPANESE)
-        assertFont(chinese, 0, "noto_sans_cjk")
-        assertFont(japanese, 0, "noto_sans_cjk")
-        assertNotEquals(chinese.getGlyphId(0), japanese.getGlyphId(0))
+    fun cjkGlyphsAndWeightsMatchTheSystemForEachLocale() {
+        listOf(
+            Locale.SIMPLIFIED_CHINESE to "简体中文骨",
+            Locale.TRADITIONAL_CHINESE to "繁體漢字骨",
+            Locale.JAPANESE to "日本語ひらがなカタカナ骨",
+            Locale.KOREAN to "한국어한글",
+        ).forEach { (locale, text) ->
+            listOf(100, 400, 700).forEach { weight ->
+                val glyphs = shape(text, weight, locale)
+                val system = shape(text, weight, locale, typeface = Typeface.create(Typeface.SANS_SERIF, weight, false))
+                assertTrue(glyphs.glyphCount() > 0)
+                assertEquals(system.glyphCount(), glyphs.glyphCount())
+                repeat(glyphs.glyphCount()) { index -> assertSystemFont(glyphs, system, index) }
+            }
+        }
     }
 
     @Test
@@ -101,9 +112,10 @@ class LauncherFontFallbackTest {
         weight: Int = 400,
         locale: Locale = Locale.ENGLISH,
         rtl: Boolean = false,
+        typeface: Typeface = launcherTypeface(context, weight),
     ): PositionedGlyphs {
         val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            typeface = launcherTypeface(context, weight)
+            this.typeface = typeface
             textSize = 32f
             textLocale = locale
         }
@@ -125,8 +137,14 @@ class LauncherFontFallbackTest {
             }
         }
         // Each bundled font has a distinct size; system fallback fonts cannot
-        // silently satisfy this check (including the system's own Noto CJK).
+        // silently satisfy this check.
         assertEquals("Unexpected native font for glyph $index; expected $asset", size, glyphs.getFont(index).buffer.capacity())
+    }
+
+    private fun assertSystemFont(glyphs: PositionedGlyphs, system: PositionedGlyphs, index: Int) {
+        assertTrue("Missing CJK glyph at $index", glyphs.getGlyphId(index) != 0)
+        assertEquals("CJK font must match system sans-serif", system.getFont(index), glyphs.getFont(index))
+        assertEquals("Regional glyph must match the text locale", system.getGlyphId(index), glyphs.getGlyphId(index))
     }
 
     private fun inkCoverage(text: String, weight: Int): Long {

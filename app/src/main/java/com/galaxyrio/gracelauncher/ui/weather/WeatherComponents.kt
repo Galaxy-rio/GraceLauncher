@@ -24,7 +24,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -69,7 +68,7 @@ fun HomeWeather(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        WeatherIcon(current.condition, current.isDaylight, Modifier.size(19.dp), darkBackground = color.luminance() > 0.5f)
+        WeatherIcon(current.condition, current.isDaylight, Modifier.size(19.dp), tint = color)
         Text(temperature.format(), style = textStyle, color = color, maxLines = 1)
     }
 }

@@ -11,7 +11,7 @@ The `ms_*.xml` Android drawables in `app/src/main/res/drawable/` are derived fro
 
 ## Conversion
 
-The SVG path data is copied verbatim from the official 24px SVG files. Android
+For SVG-derived resources, path data is copied verbatim from the official 24px SVG files. Android
 VectorDrawable has no negative-origin viewBox, so each resource preserves the
 original 960 by 960 viewport and adds `translateY="960"` to represent the original
 SVG `viewBox="0 -960 960 960"`. There is no path redrawing, non-uniform scaling,
@@ -19,6 +19,41 @@ or stroke-width adjustment. Intrinsic display size is 24dp; Compose applies the
 current content tint.
 
 ## Sources
+
+### Weather icons added 2026-09-27
+
+These resources use the official Android vectors at revision
+[`bd8cb85bd4bad964fe6918f79665bb40c3a8efef`](https://github.com/google/material-design-icons/tree/bd8cb85bd4bad964fe6918f79665bb40c3a8efef).
+They are Material Symbols Outlined, optical size 24, weight 400, grade 0,
+fill 0, under the same Apache-2.0 license included above. Google's [Material
+Symbols guide](https://developers.google.com/fonts/docs/material_symbols#licensing)
+also documents the license.
+
+The official Android `pathData`, 24dp dimensions and 960px viewport are
+unchanged. The root `android:tint="?attr/colorControlNormal"` is removed and
+the path fill is changed from white to black; Compose supplies the final
+color. The home row uses its wallpaper-aware text color, while the agenda
+uses `MaterialTheme.colorScheme.onSurface`. No icons are downloaded at runtime.
+
+| Forecast | Resource / official Android source |
+| --- | --- |
+| Clear, day | [`ms_sunny.xml`](https://raw.githubusercontent.com/google/material-design-icons/bd8cb85bd4bad964fe6918f79665bb40c3a8efef/symbols/android/sunny/materialsymbolsoutlined/sunny_24px.xml) |
+| Clear, night | [`ms_clear_night.xml`](https://raw.githubusercontent.com/google/material-design-icons/bd8cb85bd4bad964fe6918f79665bb40c3a8efef/symbols/android/clear_night/materialsymbolsoutlined/clear_night_24px.xml) |
+| Partly cloudy, day | [`ms_partly_cloudy_day.xml`](https://raw.githubusercontent.com/google/material-design-icons/bd8cb85bd4bad964fe6918f79665bb40c3a8efef/symbols/android/partly_cloudy_day/materialsymbolsoutlined/partly_cloudy_day_24px.xml) |
+| Partly cloudy, night | [`ms_partly_cloudy_night.xml`](https://raw.githubusercontent.com/google/material-design-icons/bd8cb85bd4bad964fe6918f79665bb40c3a8efef/symbols/android/partly_cloudy_night/materialsymbolsoutlined/partly_cloudy_night_24px.xml) |
+| Cloudy | [`ms_cloud.xml`](https://raw.githubusercontent.com/google/material-design-icons/bd8cb85bd4bad964fe6918f79665bb40c3a8efef/symbols/android/cloud/materialsymbolsoutlined/cloud_24px.xml) |
+| Rain | [`ms_rainy.xml`](https://raw.githubusercontent.com/google/material-design-icons/bd8cb85bd4bad964fe6918f79665bb40c3a8efef/symbols/android/rainy/materialsymbolsoutlined/rainy_24px.xml) |
+| Snow | [`ms_weather_snowy.xml`](https://raw.githubusercontent.com/google/material-design-icons/bd8cb85bd4bad964fe6918f79665bb40c3a8efef/symbols/android/weather_snowy/materialsymbolsoutlined/weather_snowy_24px.xml) |
+| Thunderstorm | [`ms_thunderstorm.xml`](https://raw.githubusercontent.com/google/material-design-icons/bd8cb85bd4bad964fe6918f79665bb40c3a8efef/symbols/android/thunderstorm/materialsymbolsoutlined/thunderstorm_24px.xml) |
+| Fog | [`ms_foggy.xml`](https://raw.githubusercontent.com/google/material-design-icons/bd8cb85bd4bad964fe6918f79665bb40c3a8efef/symbols/android/foggy/materialsymbolsoutlined/foggy_24px.xml) |
+| Wind | [`ms_air.xml`](https://raw.githubusercontent.com/google/material-design-icons/bd8cb85bd4bad964fe6918f79665bb40c3a8efef/symbols/android/air/materialsymbolsoutlined/air_24px.xml) |
+| Hail | [`ms_weather_hail.xml`](https://raw.githubusercontent.com/google/material-design-icons/bd8cb85bd4bad964fe6918f79665bb40c3a8efef/symbols/android/weather_hail/materialsymbolsoutlined/weather_hail_24px.xml) |
+| Sleet / mixed precipitation | [`ms_weather_mix.xml`](https://raw.githubusercontent.com/google/material-design-icons/bd8cb85bd4bad964fe6918f79665bb40c3a8efef/symbols/android/weather_mix/materialsymbolsoutlined/weather_mix_24px.xml) |
+
+Day/night is independent of the UI theme. Unknown forecasts retain a neutral
+em dash with the supplied accessible description.
+
+### Other icons
 
 Favorite reorder handle added 2026-09-27:
 

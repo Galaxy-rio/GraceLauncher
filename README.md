@@ -14,13 +14,17 @@ Weather data is provided through [Breezy Weather](https://github.com/breezy-weat
 
 ## Build from source
 
-Install the Android SDK and JDK 17 or newer, then build the debug APK with the included Gradle wrapper:
+Install OpenJDK 21, Android SDK Platform 37 and Build Tools 36.1.0, then build the debug APK with the included Gradle wrapper:
 
 ```powershell
 .\gradlew.bat :app:assembleDebug
 ```
 
 The APK will be generated at `app/build/outputs/apk/debug/app-debug.apk`.
+
+## F-Droid release preparation
+
+English and Simplified Chinese store metadata live in `fastlane/metadata/android/`, with four English screenshots. See the [release guide (中文)](docs/FDROID.zh-CN.md) for signing and the GitLab submission steps. The [build metadata template](fdroid/com.galaxyrio.gracelauncher.yml.template) still needs the final release commit and public signing certificate fingerprint; it is not a completed F-Droid submission.
 
 ## Privacy
 

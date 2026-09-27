@@ -14,3 +14,15 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Local release artifacts and signing secrets
+/app/release/
+*.apk
+*.aab
+*.idsig
+*.jks
+*.keystore
+*.p12
+*.pfx
+keystore.properties
+signing.properties
