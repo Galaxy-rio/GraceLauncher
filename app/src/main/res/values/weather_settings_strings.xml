@@ -21,6 +21,7 @@
     <string name="weather_settings_open">Open Breezy Weather</string>
     <string name="weather_settings_refresh">Check for updates</string>
     <string name="weather_settings_display">Display</string>
+    <string name="weather_settings_attribution">Data sources and licenses</string>
     <string name="weather_settings_location">Location</string>
     <string name="weather_settings_first_location">First location in Breezy Weather</string>
     <string name="weather_settings_forecast_days">Forecast days</string>

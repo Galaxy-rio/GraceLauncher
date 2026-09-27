@@ -121,18 +121,20 @@ fun LauncherOverlays(
     }
     val maxHeight = panelWindowHeight() * 0.9f
     LauncherPanelTheme {
+        val sheetColor = if (overlay == LauncherOverlay.Agenda) MaterialTheme.colorScheme.surfaceContainer
+            else MaterialTheme.colorScheme.surface
         ModalBottomSheet(
             onDismissRequest = { onChange(null) },
             sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
             modifier = Modifier.testTag("launcher_sheet"),
             shape = RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp),
-            containerColor = MaterialTheme.colorScheme.surface,
+            containerColor = sheetColor,
             contentColor = MaterialTheme.colorScheme.onSurface,
             scrimColor = Color.Black.copy(alpha = 0.6f),
             dragHandle = null,
             properties = ModalBottomSheetProperties(
                 isAppearanceLightStatusBars = false,
-                isAppearanceLightNavigationBars = MaterialTheme.colorScheme.surface.luminance() > 0.5f,
+                isAppearanceLightNavigationBars = sheetColor.luminance() > 0.5f,
             ),
         ) {
           // Limit the content, not the dialog's anchoring window: the sheet must

@@ -1,0 +1,16 @@
+Google Weather (Outlined), set-5
+
+Artwork copyright belongs to Google.
+Source collection: https://github.com/mrdarrengriffin/google-weather-icons
+Pinned revision: 7b6464bbf98273d69ae2c2bf8022b9b4ac1981c2
+Original source: https://www.gstatic.com/weather/conditions/v2/svg/
+
+The source collection describes these assets as being provided for reference
+and educational purposes. It does not provide an open-source redistribution
+or commercial-use license. Inclusion in this app does not grant such rights;
+confirm appropriate authorization before distributing these assets.
+Grace Launcher's code license does not relicense Google's artwork.
+
+The bundled Android vectors preserve the source SVG paths, palette, strokes,
+fill rules and clipping. Original SVG files, mapping, provenance and conversion
+scripts are retained in third_party/google-weather-icons in the source tree.

@@ -21,6 +21,7 @@
     <string name="weather_settings_open">打开 Breezy Weather</string>
     <string name="weather_settings_refresh">检查更新</string>
     <string name="weather_settings_display">显示</string>
+    <string name="weather_settings_attribution">数据来源与许可</string>
     <string name="weather_settings_location">地点</string>
     <string name="weather_settings_first_location">Breezy Weather 中的第一个地点</string>
     <string name="weather_settings_forecast_days">预报天数</string>

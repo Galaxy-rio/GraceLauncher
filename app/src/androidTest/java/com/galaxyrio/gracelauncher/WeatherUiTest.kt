@@ -60,6 +60,7 @@ import com.galaxyrio.gracelauncher.ui.ScheduleStatus
 import com.galaxyrio.gracelauncher.ui.overlays.AgendaSheet
 import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
 import com.galaxyrio.gracelauncher.ui.weather.WeatherSourceNote
+import com.galaxyrio.gracelauncher.ui.weather.WeatherAttribution
 import java.io.File
 import java.time.Instant
 import java.time.LocalDate
@@ -115,6 +116,7 @@ class WeatherUiTest {
         compose.onNodeWithTag("agenda_sheet").assertIsDisplayed()
         assertForecastAligned(today)
         compose.onNodeWithTag("weather_hourly").assertIsDisplayed()
+        compose.onNodeWithTag("weather_credits", useUnmergedTree = true).assertDoesNotExist()
         screenshot("weather-agenda-en.png")
 
         compose.onNodeWithTag("weather_hourly").performScrollToIndex(12)
@@ -183,8 +185,8 @@ class WeatherUiTest {
                 LocalContext provides localizedContext,
                 LocalDensity provides Density(density.density, 1.5f)) {
                 GraceLauncherTheme(dynamicColor = false) {
-                    Box(Modifier.fillMaxSize().background(Color(0xFF111214))) {
-                        Surface(Modifier.width(320.dp), color = Color(0xFF111214), contentColor = MaterialTheme.colorScheme.onSurface) {
+                    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceContainer)) {
+                        Surface(Modifier.width(320.dp), color = MaterialTheme.colorScheme.surfaceContainer, contentColor = MaterialTheme.colorScheme.onSurface) {
                             AgendaSheet(state, LauncherActions(), onRequestCalendar = {})
                         }
                     }
@@ -225,7 +227,6 @@ class WeatherUiTest {
             "Terms" to "https://open-meteo.com/en/terms",
         )
         val openedLinks = mutableListOf<String>()
-        var breezyOpens = 0
         val recordingUriHandler = object : UriHandler {
             override fun openUri(uri: String) { openedLinks += uri }
         }
@@ -233,12 +234,11 @@ class WeatherUiTest {
             CompositionLocalProvider(LocalUriHandler provides recordingUriHandler) {
                 GraceLauncherTheme(dynamicColor = false) {
                     Surface(Modifier.width(220.dp)) {
-                        WeatherSourceNote(snapshot.copy(attribution = attribution, sourceLinks = urls), now) { breezyOpens++ }
+                        WeatherAttribution(snapshot.copy(attribution = attribution, sourceLinks = urls))
                     }
                 }
             }
         }
-        compose.onNodeWithTag("weather_source").assertHasNoClickAction()
         val creditsNode = compose.onNodeWithTag("weather_credits", useUnmergedTree = true)
         val annotated = creditsNode.fetchSemanticsNode().config[SemanticsProperties.Text].single()
         assertEquals("The complete credit remains visible, with unmatched link labels appended", "$attribution · Terms", annotated.text)
@@ -250,7 +250,18 @@ class WeatherUiTest {
         val sourceLink = annotations.single { (it.item as LinkAnnotation.Url).url == urls.getValue("Open-Meteo") }
         val linkPosition = layouts.single().getBoundingBox(sourceLink.start + 2).center
         creditsNode.performTouchInput { click(linkPosition) }
-        compose.runOnIdle { assertEquals(listOf(urls.getValue("Open-Meteo")), openedLinks); assertEquals(0, breezyOpens) }
+        compose.runOnIdle { assertEquals(listOf(urls.getValue("Open-Meteo")), openedLinks) }
+    }
+
+    @Test fun agendaMetadataKeepsItsLocationActionWithoutSourceCredits() {
+        var breezyOpens = 0
+        compose.setContent {
+            GraceLauncherTheme(dynamicColor = false) {
+                Surface { WeatherSourceNote(snapshot, now) { breezyOpens++ } }
+            }
+        }
+        compose.onNodeWithTag("weather_source").assertHasNoClickAction()
+        compose.onNodeWithTag("weather_credits", useUnmergedTree = true).assertDoesNotExist()
         compose.onNodeWithTag("weather_location").performClick()
         compose.runOnIdle { assertEquals(1, breezyOpens) }
     }

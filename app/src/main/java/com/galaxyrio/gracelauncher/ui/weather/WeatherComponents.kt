@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -25,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -69,7 +69,7 @@ fun HomeWeather(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        WeatherIcon(current.condition, current.isDaylight, Modifier.size(19.dp))
+        WeatherIcon(current.condition, current.isDaylight, Modifier.size(19.dp), darkBackground = color.luminance() > 0.5f)
         Text(temperature.format(), style = textStyle, color = color, maxLines = 1)
     }
 }
@@ -124,7 +124,7 @@ fun HourlyWeather(snapshot: WeatherSnapshot, now: Instant, modifier: Modifier = 
     if (current == null && hours.isEmpty()) return
     LazyRow(
         modifier.fillMaxWidth().testTag("weather_hourly")
-            .clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surfaceContainerHigh),
+            .clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surfaceBright),
         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 14.dp),
     ) {
         if (current != null) item(key = "now") {
@@ -189,14 +189,8 @@ fun WeatherSourceNote(snapshot: WeatherSnapshot, now: Instant, onOpenBreezy: () 
     val updateLabel = if (updated == null) stringResource(R.string.weather_update_unknown) else {
         stringResource(if (stale) R.string.weather_outdated else R.string.weather_updated, timeFormat.format(updated))
     }
-    val source = snapshot.attribution.takeIf { it.isNotBlank() }
-    val sourceLabel = source ?: stringResource(R.string.weather_via_breezy)
-    val linkColor = MaterialTheme.colorScheme.primary
-    val credits = remember(sourceLabel, snapshot.sourceLinks, linkColor) {
-        weatherCredits(sourceLabel, snapshot.sourceLinks, linkColor)
-    }
     Column(
-        Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("weather_source")
+        Modifier.fillMaxWidth().testTag("weather_source")
             .padding(vertical = 8.dp),
     ) {
         Text(
@@ -208,9 +202,20 @@ fun WeatherSourceNote(snapshot: WeatherSnapshot, now: Instant, onOpenBreezy: () 
             color = if (stale) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 2, overflow = TextOverflow.Ellipsis,
         )
-        Text(credits, modifier = Modifier.fillMaxWidth().testTag("weather_credits"),
-            fontSize = 11.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
+}
+
+/** Source and license details live in weather settings, not the compact agenda. */
+@Composable
+fun WeatherAttribution(snapshot: WeatherSnapshot, modifier: Modifier = Modifier) {
+    val sourceLabel = snapshot.attribution.takeIf { it.isNotBlank() }
+        ?: stringResource(R.string.weather_via_breezy)
+    val linkColor = MaterialTheme.colorScheme.primary
+    val credits = remember(sourceLabel, snapshot.sourceLinks, linkColor) {
+        weatherCredits(sourceLabel, snapshot.sourceLinks, linkColor)
+    }
+    Text(credits, modifier = modifier.fillMaxWidth().testTag("weather_credits"),
+        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
 /** Preserve the complete credit text and attach source/license links supplied by Breezy. */

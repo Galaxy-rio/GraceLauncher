@@ -31,6 +31,7 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.weather.WeatherStatus
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
+import com.galaxyrio.gracelauncher.ui.weather.WeatherAttribution
 
 @Composable
 internal fun WeatherSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit) {
@@ -151,6 +152,10 @@ internal fun WeatherSettings(uiState: LauncherUiState, actions: LauncherActions,
                     if (weather.locations.isEmpty()) 0 else 1, if (weather.locations.isEmpty()) 1 else 2,
                     "weather_forecast_days",
                 ) { dialog = "days" }
+            }
+            if (settings.weatherEnabled && weather.snapshot != null) {
+                item { SettingsHeading(stringResource(R.string.weather_settings_attribution)) }
+                item { WeatherAttribution(weather.snapshot, Modifier.padding(horizontal = 4.dp, vertical = 12.dp)) }
             }
         }
     }
