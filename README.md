@@ -30,6 +30,12 @@ Grace Launcher does not request network access. Notification access is required 
 
 Contributions are welcome. Feel free to open an issue to report a bug or suggest an improvement, or submit a pull request with your changes.
 
+Translations are managed through [Weblate](https://hosted.weblate.org/engage/grace_launcher/). You can help translate Grace Launcher into your language there.
+
+<a href="https://hosted.weblate.org/engage/grace_launcher/">
+  <img src="https://hosted.weblate.org/widget/grace_launcher/multi-auto.svg" alt="Translation status">
+</a>
+
 ## Acknowledgements
 
 Special thanks to [Niagara Launcher](https://niagaralauncher.app/) for the design inspiration.
