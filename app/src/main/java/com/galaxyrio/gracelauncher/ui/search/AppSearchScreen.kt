@@ -3,6 +3,7 @@ package com.galaxyrio.gracelauncher.ui.search
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.*
@@ -64,7 +65,7 @@ internal fun AppSearchScreen(
                     modifier = Modifier.weight(1f).focusRequester(focusRequester).testTag("app_search_query"),
                     placeholder = { Text(stringResource(R.string.search_apps)) },
                     leadingIcon = { LauncherIcon(LauncherSymbol.Search) },
-                    shape = MaterialTheme.shapes.extraLarge,
+                    shape = RoundedCornerShape(40.dp),
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { results.firstOrNull()?.let(onLaunch) }),

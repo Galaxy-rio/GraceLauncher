@@ -8,7 +8,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
-import android.provider.AlarmClock
 import android.provider.CalendarContract
 import android.provider.Settings
 import android.widget.Toast
@@ -82,6 +81,8 @@ import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LocalLauncherInputEnabled
 import com.galaxyrio.gracelauncher.platform.AppLaunchTransition
 import com.galaxyrio.gracelauncher.platform.DefaultHome
+import com.galaxyrio.gracelauncher.platform.ClockLauncher
+import com.galaxyrio.gracelauncher.platform.ClockLaunchResult
 import com.galaxyrio.gracelauncher.data.media.MediaAccess
 import com.galaxyrio.gracelauncher.data.weather.BreezyWeatherRepository
 import com.galaxyrio.gracelauncher.ui.overlays.ShortcutRevealState
@@ -93,6 +94,7 @@ import com.galaxyrio.gracelauncher.ui.home.HomeScreen
 import com.galaxyrio.gracelauncher.ui.settings.LauncherSettingsScreen
 import com.galaxyrio.gracelauncher.ui.overlays.LauncherOverlay
 import com.galaxyrio.gracelauncher.ui.overlays.LauncherOverlays
+import com.galaxyrio.gracelauncher.ui.overlays.ClockAppPicker
 import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherAppearance
@@ -116,6 +118,10 @@ fun LauncherRoute(
     val context = LocalContext.current
     val launchView = LocalView.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    var showClockPicker by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(viewModel) {
+        viewModel.returnHomeRequests.collect { showClockPicker = false }
+    }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { viewModel.refreshSchedule() }
@@ -272,7 +278,16 @@ fun LauncherRoute(
             uiState = uiState,
             returnHomeRequests = viewModel.returnHomeRequests,
             onDateClick = { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) },
-            onClockClick = { openSystemApp(Intent(AlarmClock.ACTION_SHOW_ALARMS)) },
+            onClockClick = {
+                when (ClockLauncher.open(context)) {
+                    ClockLaunchResult.Opened -> Unit
+                    ClockLaunchResult.NoHandler -> {
+                        showClockPicker = true
+                        viewModel.refreshApps()
+                    }
+                    ClockLaunchResult.Failed -> Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
+                }
+            },
             onLaunchApp = { app ->
                 if (!viewModel.launch(app)) Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
             },
@@ -280,6 +295,20 @@ fun LauncherRoute(
             actions = actions,
         )
     }
+    if (showClockPicker) ClockAppPicker(
+        apps = uiState.apps,
+        isLoading = uiState.isLoadingApps,
+        loadFailed = uiState.appLoadFailed,
+        onSelect = { app ->
+            if (viewModel.launch(app)) showClockPicker = false
+            else {
+                Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
+                viewModel.refreshApps()
+            }
+        },
+        onRetry = viewModel::refreshApps,
+        onDismiss = { showClockPicker = false },
+    )
 }
 
 @Composable

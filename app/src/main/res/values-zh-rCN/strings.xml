@@ -7,6 +7,9 @@
     <string name="jump_to_letter">%1$s 开头的应用</string>
     <string name="date_calendar_action">%1$s。打开或连接日历</string>
     <string name="clock_action">%1$s。打开时钟</string>
+    <string name="clock_choose_app">选择时钟应用</string>
+    <string name="clock_choose_app_description">没有应用支持标准时钟操作，请选择要打开的应用。</string>
+    <string name="clock_apps_load_failed">无法加载应用列表</string>
     <string name="event_soon">不到1分钟后</string>
     <string name="event_in_minutes">%1$d分钟后</string>
     <string name="event_in_hours">%1$d小时后</string>

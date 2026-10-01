@@ -280,6 +280,7 @@ private fun TextEntryDialog(title: String, initial: String, onDismiss: () -> Uni
     var value by remember { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(40.dp),
         title = { Text(title) },
         text = { OutlinedTextField(value, onValueChange = { value = it.take(80) }, singleLine = true) },
         confirmButton = { TextButton(onClick = { onSave(value.trim()) }, enabled = value.isNotBlank()) { Text(stringResource(R.string.save)) } },
