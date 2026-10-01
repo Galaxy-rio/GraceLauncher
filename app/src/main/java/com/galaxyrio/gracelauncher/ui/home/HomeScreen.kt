@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
@@ -22,13 +23,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -167,10 +169,10 @@ private fun DateHeader(
         Text(
             text = clockText.replace(':', ' '),
             modifier = Modifier
+                .fillMaxWidth()
                 .testTag("home_clock")
                 .semantics { contentDescription = clockDescription }
-                .clip(RoundedCornerShape(20.dp))
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = ripple(color = appearance.text), onClick = onClockClick)
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClockClick)
                 .padding(horizontal = 8.dp),
             color = appearance.text,
             style = TextStyle(
@@ -184,14 +186,24 @@ private fun DateHeader(
             ),
         )
         Spacer(Modifier.height(5.dp))
-        Row(
+        val shape = RoundedCornerShape(12.dp)
+        // One bounded ripple and accessibility action for the entire compact header.
+        // Keep its height content-driven when the optional schedule row is absent.
+        Surface(
             modifier = Modifier
+                .fillMaxWidth()
                 .testTag("home_date")
                 .semantics { contentDescription = dateDescription }
-                .clip(RoundedCornerShape(12.dp))
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = ripple(color = appearance.text), onClick = onDateClick)
-                .padding(horizontal = 8.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .clip(shape)
+                .clickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = ripple(color = appearance.text),
+                    role = Role.Button,
+                    onClick = onDateClick,
+                ),
+            shape = shape,
+            color = Color.Transparent,
+            contentColor = appearance.text,
         ) {
             val dateStyle = TextStyle(
                 fontFamily = LauncherFontFamily,
@@ -200,27 +212,31 @@ private fun DateHeader(
                 fontWeight = FontWeight.Medium,
                 shadow = appearance.textShadow,
             )
-            Text(
-                text = dateText + (battery?.let { "  $it%" } ?: ""),
-                modifier = Modifier.weight(1f, fill = false).testTag("home_date_text"),
-                color = appearance.text,
-                style = dateStyle,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (weather?.temperature != null) {
-                Spacer(Modifier.width(10.dp))
-                HomeWeather(weather, appearance.text, dateStyle)
+            Column {
+                Row(Modifier.padding(horizontal = 8.dp, vertical = 2.dp)) {
+                    Text(
+                        text = dateText + (battery?.let { "  $it%" } ?: ""),
+                        modifier = Modifier.weight(1f, fill = false).alignByBaseline().testTag("home_date_text"),
+                        color = appearance.text,
+                        style = dateStyle,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (weather?.temperature != null) {
+                        Spacer(Modifier.width(10.dp))
+                        HomeWeather(weather, appearance.text, dateStyle, Modifier.alignByBaseline())
+                    }
+                }
+                if (event != null) {
+                    ScheduleLine(event = event, now = now)
+                }
             }
-        }
-        if (event != null) {
-            ScheduleLine(event = event, now = now, onClick = onDateClick)
         }
     }
 }
 
 @Composable
-private fun ScheduleLine(event: ScheduleEvent, now: Instant, onClick: () -> Unit) {
+private fun ScheduleLine(event: ScheduleEvent, now: Instant) {
     val appearance = LocalLauncherAppearance.current
     val remaining = eventRemainingText(event, now)
     val style = TextStyle(
@@ -234,13 +250,12 @@ private fun ScheduleLine(event: ScheduleEvent, now: Instant, onClick: () -> Unit
         modifier = Modifier
             .fillMaxWidth()
             .testTag("schedule_line")
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = ripple(color = appearance.text), onClick = onClick)
             .padding(horizontal = 8.dp, vertical = 2.dp),
     ) {
         Text(
             text = event.title,
-            modifier = Modifier.weight(1f, fill = false),
+            // CJK fallback and Latin fonts can have different ascents at the same size.
+            modifier = Modifier.weight(1f, fill = false).alignByBaseline().testTag("schedule_title"),
             style = style,
             color = appearance.text,
             maxLines = 1,
@@ -249,6 +264,7 @@ private fun ScheduleLine(event: ScheduleEvent, now: Instant, onClick: () -> Unit
         Spacer(Modifier.width(5.dp))
         Text(
             text = "· $remaining",
+            modifier = Modifier.alignByBaseline().testTag("schedule_remaining"),
             style = style,
             color = appearance.text.copy(alpha = 0.93f),
             maxLines = 1,

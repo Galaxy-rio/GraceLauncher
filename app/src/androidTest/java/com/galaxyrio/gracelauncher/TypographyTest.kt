@@ -87,7 +87,7 @@ class TypographyTest {
     fun clockDateScheduleRailAndDrawerHeadingsKeepTheLauncherFamily() {
         showLauncher()
         assertTextFamily(compose.onNodeWithTag("home_clock", useUnmergedTree = true))
-        assertTextFamily(compose.onNodeWithTag("home_date", useUnmergedTree = true))
+        assertTextFamily(compose.onNodeWithTag("home_date_text", useUnmergedTree = true))
         assertTextFamily(compose.onNodeWithText("Movie night", useUnmergedTree = true))
         assertTextFamily(compose.onNode(
             hasText("C") and hasAnyAncestor(hasTestTag("alphabet:C")), useUnmergedTree = true,

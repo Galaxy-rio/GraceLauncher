@@ -69,7 +69,7 @@ fun HomeWeather(
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         WeatherIcon(current.condition, current.isDaylight, Modifier.size(19.dp), tint = color)
-        Text(temperature.format(), style = textStyle, color = color, maxLines = 1)
+        Text(temperature.format(), modifier = Modifier.testTag("home_weather_temperature"), style = textStyle, color = color, maxLines = 1)
     }
 }
 

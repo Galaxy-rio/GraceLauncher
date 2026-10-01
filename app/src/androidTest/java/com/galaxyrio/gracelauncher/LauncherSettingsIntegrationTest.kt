@@ -179,7 +179,7 @@ class LauncherSettingsIntegrationTest {
         showLauncher(fixture().copy(events = listOf(
             ScheduleEvent(1, "Movie night", now.plusSeconds(1800), now.plusSeconds(7200), false, null, null),
         )))
-        compose.onNodeWithTag("schedule_line").assertIsDisplayed()
+        compose.onNodeWithTag("schedule_line", useUnmergedTree = true).assertIsDisplayed()
         openSettings()
         clickSetting("settings_root", "settings_category_productivity")
         clickSetting("settings_productivity", "calendar_agenda")
