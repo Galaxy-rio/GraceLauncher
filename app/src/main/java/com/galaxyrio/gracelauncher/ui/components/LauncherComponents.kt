@@ -29,7 +29,6 @@ import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -137,7 +136,7 @@ fun LauncherAppRow(
         onLongClick = onLongClick,
         onOpen = onSwipeRight,
         onPrepare = { gestures.onPrepare(app) },
-        onDrag = { bounds, progress -> gestures.onDrag(app, bounds, progress) },
+        onDrag = { bounds, expanded -> gestures.onDrag(app, bounds, expanded) },
         onDragEnd = gestures.onDragEnd,
         openDescription = stringResource(R.string.app_shortcuts),
         detailsDescription = stringResource(R.string.app_actions),
@@ -153,14 +152,14 @@ fun FolderRow(
     onOpen: (Rect) -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier,
-    onDrag: (Rect, Float) -> Unit = { _, _ -> },
+    onDrag: (Rect, Boolean) -> Unit = { _, _ -> },
     onDragEnd: (Boolean) -> Unit = {},
     highlighted: Boolean = false,
 ) {
     LauncherRow(
         rowKey = "folder:${folder.id}",
         label = folder.name,
-        onClick = { bounds, _ -> onOpen(bounds) },
+        onClick = { _, iconBounds -> onOpen(iconBounds) },
         onLongClick = onLongClick,
         onOpen = onOpen,
         onPrepare = {},
@@ -182,7 +181,7 @@ private fun LauncherRow(
     onLongClick: () -> Unit,
     onOpen: (Rect) -> Unit,
     onPrepare: () -> Unit,
-    onDrag: (Rect, Float) -> Unit,
+    onDrag: (Rect, Boolean) -> Unit,
     onDragEnd: (Boolean) -> Unit,
     openDescription: String,
     detailsDescription: String,
@@ -198,7 +197,6 @@ private fun LauncherRow(
     val currentDragEnd by rememberUpdatedState(onDragEnd)
     var bounds by remember { mutableStateOf(Rect.Zero) }
     var iconBounds by remember { mutableStateOf(Rect.Zero) }
-    var dragOffset by remember { mutableFloatStateOf(0f) }
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val highlight by animateColorAsState(
@@ -224,34 +222,28 @@ private fun LauncherRow(
             }
             .pointerInput(rowKey, inputEnabled) {
                 if (!inputEnabled) return@pointerInput
-                val distance = 72.dp.toPx()
-                val commitDistance = 32.dp.toPx()
-                var revealed = false
+                val swipe = PopupSwipeIntent(reversalSlop = 8.dp.toPx())
                 detectHorizontalDragGestures(
-                    onDragStart = { dragOffset = 0f; revealed = false },
+                    onDragStart = { swipe.reset() },
                     onDragCancel = {
-                        if (revealed) currentDragEnd(false)
-                        dragOffset = 0f
+                        if (swipe.revealed) currentDragEnd(false)
+                        swipe.reset()
                     },
                     onDragEnd = {
-                        if (revealed) currentDragEnd(dragOffset >= commitDistance)
-                        dragOffset = 0f
+                        if (swipe.revealed) currentDragEnd(swipe.expanded)
+                        swipe.reset()
                     },
                 ) { change, amount ->
                     change.consume()
-                    // Preserve overshoot so a small reversal after a long swipe
-                    // does not close a panel while the finger is still far right.
-                    dragOffset += amount
-                    if (dragOffset > 0f || revealed) {
-                        revealed = true
-                        currentDrag(bounds, (dragOffset / distance).coerceIn(0f, 1f))
+                    swipe.drag(amount)?.let { expanded ->
+                        currentDrag(iconBounds, expanded)
                     }
                 }
             }
             .semantics {
                 selected = pressed || highlighted
                 customActions = listOf(
-                    CustomAccessibilityAction(openDescription) { onOpen(bounds); true },
+                    CustomAccessibilityAction(openDescription) { onOpen(iconBounds); true },
                     CustomAccessibilityAction(detailsDescription) { onLongClick(); true },
                 )
             }
@@ -287,7 +279,7 @@ private fun LauncherRow(
         }
         if (notification != null) {
             IconButton(
-                onClick = { onPrepare(); onOpen(bounds) },
+                onClick = { onPrepare(); onOpen(iconBounds) },
                 enabled = inputEnabled,
                 modifier = Modifier.size(48.dp).testTag("notification_arrow:$rowKey")
                     .semantics { contentDescription = openDescription },
@@ -302,7 +294,7 @@ private fun LauncherRow(
 
 data class AppRowGestures(
     val onPrepare: (LauncherApp) -> Unit = {},
-    val onDrag: (LauncherApp, Rect, Float) -> Unit = { _, _, _ -> },
+    val onDrag: (LauncherApp, Rect, Boolean) -> Unit = { _, _, _ -> },
     val onDragEnd: (Boolean) -> Unit = {},
     val onLaunchAt: ((LauncherApp, Rect) -> Unit)? = null,
 )

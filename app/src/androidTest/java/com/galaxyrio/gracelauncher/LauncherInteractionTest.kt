@@ -250,7 +250,7 @@ class LauncherInteractionTest {
     }
 
     @Test
-    fun shortcutsFollowTheFingerBeforeReleaseAndReverseDragCancels() {
+    fun shortSwipeOpensShortcutsWithoutFurtherMovementAndReverseDragCancels() {
         var launches = 0
         var prepared = 0
         val result = CompletableDeferred<ShortcutResult>()
@@ -265,9 +265,9 @@ class LauncherInteractionTest {
             moveTo(Offset(8f + dragDistance, centerY), delayMillis = 150)
         }
         awaitSurface("shortcut_popup")
-        val partial = compose.onNodeWithTag("shortcut_popup").fetchSemanticsNode()
+        val progress = compose.onNodeWithTag("shortcut_popup").fetchSemanticsNode()
             .config[SemanticsProperties.ProgressBarRangeInfo].current
-        assertTrue("The panel must reveal during the held gesture", partial > 0f && partial < 1f)
+        assertEquals("Opening continues with the finger stationary and still down", 1f, progress, 0.001f)
         compose.onAllNodes(SemanticsMatcher.expectValue(
             SemanticsProperties.ProgressBarRangeInfo, ProgressBarRangeInfo.Indeterminate,
         )).assertCountEquals(0)
@@ -286,10 +286,10 @@ class LauncherInteractionTest {
     }
 
     @Test
-    fun shortNinetySixDpDragFullyRevealsShortcutsBeforeReleaseAndCanReverse() {
+    fun shortcutDirectionCanReverseAndReopenWithoutReturningToTheGestureOrigin() {
         showLauncher(actions = shortcutFixtureActions())
         val row = compose.onNodeWithTag("app:${apps[1].key}")
-        val dragDistance = 96f * deviceDensity()
+        val dragDistance = 24f * deviceDensity()
         row.performTouchInput {
             down(Offset(8f, centerY))
             moveTo(Offset(8f + dragDistance, centerY), delayMillis = 150)
@@ -297,23 +297,25 @@ class LauncherInteractionTest {
         awaitSurface("shortcut_popup")
         val progress = compose.onNodeWithTag("shortcut_popup").fetchSemanticsNode()
             .config[SemanticsProperties.ProgressBarRangeInfo].current
-        assertEquals("A 96dp held drag should already reveal the complete panel", 1f, progress, 0.001f)
+        assertEquals("A 24dp held drag should trigger a complete opening animation", 1f, progress, 0.001f)
         compose.onNodeWithTag("shortcut:compose").assertIsDisplayed()
         saveScreenshot("shortcuts-short-drag-expanded.png")
         row.performTouchInput {
             moveTo(Offset(8f + 200f * deviceDensity(), centerY), delayMillis = 100)
-            moveTo(Offset(8f + 136f * deviceDensity(), centerY), delayMillis = 100)
+            moveTo(Offset(8f + 184f * deviceDensity(), centerY), delayMillis = 100)
         }
         assertEquals(
-            "Overshoot must not be discarded: a small reversal should leave the panel fully open",
-            1f, compose.onNodeWithTag("shortcut_popup").fetchSemanticsNode()
+            "A short leftward reversal closes even after a long right swipe, before UP",
+            0f, compose.onNodeWithTag("shortcut_popup").fetchSemanticsNode()
                 .config[SemanticsProperties.ProgressBarRangeInfo].current, 0.001f,
         )
         row.performTouchInput {
-            moveTo(Offset(8f, centerY), delayMillis = 150)
+            moveTo(Offset(8f + 200f * deviceDensity(), centerY), delayMillis = 100)
             up()
         }
-        compose.onNodeWithTag("shortcut_popup").assertDoesNotExist()
+        assertEquals("Reversing right reopens the same panel and releasing keeps it open",
+            1f, compose.onNodeWithTag("shortcut_popup").fetchSemanticsNode()
+                .config[SemanticsProperties.ProgressBarRangeInfo].current, 0.001f)
     }
 
     @Test

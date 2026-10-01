@@ -45,7 +45,7 @@ fun AppDrawerScreen(
     highlightedAppKey: String? = null,
     onOpenFolder: (LauncherFolder, Rect) -> Unit = { _, _ -> },
     onEditFolder: (LauncherFolder) -> Unit = {},
-    onFolderDrag: (LauncherFolder, Rect, Float) -> Unit = { _, _, _ -> },
+    onFolderDrag: (LauncherFolder, Rect, Boolean) -> Unit = { _, _, _ -> },
     onFolderDragEnd: (Boolean) -> Unit = {},
     notifications: Map<String, List<AppNotification>> = emptyMap(),
 ) {
@@ -99,7 +99,7 @@ fun AppDrawerScreen(
                         folder = item.folder,
                         onOpen = { onOpenFolder(item.folder, it) },
                         onLongClick = { onEditFolder(item.folder) },
-                        onDrag = { bounds, progress -> onFolderDrag(item.folder, bounds, progress) },
+                        onDrag = { bounds, expanded -> onFolderDrag(item.folder, bounds, expanded) },
                         onDragEnd = onFolderDragEnd,
                     )
                 }

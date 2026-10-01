@@ -76,7 +76,7 @@ fun HomeScreen(
     highlightedAppKey: String? = null,
     onOpenFolder: (LauncherFolder, Rect) -> Unit = { _, _ -> },
     onEditFolder: (LauncherFolder) -> Unit = {},
-    onFolderDrag: (LauncherFolder, Rect, Float) -> Unit = { _, _, _ -> },
+    onFolderDrag: (LauncherFolder, Rect, Boolean) -> Unit = { _, _, _ -> },
     onFolderDragEnd: (Boolean) -> Unit = {},
     onMediaCommand: (String, MediaCommand) -> Unit = { _, _ -> },
     onDismissMedia: (String, Long) -> Boolean = { _, _ -> false },
@@ -139,7 +139,7 @@ fun HomeScreen(
                 folder = folder,
                 onOpen = { onOpenFolder(folder, it) },
                 onLongClick = { onEditFolder(folder) },
-                onDrag = { bounds, progress -> onFolderDrag(folder, bounds, progress) },
+                onDrag = { bounds, expanded -> onFolderDrag(folder, bounds, expanded) },
                 onDragEnd = onFolderDragEnd,
             )
         }

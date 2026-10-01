@@ -107,7 +107,13 @@ internal fun FavoritesSheet(
                     modifier = Modifier
                         .then(if (dragging) Modifier else Modifier.animateItem())
                         .zIndex(if (dragging || offset != 0f) 1f else 0f)
-                        .graphicsLayer { translationY = offset }
+                        .graphicsLayer {
+                            // Layout can move this item to its new slot before an
+                            // animateFloatAsState(snap()) updates on the next frame.
+                            // Read the compensating offset in the draw phase so it
+                            // never flashes over a neighbor during a reorder.
+                            translationY = if (dragging) reorder.translation else offset
+                        }
                         .clip(RoundedCornerShape(16.dp)).background(background)
                         .semantics {
                             customActions = buildList {

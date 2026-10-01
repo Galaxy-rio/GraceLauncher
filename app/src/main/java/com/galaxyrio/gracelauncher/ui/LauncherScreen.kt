@@ -366,12 +366,12 @@ internal fun LauncherScreen(
     val rowGestures = AppRowGestures(
         onPrepare = actions.prepareShortcuts,
         onLaunchAt = actions.launchAppAt,
-        onDrag = { app, bounds, progress ->
+        onDrag = { app, bounds, expanded ->
             val current = overlay as? LauncherOverlay.Shortcuts
             if (current?.app?.key == app.key) {
-                current.reveal.progress = progress
+                current.reveal.expanded = expanded
             } else {
-                overlay = LauncherOverlay.Shortcuts(app, bounds, ShortcutRevealState(progress, dragging = true))
+                overlay = LauncherOverlay.Shortcuts(app, bounds, ShortcutRevealState(expanded, dragging = true))
             }
         },
         onDragEnd = { commit ->
@@ -384,10 +384,10 @@ internal fun LauncherScreen(
     val highlightedAppKey = (overlay as? LauncherOverlay.AppDetails)?.app?.key
     val openFolder: (LauncherFolder, Rect) -> Unit = { folder, bounds -> overlay = LauncherOverlay.Folder(folder, bounds) }
     val editFolder: (LauncherFolder) -> Unit = { overlay = LauncherOverlay.FolderSettings(it.id) }
-    val dragFolder: (LauncherFolder, Rect, Float) -> Unit = { folder, bounds, progress ->
+    val dragFolder: (LauncherFolder, Rect, Boolean) -> Unit = { folder, bounds, expanded ->
         val current = overlay as? LauncherOverlay.Folder
-        if (current?.folder?.id == folder.id) current.reveal.progress = progress
-        else overlay = LauncherOverlay.Folder(folder, bounds, ShortcutRevealState(progress, dragging = true))
+        if (current?.folder?.id == folder.id) current.reveal.expanded = expanded
+        else overlay = LauncherOverlay.Folder(folder, bounds, ShortcutRevealState(expanded, dragging = true))
     }
     val endFolderDrag: (Boolean) -> Unit = { commit ->
         (overlay as? LauncherOverlay.Folder)?.reveal?.let { it.expanded = commit; it.dragging = false }

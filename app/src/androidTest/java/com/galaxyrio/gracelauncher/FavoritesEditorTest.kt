@@ -132,6 +132,39 @@ class FavoritesEditorTest {
         assertEquals(0, toggles)
     }
 
+    @Test fun swappingRowsKeepsTheDraggedRowUnderTheFingerAndNeighborsMoveContinuously() {
+        show(apps.take(4))
+        val handle = compose.onNodeWithTag("favorite_drag:${apps[0].key}")
+        val neighborTag = "favorite:${apps[1].key}"
+        val initialTop = bounds(neighborTag).top
+        val rowHeight = bounds(neighborTag).height
+        compose.mainClock.autoAdvance = false
+        handle.performTouchInput {
+            down(center)
+            moveBy(Offset(0f, rowHeight * 0.6f), 16)
+        }
+        compose.mainClock.advanceTimeBy(64)
+        val draggedTop = bounds("favorite:${apps[0].key}").top
+        val delta = rowHeight * 0.7f
+        handle.performTouchInput { moveBy(Offset(0f, delta), 16) }
+        val neighborPositions = mutableListOf(initialTop)
+        val draggedPositions = mutableListOf<Float>()
+        repeat(30) {
+            compose.mainClock.advanceTimeByFrame()
+            neighborPositions += bounds(neighborTag).top
+            draggedPositions += bounds("favorite:${apps[0].key}").top
+        }
+        handle.performTouchInput { up() }
+        compose.mainClock.autoAdvance = true
+        compose.waitForIdle()
+        assertEquals(initialTop - rowHeight, neighborPositions.last(), 1f)
+        assertTrue("Neighbors must not jump a full slot before animating: $neighborPositions",
+            neighborPositions.zipWithNext().all { (a, b) -> kotlin.math.abs(b - a) < rowHeight * 0.3f })
+        assertTrue("The dragged row must not briefly fall into its new layout slot: $draggedPositions; expected ${draggedTop + delta}",
+            draggedPositions.all { kotlin.math.abs(it - (draggedTop + delta)) < 2f })
+        assertSelectedOrder(listOf(apps[1], apps[0], apps[2], apps[3]))
+    }
+
     @Test fun ordinaryListScrollingNeverChangesFavoritesAndAnEmptySelectionCanBeRefilled() {
         show(emptyList())
         compose.onNodeWithText("Choose apps below to add them to your home screen.").assertIsDisplayed()

@@ -1,8 +1,6 @@
 package com.galaxyrio.gracelauncher.ui.overlays
 
-import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.snap
-import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,8 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.*
 import androidx.compose.ui.graphics.Outline
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -46,12 +44,12 @@ import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 @Stable
-class ShortcutRevealState(progress: Float = 1f, dragging: Boolean = false) {
-    var progress by mutableFloatStateOf(progress)
+class ShortcutRevealState(expanded: Boolean = true, dragging: Boolean = false) {
     var dragging by mutableStateOf(dragging)
-    var expanded by mutableStateOf(true)
+    var expanded by mutableStateOf(expanded)
 }
 
 /** Same-window overlay: adding a popup window during DOWN would cancel the row's drag. */
@@ -154,6 +152,7 @@ fun ShortcutPopup(
 
 /** One same-window reveal/positioning implementation for app shortcuts and folders. */
 @Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 internal fun SwipeRevealPanel(
     anchor: Rect,
     reveal: ShortcutRevealState,
@@ -167,22 +166,29 @@ internal fun SwipeRevealPanel(
     val margin = with(density) { 32.dp.roundToPx() }
     val maxListHeight = with(density) { windowSize.height.toDp() } * 0.55f
     val currentOnDismiss by rememberUpdatedState(onDismiss)
-    val settledProgress by animateFloatAsState(
-        targetValue = if (reveal.dragging) reveal.progress else if (reveal.expanded) 1f else 0f,
-        animationSpec = if (reveal.dragging) snap() else spring(dampingRatio = 0.86f, stiffness = 600f),
-        label = "swipePanelReveal",
-        finishedListener = { if (!reveal.dragging && !reveal.expanded) currentOnDismiss() },
-    )
-    // Draw direct pointer progress instead of chasing a sequence of animations.
-    val progress = if (reveal.dragging) reveal.progress else settledProgress
-    LaunchedEffect(reveal.dragging, reveal.expanded) {
-        if (!reveal.dragging && !reveal.expanded && reveal.progress == 0f) currentOnDismiss()
+    val spatial = remember(reveal) { Animatable(0f) }
+    val effects = remember(reveal) { Animatable(0f) }
+    val spatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
+    val effectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
+    LaunchedEffect(reveal, spatialSpec, effectsSpec) {
+        snapshotFlow { reveal.expanded }.collect { expanded ->
+            val destination = if (expanded) 1f else 0f
+            // Let Animatable interrupt its previous animateTo. Cancelling the
+            // owning effect on every target change would reset its velocity.
+            launch { effects.animateTo(destination, effectsSpec) }
+            launch { spatial.animateTo(destination, spatialSpec) }
+        }
+    }
+    LaunchedEffect(reveal.dragging, reveal.expanded, spatial.isRunning) {
+        // Keep the original gesture alive at zero so a rightward reversal can
+        // reopen the same panel without lifting the finger.
+        if (!reveal.dragging && !reveal.expanded && !spatial.isRunning && spatial.value == 0f) currentOnDismiss()
     }
     var origin by remember { mutableStateOf(Offset.Zero) }
     Box(Modifier.fillMaxSize().onGloballyPositioned { origin = it.boundsInWindow().topLeft }) {
         Box(Modifier.matchParentSize().clickable(
             interactionSource = remember { MutableInteractionSource() }, indication = null,
-            onClick = onDismiss,
+            onClick = { reveal.expanded = false },
         ).clearAndSetSemantics {})
         Layout(
             modifier = Modifier.fillMaxSize(),
@@ -191,13 +197,14 @@ internal fun SwipeRevealPanel(
                     Surface(
                         modifier = Modifier.testTag(panelTag).semantics {
                             paneTitle = title
-                            dismiss { onDismiss(); true }
-                            progressBarRangeInfo = ProgressBarRangeInfo(progress, 0f..1f)
-                        },
-                        shape = SwipeRevealShape(progress),
+                            dismiss { reveal.expanded = false; true }
+                            progressBarRangeInfo = ProgressBarRangeInfo(spatial.value.coerceIn(0f, 1f), 0f..1f)
+                        }.graphicsLayer { alpha = (spatial.value * 12f).coerceIn(0f, 1f) },
+                        shape = PopupContainerShape(anchor, spatial.value),
                         color = MaterialTheme.colorScheme.surface,
-                        shadowElevation = 16.dp * progress,
-                    ) {
+                        shadowElevation = 16.dp * spatial.value.coerceIn(0f, 1f),
+                    ) {}
+                    CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
                         Column(Modifier.padding(horizontal = 6.dp, vertical = 12.dp)) {
                             content(maxListHeight)
                         }
@@ -206,37 +213,43 @@ internal fun SwipeRevealPanel(
             },
         ) { measurables, constraints ->
             val panelWidth = (constraints.maxWidth - margin * 2).coerceIn(1, 440.dp.roundToPx())
-            val panel = measurables.single().measure(Constraints(
+            // Measure content at its final size: only the container/clip morphs,
+            // so neither text nor icons are stretched during the hero transition.
+            val panel = measurables[1].measure(Constraints(
                 minWidth = panelWidth, maxWidth = panelWidth,
                 maxHeight = (constraints.maxHeight - margin * 2).coerceAtLeast(1),
             ))
+            val left = (constraints.maxWidth - panel.width) / 2
+            val top = (anchor.center.y - origin.y - panel.height / 2f).roundToInt()
+                .coerceIn(margin, (constraints.maxHeight - panel.height - margin).coerceAtLeast(margin))
+            val target = Rect(left.toFloat(), top.toFloat(), (left + panel.width).toFloat(), (top + panel.height).toFloat())
+            val frame = popupMorphFrame(anchor.translate(-origin), target, spatial.value, 24.dp.toPx())
+            val container = measurables[0].measure(Constraints.fixed(
+                frame.bounds.width.roundToInt().coerceAtLeast(1), frame.bounds.height.roundToInt().coerceAtLeast(1),
+            ))
             layout(constraints.maxWidth, constraints.maxHeight) {
-                val top = (anchor.center.y - origin.y - panel.height / 2f).roundToInt()
-                    .coerceIn(margin, (constraints.maxHeight - panel.height - margin).coerceAtLeast(margin))
-                panel.placeRelative((constraints.maxWidth - panel.width) / 2, top)
+                container.place(frame.bounds.left.roundToInt(), frame.bounds.top.roundToInt())
+                panel.placeWithLayer(left, top) {
+                    shape = PopupContentClip(frame.bounds.translate(-target.topLeft), frame.radius)
+                    clip = true
+                    alpha = effects.value * ((spatial.value - 0.15f) / 0.85f).coerceIn(0f, 1f)
+                }
             }
         }
     }
 }
 
-/** Reveal full-size content under a bowed right edge, without stretching icons/text. */
-private class SwipeRevealShape(private val progress: Float) : Shape {
+/** The source is always circular, regardless of the actual icon pack's outline. */
+private class PopupContainerShape(private val anchor: Rect, private val progress: Float) : Shape {
     override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline {
-        val fraction = progress.coerceIn(0f, 1f)
-        val right = size.width * fraction
-        val radius = with(density) { 24.dp.toPx() }.coerceAtMost(right / 2f).coerceAtMost(size.height / 2f)
-        if (fraction >= 0.999f) return Outline.Rounded(RoundRect(Rect(Offset.Zero, size), CornerRadius(radius)))
-        val bow = (size.width * 0.2f * (1f - fraction)).coerceAtMost(right * 0.4f)
-        val shoulder = (right - bow).coerceAtLeast(radius)
-        return Outline.Generic(Path().apply {
-            moveTo(radius, 0f)
-            lineTo(shoulder, 0f)
-            cubicTo(right + bow / 3f, size.height * 0.23f, right + bow / 3f, size.height * 0.77f, shoulder, size.height)
-            lineTo(radius, size.height)
-            quadraticTo(0f, size.height, 0f, size.height - radius)
-            lineTo(0f, radius)
-            quadraticTo(0f, 0f, radius, 0f)
-            close()
-        })
+        val start = minOf(anchor.width, anchor.height).coerceAtLeast(1f) / 2f
+        val radius = androidx.compose.ui.util.lerp(start, with(density) { 24.dp.toPx() }, progress.coerceAtLeast(0f))
+            .coerceIn(0f, size.minDimension / 2f)
+        return Outline.Rounded(RoundRect(Rect(Offset.Zero, size), CornerRadius(radius)))
     }
+}
+
+private class PopupContentClip(private val bounds: Rect, private val radius: Float) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
+        Outline.Rounded(RoundRect(bounds, CornerRadius(radius)))
 }

@@ -59,20 +59,15 @@ class FolderComponentsTest {
     )
 
     @Test
-    fun folderRevealFollowsTheHeldFingerAndReversingCancelsIt() {
+    fun folderRevealFinishesWithTheFingerStationaryAndReversingClosesIt() {
         showFolder()
         val row = compose.onNodeWithTag("folder:${folder.id}")
         val pixelsPerDp = density()
         row.performTouchInput {
             down(Offset(8f, centerY))
-            moveTo(Offset(8f + 40f * pixelsPerDp, centerY), delayMillis = 120)
+            moveTo(Offset(8f + 24f * pixelsPerDp, centerY), delayMillis = 120)
         }
-        val partial = progress()
-        assertTrue("The folder opens before UP and follows the partial drag", partial > 0f && partial < 1f)
-        row.performTouchInput {
-            moveTo(Offset(8f + 96f * pixelsPerDp, centerY), delayMillis = 80)
-        }
-        assertEquals("The folder shares the app row's short reveal distance", 1f, progress(), 0.001f)
+        assertEquals("A short swipe starts an opening animation that finishes before UP", 1f, progress(), 0.001f)
         saveScreenshot("folder-popup-held.png")
         row.performTouchInput {
             moveTo(Offset(8f, centerY), delayMillis = 80)
@@ -139,10 +134,10 @@ class FolderComponentsTest {
                         folder = displayedFolder,
                         onOpen = { anchor = it; reveal = ShortcutRevealState() },
                         onLongClick = onLongClick,
-                        onDrag = { bounds, progress ->
+                        onDrag = { bounds, expanded ->
                             anchor = bounds
-                            val state = reveal ?: ShortcutRevealState(progress, dragging = true).also { reveal = it }
-                            state.progress = progress
+                            val state = reveal ?: ShortcutRevealState(expanded, dragging = true).also { reveal = it }
+                            state.expanded = expanded
                             state.dragging = true
                         },
                         onDragEnd = { commit ->
