@@ -2,6 +2,7 @@ package com.galaxyrio.gracelauncher
 
 import android.content.ComponentName
 import android.graphics.Bitmap
+import android.os.SystemClock
 import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -79,6 +80,14 @@ class HomeMediaPlayerTest {
         assertEquals(cover.width, cover.height, 1f)
         val density = context.resources.displayMetrics.density
         assertEquals(favorite.left + 8 * density, cover.left, 1f)
+        assertEquals(date.left, media.left, 1f)
+        assertEquals(date.right, media.right, 1f)
+        assertEquals(favorite.left, media.left, 1f)
+        assertEquals(favorite.right, media.right, 1f)
+        assertTrue("Album and shadow have room above", cover.top - media.top >= 12 * density - 1)
+        assertTrue("Album and shadow have room below", media.bottom - cover.bottom >= 12 * density - 1)
+        val toggleOutline = compose.onNodeWithTag("media_toggle_outline", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
+        assertEquals(40 * density, toggleOutline.width, 1f)
         compose.onNodeWithText("春弦", useUnmergedTree = true).assertIsDisplayed()
         compose.onNodeWithText("塞壬唱片-MSR", useUnmergedTree = true).assertIsDisplayed()
         screenshot("home-media-playing.png")
@@ -178,6 +187,25 @@ class HomeMediaPlayerTest {
         }
         compose.onNodeWithTag("home_media_player").assertIsDisplayed()
         compose.runOnIdle { assertEquals(0, dismissals); assertTrue(commands.isEmpty()) }
+    }
+
+    @Test fun metadataIsPlainTextWithoutAPressedRippleOrClippedGlyphs() {
+        home()
+        val metadata = compose.onNodeWithTag("home_media_metadata")
+        val idle = metadata.captureToImage().asAndroidBitmap()
+        compose.mainClock.autoAdvance = false
+        try {
+            metadata.performTouchInput { down(center) }
+            compose.mainClock.advanceTimeBy(250)
+            SystemClock.sleep(300)
+            val pressed = metadata.captureToImage().asAndroidBitmap()
+            assertTrue("Metadata does not paint an inner ripple", idle.sameAs(pressed))
+        } finally {
+            metadata.performTouchInput { cancel() }
+            compose.mainClock.autoAdvance = true
+        }
+        metadata.performClick()
+        compose.runOnIdle { assertEquals(listOf(track.sessionId to MediaCommand.OpenPlayer), commands) }
     }
 
     private fun screenshot(name: String) {

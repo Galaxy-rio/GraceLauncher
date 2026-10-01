@@ -6,9 +6,14 @@
     <string name="jump_to_letter">Apps starting with %1$s</string>
     <string name="date_calendar_action">%1$s. Open or connect calendar</string>
     <string name="clock_action">%1$s. Open clock</string>
-    <string name="clock_choose_app">Choose a clock app</string>
-    <string name="clock_choose_app_description">No app handles the standard clock action. Choose an app to open.</string>
+    <string name="settings_clock">Clock</string>
+    <string name="clock_choose_app_description">Choose which app opens when you tap the home screen clock.</string>
+    <string name="clock_default_app">Default clock app</string>
+    <string name="clock_default_unavailable">No default clock app found. Please choose one in Settings.</string>
+    <string name="clock_app_unavailable">Couldn’t open the clock app. Please choose one in Settings.</string>
+    <string name="clock_selected_unavailable">Selected app is unavailable</string>
     <string name="clock_apps_load_failed">Couldn’t load apps</string>
+    <string name="clock_apps_loading">Loading apps…</string>
     <string name="event_soon">in &lt;1m</string>
     <string name="event_in_minutes">in %1$dm</string>
     <string name="event_in_hours">in %1$dh</string>

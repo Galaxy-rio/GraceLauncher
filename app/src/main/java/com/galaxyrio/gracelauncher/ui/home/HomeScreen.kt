@@ -3,7 +3,6 @@ package com.galaxyrio.gracelauncher.ui.home
 import android.text.format.DateFormat
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -15,10 +14,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Surface
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -38,6 +41,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
@@ -51,6 +55,7 @@ import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
 import com.galaxyrio.gracelauncher.ui.components.FolderRow
+import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
 import com.galaxyrio.gracelauncher.ui.components.eventRemainingText
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.LauncherFontFamily
@@ -65,7 +70,6 @@ import kotlinx.coroutines.delay
 fun HomeScreen(
     uiState: LauncherUiState,
     topSpace: Dp,
-    viewportHeight: Dp,
     onLaunchApp: (LauncherApp) -> Unit,
     onAppDetails: (LauncherApp) -> Unit,
     onAppShortcuts: (LauncherApp, Rect) -> Unit,
@@ -90,20 +94,20 @@ fun HomeScreen(
     val event = if (uiState.settings.calendarAgenda) nextVisibleEvent(uiState.events, now) else null
     val favorites = uiState.favoriteApps
     val folders = uiState.folders.filter { it.placement == FolderPlacement.Favorites }
-    val configuration = LocalConfiguration.current
     val media = uiState.homeMedia
-    val mediaHeight = if (media != null) (108f * configuration.fontScale.coerceAtLeast(1f)).dp else 0.dp
-    val notificationHeight = (favorites.count { !uiState.notifications[it.packageName].isNullOrEmpty() } * 44 * configuration.fontScale).dp
-    val estimatedHeight = topSpace + (146f * configuration.fontScale).dp + mediaHeight + notificationHeight + ((favorites.size + folders.size) * 56).dp + 72.dp
-    val canScroll = estimatedHeight > viewportHeight
+    val listState = rememberLazyListState()
+    // Larger text, notifications and artwork alter the real height. Never disable
+    // scrolling based on estimated row heights and strand the last favorite.
+    val canScroll by remember { derivedStateOf { listState.canScrollForward || listState.canScrollBackward } }
 
     LazyColumn(
+        state = listState,
         modifier = modifier
             .fillMaxSize()
             .testTag("home_content"),
         // The row's 8dp inset keeps icons aligned at 44dp while giving its
         // rounded touch surface breathing room around the icon.
-        contentPadding = PaddingValues(start = 36.dp, end = 60.dp, top = topSpace, bottom = 72.dp),
+        contentPadding = PaddingValues(start = LauncherLayout.Start, end = LauncherLayout.End, top = topSpace, bottom = 72.dp),
         userScrollEnabled = canScroll,
     ) {
         item(key = "date", contentType = "date") {
@@ -173,20 +177,24 @@ private fun DateHeader(
                 .testTag("home_clock")
                 .semantics { contentDescription = clockDescription }
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClockClick)
-                .padding(horizontal = 8.dp),
+                .padding(horizontal = LauncherLayout.ContentInset),
             color = appearance.text,
+            maxLines = 1,
+            autoSize = TextAutoSize.StepBased(minFontSize = 28.sp, maxFontSize = 72.sp, stepSize = 1.sp),
             style = TextStyle(
                 fontFamily = LauncherFontFamily,
                 fontSize = 72.sp,
-                lineHeight = 82.sp,
-                fontWeight = FontWeight.Thin,
+                lineHeight = 1.14.em,
+                // Body text is 400; request 800. Josefin Sans's closest native
+                // weight is 700, selected by the existing font-family resolver.
+                fontWeight = FontWeight.ExtraBold,
                 letterSpacing = (-3).sp,
                 fontFeatureSettings = "tnum",
                 shadow = appearance.textShadow,
             ),
         )
         Spacer(Modifier.height(5.dp))
-        val shape = RoundedCornerShape(12.dp)
+        val shape = LauncherLayout.RowShape
         // One bounded ripple and accessibility action for the entire compact header.
         // Keep its height content-driven when the optional schedule row is absent.
         Surface(
@@ -205,15 +213,12 @@ private fun DateHeader(
             color = Color.Transparent,
             contentColor = appearance.text,
         ) {
-            val dateStyle = TextStyle(
-                fontFamily = LauncherFontFamily,
-                fontSize = 14.sp,
-                lineHeight = 20.sp,
-                fontWeight = FontWeight.Medium,
+            val dateStyle = MaterialTheme.typography.bodyLarge.copy(
+                fontWeight = FontWeight.Normal,
                 shadow = appearance.textShadow,
             )
-            Column {
-                Row(Modifier.padding(horizontal = 8.dp, vertical = 2.dp)) {
+            Column(Modifier.padding(vertical = LauncherLayout.ContentInset)) {
+                Row(Modifier.padding(horizontal = LauncherLayout.ContentInset, vertical = 2.dp)) {
                     Text(
                         text = dateText + (battery?.let { "  $it%" } ?: ""),
                         modifier = Modifier.weight(1f, fill = false).alignByBaseline().testTag("home_date_text"),
@@ -239,18 +244,15 @@ private fun DateHeader(
 private fun ScheduleLine(event: ScheduleEvent, now: Instant) {
     val appearance = LocalLauncherAppearance.current
     val remaining = eventRemainingText(event, now)
-    val style = TextStyle(
-        fontFamily = LauncherFontFamily,
-        fontSize = 14.sp,
-        lineHeight = 20.sp,
-        fontWeight = FontWeight.Medium,
+    val style = MaterialTheme.typography.bodyLarge.copy(
+        fontWeight = FontWeight.Normal,
         shadow = appearance.textShadow,
     )
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("schedule_line")
-            .padding(horizontal = 8.dp, vertical = 2.dp),
+            .padding(horizontal = LauncherLayout.ContentInset, vertical = 2.dp),
     ) {
         Text(
             text = event.title,

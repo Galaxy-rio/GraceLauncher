@@ -2,6 +2,7 @@ package com.galaxyrio.gracelauncher
 
 import android.content.ActivityNotFoundException
 import android.content.ContextWrapper
+import android.content.ComponentName
 import android.content.Intent
 import android.provider.AlarmClock
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -35,7 +36,7 @@ class ClockLauncherTest {
         assertNull(intent.selector)
     }
 
-    @Test fun missingHandlerRequestsAnAppPickerInsteadOfAnotherAlarmIntent() {
+    @Test fun missingHandlerIsReportedWithoutTryingAnotherAlarmIntent() {
         val context = RecordingContext(ActivityNotFoundException("No clock handler"))
         assertEquals(ClockLaunchResult.NoHandler, ClockLauncher.open(context))
         assertEquals(1, context.launches.size)
@@ -45,5 +46,28 @@ class ClockLauncherTest {
         val context = RecordingContext(SecurityException("Clock activity is protected"))
         assertEquals(ClockLaunchResult.Failed, ClockLauncher.open(context))
         assertEquals(1, context.launches.size)
+    }
+
+    @Test fun selectedClockLaunchesThatExactLauncherActivity() {
+        val context = RecordingContext()
+        val component = ComponentName("selected.clock", "selected.clock.Main")
+        assertEquals(ClockLaunchResult.Opened, ClockLauncher.open(context, component.flattenToString()))
+        val intent = context.launches.single()
+        assertEquals(component, intent.component)
+        assertEquals(Intent.ACTION_MAIN, intent.action)
+        org.junit.Assert.assertTrue(intent.hasCategory(Intent.CATEGORY_LAUNCHER))
+    }
+
+    @Test fun removedCustomAppDoesNotSilentlyLaunchTheDefaultClock() {
+        val context = RecordingContext(ActivityNotFoundException("Uninstalled"))
+        assertEquals(ClockLaunchResult.NoHandler, ClockLauncher.open(context, "removed/removed.Clock"))
+        assertEquals(1, context.launches.size)
+        assertEquals(Intent.ACTION_MAIN, context.launches.single().action)
+    }
+
+    @Test fun malformedSavedChoiceFailsSafely() {
+        val context = RecordingContext()
+        assertEquals(ClockLaunchResult.Failed, ClockLauncher.open(context, "not-a-component"))
+        assertEquals(0, context.launches.size)
     }
 }

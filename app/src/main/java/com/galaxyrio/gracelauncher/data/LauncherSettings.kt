@@ -14,6 +14,8 @@ data class LauncherSettings(
     val weatherEnabled: Boolean = false,
     val weatherForecastDays: Int = 7,
     val weatherLocationId: String? = null,
+    /** null delegates to Android's standard SHOW_ALARMS action. */
+    val clockAppKey: String? = null,
 )
 
 enum class FolderPlacement { Favorites, AppList }

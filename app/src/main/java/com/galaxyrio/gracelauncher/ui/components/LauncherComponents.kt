@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.animation.animateColorAsState
@@ -211,7 +210,7 @@ private fun LauncherRow(
             .heightIn(min = 56.dp)
             .testTag(rowKey)
             .onGloballyPositioned { bounds = it.boundsInWindow() }
-            .clip(RoundedCornerShape(18.dp))
+            .clip(LauncherLayout.RowShape)
             .background(highlight)
             .pointerInput(rowKey, inputEnabled) {
                 if (!inputEnabled) return@pointerInput
@@ -253,14 +252,15 @@ private fun LauncherRow(
                 onClick = { onClick(bounds, iconBounds) },
                 onLongClick = onLongClick,
             )
-            .padding(horizontal = 8.dp, vertical = 8.dp),
+            .padding(LauncherLayout.ContentInset),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        icon(Modifier.onGloballyPositioned { iconBounds = it.boundsInWindow() })
-        Spacer(Modifier.width(20.dp))
+        icon(Modifier.testTag("$rowKey:icon").onGloballyPositioned { iconBounds = it.boundsInWindow() })
+        Spacer(Modifier.width(LauncherLayout.IconLabelGap))
         Column(Modifier.weight(1f)) {
             Text(
                 text = label + (notification?.let { " · ${notificationAge(it.postedAt)}" } ?: ""),
+                modifier = Modifier.testTag("$rowKey:label"),
                 style = MaterialTheme.typography.bodyLarge.merge(
                     TextStyle(fontWeight = FontWeight.Normal, letterSpacing = 0.2.sp, shadow = appearance.textShadow),
                 ),

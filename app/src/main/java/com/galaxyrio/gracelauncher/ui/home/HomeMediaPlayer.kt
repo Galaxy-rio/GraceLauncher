@@ -1,6 +1,9 @@
 package com.galaxyrio.gracelauncher.ui.home
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,17 +25,20 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedIconButton
 import androidx.compose.material3.Text
+import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -42,6 +48,7 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.media.MediaCommand
 import com.galaxyrio.gracelauncher.data.media.NowPlaying
 import com.galaxyrio.gracelauncher.ui.components.LocalLauncherInputEnabled
+import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
 import com.galaxyrio.gracelauncher.ui.components.SwipeDismissContainer
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 
@@ -66,14 +73,19 @@ internal fun HomeMediaPlayer(
         enabled = enabled,
         backgroundColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.18f),
         contentColor = appearance.text,
+        // Clip the dismiss backdrop, not the artwork's faint floating shadow.
+        clipContent = false,
     ) {
-    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 8.dp)) {
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = LauncherLayout.ContentInset, vertical = 12.dp)) {
         // Keep all three controls at 48dp even on a 320dp-wide phone.
-        val coverSize = (maxWidth - 160.dp).coerceIn(48.dp, 88.dp)
+        val coverSize = (maxWidth - 144.dp - LauncherLayout.IconLabelGap).coerceIn(44.dp, 88.dp)
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
             Box(
                 modifier = Modifier.size(coverSize)
                     .testTag("home_media_artwork")
+                    .shadow(2.dp, RoundedCornerShape(6.dp), clip = false,
+                        ambientColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.12f),
+                        spotColor = androidx.compose.ui.graphics.Color.Black.copy(alpha = 0.16f))
                     .clip(RoundedCornerShape(6.dp))
                     .background(MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.85f))
                     .clickable(enabled = enabled, onClickLabel = openLabel, onClick = openPlayer)
@@ -87,10 +99,12 @@ internal fun HomeMediaPlayer(
                         Modifier.size(28.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
-            Spacer(Modifier.width(16.dp))
+            Spacer(Modifier.width(LauncherLayout.IconLabelGap))
             Column(Modifier.weight(1f)) {
-                Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
-                    .clickable(enabled = enabled, onClickLabel = openLabel, onClick = openPlayer)) {
+                // Metadata is plain wallpaper text. No inner surface, clipping or ripple.
+                Column(Modifier.fillMaxWidth().testTag("home_media_metadata")
+                    .clickable(enabled = enabled, interactionSource = remember { MutableInteractionSource() },
+                        indication = null, onClickLabel = openLabel, onClick = openPlayer)) {
                     Text(
                         media.title ?: stringResource(R.string.media_unknown_title),
                         modifier = Modifier.testTag("home_media_title"),
@@ -120,16 +134,25 @@ internal fun HomeMediaPlayer(
                     ) {
                         Icon(painterResource(R.drawable.ms_skip_previous), stringResource(R.string.media_previous), Modifier.size(24.dp))
                     }
-                    OutlinedIconButton(
-                        onClick = { onCommand(media.sessionId, MediaCommand.TogglePlayback) },
-                        enabled = enabled && media.canToggle,
-                        modifier = Modifier.size(48.dp).testTag("media_toggle"),
-                        shape = CircleShape,
-                        border = BorderStroke(1.5.dp, if (media.canToggle) appearance.text else disabledColor),
-                        colors = IconButtonDefaults.outlinedIconButtonColors(contentColor = appearance.text, disabledContentColor = disabledColor),
+                    val toggleInteractions = remember { MutableInteractionSource() }
+                    val toggleLabel = stringResource(if (media.playing) R.string.media_pause else R.string.media_play)
+                    Box(
+                        modifier = Modifier.size(48.dp).testTag("media_toggle")
+                            .clickable(enabled = enabled && media.canToggle, role = Role.Button,
+                                interactionSource = toggleInteractions, indication = null,
+                                onClick = { onCommand(media.sessionId, MediaCommand.TogglePlayback) })
+                            .semantics { contentDescription = toggleLabel },
+                        contentAlignment = Alignment.Center,
                     ) {
-                        Icon(painterResource(if (media.playing) R.drawable.ms_pause else R.drawable.ms_play_arrow),
-                            stringResource(if (media.playing) R.string.media_pause else R.string.media_play), Modifier.size(26.dp))
+                        // A separate visual child keeps both the ring and its ripple
+                        // at 40dp without shrinking the 48dp touch/semantics bounds.
+                        Box(Modifier.size(40.dp).testTag("media_toggle_outline").clip(CircleShape)
+                            .indication(toggleInteractions, ripple(color = appearance.text))
+                            .border(BorderStroke(1.25.dp, if (enabled && media.canToggle) appearance.text else disabledColor), CircleShape),
+                            contentAlignment = Alignment.Center) {
+                            Icon(painterResource(if (media.playing) R.drawable.ms_pause else R.drawable.ms_play_arrow),
+                                null, Modifier.size(22.dp), tint = if (enabled && media.canToggle) appearance.text else disabledColor)
+                        }
                     }
                     IconButton(
                         onClick = { onCommand(media.sessionId, MediaCommand.Next) },

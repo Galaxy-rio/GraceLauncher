@@ -52,22 +52,28 @@ internal fun ProductivitySettings(
         SettingsList(padding) {
             item { SettingsHeading(stringResource(R.string.settings_instant_access)) }
             item {
+                SettingsActionItem(
+                    stringResource(R.string.settings_clock), clockAppSummary(uiState),
+                    0, 4, "settings_clock",
+                ) { navigate(SettingsPage.Clock) }
+            }
+            item {
                 SettingsToggleItem(
                     stringResource(R.string.settings_calendar_agenda), stringResource(R.string.settings_calendar_agenda_summary),
-                    settings.calendarAgenda, 0, 3, "calendar_agenda",
+                    settings.calendarAgenda, 1, 4, "calendar_agenda",
                 ) { value -> actions.updateSettings { current -> current.copy(calendarAgenda = value) } }
             }
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_weather),
                     stringResource(if (settings.weatherEnabled) R.string.weather_settings_enabled_summary else R.string.weather_settings_disabled_summary),
-                    1, 3, "settings_weather",
+                    2, 4, "settings_weather",
                 ) { navigate(SettingsPage.Weather) }
             }
             item {
                 SettingsToggleItem(
                     stringResource(R.string.settings_media_player), stringResource(R.string.media_player_summary),
-                    settings.mediaPlayer, 2, 3, "settings_media_player",
+                    settings.mediaPlayer, 3, 4, "settings_media_player",
                 ) { value ->
                     actions.updateSettings { it.copy(mediaPlayer = value) }
                     if (value && !uiState.media.hasAccess) showMediaAccessDialog = true

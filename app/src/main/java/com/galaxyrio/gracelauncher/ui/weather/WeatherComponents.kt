@@ -4,6 +4,10 @@ import android.text.format.DateFormat
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -32,6 +36,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -42,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.weather.WeatherCondition
@@ -63,13 +70,22 @@ fun HomeWeather(
     val temperature = current.temperature ?: return
     val description = weatherDescription(current.condition, current.description)
     val summary = stringResource(R.string.weather_current_description, description, temperature.format(showUnit = true))
-    Row(
+    Box(
         modifier.testTag("home_weather").clearAndSetSemantics { contentDescription = summary },
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        WeatherIcon(current.condition, current.isDaylight, Modifier.size(19.dp), tint = color)
-        Text(temperature.format(), modifier = Modifier.testTag("home_weather_temperature"), style = textStyle, color = color, maxLines = 1)
+        // Align to the font's text metrics, not the line box (which includes
+        // leading). An em-sized icon also follows the user's font-size setting.
+        Text(
+            text = buildAnnotatedString { appendInlineContent("weather"); append(" ${temperature.format()}") },
+            modifier = Modifier.testTag("home_weather_temperature"),
+            inlineContent = mapOf("weather" to InlineTextContent(
+                Placeholder(1.15.em, 1.15.em, PlaceholderVerticalAlign.TextCenter),
+            ) {
+                WeatherIcon(current.condition, current.isDaylight,
+                    Modifier.fillMaxSize().testTag("home_weather_icon"), tint = color)
+            }),
+            style = textStyle, color = color, maxLines = 1,
+        )
     }
 }
 

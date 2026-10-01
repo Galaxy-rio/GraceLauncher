@@ -1,6 +1,7 @@
 package com.galaxyrio.gracelauncher
 
 import android.content.res.Configuration
+import android.content.ComponentName
 import android.graphics.Bitmap
 import android.os.SystemClock
 import androidx.compose.foundation.background
@@ -43,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.galaxyrio.gracelauncher.data.LauncherSettings
+import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.data.weather.WeatherCondition
 import com.galaxyrio.gracelauncher.data.weather.WeatherCurrent
@@ -156,6 +158,23 @@ class HomeAgendaHeaderTest {
         screenshot("home-agenda-chinese-date.png")
     }
 
+    @Test fun dateAndAgendaMatchAppLabelSizeAndClockRequestsTwiceItsWeight() {
+        val app = LauncherApp(ComponentName("test.clock", "Clock"), "Clock", null)
+        state = state.copy(apps = listOf(app), favoriteKeys = setOf(app.key))
+        showHome(fontScale = 0.85f)
+        val label = layout("app:${app.key}:label").layoutInput.style
+        listOf("home_date_text", "schedule_title", "schedule_remaining").forEach { tag ->
+            assertEquals(label.fontSize, layout(tag).layoutInput.style.fontSize)
+            assertEquals(label.lineHeight, layout(tag).layoutInput.style.lineHeight)
+        }
+        assertEquals(label.fontWeight!!.weight * 2, layout("home_clock").layoutInput.style.fontWeight!!.weight)
+        assertBaselinesEqual("home_date_text", "home_weather_temperature")
+        val temperature = layout("home_weather_temperature")
+        val icon = requireNotNull(temperature.placeholderRects.single())
+        assertTrue("Inline icon scales with the font", icon.height < 20 * context.resources.displayMetrics.density)
+        screenshot("home-alignment-small-font.png")
+    }
+
     @Test fun narrowLargeFontEllipsizesTheTitleAndKeepsMetadataAligned() {
         state = state.copy(events = listOf(allDayEvent("国庆节 National Day 和家人一起外出庆祝")))
         showHome(width = 320.dp, fontScale = 1.5f)
@@ -226,7 +245,6 @@ class HomeAgendaHeaderTest {
                         HomeScreen(
                             uiState = state,
                             topSpace = 36.dp,
-                            viewportHeight = 700.dp,
                             onLaunchApp = {},
                             onAppDetails = {},
                             onAppShortcuts = { _, _ -> },

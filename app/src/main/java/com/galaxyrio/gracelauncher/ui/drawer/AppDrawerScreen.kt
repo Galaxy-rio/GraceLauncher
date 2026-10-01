@@ -28,6 +28,7 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
 import com.galaxyrio.gracelauncher.ui.components.FolderRow
+import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.LauncherFontFamily
 
@@ -54,12 +55,11 @@ fun AppDrawerScreen(
         state = listState,
         modifier = modifier
             .fillMaxSize()
-            .padding(start = 36.dp, end = 56.dp)
             .testTag("app_drawer"),
         // Scrollable leading space, not padding on the viewport: earlier groups
         // may occupy this area after jumping to a later letter. The small, real
         // bottom inset lets LazyColumn naturally clamp sections near the end.
-        contentPadding = PaddingValues(top = topSpace, bottom = 24.dp),
+        contentPadding = PaddingValues(start = LauncherLayout.Start, end = LauncherLayout.End, top = topSpace, bottom = 24.dp),
         userScrollEnabled = selectedLetter == null,
     ) {
         items(
@@ -75,7 +75,7 @@ fun AppDrawerScreen(
                         text = if (item.section == FolderSection) stringResource(R.string.drawer_folders) else item.section,
                         modifier = Modifier
                             .height(44.dp)
-                            .padding(start = 8.dp, end = 8.dp, top = 12.dp)
+                            .padding(start = LauncherLayout.ContentInset, end = LauncherLayout.ContentInset, top = 12.dp)
                             .testTag("section:${item.section}"),
                         color = appearance.text,
                         style = TextStyle(

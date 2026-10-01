@@ -47,6 +47,7 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
             weatherEnabled = settings.weatherEnabled,
             weatherForecastDays = settings.weatherForecastDays.coerceIn(1, 14),
             weatherLocationId = settings.weatherLocationId,
+            clockAppKey = settings.clockAppKey,
         ))
     }
 
@@ -90,4 +91,5 @@ private fun LauncherSettingsEntity.toSettings() = LauncherSettings(
     weatherEnabled = weatherEnabled,
     weatherForecastDays = weatherForecastDays.coerceIn(1, 14),
     weatherLocationId = weatherLocationId,
+    clockAppKey = clockAppKey,
 )

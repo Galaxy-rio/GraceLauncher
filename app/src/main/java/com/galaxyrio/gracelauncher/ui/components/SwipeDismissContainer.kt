@@ -3,7 +3,6 @@ package com.galaxyrio.gracelauncher.ui.components
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -34,6 +33,7 @@ internal fun SwipeDismissContainer(
     enabled: Boolean = true,
     backgroundColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
     contentColor: Color = MaterialTheme.colorScheme.primary,
+    clipContent: Boolean = true,
     content: @Composable () -> Unit,
 ) = key(itemKey) {
     val threshold = with(LocalDensity.current) { 72.dp.toPx() }
@@ -61,7 +61,8 @@ internal fun SwipeDismissContainer(
         enableDismissFromStartToEnd = enabled,
         enableDismissFromEndToStart = enabled,
         onDismiss = dismiss,
-        modifier = modifier.clip(RoundedCornerShape(18.dp)).onSizeChanged { width = it.width.coerceAtLeast(1) }
+        modifier = modifier.then(if (clipContent) Modifier.clip(LauncherLayout.RowShape) else Modifier)
+            .onSizeChanged { width = it.width.coerceAtLeast(1) }
             .pointerInput(enabled) {
                 // Non-clearable notifications still consume a horizontal drag.
                 // Otherwise clickable treats an in-bounds swipe as a message tap.
@@ -73,7 +74,7 @@ internal fun SwipeDismissContainer(
         backgroundContent = {
             if (state.dismissDirection != SwipeToDismissBoxValue.Settled) {
                 Row(
-                    Modifier.fillMaxSize().background(backgroundColor).padding(horizontal = 16.dp),
+                    Modifier.fillMaxSize().background(backgroundColor, LauncherLayout.RowShape).padding(horizontal = 16.dp),
                     horizontalArrangement = if (state.dismissDirection == SwipeToDismissBoxValue.StartToEnd) Arrangement.Start else Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

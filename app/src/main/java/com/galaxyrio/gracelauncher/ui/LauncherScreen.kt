@@ -28,7 +28,12 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Icon
@@ -79,6 +84,8 @@ import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.ui.components.AlphabetRail
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LocalLauncherInputEnabled
+import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
+import com.galaxyrio.gracelauncher.ui.components.statusBarContentFade
 import com.galaxyrio.gracelauncher.platform.AppLaunchTransition
 import com.galaxyrio.gracelauncher.platform.DefaultHome
 import com.galaxyrio.gracelauncher.platform.ClockLauncher
@@ -94,7 +101,6 @@ import com.galaxyrio.gracelauncher.ui.home.HomeScreen
 import com.galaxyrio.gracelauncher.ui.settings.LauncherSettingsScreen
 import com.galaxyrio.gracelauncher.ui.overlays.LauncherOverlay
 import com.galaxyrio.gracelauncher.ui.overlays.LauncherOverlays
-import com.galaxyrio.gracelauncher.ui.overlays.ClockAppPicker
 import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherAppearance
@@ -118,10 +124,6 @@ fun LauncherRoute(
     val context = LocalContext.current
     val launchView = LocalView.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    var showClockPicker by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(viewModel) {
-        viewModel.returnHomeRequests.collect { showClockPicker = false }
-    }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { viewModel.refreshSchedule() }
@@ -230,6 +232,7 @@ fun LauncherRoute(
         textMode = viewModel::setTextMode,
         themedIcons = viewModel::setThemedIcons,
         refreshIconPacks = viewModel::refreshApps,
+        refreshApps = viewModel::refreshApps,
         updateSettings = { change ->
             val enableCalendar = change(uiState.settings).calendarAgenda && !uiState.settings.calendarAgenda
             viewModel.updateSettings(change)
@@ -279,13 +282,14 @@ fun LauncherRoute(
             returnHomeRequests = viewModel.returnHomeRequests,
             onDateClick = { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) },
             onClockClick = {
-                when (ClockLauncher.open(context)) {
+                when (ClockLauncher.open(context, uiState.settings.clockAppKey)) {
                     ClockLaunchResult.Opened -> Unit
                     ClockLaunchResult.NoHandler -> {
-                        showClockPicker = true
-                        viewModel.refreshApps()
+                        Toast.makeText(context,
+                            if (uiState.settings.clockAppKey == null) R.string.clock_default_unavailable else R.string.clock_app_unavailable,
+                            Toast.LENGTH_LONG).show()
                     }
-                    ClockLaunchResult.Failed -> Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
+                    ClockLaunchResult.Failed -> Toast.makeText(context, R.string.clock_app_unavailable, Toast.LENGTH_LONG).show()
                 }
             },
             onLaunchApp = { app ->
@@ -295,20 +299,6 @@ fun LauncherRoute(
             actions = actions,
         )
     }
-    if (showClockPicker) ClockAppPicker(
-        apps = uiState.apps,
-        isLoading = uiState.isLoadingApps,
-        loadFailed = uiState.appLoadFailed,
-        onSelect = { app ->
-            if (viewModel.launch(app)) showClockPicker = false
-            else {
-                Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
-                viewModel.refreshApps()
-            }
-        },
-        onRetry = viewModel::refreshApps,
-        onDismiss = { showClockPicker = false },
-    )
 }
 
 @Composable
@@ -439,20 +429,24 @@ internal fun LauncherScreen(
         modifier = Modifier.fillMaxSize()
             .retainedPage(visible = !fullScreen || overlay == LauncherOverlay.Settings || overlay is LauncherOverlay.FolderSettings || backProgress.value > 0f)
             .then(if (fullScreen || backProgress.value > 0f) Modifier.clearAndSetSemantics {} else Modifier)
-            .background(scrim).safeDrawingPadding()
+            .background(scrim)
+            // The lists extend behind the status bar. Insets belong to their
+            // scrollable content, not a parent that clips the whole viewport.
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
             .then(if (popupReveal?.dragging == false) Modifier.clearAndSetSemantics {} else Modifier),
     ) {
-        val regularHomeTop = (maxHeight * if (maxHeight < 600.dp) 0.12f else 0.32f).coerceIn(24.dp, 320.dp)
+        val statusBarHeight = WindowInsets.safeDrawing.asPaddingValues().calculateTopPadding()
+        val safeHeight = (maxHeight - statusBarHeight).coerceAtLeast(0.dp)
+        val regularHomeTop = (safeHeight * if (safeHeight < 600.dp) 0.12f else 0.32f).coerceIn(24.dp, 320.dp)
         // Make room above the favorites for the transparent now-playing row.
-        val homeTop = (regularHomeTop - if (uiState.homeMedia != null) 108.dp else 0.dp).coerceAtLeast(24.dp)
-        val drawerTop = maxHeight * 0.28f
-        val railHeight = ((model.letters.size + 1) * 18).dp.coerceAtMost(maxHeight * 0.65f)
-        val railTop = (maxHeight * 0.39f).coerceAtMost(maxHeight - railHeight - 72.dp).coerceAtLeast(0.dp)
+        val homeTop = statusBarHeight + (regularHomeTop - if (uiState.homeMedia != null) 128.dp else 0.dp).coerceAtLeast(24.dp)
+        val drawerTop = statusBarHeight + safeHeight * 0.28f
+        val railHeight = ((model.letters.size + 1) * 18).dp.coerceAtMost(safeHeight * 0.65f)
+        val railTop = statusBarHeight + (safeHeight * 0.39f).coerceAtMost(safeHeight - railHeight - 72.dp).coerceAtLeast(0.dp)
 
         HomeScreen(
             uiState = uiState,
             topSpace = homeTop,
-            viewportHeight = maxHeight,
             onLaunchApp = onLaunchApp,
             onAppDetails = { overlay = LauncherOverlay.AppDetails(it) },
             onAppShortcuts = { app, bounds -> overlay = LauncherOverlay.Shortcuts(app, bounds) },
@@ -471,7 +465,7 @@ internal fun LauncherScreen(
             onMediaCommand = actions.controlMedia,
             onDismissMedia = actions.dismissMedia,
             modifier = Modifier.retainedPage(visible = !drawerOpen || (overlay == null && backProgress.value > 0f))
-                .graphicsLayer { alpha = 1f - drawerVisibility },
+                .graphicsLayer { alpha = 1f - drawerVisibility }.statusBarContentFade(statusBarHeight),
         )
 
         // One complete list and one scroll state for both held and released
@@ -492,7 +486,7 @@ internal fun LauncherScreen(
             onFolderDrag = dragFolder,
             onFolderDragEnd = endFolderDrag,
             modifier = Modifier.retainedPage(visible = drawerOpen)
-                .graphicsLayer { alpha = drawerVisibility },
+                .graphicsLayer { alpha = drawerVisibility }.statusBarContentFade(statusBarHeight),
         )
 
         AlphabetRail(
@@ -519,21 +513,22 @@ internal fun LauncherScreen(
             val fabDescription = stringResource(R.string.launcher_fab_description)
             val settingsLabel = stringResource(R.string.grace_settings)
             Surface(
-                modifier = Modifier.align(Alignment.BottomEnd).padding(end = 56.dp, bottom = 22.dp).size(54.dp)
-                    .testTag("launcher_fab").clip(CircleShape)
-                    .combinedClickable(
-                        enabled = !fullScreen,
-                        interactionSource = remember { MutableInteractionSource() }, indication = ripple(),
-                        role = Role.Button, onLongClickLabel = settingsLabel,
-                        onClick = { overlay = LauncherOverlay.Search },
-                        onLongClick = { overlay = LauncherOverlay.Settings },
-                    ).semantics { contentDescription = fabDescription },
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = LauncherLayout.End, bottom = 22.dp).size(54.dp)
+                    .testTag("launcher_fab_surface"),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.primary,
                 shadowElevation = 6.dp,
             ) {
-                Box(contentAlignment = Alignment.Center) {
+                // Surface owns the shadow outside its outline. Only the inner
+                // hit target/ripple is clipped; an outer clip erases elevation.
+                Box(Modifier.fillMaxSize().testTag("launcher_fab").clip(CircleShape).combinedClickable(
+                        enabled = !fullScreen,
+                        interactionSource = remember { MutableInteractionSource() }, indication = ripple(),
+                        role = Role.Button, onLongClickLabel = settingsLabel,
+                        onClick = { overlay = LauncherOverlay.Search },
+                        onLongClick = { overlay = LauncherOverlay.Settings },
+                    ).semantics { contentDescription = fabDescription }, contentAlignment = Alignment.Center) {
                     // Use the app's real foreground path, without its adaptive background.
                     Icon(painterResource(R.drawable.ic_launcher_foreground), null, Modifier.size(48.dp))
                 }

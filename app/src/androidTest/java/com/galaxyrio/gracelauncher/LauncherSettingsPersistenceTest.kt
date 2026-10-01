@@ -41,7 +41,8 @@ class LauncherSettingsPersistenceTest {
     private fun openRepository(): LauncherSettingsRepository {
         database?.close()
         val reopened = Room.databaseBuilder(context, LauncherDatabase::class.java, databaseName)
-            .addMigrations(LauncherDatabase.Migration1To2, LauncherDatabase.Migration2To3, LauncherDatabase.Migration3To4).build()
+            .addMigrations(LauncherDatabase.Migration1To2, LauncherDatabase.Migration2To3,
+                LauncherDatabase.Migration3To4, LauncherDatabase.Migration4To5).build()
         database = reopened
         return LauncherSettingsRepository(reopened)
     }
@@ -159,6 +160,7 @@ class LauncherSettingsPersistenceTest {
             weatherEnabled = true,
             weatherForecastDays = 10,
             weatherLocationId = "beijing&china",
+            clockAppKey = "test.clock/test.clock.MainActivity",
         )
         val folder = LauncherFolder(
             id = "work",
@@ -174,6 +176,39 @@ class LauncherSettingsPersistenceTest {
         assertEquals(settings, snapshot.settings)
         assertEquals(setOf("mail/MailActivity", "hidden/Activity"), snapshot.hiddenAppKeys)
         assertEquals(listOf(folder.copy(appKeys = folder.appKeys.distinct())), snapshot.folders)
+    }
+
+    @Test
+    fun versionFourKeepsWeatherAndDefaultsClockThenPersistsAndResetsTheChoice() = runBlocking {
+        val schema = InstrumentationRegistry.getInstrumentation().context.assets
+            .open("com.galaxyrio.gracelauncher.data.LauncherDatabase/4.json")
+            .bufferedReader().use { JSONObject(it.readText()).getJSONObject("database") }
+        context.openOrCreateDatabase(databaseName, 0, null).use { legacy ->
+            val entities = schema.getJSONArray("entities")
+            for (index in 0 until entities.length()) {
+                val entity = entities.getJSONObject(index)
+                val table = entity.getString("tableName")
+                fun execute(sql: String) = legacy.execSQL(sql.replace('$' + "{TABLE_NAME}", table))
+                execute(entity.getString("createSql"))
+                entity.optJSONArray("indices")?.let { indices ->
+                    for (i in 0 until indices.length()) execute(indices.getJSONObject(i).getString("createSql"))
+                }
+            }
+            val setup = schema.getJSONArray("setupQueries")
+            for (index in 0 until setup.length()) legacy.execSQL(setup.getString(index))
+            legacy.execSQL("INSERT INTO launcher_settings VALUES (0, 1, 1, 1, 1, -10006364, 'System', NULL, 1, 1, 5, 'city')")
+            legacy.version = 4
+        }
+        val settings = withTimeout(10_000) { openRepository().snapshots.first().settings }
+        assertEquals(null, settings.clockAppKey)
+        assertTrue(settings.weatherEnabled)
+        assertEquals(5, settings.weatherForecastDays)
+        assertEquals("city", settings.weatherLocationId)
+        val selected = settings.copy(clockAppKey = "clock/clock.Alarm")
+        LauncherSettingsRepository(requireNotNull(database)).updateSettings(selected)
+        assertEquals(selected, withTimeout(10_000) { openRepository().snapshots.first().settings })
+        LauncherSettingsRepository(requireNotNull(database)).mutateSettings { it.copy(clockAppKey = null) }
+        assertEquals(settings, withTimeout(10_000) { openRepository().snapshots.first().settings })
     }
 
     @Test
