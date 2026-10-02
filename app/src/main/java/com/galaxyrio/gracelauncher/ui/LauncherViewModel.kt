@@ -394,6 +394,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    fun removeHomeWidget() = persistSettings {
+        var removedId = -1
+        settingsRepository.mutateSettings { current ->
+            removedId = current.homeLayout.widgetId
+            current.copy(homeLayout = current.homeLayout.withoutWidget())
+        }
+        // Deallocate only after Room commits; a storage failure must leave the widget intact.
+        if (removedId >= 0) runCatching {
+            com.galaxyrio.gracelauncher.platform.HomeWidgetHost(getApplication()).deleteAppWidgetId(removedId)
+        }
+    }
+
     fun setHiddenApps(keys: Set<String>) {
         val snapshot = keys.toSet()
         persistSettings { settingsRepository.setHiddenApps(snapshot) }

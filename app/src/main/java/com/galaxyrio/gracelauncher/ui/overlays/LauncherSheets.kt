@@ -49,6 +49,9 @@ sealed interface LauncherOverlay {
     data object Agenda : LauncherOverlay
     data object Favorites : LauncherOverlay
     data object Settings : LauncherOverlay
+    data class SettingsDestination(val page: String) : LauncherOverlay
+    data object HomeWidgetMenu : LauncherOverlay
+    data object CustomWidgetMenu : LauncherOverlay
     data object Search : LauncherOverlay
 }
 
@@ -74,10 +77,14 @@ fun LauncherOverlays(
     searchBackProgress: Float = 0f,
 ) {
     if (overlay == null) return
-    if (overlay == LauncherOverlay.Settings || overlay is LauncherOverlay.FolderSettings) {
+    if (overlay == LauncherOverlay.Settings || overlay is LauncherOverlay.FolderSettings || overlay is LauncherOverlay.SettingsDestination) {
         LauncherSettingsScreen(
             uiState = uiState, actions = actions, onBack = { onChange(null) },
-            initialPage = if (overlay is LauncherOverlay.FolderSettings) "folders" else null,
+            initialPage = when (overlay) {
+                is LauncherOverlay.FolderSettings -> "folders"
+                is LauncherOverlay.SettingsDestination -> overlay.page
+                else -> null
+            },
             initialFolderId = (overlay as? LauncherOverlay.FolderSettings)?.folderId,
         )
         return
@@ -146,11 +153,13 @@ fun LauncherOverlays(
                     actions = actions, onChange = onChange,
                 )
                 LauncherOverlay.Agenda -> AgendaSheet(uiState, actions, onRequestCalendar)
+                LauncherOverlay.HomeWidgetMenu -> HomeWidgetSheet(uiState, actions, onChange, custom = false)
+                LauncherOverlay.CustomWidgetMenu -> HomeWidgetSheet(uiState, actions, onChange, custom = true)
                 LauncherOverlay.Favorites -> FavoritesSheet(uiState, onToggleFavorite, actions.reorderFavorites) { onChange(null) }
                 is LauncherOverlay.Categories -> CategoryPicker(overlay.app, uiState, actions) { onChange(LauncherOverlay.AppDetails(overlay.app)) }
                 is LauncherOverlay.CategoryApps -> CategoryAppsSheet(overlay.name, uiState) { onChange(null); onLaunchApp(it) }
                 LauncherOverlay.Settings, LauncherOverlay.Search, is LauncherOverlay.Shortcuts,
-                is LauncherOverlay.Folder, is LauncherOverlay.FolderSettings -> Unit
+                is LauncherOverlay.Folder, is LauncherOverlay.FolderSettings, is LauncherOverlay.SettingsDestination -> Unit
             }
           }
         }
@@ -208,6 +217,8 @@ internal fun PanelAction(
     tag: String = label,
     iconColumnWidth: Dp = 23.dp,
     iconTextSpacing: Dp = 23.dp,
+    summary: String? = null,
+    trailing: (@Composable () -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     Row(
@@ -221,7 +232,11 @@ internal fun PanelAction(
             LauncherIcon(symbol, Modifier.size(23.dp).testTag("$tag:icon"))
         }
         Spacer(Modifier.width(iconTextSpacing))
-        Text(label, Modifier.testTag("$tag:label"), fontSize = 16.sp, letterSpacing = 0.2.sp)
+        Column(Modifier.weight(1f)) {
+            Text(label, Modifier.testTag("$tag:label"), fontSize = 16.sp, letterSpacing = 0.2.sp)
+            if (summary != null) Text(summary, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+        }
+        if (trailing != null) trailing()
     }
 }
 

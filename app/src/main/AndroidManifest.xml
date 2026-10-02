@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <!-- Actual widget binding is still granted by the user through Android's bind UI. -->
+    <uses-permission android:name="android.permission.BIND_APPWIDGET" tools:ignore="ProtectedPermissions" />
     <!-- Some OEM clocks, including Samsung's, protect SHOW_ALARMS with this permission. -->
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
     <uses-permission android:name="org.breezyweather.READ_PROVIDER" />
@@ -68,6 +70,10 @@
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
+        <activity
+            android:name=".WidgetSetupActivity"
+            android:exported="false"
+            android:theme="@style/Theme.GraceLauncher.Settings" />
         <activity
             android:name=".SettingsActivity"
             android:exported="true"

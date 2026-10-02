@@ -1,0 +1,27 @@
+<resources>
+    <string name="widget_home_menu">Grace widget</string>
+    <string name="widget_add">Add custom widget</string>
+    <string name="widget_choose">Choose a widget</string>
+    <string name="widget_search">Search widgets</string>
+    <string name="widget_none">No widgets found</string>
+    <string name="widget_single_limit">Only one custom widget is supported for now. Stacked widgets are coming later.</string>
+    <string name="widget_setup_error">Couldn’t add this widget. Please try again.</string>
+    <string name="widget_unavailable">This widget is unavailable. Long-press to manage it.</string>
+    <string name="widget_no_configuration">This widget doesn’t provide an available settings page.</string>
+    <string name="widget_move_resize">Move and resize</string>
+    <string name="widget_configuration">Change widget settings</string>
+    <string name="widget_remove">Remove</string>
+    <string name="widget_move_home">Move the clock and app list</string>
+    <string name="widget_resize">Resize widget</string>
+    <string name="widget_adjust_up">Move up / decrease height</string>
+    <string name="widget_adjust_down">Move down / increase height</string>
+    <string name="widget_calendar">Calendar</string>
+    <string name="widget_calendar_access">Allow calendar access</string>
+    <string name="widget_preview_unavailable">Preview unavailable</string>
+    <string name="widget_group_expanded">Expanded</string>
+    <string name="widget_group_collapsed">Collapsed</string>
+    <plurals name="widget_count">
+        <item quantity="one">%d widget</item>
+        <item quantity="other">%d widgets</item>
+    </plurals>
+</resources>

@@ -17,6 +17,7 @@ data class LauncherSettings(
     /** null delegates to Android's standard SHOW_ALARMS action. */
     val clockAppKey: String? = null,
     val clockStyle: ClockStyle = ClockStyle(),
+    val homeLayout: HomeLayout = HomeLayout(),
 )
 
 enum class FolderPlacement { Favorites, AppList }

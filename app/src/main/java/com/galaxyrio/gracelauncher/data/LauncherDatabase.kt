@@ -36,6 +36,7 @@ data class LauncherSettingsEntity(
     val weatherLocationId: String? = null,
     val clockAppKey: String? = null,
     val clockStyleJson: String? = null,
+    val homeLayoutJson: String? = null,
 )
 
 @Entity(tableName = "hidden_apps")
@@ -119,7 +120,7 @@ abstract class LauncherSettingsDao {
 @Database(
     entities = [LauncherSettingsEntity::class, HiddenAppEntity::class,
         LauncherFolderEntity::class, FolderAppEntity::class],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 abstract class LauncherDatabase : RoomDatabase() {
@@ -160,12 +161,18 @@ abstract class LauncherDatabase : RoomDatabase() {
             }
         }
 
+        val Migration6To7 = object : Migration(6, 7) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN homeLayoutJson TEXT DEFAULT NULL")
+            }
+        }
+
         fun getInstance(context: Context): LauncherDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 LauncherDatabase::class.java,
                 "grace_launcher.db",
-            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6).build().also { instance = it }
+            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7).build().also { instance = it }
         }
     }
 }

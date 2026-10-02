@@ -7,19 +7,16 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -30,8 +27,7 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AppIcon
-import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
-import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
+import com.galaxyrio.gracelauncher.ui.search.LauncherSearchBar
 
 @Composable
 internal fun clockAppSummary(uiState: LauncherUiState): String =
@@ -42,7 +38,8 @@ internal fun clockAppSummary(uiState: LauncherUiState): String =
 /** Choosing a target persists a preference; it never launches the selected app. */
 @Composable
 internal fun ClockSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit) {
-    var query by rememberSaveable { mutableStateOf("") }
+    val queryState = rememberTextFieldState()
+    val query = queryState.text.toString()
     val ownPackage = LocalContext.current.packageName
     val selectedKey = uiState.settings.clockAppKey
     val available = remember(uiState.apps, ownPackage) { uiState.apps.filter { it.packageName != ownPackage } }
@@ -76,12 +73,8 @@ internal fun ClockSettings(uiState: LauncherUiState, actions: LauncherActions, o
             }
             item {
                 Spacer(Modifier.height(20.dp))
-                OutlinedTextField(
-                    value = query, onValueChange = { query = it }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth().testTag("clock_app_query"),
-                    label = { Text(stringResource(R.string.settings_search_apps)) },
-                    leadingIcon = { LauncherIcon(LauncherSymbol.Search) },
-                )
+                LauncherSearchBar(queryState, stringResource(R.string.settings_search_apps), "clock_app_query",
+                    enabled = enabled && !uiState.isLoadingApps && !uiState.appLoadFailed)
                 Spacer(Modifier.height(12.dp))
             }
             when {

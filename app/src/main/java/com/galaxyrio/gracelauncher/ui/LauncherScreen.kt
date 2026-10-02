@@ -78,6 +78,8 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.net.toUri
 import androidx.core.content.ContextCompat
 import com.galaxyrio.gracelauncher.R
+import com.galaxyrio.gracelauncher.MainActivity
+import com.galaxyrio.gracelauncher.WidgetSetupActivity
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
@@ -119,6 +121,7 @@ fun LauncherRoute(
     viewModel: LauncherViewModel,
     settingsOnly: Boolean = false,
     onCloseSettings: () -> Unit = {},
+    widgetEditRequest: Int = 0,
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -164,6 +167,23 @@ fun LauncherRoute(
     }
 
     val actions = LauncherActions(
+        requestCalendarAccess = { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) },
+        addWidget = {
+            when {
+                uiState.isLoadingSettings || uiState.settingsLoadFailed -> Toast.makeText(context, R.string.settings_storage_load_error, Toast.LENGTH_SHORT).show()
+                uiState.settings.homeLayout.hasWidget -> Toast.makeText(context, R.string.widget_single_limit, Toast.LENGTH_LONG).show()
+                else -> openSystemApp(Intent(context, WidgetSetupActivity::class.java))
+            }
+        },
+        configureWidget = {
+            if (uiState.settings.homeLayout.hasWidget) openSystemApp(Intent(context, WidgetSetupActivity::class.java)
+                .putExtra(WidgetSetupActivity.EXTRA_CONFIGURE_ID, uiState.settings.homeLayout.widgetId))
+        },
+        removeWidget = viewModel::removeHomeWidget,
+        moveWidget = {
+            openSystemApp(Intent(context, MainActivity::class.java).putExtra(MainActivity.EXTRA_EDIT_WIDGET, true)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP))
+        },
         refreshWeather = { viewModel.refreshWeather() },
         requestWeatherAccess = {
             when {
@@ -280,6 +300,7 @@ fun LauncherRoute(
     } else {
         LauncherScreen(
             uiState = uiState,
+            widgetEditRequest = widgetEditRequest,
             returnHomeRequests = viewModel.returnHomeRequests,
             onDateClick = { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) },
             onClockClick = {
@@ -312,10 +333,12 @@ internal fun LauncherScreen(
     onToggleFavorite: (LauncherApp) -> Unit,
     actions: LauncherActions = LauncherActions(),
     initialDrawerOpen: Boolean = false,
+    widgetEditRequest: Int = 0,
 ) {
     var drawerOpen by rememberSaveable { mutableStateOf(initialDrawerOpen) }
     var selectedLetter by remember { mutableStateOf<String?>(null) }
     var overlay by remember { mutableStateOf<LauncherOverlay?>(null) }
+    var editingHome by rememberSaveable { mutableStateOf(false) }
     val visibleApps = uiState.visibleApps
     val model = remember(visibleApps, uiState.folders) { AppListModel(visibleApps, uiState.folders) }
     val drawerState = rememberLazyListState()
@@ -323,7 +346,9 @@ internal fun LauncherScreen(
     val view = LocalView.current
     val context = LocalContext.current
     val haptics = rememberLauncherHaptics(uiState.settings.allowHapticFeedback)
-    val fullScreen = overlay == LauncherOverlay.Settings || overlay == LauncherOverlay.Search || overlay is LauncherOverlay.FolderSettings
+    val isSettings = overlay == LauncherOverlay.Settings || overlay is LauncherOverlay.FolderSettings || overlay is LauncherOverlay.SettingsDestination
+    val fullScreen = isSettings || overlay == LauncherOverlay.Search
+    val screenActions = actions.copy(moveWidget = { drawerOpen = false; selectedLetter = null; overlay = null; editingHome = true })
     val backProgress = remember { Animatable(0f) }
     val darkSystemIcons = if (fullScreen) MaterialTheme.colorScheme.surface.luminance() > 0.5f else appearance.darkText
     SideEffect {
@@ -336,7 +361,10 @@ internal fun LauncherScreen(
     }
 
     LaunchedEffect(returnHomeRequests) {
-        returnHomeRequests.collect { drawerOpen = false; selectedLetter = null; overlay = null }
+        returnHomeRequests.collect { drawerOpen = false; selectedLetter = null; overlay = null; editingHome = false }
+    }
+    LaunchedEffect(widgetEditRequest) {
+        if (widgetEditRequest > 0) { drawerOpen = false; selectedLetter = null; overlay = null; editingHome = true }
     }
     LaunchedEffect(model.letters) {
         if (selectedLetter !in model.letters) selectedLetter = null
@@ -344,6 +372,7 @@ internal fun LauncherScreen(
     BackHandler(enabled = overlay != LauncherOverlay.Search && !(overlay == null && drawerOpen)) {
         when {
             overlay != null -> overlay = null
+            editingHome -> editingHome = false
             selectedLetter != null -> selectedLetter = null
             else -> drawerOpen = false
         }
@@ -423,12 +452,12 @@ internal fun LauncherScreen(
         drawerAlpha.value * if (overlay == null) (1f - backProgress.value) else 1f
     } else 0f
     CompositionLocalProvider(LocalLauncherAppearance provides appearance, LocalHapticFeedback provides haptics) {
-      CompositionLocalProvider(LocalLauncherInputEnabled provides (!fullScreen && backProgress.value == 0f)) {
+      CompositionLocalProvider(LocalLauncherInputEnabled provides (!fullScreen && !editingHome && backProgress.value == 0f)) {
       BoxWithConstraints(
         // Settings can reveal this retained page during a predictive root back.
         // It remains non-interactive and absent from accessibility while covered.
         modifier = Modifier.fillMaxSize()
-            .retainedPage(visible = !fullScreen || overlay == LauncherOverlay.Settings || overlay is LauncherOverlay.FolderSettings || backProgress.value > 0f)
+            .retainedPage(visible = !fullScreen || isSettings || backProgress.value > 0f)
             .then(if (fullScreen || backProgress.value > 0f) Modifier.clearAndSetSemantics {} else Modifier)
             .background(scrim)
             // The lists extend behind the status bar. Insets belong to their
@@ -457,6 +486,12 @@ internal fun LauncherScreen(
                 overlay = LauncherOverlay.Agenda
             },
             onClockClick = onClockClick,
+            onWidgetMenu = { overlay = LauncherOverlay.HomeWidgetMenu },
+            onCustomWidgetMenu = { overlay = LauncherOverlay.CustomWidgetMenu },
+            editingLayout = editingHome,
+            widgetInputEnabled = !drawerOpen && overlay == null,
+            onTopOffsetChange = { offset -> actions.updateSettings { it.copy(homeLayout = it.homeLayout.copy(topOffsetDp = offset)) } },
+            onWidgetHeightChange = { height -> actions.updateSettings { it.copy(homeLayout = it.homeLayout.copy(widgetHeightDp = height)) } },
             rowGestures = rowGestures,
             highlightedAppKey = highlightedAppKey,
             onOpenFolder = openFolder,
@@ -490,7 +525,7 @@ internal fun LauncherScreen(
                 .graphicsLayer { alpha = drawerVisibility }.statusBarContentFade(),
         )
 
-        AlphabetRail(
+        if (!editingHome) AlphabetRail(
             letters = model.letters,
             selectedLetter = if (drawerOpen) selectedLetter else null,
             height = railHeight,
@@ -511,7 +546,7 @@ internal fun LauncherScreen(
             onScrubFinished = finishScrubbing,
         )
         if (!drawerOpen) {
-            val fabDescription = stringResource(R.string.launcher_fab_description)
+            val fabDescription = stringResource(if (editingHome) R.string.done else R.string.launcher_fab_description)
             val settingsLabel = stringResource(R.string.grace_settings)
             Surface(
                 modifier = Modifier.align(Alignment.BottomEnd).padding(end = LauncherLayout.End, bottom = 22.dp).size(54.dp)
@@ -527,18 +562,19 @@ internal fun LauncherScreen(
                         enabled = !fullScreen,
                         interactionSource = remember { MutableInteractionSource() }, indication = ripple(),
                         role = Role.Button, onLongClickLabel = settingsLabel,
-                        onClick = { overlay = LauncherOverlay.Search },
-                        onLongClick = { overlay = LauncherOverlay.Settings },
+                        onClick = { if (editingHome) editingHome = false else overlay = LauncherOverlay.Search },
+                        onLongClick = { if (editingHome) editingHome = false else overlay = LauncherOverlay.Settings },
                     ).semantics { contentDescription = fabDescription }, contentAlignment = Alignment.Center) {
                     // Use the app's real foreground path, without its adaptive background.
-                    Icon(painterResource(R.drawable.ic_launcher_foreground), null, Modifier.size(48.dp))
+                    Icon(painterResource(if (editingHome) R.drawable.ms_check else R.drawable.ic_launcher_foreground), null,
+                        Modifier.size(if (editingHome) 26.dp else 48.dp))
                 }
             }
         }
       }
       }
       LauncherOverlays(
-          overlay = overlay, uiState = uiState, actions = actions, onChange = { overlay = it },
+          overlay = overlay, uiState = uiState, actions = screenActions, onChange = { overlay = it },
           onLaunchApp = onLaunchApp, onToggleFavorite = onToggleFavorite, onRequestCalendar = onDateClick,
           searchBackProgress = backProgress.value,
       )

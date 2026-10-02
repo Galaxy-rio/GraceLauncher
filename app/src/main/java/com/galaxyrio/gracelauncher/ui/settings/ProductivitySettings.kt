@@ -13,6 +13,8 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
@@ -37,6 +39,7 @@ import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AppIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
+import com.galaxyrio.gracelauncher.ui.search.LauncherSearchBar
 import java.util.UUID
 
 @Composable
@@ -106,10 +109,10 @@ internal fun ProductivitySettings(
             }
             item { SettingsHeading(stringResource(R.string.settings_advanced)) }
             item {
-                SettingsActionItem(stringResource(R.string.settings_add_widget), stringResource(R.string.settings_coming_soon), 0, 4, "settings_add_widget", enabled = false) { }
+                SettingsActionItem(stringResource(R.string.widget_add), null, 0, 4, "settings_add_widget", onClick = actions.addWidget)
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_move_widget), stringResource(R.string.settings_coming_soon), 1, 4, "settings_move_widget", enabled = false) { }
+                SettingsActionItem(stringResource(R.string.settings_move_widget), null, 1, 4, "settings_move_widget", onClick = actions.moveWidget)
             }
             item {
                 SettingsToggleItem(
@@ -145,7 +148,8 @@ internal fun ProductivitySettings(
 @Composable
 internal fun HiddenAppsSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit) {
     var selectedKeys by rememberSaveable { mutableStateOf<List<String>>(uiState.hiddenAppKeys.toList()) }
-    var query by rememberSaveable { mutableStateOf("") }
+    val queryState = rememberTextFieldState()
+    val query = queryState.text.toString()
     val filtered = filterApps(uiState.apps, query)
     SettingsScaffold(
         stringResource(R.string.settings_hide_apps), "settings_hidden_apps", onBack,
@@ -162,7 +166,7 @@ internal fun HiddenAppsSettings(uiState: LauncherUiState, actions: LauncherActio
             item {
                 Text(stringResource(R.string.settings_hide_apps_description), Modifier.padding(horizontal = 4.dp, vertical = 20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            item { AppSearchField(query) { query = it } }
+            item { AppSearchField(queryState) }
             item { SettingsHeading(pluralStringResource(R.plurals.settings_select_count, selectedKeys.size, selectedKeys.size)) }
             appSelectionItems(filtered, selectedKeys.toSet(), "hidden_app") { key ->
                 selectedKeys = toggledKeys(selectedKeys, key)
@@ -206,7 +210,8 @@ internal fun FolderEditorSettings(folderId: String?, uiState: LauncherUiState, a
     var name by rememberSaveable { mutableStateOf(existing?.name.orEmpty()) }
     var selectedKeys by rememberSaveable { mutableStateOf<List<String>>(existing?.appKeys.orEmpty().toList()) }
     var placementName by rememberSaveable { mutableStateOf((existing?.placement ?: FolderPlacement.Favorites).name) }
-    var query by rememberSaveable { mutableStateOf("") }
+    val queryState = rememberTextFieldState()
+    val query = queryState.text.toString()
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
     val filtered = filterApps(uiState.apps, query)
     val placement = FolderPlacement.valueOf(placementName)
@@ -256,7 +261,7 @@ internal fun FolderEditorSettings(folderId: String?, uiState: LauncherUiState, a
                 }
             }
             item { SettingsHeading(stringResource(R.string.settings_folder_members)) }
-            item { AppSearchField(query) { query = it } }
+            item { AppSearchField(queryState) }
             item {
                 Text(pluralStringResource(R.plurals.settings_select_count, selectedKeys.size, selectedKeys.size), Modifier.padding(horizontal = 4.dp, vertical = 12.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -279,14 +284,9 @@ internal fun FolderEditorSettings(folderId: String?, uiState: LauncherUiState, a
 }
 
 @Composable
-private fun AppSearchField(query: String, onChange: (String) -> Unit) {
-    OutlinedTextField(
-        value = query, onValueChange = onChange,
-        enabled = LocalSettingsStorageState.current.canEdit,
-        modifier = Modifier.fillMaxWidth().testTag("settings_app_search"), singleLine = true,
-        label = { Text(stringResource(R.string.settings_search_apps)) },
-        leadingIcon = { LauncherIcon(LauncherSymbol.Search) },
-    )
+private fun AppSearchField(queryState: TextFieldState) {
+    val enabled = LocalSettingsStorageState.current.canEdit
+    LauncherSearchBar(queryState, stringResource(R.string.settings_search_apps), "settings_app_search", enabled = enabled)
 }
 
 private fun LazyListScope.appSelectionItems(apps: List<LauncherApp>, selectedKeys: Set<String>, tagPrefix: String, onToggle: (String) -> Unit) {

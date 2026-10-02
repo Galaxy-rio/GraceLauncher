@@ -1,9 +1,14 @@
 package com.galaxyrio.gracelauncher.ui.home
 
 import android.text.format.DateFormat
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,16 +25,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -57,10 +68,14 @@ import com.galaxyrio.gracelauncher.ui.components.eventRemainingText
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.rememberBatteryPercent
 import com.galaxyrio.gracelauncher.ui.weather.HomeWeather
+import com.galaxyrio.gracelauncher.ui.widgets.HomeWidget
+import com.galaxyrio.gracelauncher.ui.widgets.HomeEditHandle
+import com.galaxyrio.gracelauncher.ui.widgets.rememberHostedWidget
 import java.text.SimpleDateFormat
 import java.time.Instant
 import java.util.Date
 import kotlinx.coroutines.delay
+import kotlin.math.roundToInt
 
 @Composable
 fun HomeScreen(
@@ -80,6 +95,12 @@ fun HomeScreen(
     onFolderDragEnd: (Boolean) -> Unit = {},
     onMediaCommand: (String, MediaCommand) -> Unit = { _, _ -> },
     onDismissMedia: (String, Long) -> Boolean = { _, _ -> false },
+    onWidgetMenu: () -> Unit = {},
+    onCustomWidgetMenu: () -> Unit = {},
+    editingLayout: Boolean = false,
+    widgetInputEnabled: Boolean = true,
+    onTopOffsetChange: (Float) -> Unit = {},
+    onWidgetHeightChange: (Int) -> Unit = {},
 ) {
     val now by produceState(initialValue = Instant.now()) {
         while (true) {
@@ -92,19 +113,37 @@ fun HomeScreen(
     val folders = uiState.folders.filter { it.placement == FolderPlacement.Favorites }
     val media = uiState.homeMedia
     val listState = rememberLazyListState()
+    val homeLayout = uiState.settings.homeLayout
+    val hostedWidget = if (homeLayout.hasWidget && !uiState.isLoadingSettings && !uiState.settingsLoadFailed) rememberHostedWidget(homeLayout) else null
+    var topOffset by remember(homeLayout.topOffsetDp) { mutableFloatStateOf(homeLayout.topOffsetDp) }
+    var widgetHeight by remember(homeLayout.widgetId, homeLayout.widgetHeightDp) { mutableFloatStateOf(homeLayout.widgetHeightDp.toFloat()) }
+    var headerHeightPx by remember { mutableIntStateOf(0) }
+    val density = LocalDensity.current
+    val minimumTop = WindowInsets.safeDrawing.asPaddingValues().calculateTopPadding() + 8.dp
+    LaunchedEffect(editingLayout) { if (editingLayout) listState.scrollToItem(0) }
     // Larger text, notifications and artwork alter the real height. Never disable
     // scrolling based on estimated row heights and strand the last favorite.
     val canScroll by remember { derivedStateOf { listState.canScrollForward || listState.canScrollBackward } }
 
+    BoxWithConstraints(modifier.fillMaxSize()) {
+    val headerHeight = with(density) { headerHeightPx.toDp() }
+    val minWidgetHeight = hostedWidget?.minHeight ?: 0
+    val maximumWidgetHeight = minOf(hostedWidget?.maxHeight ?: 0,
+        (maxHeight - minimumTop - headerHeight - 56.dp).value.toInt()).coerceAtLeast(minWidgetHeight)
+    val resolvedWidgetHeight = if (hostedWidget == null) 0 else
+        (if (widgetHeight == 0f) hostedWidget.defaultHeight else widgetHeight.roundToInt()).coerceIn(minWidgetHeight, maximumWidgetHeight)
+    val maximumTop = (maxHeight - headerHeight - resolvedWidgetHeight.dp - 56.dp).coerceAtLeast(minimumTop)
+    val resolvedTop = (topSpace + topOffset.dp).coerceIn(minimumTop, maximumTop)
+    val resizeLimit = (maxHeight - resolvedTop - headerHeight - 56.dp).value.toInt()
+        .coerceIn(minWidgetHeight, maximumWidgetHeight)
     LazyColumn(
         state = listState,
-        modifier = modifier
-            .fillMaxSize()
+        modifier = Modifier.fillMaxSize()
             .testTag("home_content"),
         // The row's 8dp inset keeps icons aligned at 44dp while giving its
         // rounded touch surface breathing room around the icon.
-        contentPadding = PaddingValues(start = LauncherLayout.Start, end = LauncherLayout.End, top = topSpace, bottom = 72.dp),
-        userScrollEnabled = canScroll,
+        contentPadding = PaddingValues(start = LauncherLayout.Start, end = LauncherLayout.End, top = resolvedTop, bottom = 72.dp),
+        userScrollEnabled = canScroll && !editingLayout,
     ) {
         item(key = "date", contentType = "date") {
             HomeClockHeader(
@@ -112,12 +151,21 @@ fun HomeScreen(
                 event = event,
                 onDateClick = onDateClick,
                 onClockClick = onClockClick,
+                onLongClick = onWidgetMenu,
+                interactive = !editingLayout,
                 clockStyle = uiState.settings.clockStyle,
                 showBattery = uiState.settings.showBatteryPercentage,
                 weather = uiState.weather.snapshot?.current.takeIf {
                     uiState.settings.weatherEnabled && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
                 },
+                modifier = Modifier.fillMaxWidth().onSizeChanged { headerHeightPx = it.height },
             )
+            Spacer(Modifier.height(2.dp))
+        }
+        if (hostedWidget != null) item(key = "widget:${homeLayout.widgetId}", contentType = "widget") {
+            HomeWidget(homeLayout, hostedWidget, resolvedWidgetHeight, editingLayout,
+                enabled = widgetInputEnabled, hapticsEnabled = uiState.settings.allowHapticFeedback,
+                onLongPress = onCustomWidgetMenu)
             Spacer(Modifier.height(2.dp))
         }
         if (media != null) item(key = "media", contentType = "media") {
@@ -145,6 +193,31 @@ fun HomeScreen(
             )
         }
     }
+    // Overlay the handles in the viewport, not outside a lazy item's bounds:
+    // both halves of each circular control must remain inside its hit-test area.
+    if (editingLayout) {
+        val handleModifier = Modifier.padding(start = LauncherLayout.Start, end = LauncherLayout.End)
+        HomeEditHandle(
+            label = stringResource(R.string.widget_move_home), changed = topOffset != 0f, tag = "home_position_handle",
+            onReset = { topOffset = 0f; onTopOffsetChange(0f) },
+            onDelta = { delta ->
+                val currentTop = (topSpace.value + topOffset).coerceIn(minimumTop.value, maximumTop.value)
+                topOffset = (currentTop + delta).coerceIn(minimumTop.value, maximumTop.value) - topSpace.value
+            },
+            onFinished = { onTopOffsetChange(topOffset) },
+            modifier = handleModifier.offset(y = resolvedTop + headerHeight - 20.dp),
+        )
+        if (hostedWidget != null) HomeEditHandle(
+            label = stringResource(R.string.widget_resize), changed = widgetHeight != 0f && widgetHeight.roundToInt() != hostedWidget.defaultHeight,
+            tag = "home_widget_size_handle",
+            onReset = { widgetHeight = 0f; onWidgetHeightChange(0) },
+            onDelta = { delta -> widgetHeight = ((if (widgetHeight == 0f) resolvedWidgetHeight.toFloat() else widgetHeight) + delta)
+                .coerceIn(minWidgetHeight.toFloat(), resizeLimit.toFloat()) },
+            onFinished = { onWidgetHeightChange(if (widgetHeight.roundToInt() == hostedWidget.defaultHeight) 0 else widgetHeight.roundToInt()) },
+            modifier = handleModifier.offset(y = resolvedTop + headerHeight + 2.dp + resolvedWidgetHeight.dp - 20.dp),
+        )
+    }
+    }
 }
 
 @Composable
@@ -160,6 +233,7 @@ internal fun HomeClockHeader(
     interactive: Boolean = true,
     clockTag: String = "home_clock",
     dateTag: String = "home_date",
+    onLongClick: () -> Unit = {},
 ) {
     val appearance = LocalLauncherAppearance.current
     val battery = if (showBattery) rememberBatteryPercent() else null
@@ -181,9 +255,10 @@ internal fun HomeClockHeader(
                 .fillMaxWidth()
                 .testTag(clockTag)
                 .semantics { contentDescription = if (week) dateDescription else clockDescription }
-                .then(if (interactive) Modifier.clickable(
+                .then(if (interactive) Modifier.combinedClickable(
                     interactionSource = remember { MutableInteractionSource() }, indication = null,
                     onClick = if (week) onDateClick else onClockClick,
+                    onLongClick = onLongClick,
                 ) else Modifier)
                 .padding(horizontal = LauncherLayout.ContentInset),
             color = appearance.text,
@@ -196,11 +271,12 @@ internal fun HomeClockHeader(
                 .testTag(dateTag)
                 .semantics { contentDescription = dateDescription }
                 .clip(shape)
-                .then(if (interactive) Modifier.clickable(
+                .then(if (interactive) Modifier.combinedClickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = ripple(color = appearance.text),
                     role = Role.Button,
                     onClick = onDateClick,
+                    onLongClick = onLongClick,
                 ) else Modifier),
             shape = shape,
             color = Color.Transparent,
@@ -217,9 +293,10 @@ internal fun HomeClockHeader(
                             time = clockText, style = clockStyle, textStyle = dateStyle,
                             modifier = Modifier.alignByBaseline()
                                 .semantics { contentDescription = clockDescription }
-                                .then(if (interactive) Modifier.clickable(
+                                .then(if (interactive) Modifier.combinedClickable(
                                     interactionSource = remember { MutableInteractionSource() }, indication = null,
                                     onClick = onClockClick,
+                                    onLongClick = onLongClick,
                                 ) else Modifier),
                             color = appearance.text,
                         )

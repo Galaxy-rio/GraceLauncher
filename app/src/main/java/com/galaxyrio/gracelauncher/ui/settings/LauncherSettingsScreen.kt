@@ -61,7 +61,7 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 
 internal enum class SettingsPage {
-    Root, Productivity, Clock, ClockStyle, Weather, Themes, Advanced, About, HiddenApps, Folders, FolderEditor,
+    Root, Productivity, Clock, ClockStyle, Calendar, Weather, Themes, Advanced, About, HiddenApps, Folders, FolderEditor,
     Changelog, Licenses, AppLicense,
 }
 
@@ -81,6 +81,7 @@ fun LauncherSettingsScreen(
         when {
             initialFolderId != null -> "FolderEditor/${Uri.encode(initialFolderId)}"
             initialPage == "folders" -> SettingsPage.Folders.name
+            initialPage != null -> SettingsPage.entries.firstOrNull { it.name == initialPage }?.name ?: SettingsPage.Root.name
             else -> SettingsPage.Root.name
         }
     }
@@ -163,6 +164,7 @@ fun LauncherSettingsScreen(
                     SettingsPage.Weather -> WeatherSettings(uiState, actions, back)
                     SettingsPage.Themes -> ThemeSettings(uiState, actions, back) { navigate(SettingsPage.ClockStyle) }
                     SettingsPage.ClockStyle -> ClockStyleSettings(uiState, actions, back)
+                    SettingsPage.Calendar -> CalendarSettings(uiState, actions, back)
                     SettingsPage.Advanced -> SettingsScaffold(stringResource(R.string.settings_advanced), "settings_advanced", back) { padding ->
                         Box(
                             Modifier.fillMaxSize().padding(padding).padding(24.dp),
