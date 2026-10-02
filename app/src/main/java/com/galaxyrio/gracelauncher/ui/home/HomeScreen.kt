@@ -107,7 +107,7 @@ fun HomeScreen(
         userScrollEnabled = canScroll,
     ) {
         item(key = "date", contentType = "date") {
-            DateHeader(
+            HomeClockHeader(
                 now = now,
                 event = event,
                 onDateClick = onDateClick,
@@ -148,7 +148,7 @@ fun HomeScreen(
 }
 
 @Composable
-private fun DateHeader(
+internal fun HomeClockHeader(
     now: Instant,
     event: ScheduleEvent?,
     onDateClick: () -> Unit,
@@ -156,44 +156,52 @@ private fun DateHeader(
     showBattery: Boolean,
     clockStyle: ClockStyle,
     weather: WeatherCurrent?,
+    modifier: Modifier = Modifier,
+    interactive: Boolean = true,
+    clockTag: String = "home_clock",
+    dateTag: String = "home_date",
 ) {
     val appearance = LocalLauncherAppearance.current
     val battery = if (showBattery) rememberBatteryPercent() else null
     val context = LocalContext.current
     val locale = LocalConfiguration.current.locales[0]
     val clockText = formatHomeClock(now, DateFormat.is24HourFormat(context), locale)
-    val datePattern = DateFormat.getBestDateTimePattern(locale, "MMMEd")
+    val week = clockStyle.layout.week
+    val weekday = SimpleDateFormat("EEE", locale).format(Date.from(now))
+    val datePattern = DateFormat.getBestDateTimePattern(locale, if (week) "MMMd" else "MMMEd")
     val dateText = SimpleDateFormat(datePattern, locale).format(Date.from(now))
     val dateDescription = stringResource(if (weather != null) R.string.weather_agenda_action else R.string.date_calendar_action, dateText)
     val clockDescription = stringResource(R.string.clock_action, clockText)
 
-    Column {
+    Column(modifier) {
         ClockFace(
-            time = clockText,
+            time = if (week) weekday else clockText,
             style = clockStyle,
             modifier = Modifier
                 .fillMaxWidth()
-                .testTag("home_clock")
-                .semantics { contentDescription = clockDescription }
-                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClockClick)
+                .testTag(clockTag)
+                .semantics { contentDescription = if (week) dateDescription else clockDescription }
+                .then(if (interactive) Modifier.clickable(
+                    interactionSource = remember { MutableInteractionSource() }, indication = null,
+                    onClick = if (week) onDateClick else onClockClick,
+                ) else Modifier)
                 .padding(horizontal = LauncherLayout.ContentInset),
             color = appearance.text,
-            shadow = appearance.textShadow,
         )
         Spacer(Modifier.height(2.dp))
         val shape = LauncherLayout.RowShape
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .testTag("home_date")
+                .testTag(dateTag)
                 .semantics { contentDescription = dateDescription }
                 .clip(shape)
-                .clickable(
+                .then(if (interactive) Modifier.clickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = ripple(color = appearance.text),
                     role = Role.Button,
                     onClick = onDateClick,
-                ),
+                ) else Modifier),
             shape = shape,
             color = Color.Transparent,
             contentColor = appearance.text,
@@ -204,9 +212,22 @@ private fun DateHeader(
             )
             Column(Modifier.padding(vertical = LauncherLayout.ContentInset)) {
                 Row(Modifier.padding(horizontal = LauncherLayout.ContentInset, vertical = 2.dp)) {
+                    if (week) {
+                        ClockTimeLabel(
+                            time = clockText, style = clockStyle, textStyle = dateStyle,
+                            modifier = Modifier.alignByBaseline()
+                                .semantics { contentDescription = clockDescription }
+                                .then(if (interactive) Modifier.clickable(
+                                    interactionSource = remember { MutableInteractionSource() }, indication = null,
+                                    onClick = onClockClick,
+                                ) else Modifier),
+                            color = appearance.text,
+                        )
+                        Text(" · ", modifier = Modifier.alignByBaseline(), color = appearance.text, style = dateStyle)
+                    }
                     Text(
                         text = dateText + (battery?.let { "  $it%" } ?: ""),
-                        modifier = Modifier.weight(1f, fill = false).alignByBaseline().testTag("home_date_text"),
+                        modifier = Modifier.weight(1f, fill = false).alignByBaseline().testTag("${dateTag}_text"),
                         color = appearance.text,
                         style = dateStyle,
                         maxLines = 1,

@@ -2,14 +2,23 @@
 
 package com.galaxyrio.gracelauncher.ui.settings
 
-import android.text.format.DateFormat
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.BoundsTransform
+import androidx.compose.animation.animateBounds
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.Animatable
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
@@ -20,10 +29,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawOutline
-import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.LookaheadScope
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
@@ -32,10 +43,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.ClockFaceStyle
 import com.galaxyrio.gracelauncher.data.ClockFontFile
@@ -45,12 +54,15 @@ import com.galaxyrio.gracelauncher.data.ClockStyle
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.home.ClockFace
-import com.galaxyrio.gracelauncher.ui.home.formatHomeClock
+import com.galaxyrio.gracelauncher.ui.home.HomeClockHeader
+import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherAppearance
 import java.time.Instant
 import kotlin.math.roundToInt
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.launch
 
 @Composable
@@ -83,7 +95,7 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
             } finally { importing = false }
         }
     }
-    if (dialog == "font") {
+    if (dialog == "font" && draft.layout.allowsCustomFont) {
         ClockFontDialog(fonts, face.fontId,
             onSelect = { id -> changeFace { it.copy(fontId = id) }; dialog = null },
             onImport = { dialog = null; picker.launch(arrayOf("*/*")) }, onDismiss = { dialog = null })
@@ -93,8 +105,14 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
         face.fontId == null -> stringResource(R.string.clock_font_default)
         else -> fonts.firstOrNull { it.id == face.fontId }?.name ?: stringResource(R.string.clock_font_unavailable)
     }
-    val count = if (draft.layout == ClockLayout.SingleLine) 6 else 5
+    val allowsFont = draft.layout.allowsCustomFont
+    val showsColon = !draft.layout.stacked
+    val weightIndex = if (allowsFont) 2 else 1
+    val separationIndex = weightIndex + 5
+    val count = separationIndex + 1 + if (showsColon) 1 else 0
     val defaults = ClockStyle.defaults(draft.layout)
+    val heroSpec = MaterialTheme.motionScheme.slowSpatialSpec<Rect>()
+    val heroBounds = remember(heroSpec) { BoundsTransform { _, _ -> heroSpec } }
     SettingsScaffold(stringResource(R.string.settings_clock_style), "settings_clock_style_editor", onBack,
         fixedCollapsed = true,
         actions = {
@@ -116,43 +134,68 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
             ) { Text(stringResource(R.string.clock_style_apply)) }
         },
     ) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
-            ClockStylePreview(draft, uiState, Modifier.padding(top = 8.dp, bottom = 16.dp))
-            LazyColumn(
-                Modifier.weight(1f).testTag("clock_style_controls"),
-                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
-                contentPadding = PaddingValues(bottom = 24.dp),
-                userScrollEnabled = !saving,
-            ) {
-                item {
-                    ClockLayoutSelector(draft.layout, count, enabled = !saving && !importing) {
-                        encoded = draft.copy(layout = it).encode()
+        // Both siblings use the same lookahead targets and spring, so the preview's
+        // bottom edge and the controls move together throughout the container transform.
+        LookaheadScope {
+            Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
+                ClockStylePreview(draft, uiState, this@LookaheadScope, heroBounds,
+                    Modifier.padding(top = 8.dp, bottom = 16.dp))
+                LazyColumn(
+                    Modifier.weight(1f).animateBounds(this@LookaheadScope, boundsTransform = heroBounds)
+                        .testTag("clock_style_controls"),
+                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+                    contentPadding = PaddingValues(bottom = 24.dp),
+                    userScrollEnabled = !saving,
+                ) {
+                    clockSetting("layout") {
+                        ClockLayoutSelector(draft, count, enabled = !saving && !importing) {
+                            encoded = draft.copy(layout = it).encode()
+                        }
                     }
-                }
-                item {
-                    SettingsActionItem(stringResource(R.string.settings_font), fontLabel, 1, count,
-                        "clock_font_selector", enabled = !saving && !importing) { dialog = "font" }
-                }
-                item {
-                    ClockSlider(stringResource(R.string.clock_weight), face.weight, defaults.weight,
-                        100..if (face.fontId == null) 700 else 900, step = 100,
-                        index = 2, count = count, tag = "clock_weight", enabled = !saving && !importing,
-                        onChange = { value -> changeFace { it.copy(weight = value) } })
-                }
-                item {
-                    ClockSlider(stringResource(R.string.clock_size), face.size, defaults.size, 32..144, step = 1,
-                        index = 3, count = count, tag = "clock_size", enabled = !saving && !importing,
-                        onChange = { value -> changeFace { it.copy(size = value) } })
-                }
-                item {
-                    ClockSlider(stringResource(R.string.clock_letter_spacing), face.letterSpacing, defaults.letterSpacing, -8..16, step = 1,
-                        index = 4, count = count, tag = "clock_letter_spacing", enabled = !saving && !importing,
-                        onChange = { value -> changeFace { it.copy(letterSpacing = value) } })
-                }
-                if (draft.layout == ClockLayout.SingleLine) item {
-                    SettingsToggleItem(stringResource(R.string.clock_show_colon), stringResource(R.string.clock_show_colon_summary),
-                        face.showColon, 5, count, "clock_show_colon") { value ->
-                        if (!saving && !importing) changeFace { it.copy(showColon = value) }
+                    if (allowsFont) clockSetting("font") {
+                        SettingsActionItem(stringResource(R.string.settings_font), fontLabel, 1, count,
+                            "clock_font_selector", enabled = !saving && !importing) { dialog = "font" }
+                    }
+                    clockSetting("weight") {
+                        ClockSlider(stringResource(R.string.clock_weight), face.weight, defaults.weight,
+                            100..face.maxWeight(draft.layout), step = 100,
+                            index = weightIndex, count = count, tag = "clock_weight", enabled = !saving && !importing,
+                            onChange = { value -> changeFace { it.copy(weight = value) } })
+                    }
+                    clockSetting("size") {
+                        ClockSlider(stringResource(R.string.clock_size), face.size, defaults.size, 32..144, step = 1,
+                            index = weightIndex + 1, count = count, tag = "clock_size", enabled = !saving && !importing,
+                            onChange = { value -> changeFace { it.copy(size = value) } })
+                    }
+                    clockSetting("spacing") {
+                        ClockSlider(stringResource(if (draft.layout.week) R.string.clock_letter_spacing else R.string.clock_digit_spacing),
+                            face.letterSpacing, defaults.letterSpacing, -16..16, step = 1,
+                            index = weightIndex + 2, count = count, tag = "clock_letter_spacing", enabled = !saving && !importing,
+                            onChange = { value -> changeFace { it.copy(letterSpacing = value) } })
+                    }
+                    clockSetting("hour_minute_spacing") {
+                        ClockSlider(stringResource(R.string.clock_hour_minute_spacing), face.hourMinuteSpacing, defaults.hourMinuteSpacing,
+                            -16..64, step = 1, index = weightIndex + 3, count = count,
+                            tag = "clock_hour_minute_spacing", enabled = !saving && !importing,
+                            onChange = { value -> changeFace { it.copy(hourMinuteSpacing = value) } })
+                    }
+                    clockSetting("font_shadow") {
+                        ClockSlider(stringResource(R.string.clock_font_shadow), face.fontShadow, defaults.fontShadow,
+                            0..24, step = 1, index = weightIndex + 4, count = count,
+                            tag = "clock_font_shadow", enabled = !saving && !importing,
+                            onChange = { value -> changeFace { it.copy(fontShadow = value) } })
+                    }
+                    clockSetting("separation") {
+                        SettingsToggleItem(stringResource(R.string.clock_separate_digits), stringResource(R.string.clock_separate_digits_summary),
+                            face.separateDigits, separationIndex, count, "clock_separate_digits") { value ->
+                            if (!saving && !importing) changeFace { it.copy(separateDigits = value) }
+                        }
+                    }
+                    if (showsColon) clockSetting("colon") {
+                        SettingsToggleItem(stringResource(R.string.clock_show_colon), stringResource(R.string.clock_show_colon_summary),
+                            face.showColon, separationIndex + 1, count, "clock_show_colon") { value ->
+                            if (!saving && !importing) changeFace { it.copy(showColon = value) }
+                        }
                     }
                 }
             }
@@ -160,22 +203,35 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
     }
 }
 
+private fun LazyListScope.clockSetting(key: String, content: @Composable () -> Unit) {
+    item(key = key) {
+        // Retain item identity and animate the rows when a preset adds/removes controls.
+        Box(Modifier.animateItem(
+            fadeInSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
+            fadeOutSpec = MaterialTheme.motionScheme.fastEffectsSpec(),
+            placementSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
+        )) { content() }
+    }
+}
+
 @Composable
-private fun ClockLayoutSelector(selected: ClockLayout, count: Int, enabled: Boolean, onSelect: (ClockLayout) -> Unit) {
+private fun ClockLayoutSelector(style: ClockStyle, count: Int, enabled: Boolean, onSelect: (ClockLayout) -> Unit) {
+    // Restore a useful initial viewport, but never reorder or auto-scroll on selection.
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = (style.layout.ordinal - 1).coerceAtLeast(0))
     SegmentedListItem(
         shapes = ListItemDefaults.segmentedShapes(0, count),
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
         modifier = Modifier.testTag("clock_layout_selector"),
         content = {
-            Row(
-                Modifier.fillMaxWidth().selectableGroup().padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            LazyRow(
+                Modifier.fillMaxWidth().selectableGroup().testTag("clock_layout_options"),
+                state = listState,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = PaddingValues(horizontal = 2.dp, vertical = 8.dp),
             ) {
-                ClockLayoutOption(selected, selected = true, enabled = enabled, onSelect = onSelect)
-                VerticalDivider(Modifier.height(28.dp), color = MaterialTheme.colorScheme.outline)
-                ClockLayout.entries.filter { it != selected }.forEach { layout ->
-                    key(layout) { ClockLayoutOption(layout, selected = false, enabled = enabled, onSelect = onSelect) }
+                items(ClockLayout.entries, key = { it.name }) { layout ->
+                    ClockLayoutOption(style.copy(layout = layout), selected = layout == style.layout,
+                        enabled = enabled, onSelect = onSelect)
                 }
             }
         },
@@ -183,54 +239,99 @@ private fun ClockLayoutSelector(selected: ClockLayout, count: Int, enabled: Bool
 }
 
 @Composable
-private fun ClockLayoutOption(layout: ClockLayout, selected: Boolean, enabled: Boolean, onSelect: (ClockLayout) -> Unit) {
+private fun ClockLayoutOption(style: ClockStyle, selected: Boolean, enabled: Boolean, onSelect: (ClockLayout) -> Unit) {
+    val layout = style.layout
     val label = layout.label()
     val colors = MaterialTheme.colorScheme
+    val shape = MaterialTheme.shapes.large
+    val interactions = remember { MutableInteractionSource() }
+    val scale = remember { Animatable(1f) }
+    val pressSpec = MaterialTheme.motionScheme.fastEffectsSpec<Float>()
+    val releaseSpec = MaterialTheme.motionScheme.fastSpatialSpec<Float>()
+    val container by animateColorAsState(
+        if (selected) colors.primaryContainer else colors.primaryContainer.copy(alpha = 0f),
+        MaterialTheme.motionScheme.fastEffectsSpec(), label = "clockCardContainer",
+    )
+    val outline by animateColorAsState(
+        colors.outline.copy(alpha = if (selected) 0f else 1f),
+        MaterialTheme.motionScheme.fastEffectsSpec(), label = "clockCardOutline",
+    )
+    val contentColor by animateColorAsState(
+        if (selected) colors.onPrimaryContainer else colors.onSurfaceVariant,
+        MaterialTheme.motionScheme.fastEffectsSpec(), label = "clockCardContent",
+    )
+    LaunchedEffect(interactions, pressSpec, releaseSpec) {
+        interactions.interactions.filterIsInstance<PressInteraction>().collectLatest { interaction ->
+            when (interaction) {
+                is PressInteraction.Press -> scale.animateTo(0.9f, pressSpec)
+                is PressInteraction.Release -> {
+                    // A quick tap must still visibly compress before springing back.
+                    if (scale.value > 0.94f) scale.animateTo(0.9f, pressSpec)
+                    scale.animateTo(1f, releaseSpec)
+                }
+                is PressInteraction.Cancel -> scale.animateTo(1f, pressSpec)
+            }
+        }
+    }
     Box(
         Modifier.size(72.dp).testTag("clock_layout:${layout.name}")
-            .clip(MaterialTheme.shapes.large)
-            .background(if (selected) colors.primaryContainer else Color.Transparent)
+            .graphicsLayer { scaleX = scale.value; scaleY = scale.value }
+            .clip(shape)
+            .background(container)
+            .border(1.dp, outline, shape)
             .selectable(selected, enabled = enabled && LocalSettingsStorageState.current.canEdit,
+                interactionSource = interactions, indication = ripple(),
                 role = Role.RadioButton, onClick = { onSelect(layout) })
             .semantics { contentDescription = label },
         contentAlignment = Alignment.Center,
     ) {
-        Text(
-            if (layout == ClockLayout.SingleLine) "09:30" else "09\n30",
-            modifier = Modifier.clearAndSetSemantics {},
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Medium,
-                fontSize = if (layout == ClockLayout.SingleLine) 20.sp else 28.sp,
-                lineHeight = 28.sp,
-                letterSpacing = (-1).sp,
-                fontFeatureSettings = "tnum",
-            ),
+        ClockFace(
+            time = if (layout.week) "Fri" else "09:30",
+            style = style,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp).clearAndSetSemantics {},
+            fontScale = 0.3f,
             textAlign = TextAlign.Center,
-            color = if (selected) colors.onPrimaryContainer else colors.onSurfaceVariant,
+            color = contentColor,
         )
     }
 }
 
 @Composable
-private fun ClockStylePreview(style: ClockStyle, uiState: LauncherUiState, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val locale = LocalConfiguration.current.locales[0]
+private fun ClockStylePreview(
+    style: ClockStyle,
+    uiState: LauncherUiState,
+    lookaheadScope: LookaheadScope,
+    boundsTransform: BoundsTransform,
+    modifier: Modifier = Modifier,
+) {
     val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons)
     val now by produceState(Instant.now()) {
         while (true) { value = Instant.now(); delay(60_000 - System.currentTimeMillis() % 60_000) }
     }
-    val shape = MaterialTheme.shapes.extraLarge
+    val shape = ListItemDefaults.segmentedShapes(index = 0, count = 1).shape
     Box(modifier.fillMaxWidth().testTag("clock_style_preview")
-        .height(if (style.layout == ClockLayout.SingleLine) 168.dp else 232.dp)
+        .animateBounds(
+            lookaheadScope = lookaheadScope,
+            modifier = Modifier.heightIn(min = if (style.layout.stacked) 232.dp else 168.dp),
+            boundsTransform = boundsTransform,
+        )
         .drawWithContent {
             // Clear the window, not an isolated offscreen layer. FLAG_SHOW_WALLPAPER
             // supplies the real (including live) wallpaper without reading its bitmap.
             drawOutline(shape.createOutline(size, layoutDirection, this), Color.Transparent, blendMode = BlendMode.Clear)
             drawContent()
         }, contentAlignment = Alignment.CenterStart) {
-        ClockFace(formatHomeClock(now, DateFormat.is24HourFormat(context), locale), style,
-            appearance.text, Modifier.fillMaxWidth().padding(horizontal = 28.dp, vertical = 12.dp)
-                .testTag("clock_style_preview_text"), appearance.textShadow)
+        CompositionLocalProvider(LocalLauncherAppearance provides appearance) {
+            HomeClockHeader(
+                now = now, event = null, onDateClick = {}, onClockClick = {},
+                showBattery = uiState.settings.showBatteryPercentage, clockStyle = style,
+                weather = uiState.weather.snapshot?.current.takeIf {
+                    uiState.settings.weatherEnabled && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
+                },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
+                interactive = false, clockTag = "clock_style_preview_text", dateTag = "clock_style_preview_date",
+            )
+        }
     }
 }
 
@@ -287,4 +388,15 @@ private fun FontOption(label: String, id: String?, selected: String?, onSelect: 
 }
 
 @Composable
-internal fun ClockLayout.label(): String = stringResource(if (this == ClockLayout.SingleLine) R.string.clock_single_line else R.string.clock_two_lines)
+internal fun ClockLayout.label(): String = stringResource(when (this) {
+    ClockLayout.SingleLine -> R.string.clock_single_line
+    ClockLayout.TwoLines -> R.string.clock_two_lines
+    ClockLayout.Week -> R.string.clock_week
+    ClockLayout.Sacramento -> R.string.clock_sacramento
+    ClockLayout.Bokor -> R.string.clock_bokor
+    ClockLayout.Plaster -> R.string.clock_plaster
+    ClockLayout.DoublePlaster -> R.string.clock_double_plaster
+    ClockLayout.Monoton -> R.string.clock_monoton
+    ClockLayout.Lucky -> R.string.clock_lucky
+    ClockLayout.SacramentoWeek -> R.string.clock_sacramento_week
+})

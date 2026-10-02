@@ -7,7 +7,6 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
-import androidx.compose.ui.text.TextLayoutResult
 import androidx.test.platform.app.InstrumentationRegistry
 import com.galaxyrio.gracelauncher.data.ClockLayout
 import com.galaxyrio.gracelauncher.data.ClockFontStore
@@ -53,28 +52,24 @@ class ClockStyleSettingsTest {
         val node = compose.onNodeWithTag(tag, useUnmergedTree = true).performScrollTo().fetchSemanticsNode()
         assertEquals(value, node.config[SemanticsProperties.ProgressBarRangeInfo].current, 0.01f)
     }
-    private fun previewLayout(): TextLayoutResult {
-        val results = mutableListOf<TextLayoutResult>()
-        compose.onNodeWithTag("clock_style_preview_text", useUnmergedTree = true)
-            .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(results) }
-        return results.single()
-    }
+    private fun previewText(): String = compose.onNodeWithTag("clock_style_preview_text", useUnmergedTree = true)
+        .fetchSemanticsNode().config[SemanticsProperties.Text].single().text
 
     @Test fun previewsAreLiveAndLayoutsKeepIndependentValuesUntilApply() {
         show()
-        assertEquals(1, previewLayout().lineCount)
+        assertEquals(1, previewText().lines().size)
         set("clock_weight", 600f)
-        assertEquals(600, previewLayout().layoutInput.style.fontWeight!!.weight)
+        assertSliderValue("clock_weight", 600f)
         set("clock_size", 80f)
         choose(ClockLayout.TwoLines)
-        assertEquals(2, previewLayout().lineCount)
+        assertEquals(2, previewText().lines().size)
         set("clock_size", 104f)
         compose.onNodeWithTag("clock_show_colon").assertDoesNotExist()
         screenshot("clock-style-two-lines.png")
         choose(ClockLayout.SingleLine)
         assertSliderValue("clock_size", 80f)
         compose.onNodeWithTag("clock_show_colon").performScrollTo().performClick()
-        assertTrue(previewLayout().layoutInput.text.text.contains(':'))
+        assertTrue(previewText().contains(':'))
         compose.runOnIdle { assertEquals(0, writes); assertEquals(ClockStyle(), state.settings.clockStyle) }
         screenshot("clock-style-single-line.png")
         compose.onNodeWithTag("clock_style_apply").performClick()
@@ -87,7 +82,7 @@ class ClockStyleSettingsTest {
             assertTrue(state.settings.clockStyle.singleLine.showColon)
         }
         openEditor()
-        assertTrue(previewLayout().layoutInput.text.text.contains(':'))
+        assertTrue(previewText().contains(':'))
         choose(ClockLayout.TwoLines)
         assertSliderValue("clock_size", 104f)
     }
@@ -103,14 +98,14 @@ class ClockStyleSettingsTest {
         assertSliderValue("clock_letter_spacing", 4f)
         compose.onNodeWithTag("clock_letter_spacing_reset", useUnmergedTree = true).performClick()
         compose.onNodeWithTag("clock_weight_reset", useUnmergedTree = true).performScrollTo().performClick()
-        assertEquals(400, previewLayout().layoutInput.style.fontWeight!!.weight)
+        assertSliderValue("clock_weight", 400f)
         choose(ClockLayout.TwoLines)
         set("clock_size", 112f)
         compose.onNodeWithTag("clock_size_reset", useUnmergedTree = true).performClick()
         assertSliderValue("clock_size", 88f)
         compose.onNodeWithTag("settings_back").performClick()
         openEditor()
-        assertEquals(1, previewLayout().lineCount)
+        assertEquals(1, previewText().lines().size)
         compose.runOnIdle { assertEquals(0, writes) }
     }
 

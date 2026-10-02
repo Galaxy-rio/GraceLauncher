@@ -1,5 +1,20 @@
 Bundled launcher fonts
-All font binaries are unmodified upstream releases, licensed under SIL Open Font License 1.1.
+All font binaries are unmodified upstream releases. Their licenses are listed below.
+
+Bundled clock preset fonts (res/font)
+Sacramento: https://github.com/google/fonts/tree/main/ofl/sacramento
+Bokor: https://github.com/google/fonts/tree/main/ofl/bokor
+Plaster: https://github.com/google/fonts/tree/main/ofl/plaster
+Monoton: https://github.com/google/fonts/tree/main/ofl/monoton
+These four fonts are licensed under SIL Open Font License 1.1. Complete upstream
+copyright notices and license texts are in fonts/licenses/sacramento.txt,
+fonts/licenses/bokor.txt, fonts/licenses/plaster.txt and fonts/licenses/monoton.txt.
+
+Luckiest Guy: https://github.com/google/fonts/tree/main/apache/luckiestguy
+Copyright (c) 2010 by Brian J. Bonislawsky DBA Astigmatic (AOETI). All rights reserved.
+Licensed under Apache License 2.0; the complete license is in fonts/licenses/luckiest_guy.txt.
+
+============================================================
 
 JosefinSans[wght].ttf
 Source: https://raw.githubusercontent.com/google/fonts/main/ofl/josefinsans/JosefinSans%5Bwght%5D.ttf

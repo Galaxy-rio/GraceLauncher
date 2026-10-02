@@ -12,6 +12,11 @@
     <string name="clock_weight">字体粗细</string>
     <string name="clock_size">字体大小</string>
     <string name="clock_letter_spacing">字母间距</string>
+    <string name="clock_digit_spacing">数字间距</string>
+    <string name="clock_hour_minute_spacing">时分间距</string>
+    <string name="clock_font_shadow">字体阴影</string>
+    <string name="clock_separate_digits">数字分离</string>
+    <string name="clock_separate_digits_summary">在重叠字形之间留出透明描边</string>
     <string name="clock_show_colon">显示冒号</string>
     <string name="clock_show_colon_summary">在小时和分钟之间显示冒号</string>
     <string name="clock_reset_value">恢复%1$s的默认值</string>
