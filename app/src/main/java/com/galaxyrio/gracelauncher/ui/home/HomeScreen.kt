@@ -121,11 +121,11 @@ fun HomeScreen(
                     uiState.settings.weatherEnabled && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
                 },
             )
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(2.dp))
         }
         if (media != null) item(key = "media", contentType = "media") {
             HomeMediaPlayer(media, onMediaCommand, onDismiss = onDismissMedia)
-            Spacer(Modifier.height(4.dp))
+            Spacer(Modifier.height(2.dp))
         }
         items(favorites, key = LauncherApp::key, contentType = { "app" }) { app ->
             LauncherAppRow(
@@ -185,7 +185,7 @@ private fun DateHeader(
                 fontFamily = LauncherFontFamily,
                 fontSize = 72.sp,
                 lineHeight = 1.14.em,
-                fontWeight = FontWeight.Medium,
+                fontWeight = FontWeight.Normal,
                 letterSpacing = (-3).sp,
                 fontFeatureSettings = "tnum",
                 shadow = appearance.textShadow,
@@ -193,8 +193,6 @@ private fun DateHeader(
         )
         Spacer(Modifier.height(2.dp))
         val shape = LauncherLayout.RowShape
-        // One bounded ripple and accessibility action for the entire compact header.
-        // Keep its height content-driven when the optional schedule row is absent.
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
