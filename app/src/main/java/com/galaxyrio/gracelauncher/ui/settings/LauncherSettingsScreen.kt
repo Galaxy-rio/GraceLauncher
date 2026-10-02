@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
@@ -60,7 +61,7 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 
 internal enum class SettingsPage {
-    Root, Productivity, Clock, Weather, Themes, Advanced, About, HiddenApps, Folders, FolderEditor,
+    Root, Productivity, Clock, ClockStyle, Weather, Themes, Advanced, About, HiddenApps, Folders, FolderEditor,
     Changelog, Licenses, AppLicense,
 }
 
@@ -128,7 +129,7 @@ fun LauncherSettingsScreen(
         modifier = modifier.fillMaxSize().testTag("settings_navigation").graphicsLayer {
             alpha = 1f - rootExit.value
             translationX = distance * direction * rootExit.value
-        }.background(MaterialTheme.colorScheme.surfaceContainer),
+        }.background(if (currentEntry?.destination?.route == SettingsPage.ClockStyle.name) Color.Transparent else MaterialTheme.colorScheme.surfaceContainer),
         enterTransition = { settingsEnter(distance) },
         exitTransition = { settingsExit(distance) },
         popEnterTransition = { settingsEnter(distance, back = true) },
@@ -160,7 +161,8 @@ fun LauncherSettingsScreen(
                     SettingsPage.Productivity -> ProductivitySettings(uiState, actions, back, navigate)
                     SettingsPage.Clock -> ClockSettings(uiState, actions, back)
                     SettingsPage.Weather -> WeatherSettings(uiState, actions, back)
-                    SettingsPage.Themes -> ThemeSettings(uiState, actions, back)
+                    SettingsPage.Themes -> ThemeSettings(uiState, actions, back) { navigate(SettingsPage.ClockStyle) }
+                    SettingsPage.ClockStyle -> ClockStyleSettings(uiState, actions, back)
                     SettingsPage.Advanced -> SettingsScaffold(stringResource(R.string.settings_advanced), "settings_advanced", back) { padding ->
                         Box(
                             Modifier.fillMaxSize().padding(padding).padding(24.dp),

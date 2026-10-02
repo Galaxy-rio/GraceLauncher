@@ -11,6 +11,8 @@ import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.LauncherSettings
 import com.galaxyrio.gracelauncher.data.LauncherSettingsRepository
 import com.galaxyrio.gracelauncher.data.ThemeMode
+import com.galaxyrio.gracelauncher.data.ClockStyle
+import com.galaxyrio.gracelauncher.data.ClockLayout
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import java.util.UUID
 import kotlinx.coroutines.coroutineScope
@@ -42,7 +44,7 @@ class LauncherSettingsPersistenceTest {
         database?.close()
         val reopened = Room.databaseBuilder(context, LauncherDatabase::class.java, databaseName)
             .addMigrations(LauncherDatabase.Migration1To2, LauncherDatabase.Migration2To3,
-                LauncherDatabase.Migration3To4, LauncherDatabase.Migration4To5).build()
+                LauncherDatabase.Migration3To4, LauncherDatabase.Migration4To5, LauncherDatabase.Migration5To6).build()
         database = reopened
         return LauncherSettingsRepository(reopened)
     }
@@ -161,6 +163,9 @@ class LauncherSettingsPersistenceTest {
             weatherForecastDays = 10,
             weatherLocationId = "beijing&china",
             clockAppKey = "test.clock/test.clock.MainActivity",
+            clockStyle = ClockStyle(layout = ClockLayout.TwoLines,
+                singleLine = ClockStyle.defaults(ClockLayout.SingleLine).copy(weight = 700, showColon = true),
+                twoLines = ClockStyle.defaults(ClockLayout.TwoLines).copy(fontId = "test.ttf", size = 100, letterSpacing = 2)),
         )
         val folder = LauncherFolder(
             id = "work",

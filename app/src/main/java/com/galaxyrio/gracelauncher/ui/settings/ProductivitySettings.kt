@@ -150,9 +150,12 @@ internal fun HiddenAppsSettings(uiState: LauncherUiState, actions: LauncherActio
     SettingsScaffold(
         stringResource(R.string.settings_hide_apps), "settings_hidden_apps", onBack,
         actions = {
-            TextButton(onClick = { actions.setHiddenApps(selectedKeys.toSet()); onBack() }, enabled = LocalSettingsStorageState.current.canEdit, modifier = Modifier.testTag("hidden_apps_save")) {
-                Text(stringResource(R.string.settings_save))
-            }
+            SettingsAppBarAction(
+                text = stringResource(R.string.settings_save),
+                onClick = { actions.setHiddenApps(selectedKeys.toSet()); onBack() },
+                enabled = LocalSettingsStorageState.current.canEdit,
+                modifier = Modifier.testTag("hidden_apps_save"),
+            )
         },
     ) { padding ->
         SettingsList(padding) {
@@ -212,14 +215,15 @@ internal fun FolderEditorSettings(folderId: String?, uiState: LauncherUiState, a
         stringResource(if (existing == null) R.string.settings_folder_create else R.string.settings_folder_edit),
         "settings_folder_editor", onBack,
         actions = {
-            TextButton(
+            SettingsAppBarAction(
+                text = stringResource(R.string.settings_save),
                 onClick = {
                     actions.saveFolder(LauncherFolder(id, name.trim(), selectedKeys.toList(), placement))
                     onBack()
                 },
                 enabled = name.isNotBlank() && LocalSettingsStorageState.current.canEdit,
                 modifier = Modifier.testTag("folder_save"),
-            ) { Text(stringResource(R.string.settings_save)) }
+            )
         },
     ) { padding ->
         SettingsList(padding) {

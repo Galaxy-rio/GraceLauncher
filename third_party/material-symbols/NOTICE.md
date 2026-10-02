@@ -55,6 +55,11 @@ em dash with the supplied accessible description.
 
 ### Other icons
 
+Clock-style reset button added 2026-10-02:
+
+- `ms_restart_alt.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/restart_alt/materialsymbolsoutlined/restart_alt_24px.svg
+  (Official SVG path retained; same 24dp conversion and Apache-2.0 license above.)
+
 Favorite reorder handle added 2026-09-27:
 
 - `ms_drag_indicator.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/android/drag_indicator/materialsymbolsoutlined/drag_indicator_24px.xml

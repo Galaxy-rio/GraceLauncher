@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="clock_style_apply">应用</string>
+    <string name="clock_layout">时钟样式</string>
+    <string name="clock_single_line">单行排列</string>
+    <string name="clock_two_lines">双行排列</string>
+    <string name="clock_font_default">默认字体 · Josefin Sans</string>
+    <string name="clock_font_import">导入字体</string>
+    <string name="clock_font_importing">正在导入字体…</string>
+    <string name="clock_font_unavailable">字体不可用 · 已使用默认字体</string>
+    <string name="clock_font_import_error">无法导入字体。请选择包含时钟数字的有效 TTF、OTF 或 TTC 文件，大小不超过 20 MB。</string>
+    <string name="clock_weight">字体粗细</string>
+    <string name="clock_size">字体大小</string>
+    <string name="clock_letter_spacing">字母间距</string>
+    <string name="clock_show_colon">显示冒号</string>
+    <string name="clock_show_colon_summary">在小时和分钟之间显示冒号</string>
+    <string name="clock_reset_value">恢复%1$s的默认值</string>
+</resources>

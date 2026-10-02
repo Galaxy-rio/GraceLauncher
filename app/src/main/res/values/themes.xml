@@ -14,8 +14,9 @@
     </style>
     <!-- Settings is a regular application task, never a second HOME task. -->
     <style name="Theme.GraceLauncher.Settings" parent="Theme.GraceLauncher">
-        <item name="android:windowShowWallpaper">false</item>
-        <item name="android:windowBackground">?android:attr/colorBackground</item>
+        <!-- Only the clock preview is transparent; ordinary settings remain opaque. -->
+        <item name="android:windowShowWallpaper">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowDisablePreview">false</item>
     </style>
 </resources>

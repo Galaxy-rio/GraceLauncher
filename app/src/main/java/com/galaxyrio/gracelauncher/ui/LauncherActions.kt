@@ -4,6 +4,7 @@ import androidx.compose.ui.geometry.Rect
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.LauncherSettings
+import com.galaxyrio.gracelauncher.data.ClockStyle
 import com.galaxyrio.gracelauncher.data.LauncherShortcut
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.data.ShortcutResult
@@ -28,6 +29,7 @@ data class LauncherActions(
     val refreshIconPacks: () -> Unit = {},
     val refreshApps: () -> Unit = {},
     val updateSettings: ((LauncherSettings) -> LauncherSettings) -> Unit = {},
+    val applyClockStyle: suspend (ClockStyle) -> Boolean = { false },
     val setHiddenApps: (Set<String>) -> Unit = {},
     val saveFolder: (LauncherFolder) -> Unit = {},
     val deleteFolder: (String) -> Unit = {},

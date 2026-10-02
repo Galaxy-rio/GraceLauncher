@@ -22,6 +22,7 @@ import com.galaxyrio.gracelauncher.data.LauncherDatabase
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.LauncherPreferences
 import com.galaxyrio.gracelauncher.data.LauncherSettings
+import com.galaxyrio.gracelauncher.data.ClockStyle
 import com.galaxyrio.gracelauncher.data.LauncherSettingsRepository
 import com.galaxyrio.gracelauncher.data.LauncherShortcut
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
@@ -378,6 +379,19 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun updateSettings(transform: (LauncherSettings) -> LauncherSettings) = persistSettings {
         settingsRepository.mutateSettings(transform)
+    }
+
+    suspend fun applyClockStyle(style: ClockStyle): Boolean = settingsWriteMutex.withLock {
+        try {
+            settingsRepository.mutateSettings { it.copy(clockStyle = style) }
+            _uiState.update { it.copy(settingsSaveFailed = false) }
+            true
+        } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            Log.e("LauncherViewModel", "Unable to save clock style", error)
+            _uiState.update { it.copy(settingsSaveFailed = true) }
+            false
+        }
     }
 
     fun setHiddenApps(keys: Set<String>) {

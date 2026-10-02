@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="clock_style_apply">Apply</string>
+    <string name="clock_layout">Clock layout</string>
+    <string name="clock_single_line">Single line</string>
+    <string name="clock_two_lines">Two lines</string>
+    <string name="clock_font_default">Default · Josefin Sans</string>
+    <string name="clock_font_import">Import font</string>
+    <string name="clock_font_importing">Importing font…</string>
+    <string name="clock_font_unavailable">Font unavailable · using default</string>
+    <string name="clock_font_import_error">Could not import this font. Choose a valid TTF, OTF or TTC file with clock digits, up to 20 MB.</string>
+    <string name="clock_weight">Font weight</string>
+    <string name="clock_size">Font size</string>
+    <string name="clock_letter_spacing">Letter spacing</string>
+    <string name="clock_show_colon">Show colon</string>
+    <string name="clock_show_colon_summary">Separate hours and minutes with a colon</string>
+    <string name="clock_reset_value">Reset %1$s to default</string>
+</resources>

@@ -22,11 +22,15 @@ import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTopAppBarState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -45,13 +49,35 @@ internal fun SettingsScaffold(
     tag: String,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
+    fixedCollapsed: Boolean = false,
     actions: @Composable RowScope.() -> Unit = {},
     content: @Composable (PaddingValues) -> Unit,
 ) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val collapsedOffset = with(LocalDensity.current) {
+        (TopAppBarDefaults.LargeAppBarCollapsedHeight -
+            TopAppBarDefaults.LargeFlexibleAppBarWithoutSubtitleExpandedHeight).toPx()
+    }
+    val scrollBehavior = if (fixedCollapsed) {
+        TopAppBarDefaults.pinnedScrollBehavior(
+            state = rememberTopAppBarState(
+                initialHeightOffsetLimit = collapsedOffset,
+                initialHeightOffset = collapsedOffset,
+            ),
+            canScroll = { false },
+        )
+    } else {
+        TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    }
+    // Keep the same flexible bar, including its typography and insets. Pin its
+    // collapsed state even when font scaling changes the measured height limit.
+    LaunchedEffect(fixedCollapsed, scrollBehavior.state.heightOffsetLimit) {
+        if (fixedCollapsed) scrollBehavior.state.heightOffset = scrollBehavior.state.heightOffsetLimit
+    }
     val storage = LocalSettingsStorageState.current
     Scaffold(
-        modifier = modifier.fillMaxSize().testTag(tag).nestedScroll(scrollBehavior.nestedScrollConnection),
+        modifier = modifier.fillMaxSize().testTag(tag).then(
+            if (fixedCollapsed) Modifier else Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        ),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
         topBar = {
             LargeFlexibleTopAppBar(
@@ -86,6 +112,18 @@ internal fun SettingsScaffold(
         },
         content = content,
     )
+}
+
+@Composable
+internal fun SettingsAppBarAction(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    TextButton(onClick = onClick, modifier = modifier, enabled = enabled) {
+        Text(text, style = MaterialTheme.typography.titleLarge)
+    }
 }
 
 @Composable

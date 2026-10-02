@@ -52,7 +52,7 @@ import com.materialkolor.ktx.toDynamicScheme
 import com.materialkolor.ktx.toneColor
 
 @Composable
-internal fun ThemeSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit) {
+internal fun ThemeSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit, onClockStyle: () -> Unit) {
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     val settings = uiState.settings
     when (dialog) {
@@ -95,7 +95,7 @@ internal fun ThemeSettings(uiState: LauncherUiState, actions: LauncherActions, o
             }
             item { SettingsHeading(stringResource(R.string.settings_personalization)) }
             item {
-                SettingsActionItem(stringResource(R.string.settings_clock_style), stringResource(R.string.settings_coming_soon), 0, 3, "settings_clock_style", enabled = false) { }
+                SettingsActionItem(stringResource(R.string.settings_clock_style), uiState.settings.clockStyle.layout.label(), 0, 3, "settings_clock_style", onClick = onClockStyle)
             }
             item {
                 val packName = uiState.iconPacks.firstOrNull { it.packageName == settings.iconPackPackage }?.label
@@ -193,7 +193,7 @@ private fun PaletteOption(seed: Color, selected: Boolean, index: Int, onClick: (
 }
 
 @Composable
-private fun <T> SettingsSelectionDialog(
+internal fun <T> SettingsSelectionDialog(
     title: String,
     items: List<T>,
     selectedItem: T,

@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -36,18 +35,16 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
-import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.FolderPlacement
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
+import com.galaxyrio.gracelauncher.data.ClockStyle
 import com.galaxyrio.gracelauncher.data.nextVisibleEvent
 import com.galaxyrio.gracelauncher.data.media.MediaCommand
 import com.galaxyrio.gracelauncher.data.weather.WeatherCurrent
@@ -58,7 +55,6 @@ import com.galaxyrio.gracelauncher.ui.components.FolderRow
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
 import com.galaxyrio.gracelauncher.ui.components.eventRemainingText
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
-import com.galaxyrio.gracelauncher.ui.theme.LauncherFontFamily
 import com.galaxyrio.gracelauncher.ui.theme.rememberBatteryPercent
 import com.galaxyrio.gracelauncher.ui.weather.HomeWeather
 import java.text.SimpleDateFormat
@@ -116,6 +112,7 @@ fun HomeScreen(
                 event = event,
                 onDateClick = onDateClick,
                 onClockClick = onClockClick,
+                clockStyle = uiState.settings.clockStyle,
                 showBattery = uiState.settings.showBatteryPercentage,
                 weather = uiState.weather.snapshot?.current.takeIf {
                     uiState.settings.weatherEnabled && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
@@ -157,6 +154,7 @@ private fun DateHeader(
     onDateClick: () -> Unit,
     onClockClick: () -> Unit,
     showBattery: Boolean,
+    clockStyle: ClockStyle,
     weather: WeatherCurrent?,
 ) {
     val appearance = LocalLauncherAppearance.current
@@ -170,8 +168,9 @@ private fun DateHeader(
     val clockDescription = stringResource(R.string.clock_action, clockText)
 
     Column {
-        Text(
-            text = clockText.replace(':', ' '),
+        ClockFace(
+            time = clockText,
+            style = clockStyle,
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag("home_clock")
@@ -179,17 +178,7 @@ private fun DateHeader(
                 .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onClockClick)
                 .padding(horizontal = LauncherLayout.ContentInset),
             color = appearance.text,
-            maxLines = 1,
-            autoSize = TextAutoSize.StepBased(minFontSize = 28.sp, maxFontSize = 72.sp, stepSize = 1.sp),
-            style = TextStyle(
-                fontFamily = LauncherFontFamily,
-                fontSize = 72.sp,
-                lineHeight = 1.14.em,
-                fontWeight = FontWeight.Normal,
-                letterSpacing = (-3).sp,
-                fontFeatureSettings = "tnum",
-                shadow = appearance.textShadow,
-            ),
+            shadow = appearance.textShadow,
         )
         Spacer(Modifier.height(2.dp))
         val shape = LauncherLayout.RowShape

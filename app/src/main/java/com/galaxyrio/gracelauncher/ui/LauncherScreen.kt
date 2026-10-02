@@ -233,6 +233,7 @@ fun LauncherRoute(
         themedIcons = viewModel::setThemedIcons,
         refreshIconPacks = viewModel::refreshApps,
         refreshApps = viewModel::refreshApps,
+        applyClockStyle = viewModel::applyClockStyle,
         updateSettings = { change ->
             val enableCalendar = change(uiState.settings).calendarAgenda && !uiState.settings.calendarAgenda
             viewModel.updateSettings(change)
