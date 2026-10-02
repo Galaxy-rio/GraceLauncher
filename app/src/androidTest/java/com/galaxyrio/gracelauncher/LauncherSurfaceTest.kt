@@ -63,8 +63,8 @@ class LauncherSurfaceTest {
         val x = target.center.x.toInt()
         val topGreen = (image.getPixel(x, 1) shr 8) and 255
         val lowerGreen = (image.getPixel(x, (8 * density).toInt()) shr 8) and 255
-        assertTrue("Red icon should be half-visible at the physical edge ($topGreen)", topGreen in 110..145)
-        assertTrue("Content becomes more opaque towards the status-bar lower edge", lowerGreen < topGreen)
+        assertTrue("Red icon should disappear at the physical edge ($topGreen)", topGreen in 250..255)
+        assertTrue("Content fades in gradually below the edge ($lowerGreen)", lowerGreen in 210..225)
         screenshot(image, "drawer-status-bar-fade.png")
     }
 

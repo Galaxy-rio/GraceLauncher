@@ -19,16 +19,18 @@ internal object LauncherLayout {
     val ContentInset = 8.dp
     val IconLabelGap = 20.dp
     val RowShape = RoundedCornerShape(18.dp)
+    // Roughly two status bars tall; keep the fade independent of inset variations.
+    val TopFadeHeight = 56.dp
 }
 
 /** Fade only foreground content, never paint a status-bar-colored strip over the wallpaper. */
-internal fun Modifier.statusBarContentFade(height: Dp): Modifier =
+internal fun Modifier.statusBarContentFade(height: Dp = LauncherLayout.TopFadeHeight): Modifier =
     if (height <= 0.dp) this else graphicsLayer {
         compositingStrategy = CompositingStrategy.Offscreen
     }.drawWithCache {
         val fadeHeight = height.toPx().coerceAtMost(size.height)
         val mask = Brush.verticalGradient(
-            colors = listOf(Color.Black.copy(alpha = 0.5f), Color.Black),
+            colors = listOf(Color.Transparent, Color.Black),
             startY = 0f,
             endY = fadeHeight,
         )

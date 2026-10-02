@@ -158,7 +158,7 @@ class HomeAgendaHeaderTest {
         screenshot("home-agenda-chinese-date.png")
     }
 
-    @Test fun dateAndAgendaMatchAppLabelSizeAndClockRequestsTwiceItsWeight() {
+    @Test fun dateAndAgendaMatchAppLabelSizeAndClockUsesMediumWeight() {
         val app = LauncherApp(ComponentName("test.clock", "Clock"), "Clock", null)
         state = state.copy(apps = listOf(app), favoriteKeys = setOf(app.key))
         showHome(fontScale = 0.85f)
@@ -167,7 +167,10 @@ class HomeAgendaHeaderTest {
             assertEquals(label.fontSize, layout(tag).layoutInput.style.fontSize)
             assertEquals(label.lineHeight, layout(tag).layoutInput.style.lineHeight)
         }
-        assertEquals(label.fontWeight!!.weight * 2, layout("home_clock").layoutInput.style.fontWeight!!.weight)
+        assertEquals(500, layout("home_clock").layoutInput.style.fontWeight!!.weight)
+        val density = context.resources.displayMetrics.density
+        assertEquals("Clock and date keep a compact gap", 2 * density, bounds("home_date").top - bounds("home_clock").bottom, 1f)
+        assertEquals("Date and favorites keep a compact gap", 4 * density, bounds("app:${app.key}").top - bounds("home_date").bottom, 1f)
         assertBaselinesEqual("home_date_text", "home_weather_temperature")
         val temperature = layout("home_weather_temperature")
         val icon = requireNotNull(temperature.placeholderRects.single())

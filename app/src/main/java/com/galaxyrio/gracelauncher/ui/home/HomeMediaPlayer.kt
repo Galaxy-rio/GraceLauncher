@@ -76,7 +76,7 @@ internal fun HomeMediaPlayer(
         // Clip the dismiss backdrop, not the artwork's faint floating shadow.
         clipContent = false,
     ) {
-    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = LauncherLayout.ContentInset, vertical = 12.dp)) {
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = LauncherLayout.ContentInset, vertical = 6.dp)) {
         // Keep all three controls at 48dp even on a 320dp-wide phone.
         val coverSize = (maxWidth - 144.dp - LauncherLayout.IconLabelGap).coerceIn(44.dp, 88.dp)
         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {

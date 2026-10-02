@@ -19,18 +19,20 @@ import org.junit.Test
 class StatusBarFadeTest {
     @get:Rule val compose = createComposeRule()
 
-    @Test fun foregroundFadesFromHalfOpacityToFullOpacityWithoutAnOpaqueScrim() {
+    @Test fun foregroundFadesFromTransparentToFullOpacityWithoutAnOpaqueScrim() {
         compose.setContent {
             Box(Modifier.size(100.dp).background(Color.Black).testTag("fade")) {
-                Box(Modifier.size(100.dp).statusBarContentFade(40.dp).background(Color.White))
+                Box(Modifier.size(100.dp).statusBarContentFade().background(Color.White))
             }
         }
         val bitmap = compose.onNodeWithTag("fade").captureToImage().asAndroidBitmap()
         val x = bitmap.width / 2
         fun brightness(y: Int) = bitmap.getPixel(x, y) and 255
-        assertTrue(brightness(0) in 126..131)
-        assertTrue(brightness(bitmap.height / 5) in 189..196)
-        assertEquals(255, brightness(bitmap.height / 2))
+        assertTrue(brightness(0) in 0..3)
+        // The default 56dp fade is still visible below a typical 28dp status bar.
+        assertTrue(brightness(bitmap.height * 28 / 100) in 125..131)
+        assertTrue(brightness(bitmap.height / 2) in 225..232)
+        assertEquals(255, brightness(bitmap.height * 3 / 5))
         assertEquals(255, brightness(bitmap.height - 1))
     }
 

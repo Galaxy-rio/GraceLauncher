@@ -79,13 +79,19 @@ class HomeMediaPlayerTest {
         assertTrue(media.bottom <= favorite.top)
         assertEquals(cover.width, cover.height, 1f)
         val density = context.resources.displayMetrics.density
+        assertEquals("Date and media retain only a compact gap", 4 * density, media.top - date.bottom, 1f)
+        assertEquals("Media and favorites retain only a compact gap", 4 * density, favorite.top - media.bottom, 1f)
         assertEquals(favorite.left + 8 * density, cover.left, 1f)
         assertEquals(date.left, media.left, 1f)
         assertEquals(date.right, media.right, 1f)
         assertEquals(favorite.left, media.left, 1f)
         assertEquals(favorite.right, media.right, 1f)
-        assertTrue("Album and shadow have room above", cover.top - media.top >= 12 * density - 1)
-        assertTrue("Album and shadow have room below", media.bottom - cover.bottom >= 12 * density - 1)
+        assertTrue("Album and shadow have room above", cover.top - media.top >= 6 * density - 1)
+        assertTrue("Album and shadow have room below", media.bottom - cover.bottom >= 6 * density - 1)
+        val metadata = compose.onNodeWithTag("home_media_metadata").fetchSemanticsNode().boundsInRoot
+        val toggle = compose.onNodeWithTag("media_toggle").fetchSemanticsNode().boundsInRoot
+        assertEquals("Compact top inset", 6 * density, minOf(cover.top, metadata.top) - media.top, 1f)
+        assertEquals("Compact bottom inset", 6 * density, media.bottom - maxOf(cover.bottom, toggle.bottom), 1f)
         val toggleOutline = compose.onNodeWithTag("media_toggle_outline", useUnmergedTree = true).fetchSemanticsNode().boundsInRoot
         assertEquals(40 * density, toggleOutline.width, 1f)
         compose.onNodeWithText("春弦", useUnmergedTree = true).assertIsDisplayed()

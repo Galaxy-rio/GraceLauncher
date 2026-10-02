@@ -121,11 +121,11 @@ fun HomeScreen(
                     uiState.settings.weatherEnabled && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
                 },
             )
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(4.dp))
         }
         if (media != null) item(key = "media", contentType = "media") {
             HomeMediaPlayer(media, onMediaCommand, onDismiss = onDismissMedia)
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(4.dp))
         }
         items(favorites, key = LauncherApp::key, contentType = { "app" }) { app ->
             LauncherAppRow(
@@ -185,15 +185,13 @@ private fun DateHeader(
                 fontFamily = LauncherFontFamily,
                 fontSize = 72.sp,
                 lineHeight = 1.14.em,
-                // Body text is 400; request 800. Josefin Sans's closest native
-                // weight is 700, selected by the existing font-family resolver.
-                fontWeight = FontWeight.ExtraBold,
+                fontWeight = FontWeight.Medium,
                 letterSpacing = (-3).sp,
                 fontFeatureSettings = "tnum",
                 shadow = appearance.textShadow,
             ),
         )
-        Spacer(Modifier.height(5.dp))
+        Spacer(Modifier.height(2.dp))
         val shape = LauncherLayout.RowShape
         // One bounded ripple and accessibility action for the entire compact header.
         // Keep its height content-driven when the optional schedule row is absent.

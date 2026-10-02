@@ -465,7 +465,7 @@ internal fun LauncherScreen(
             onMediaCommand = actions.controlMedia,
             onDismissMedia = actions.dismissMedia,
             modifier = Modifier.retainedPage(visible = !drawerOpen || (overlay == null && backProgress.value > 0f))
-                .graphicsLayer { alpha = 1f - drawerVisibility }.statusBarContentFade(statusBarHeight),
+                .graphicsLayer { alpha = 1f - drawerVisibility }.statusBarContentFade(),
         )
 
         // One complete list and one scroll state for both held and released
@@ -486,7 +486,7 @@ internal fun LauncherScreen(
             onFolderDrag = dragFolder,
             onFolderDragEnd = endFolderDrag,
             modifier = Modifier.retainedPage(visible = drawerOpen)
-                .graphicsLayer { alpha = drawerVisibility }.statusBarContentFade(statusBarHeight),
+                .graphicsLayer { alpha = drawerVisibility }.statusBarContentFade(),
         )
 
         AlphabetRail(
