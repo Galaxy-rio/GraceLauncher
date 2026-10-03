@@ -38,8 +38,9 @@ enum class IconPackStatus { System, Ready, Unavailable }
 class IconPackRepository(private val context: Context) {
     private val pm = context.packageManager
     private val cacheMutex = Mutex()
-    private var cachedKey: String? = null
-    private var cachedPack: LoadedIconPack? = null
+    private val cachedPacks = object : LinkedHashMap<String, Pair<String, LoadedIconPack>>(8, 0.75f, true) {
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, Pair<String, LoadedIconPack>>?): Boolean = size > 12
+    }
 
     suspend fun iconNames(packageName: String): List<String> = withContext(Dispatchers.IO) {
         val pack = load(packageName) ?: return@withContext emptyList()
@@ -95,15 +96,14 @@ class IconPackRepository(private val context: Context) {
                 val info = pm.getPackageInfo(packageName, 0)
                 val config = context.resources.configuration
                 val key = "$packageName:${info.lastUpdateTime}:${info.longVersionCode}:${config.densityDpi}:${config.uiMode}:${config.locales}"
-                if (key == cachedKey) return@safely cachedPack
+                cachedPacks[packageName]?.takeIf { it.first == key }?.let { return@safely it.second }
                 val resources = pm.getResourcesForApplication(packageName)
                 val coroutine = currentCoroutineContext()
                 val definition = readDefinition(resources, packageName) { coroutine.ensureActive() }
                     ?: return@safely null
                 val themed = pm.queryIntentActivities(Intent(ThemedIconAction).setPackage(packageName), 0).isNotEmpty()
                 LoadedIconPack(packageName, resources, definition, themed).also {
-                    cachedKey = key
-                    cachedPack = it
+                    cachedPacks[packageName] = key to it
                 }
             }
         }
@@ -159,6 +159,13 @@ internal class LoadedIconPack(
         return PackIcon(bitmap.asImageBitmap(), safely { themedLayer?.let(::renderIcon)?.asImageBitmap() },
             if (drawable is AdaptiveIconDrawable) 1.4f else 0.76f)
     }
+
+    @Synchronized
+    fun designDrawable(name: String): Drawable? = drawable(name)
+
+    @Synchronized
+    fun designDrawableFor(component: ComponentName): Drawable? =
+        definition.candidates(component.flattenToString(), LocalDate.now().dayOfMonth).firstNotNullOfOrNull(::drawable)
 
     @Synchronized
     fun iconFor(component: ComponentName, original: Drawable?, day: Int = LocalDate.now().dayOfMonth): PackIcon? {

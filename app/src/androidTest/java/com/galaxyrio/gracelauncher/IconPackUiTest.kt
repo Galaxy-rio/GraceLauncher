@@ -2,138 +2,103 @@ package com.galaxyrio.gracelauncher
 
 import android.graphics.Bitmap
 import androidx.compose.runtime.*
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.galaxyrio.gracelauncher.data.AppRepository
 import com.galaxyrio.gracelauncher.data.LauncherSettings
-import com.galaxyrio.gracelauncher.data.icons.IconPackRepository
-import com.galaxyrio.gracelauncher.data.icons.IconPackStatus
+import com.galaxyrio.gracelauncher.data.icons.IconPackInfo
 import com.galaxyrio.gracelauncher.ui.LauncherActions
-import com.galaxyrio.gracelauncher.ui.LauncherScreen
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
-import com.galaxyrio.gracelauncher.ui.settings.IconPackPicker
+import com.galaxyrio.gracelauncher.ui.settings.LauncherSettingsScreen
 import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
 import java.io.File
-import kotlinx.coroutines.runBlocking
 import org.junit.Assert.*
-import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
-import org.junit.runner.RunWith
 
-@RunWith(AndroidJUnit4::class)
 class IconPackUiTest {
     @get:Rule val compose = createComposeRule()
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
+    private val packs = listOf(IconPackInfo("test.alpha", "Alpha icons", null), IconPackInfo("test.beta", "Beta icons", null))
+    private var state by mutableStateOf(LauncherUiState(isLoadingApps = false, iconPacks = packs))
+    private var writes = 0
+    private var refreshes = 0
 
-    @Test fun choosingInstalledPureUpdatesHomeAndCanReturnToSystemIcons() {
-        val repository = IconPackRepository(context)
-        val packs = runBlocking { repository.installedPacks() }
-        assumeTrue(packs.any { it.packageName == IconPackRepositoryTest.PurePackage })
-        val apps = AppRepository(context, repository)
-        val system = runBlocking { apps.loadApps() }
-        val pure = runBlocking { apps.loadApps(IconPackRepositoryTest.PurePackage) }
-        val favorites = system.filter { it.packageName in setOf("com.android.chrome", "com.google.android.gm", "com.google.android.calendar") }
-            .map { it.key }.toSet()
-        var state by mutableStateOf(LauncherUiState(apps = system, favoriteKeys = favorites,
-            isLoadingApps = false, iconPacks = packs, themedIcons = true))
-        var edits = 0
+    private fun show(initialPage: String = "Themes") {
         compose.setContent {
             GraceLauncherTheme(darkTheme = false, dynamicColor = false) {
-                LauncherScreen(state, onDateClick = {}, onClockClick = {}, onLaunchApp = {}, onToggleFavorite = {},
-                    actions = LauncherActions(updateSettings = { change ->
-                        edits++
-                        val settings = change(state.settings)
-                        state = state.copy(settings = settings,
-                            apps = if (settings.iconPackPackage == null) system else pure,
-                            iconPackStatus = if (settings.iconPackPackage == null) IconPackStatus.System else IconPackStatus.Ready)
-                    }))
+                LauncherSettingsScreen(state, LauncherActions(
+                    updateSettings = { change -> writes++; state = state.copy(settings = change(state.settings)) },
+                    refreshIconPacks = { refreshes++ },
+                ), onBack = {}, initialPage = initialPage)
             }
         }
-        openPickerFromHome()
-        compose.onNodeWithTag("icon_pack:system").assertIsSelected()
-        compose.onNodeWithTag("icon_pack:${IconPackRepositoryTest.PurePackage}").assertIsNotSelected()
-        screenshot("icon-pack-picker.png")
-        compose.onNodeWithTag("icon_pack:${IconPackRepositoryTest.PurePackage}").performClick()
+        if (initialPage == "Themes") compose.onNodeWithTag("settings_icon_pack").performScrollTo().performClick()
+        compose.onNodeWithTag("icon_pack_settings").assertIsDisplayed()
+    }
+
+    private fun bounds(tag: String) = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
+    private fun assertOrder(order: List<String>) {
+        compose.runOnIdle { assertEquals(order, state.settings.enabledIconPackPackages) }
+        order.zipWithNext().forEach { (first, second) ->
+            assertTrue(bounds("icon_pack_selected:$first").top < bounds("icon_pack_selected:$second").top)
+        }
+        assertTrue(bounds("icon_pack_selected:${order.last()}").bottom <= bounds("icon_pack:system").top)
+    }
+
+    @Test fun themeOpensFullScreenAndMultiplePacksCanBeReorderedAndRemoved() {
+        show()
         compose.onNodeWithTag("icon_pack_picker").assertDoesNotExist()
-        compose.runOnIdle {
-            assertEquals(1, edits)
-            assertEquals(IconPackRepositoryTest.PurePackage, state.settings.iconPackPackage)
-            assertTrue(state.favoriteApps.all { it.iconPackPackage == IconPackRepositoryTest.PurePackage })
+        compose.onNodeWithTag("icon_pack:system").assertIsOn().assertIsNotEnabled()
+        packs.forEach { compose.onNodeWithTag("icon_pack:${it.packageName}").performScrollTo().performClick() }
+        compose.onNodeWithTag("icon_pack_list").performScrollToIndex(0)
+        assertOrder(packs.map { it.packageName })
+        val distance = bounds("icon_pack_drag:test.beta").center.y - bounds("icon_pack_drag:test.alpha").center.y
+        compose.onNodeWithTag("icon_pack_drag:test.alpha").performTouchInput {
+            swipe(center, center + Offset(0f, distance + 40f), 650)
         }
-        returnHome()
-        compose.onNodeWithTag("home_clock").assertIsDisplayed()
-        screenshot("icon-pack-pure-home.png")
-        openPickerFromHome()
-        compose.onNodeWithTag("icon_pack:${IconPackRepositoryTest.PurePackage}").assertIsSelected()
-        compose.onNodeWithText(context.getString(R.string.settings_cancel)).performClick()
-        compose.runOnIdle { assertEquals("Cancel must not change the pack", 1, edits) }
-        clickSetting("settings_icon_pack")
-        compose.onNodeWithTag("icon_pack:system").performClick()
-        compose.runOnIdle {
-            assertEquals(2, edits)
-            assertNull(state.settings.iconPackPackage)
-            assertTrue(state.apps.all { it.iconPackPackage == null })
-        }
-        returnHome()
-        compose.onNodeWithTag("home_clock").assertIsDisplayed()
-        screenshot("icon-pack-system-home.png")
+        assertOrder(listOf("test.beta", "test.alpha"))
+        compose.onNodeWithTag("icon_pack_drag:test.alpha").performClick()
+        compose.onNodeWithText(context.getString(R.string.favorites_move_up)).performClick()
+        assertOrder(listOf("test.alpha", "test.beta"))
+        screenshot("icon-pack-order.png")
+        compose.onNodeWithTag("icon_pack_selected:test.alpha").performClick()
+        compose.runOnIdle { assertEquals(listOf("test.beta"), state.settings.enabledIconPackPackages) }
+        compose.onNodeWithTag("icon_pack:system").assertIsOn().assertIsNotEnabled()
+        compose.onNodeWithTag("icon_pack:test.alpha").performScrollTo().assertIsOff()
     }
 
-    @Test fun emptyPickerExplainsInstallationAndCancelDoesNotMutateSettings() {
-        var selections = 0
-        var dismissals = 0
-        compose.setContent {
-            GraceLauncherTheme {
-                IconPackPicker(LauncherUiState(), onSelect = { selections++ }, onRefresh = {}, onDismiss = { dismissals++ })
-            }
-        }
-        compose.onNodeWithTag("icon_pack:system").assertIsSelected()
+    @Test fun emptyListStillOffersTheAlwaysSelectedDesignerAndSystemIcons() {
+        state = state.copy(iconPacks = emptyList())
+        show("IconPacks")
+        compose.onNodeWithTag("icon_pack:system").assertIsOn().assertIsNotEnabled()
+        compose.onNodeWithTag("icon_pack_designer").assertIsSelected()
         compose.onNodeWithTag("icon_pack_empty").assertIsDisplayed()
-        compose.onNodeWithText(context.getString(R.string.settings_cancel)).performClick()
-        compose.runOnIdle { assertEquals(0, selections); assertEquals(1, dismissals) }
+        compose.onNodeWithTag("icon_pack_designer").performClick()
+        compose.onNodeWithTag("icon_designer").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(0, writes) }
     }
 
-    @Test fun missingPackKeepsSelectionUntilUserChoosesSystemAndScanFailuresCanRetry() {
-        val missing = "grace.uninstalled.iconpack"
-        var selected: String? = missing
-        var refreshes = 0
-        compose.setContent {
-            GraceLauncherTheme {
-                IconPackPicker(LauncherUiState(settings = LauncherSettings(iconPackPackage = missing),
-                    iconPackStatus = IconPackStatus.Unavailable, iconPacksLoadFailed = true),
-                    onSelect = { selected = it }, onRefresh = { refreshes++ }, onDismiss = {})
-            }
-        }
-        compose.onNodeWithTag("icon_pack:system").assertIsNotSelected()
-        compose.onNodeWithText(context.getString(R.string.icon_pack_missing, missing)).assertIsDisplayed()
-        compose.onNodeWithText(context.getString(R.string.licenses_retry)).performClick()
-        compose.runOnIdle { assertEquals(1, refreshes); assertEquals(missing, selected) }
-        compose.onNodeWithTag("icon_pack:system").performClick()
-        compose.runOnIdle { assertNull(selected) }
+    @Test fun unavailableSelectionSurvivesScanFailuresAndCanBeRemovedExplicitly() {
+        state = state.copy(settings = LauncherSettings(iconPackPackage = "missing.icons"), iconPacksLoadFailed = true)
+        show("IconPacks")
+        compose.onNodeWithTag("icon_pack_selected:missing.icons").assertIsOn()
+        compose.onNodeWithTag("icon_pack:system").assertIsOn().assertIsNotEnabled()
+        compose.onNodeWithText(context.getString(R.string.retry)).performScrollTo().performClick()
+        compose.runOnIdle { assertEquals(1, refreshes); assertEquals(listOf("missing.icons"), state.settings.enabledIconPackPackages) }
+        compose.onNodeWithTag("icon_pack_selected:missing.icons").performScrollTo().performClick()
+        compose.runOnIdle { assertTrue(state.settings.enabledIconPackPackages.isEmpty()); assertEquals(1, writes) }
     }
 
-    private fun openPickerFromHome() {
-        compose.onNodeWithTag("launcher_fab").performTouchInput { longClick() }
-        compose.onNodeWithTag("settings_root").assertIsDisplayed()
-        clickSetting("settings_category_themes")
-        clickSetting("settings_icon_pack")
-        compose.onNodeWithTag("icon_pack_picker").assertIsDisplayed()
-    }
-
-    private fun clickSetting(tag: String) {
-        compose.onNodeWithTag("settings_list").performScrollToNode(hasTestTag(tag))
-        compose.onNodeWithTag(tag).performClick()
-        compose.waitForIdle()
-    }
-
-    private fun returnHome() {
-        compose.onNodeWithTag("settings_back").performClick()
-        compose.waitForIdle()
-        compose.onNodeWithTag("settings_back").performClick()
-        compose.waitForIdle()
+    @Test fun searchFiltersOnlyAllAndKeepsSelectedPacksVisible() {
+        state = state.copy(settings = LauncherSettings().withIconPacks(listOf("test.alpha")))
+        show("IconPacks")
+        compose.onNodeWithTag("icon_pack_query").performScrollTo().performTextReplacement("Beta")
+        compose.onNodeWithTag("icon_pack:test.alpha").assertDoesNotExist()
+        compose.onNodeWithTag("icon_pack:test.beta").assertExists()
+        compose.onNodeWithTag("icon_pack_selected:test.alpha").assertExists()
+        compose.runOnIdle { assertEquals(0, writes) }
     }
 
     private fun screenshot(name: String) {

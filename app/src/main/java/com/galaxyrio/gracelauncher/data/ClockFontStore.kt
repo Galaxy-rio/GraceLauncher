@@ -14,7 +14,7 @@ import kotlinx.coroutines.withContext
 
 data class ClockFontFile(val id: String, val name: String)
 
-/** Import only user-picked font data, never execute/install a font-pack APK. */
+/** Shared by clock and app typography. Retain the original directory and ids for saved clocks. */
 class ClockFontStore(context: Context) {
     private val context = context.applicationContext
     private val directory get() = File(context.filesDir, "clock_fonts")
@@ -25,16 +25,16 @@ class ClockFontStore(context: Context) {
             .sortedBy { it.name.lowercase() }
     }
 
-    suspend fun import(uri: Uri): ClockFontFile = withContext(Dispatchers.IO) {
+    suspend fun import(uri: Uri, requireClockDigits: Boolean = true): ClockFontFile = withContext(Dispatchers.IO) {
         val name = context.contentResolver.query(uri, arrayOf(OpenableColumns.DISPLAY_NAME), null, null, null)?.use {
             if (it.moveToFirst()) it.getString(0) else null
         } ?: "Font.ttf"
-        context.contentResolver.openInputStream(uri)?.use { importStream(it, name) }
+        context.contentResolver.openInputStream(uri)?.use { importStream(it, name, requireClockDigits) }
             ?: throw IllegalArgumentException("Unable to read font")
     }
 
     /** Bounded private copy survives moved/deleted documents and revoked URI grants. */
-    internal fun importStream(input: InputStream, displayName: String): ClockFontFile {
+    internal fun importStream(input: InputStream, displayName: String, requireClockDigits: Boolean = true): ClockFontFile {
         check(directory.isDirectory || directory.mkdirs())
         val extension = displayName.substringAfterLast('.', "").lowercase()
         require(extension in setOf("ttf", "otf", "ttc")) { "Select a TTF, OTF or TTC font" }
@@ -58,8 +58,10 @@ class ClockFontStore(context: Context) {
             require(signature.contentEquals(byteArrayOf(0, 1, 0, 0)) ||
                 String(signature, Charsets.US_ASCII) in setOf("OTTO", "ttcf", "true")) { "Invalid font" }
             val face = requireNotNull(Typeface.Builder(target).build())
-            val paint = Paint().apply { typeface = face }
-            require("0123456789".all { paint.hasGlyph(it.toString()) }) { "Font does not include clock digits" }
+            if (requireClockDigits) {
+                val paint = Paint().apply { typeface = face }
+                require("0123456789".all { paint.hasGlyph(it.toString()) }) { "Font does not include clock digits" }
+            }
             return ClockFontFile(target.name, label)
         } catch (error: Exception) {
             target.delete() // Only the incomplete copy created by this import.
@@ -80,6 +82,8 @@ class ClockFontStore(context: Context) {
     }
 
     companion object {
+        fun displayName(id: String): String? = id.takeIf(::validId)?.substringAfter('_')?.substringBeforeLast('.')
+
         private const val MAX_BYTES = 20 * 1024 * 1024
         private data class CachedTypeface(val typeface: Typeface, val bytes: Int)
         private val cache = object : LruCache<String, CachedTypeface>(32 * 1024 * 1024) {

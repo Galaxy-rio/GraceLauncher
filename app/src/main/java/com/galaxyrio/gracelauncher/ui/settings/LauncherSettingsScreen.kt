@@ -28,6 +28,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -57,6 +58,8 @@ import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
+import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherTypography
+import com.galaxyrio.gracelauncher.ui.theme.SystemLauncherTypography
 import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
@@ -65,7 +68,7 @@ import kotlinx.coroutines.withContext
 
 internal enum class SettingsPage {
     Root, Productivity, Clock, ClockStyle, Calendar, Weather, Themes, Advanced, About, HiddenApps, Folders, FolderEditor,
-    Changelog, Licenses, AppLicense,
+    Changelog, Licenses, AppLicense, IconPacks, IconDesigner, IconDesignerApp,
 }
 
 /** Navigation owns each page's saved state and seekable predictive-back transition. */
@@ -126,14 +129,16 @@ fun LauncherSettingsScreen(
     val storage = SettingsStorageState(
         uiState.isLoadingSettings, uiState.settingsLoadFailed, uiState.settingsSaveFailed,
     )
-    CompositionLocalProvider(LocalSettingsStorageState provides storage) {
+    MaterialTheme(typography = if (uiState.settings.applyFontToSettings) LocalLauncherTypography.current else SystemLauncherTypography) {
+     CompositionLocalProvider(LocalSettingsStorageState provides storage) {
       NavHost(
         navController = navController,
         startDestination = startDestination,
         modifier = modifier.fillMaxSize().testTag("settings_navigation").graphicsLayer {
             alpha = 1f - rootExit.value
             translationX = distance * direction * rootExit.value
-        }.background(if (currentEntry?.destination?.route == SettingsPage.ClockStyle.name) Color.Transparent else MaterialTheme.colorScheme.surfaceContainer),
+        }.background(if (currentEntry?.destination?.route in listOf(SettingsPage.ClockStyle.name, SettingsPage.IconDesigner.name))
+            Color.Transparent else MaterialTheme.colorScheme.surfaceContainer),
         enterTransition = { settingsEnter(distance) },
         exitTransition = { settingsExit(distance) },
         popEnterTransition = { settingsEnter(distance, back = true) },
@@ -165,8 +170,24 @@ fun LauncherSettingsScreen(
                     SettingsPage.Productivity -> ProductivitySettings(uiState, actions, back, navigate)
                     SettingsPage.Clock -> ClockSettings(uiState, actions, back)
                     SettingsPage.Weather -> WeatherSettings(uiState, actions, back)
-                    SettingsPage.Themes -> ThemeSettings(uiState, actions, back) { navigate(SettingsPage.ClockStyle) }
+                    SettingsPage.Themes -> ThemeSettings(uiState, actions, back,
+                        onClockStyle = { navigate(SettingsPage.ClockStyle) }, onIconPacks = { navigate(SettingsPage.IconPacks) })
                     SettingsPage.ClockStyle -> ClockStyleSettings(uiState, actions, back)
+                    SettingsPage.IconPacks -> IconPackSettings(uiState, actions, back) { navigate(SettingsPage.IconDesigner) }
+                    SettingsPage.IconDesigner -> {
+                        val selectedKey by entry.savedStateHandle.getStateFlow<String?>("icon_designer_app", null).collectAsState()
+                        IconDesignerSettings(uiState, actions, selectedKey, back) { navigate(SettingsPage.IconDesignerApp) }
+                    }
+                    SettingsPage.IconDesignerApp -> AppSelectionSettings(
+                        uiState, actions, back, title = stringResource(R.string.icon_designer_choose_app), tag = "icon_designer",
+                        selectedKey = navController.previousBackStackEntry?.savedStateHandle?.get<String>("icon_designer_app"),
+                        onSelect = { key ->
+                            if (isCurrent() && key != null) {
+                                navController.previousBackStackEntry?.savedStateHandle?.set("icon_designer_app", key)
+                                back()
+                            }
+                        },
+                    )
                     SettingsPage.Calendar -> CalendarSettings(uiState, actions, back)
                     SettingsPage.Advanced -> SettingsScaffold(stringResource(R.string.settings_advanced), "settings_advanced", back) { padding ->
                         Box(
@@ -194,6 +215,7 @@ fun LauncherSettingsScreen(
             }
         }
       }
+     }
     }
 }
 

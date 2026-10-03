@@ -24,7 +24,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.text
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontSynthesis
@@ -34,11 +33,10 @@ import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.ClockFontStore
-import com.galaxyrio.gracelauncher.data.ClockPresetFont
 import com.galaxyrio.gracelauncher.data.ClockStyle
 import com.galaxyrio.gracelauncher.ui.theme.LauncherFontFamily
+import com.galaxyrio.gracelauncher.ui.theme.family
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -46,21 +44,6 @@ import java.time.format.DecimalStyle
 import java.util.Locale
 import kotlin.math.ceil
 import kotlin.math.roundToInt
-
-// Resource fonts are loaded locally and cached by Compose's font resolver.
-private val Sacramento = FontFamily(Font(R.font.sacramento))
-private val Bokor = FontFamily(Font(R.font.bokor))
-private val Plaster = FontFamily(Font(R.font.plaster))
-private val Monoton = FontFamily(Font(R.font.monoton))
-private val LuckiestGuy = FontFamily(Font(R.font.luckiest_guy))
-
-internal fun ClockPresetFont.family(): FontFamily = when (this) {
-    ClockPresetFont.Sacramento -> Sacramento
-    ClockPresetFont.Bokor -> Bokor
-    ClockPresetFont.Plaster -> Plaster
-    ClockPresetFont.Monoton -> Monoton
-    ClockPresetFont.LuckiestGuy -> LuckiestGuy
-}
 
 /** Shared, ink-bounded rendering for the desktop, editor and style thumbnails. */
 @Composable

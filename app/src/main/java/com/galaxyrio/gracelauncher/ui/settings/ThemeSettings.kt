@@ -59,17 +59,14 @@ import com.materialkolor.ktx.toneColor
 import kotlin.math.roundToInt
 
 @Composable
-internal fun ThemeSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit, onClockStyle: () -> Unit) {
+internal fun ThemeSettings(
+    uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
+    onClockStyle: () -> Unit, onIconPacks: () -> Unit,
+) {
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     val settings = uiState.settings
     val blurAvailable = rememberWallpaperBlurAvailable()
     when (dialog) {
-        "icons" -> IconPackPicker(
-            uiState = uiState,
-            onSelect = { pkg -> actions.updateSettings { it.copy(iconPackPackage = pkg) }; dialog = null },
-            onRefresh = actions.refreshIconPacks,
-            onDismiss = { dialog = null },
-        )
         "theme" -> SettingsSelectionDialog(
             title = stringResource(R.string.settings_theme_mode),
             items = ThemeMode.entries, selectedItem = settings.darkMode,
@@ -82,6 +79,11 @@ internal fun ThemeSettings(uiState: LauncherUiState, actions: LauncherActions, o
             items = WallpaperTextMode.entries, selectedItem = uiState.textMode,
             tag = "wallpaper_text", itemKey = { it.name }, itemLabel = { it.label() },
             onSelect = { actions.textMode(it); dialog = null }, onDismiss = { dialog = null },
+        )
+        "font" -> AppFontDialog(
+            selected = settings.appFontId,
+            onSelect = { id -> actions.updateSettings { it.copy(appFontId = id) }; dialog = null },
+            onDismiss = { dialog = null },
         )
     }
     SettingsScaffold(stringResource(R.string.settings_themes), "settings_themes", onBack) { padding ->
@@ -112,22 +114,29 @@ internal fun ThemeSettings(uiState: LauncherUiState, actions: LauncherActions, o
             }
             item { SettingsHeading(stringResource(R.string.settings_personalization)) }
             item {
-                SettingsActionItem(stringResource(R.string.settings_clock_style), uiState.settings.clockStyle.layout.label(), 0, 3, "settings_clock_style", onClick = onClockStyle)
+                SettingsActionItem(stringResource(R.string.settings_clock_style), uiState.settings.clockStyle.layout.label(), 0, 4, "settings_clock_style", onClick = onClockStyle)
             }
             item {
-                val packName = uiState.iconPacks.firstOrNull { it.packageName == settings.iconPackPackage }?.label
+                val packs = settings.enabledIconPackPackages
+                val packNames = packs.map { pkg -> uiState.iconPacks.firstOrNull { it.packageName == pkg }?.label ?: pkg }
                 val summary = when {
-                    settings.iconPackPackage == null -> stringResource(R.string.icon_pack_system)
+                    packs.isEmpty() -> stringResource(R.string.icon_pack_system)
                     uiState.iconPackStatus == IconPackStatus.Unavailable -> stringResource(R.string.icon_pack_unavailable)
-                    else -> packName ?: settings.iconPackPackage
+                    else -> packNames.joinToString(" → ")
                 }
-                SettingsActionItem(stringResource(R.string.settings_icon_pack), summary, 1, 3, "settings_icon_pack") {
-                    dialog = "icons"
+                SettingsActionItem(stringResource(R.string.settings_icon_pack), summary, 1, 4, "settings_icon_pack") {
+                    onIconPacks()
                     actions.refreshIconPacks()
                 }
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_font), stringResource(R.string.settings_coming_soon), 2, 3, "settings_font", enabled = false) { }
+                SettingsActionItem(stringResource(R.string.settings_font), appFontLabel(settings.appFontId), 2, 4, "settings_font") { dialog = "font" }
+            }
+            item {
+                SettingsToggleItem(
+                    stringResource(R.string.font_apply_settings), stringResource(R.string.font_apply_settings_summary),
+                    settings.applyFontToSettings, 3, 4, "settings_apply_font",
+                ) { value -> actions.updateSettings { it.copy(applyFontToSettings = value) } }
             }
             item { SettingsHeading(stringResource(R.string.settings_misc)) }
             item {
@@ -336,7 +345,7 @@ private fun WallpaperTextMode.label(): String = stringResource(when (this) {
     WallpaperTextMode.Dark -> R.string.settings_text_dark
 })
 
-private val AccentColors = listOf(
+internal val AccentColors = listOf(
     Color(0xFF6750A4), Color(0xFFB3261E), Color(0xFFE27C33), Color(0xFF7D5260), Color(0xFF3F51B5),
     Color(0xFF009688), Color(0xFF4CAF50), Color(0xFFF9A825), Color(0xFF0288D1), Color(0xFFC2185B),
 )

@@ -21,6 +21,7 @@ internal fun LauncherAppTheme(viewModel: LauncherViewModel, content: @Composable
         darkTheme = dark,
         dynamicColor = state.settings.useDynamicColors,
         seedColor = Color(state.settings.themeColor),
+        fontId = state.settings.appFontId,
         content = content,
     )
 }

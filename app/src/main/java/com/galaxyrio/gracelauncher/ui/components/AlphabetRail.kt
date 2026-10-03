@@ -2,6 +2,7 @@ package com.galaxyrio.gracelauncher.ui.components
 
 import android.graphics.Paint
 import android.graphics.Rect
+import android.graphics.Typeface
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.Canvas
@@ -35,8 +36,8 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -48,14 +49,13 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
-import com.galaxyrio.gracelauncher.ui.theme.LauncherFontFamily
-import com.galaxyrio.gracelauncher.ui.theme.launcherTypeface
 import kotlin.math.exp
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -201,7 +201,7 @@ fun AlphabetRail(
                         text = letter,
                         color = color,
                         style = TextStyle(
-                            fontFamily = LauncherFontFamily,
+                            fontFamily = MaterialTheme.typography.bodyLarge.fontFamily,
                             fontSize = 14.sp,
                             lineHeight = 16.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
@@ -255,13 +255,16 @@ fun AlphabetRail(
 /** Center the visible glyph, not the font's asymmetric ascent/descent line box. */
 @Composable
 private fun CenteredIndicatorGlyph(letter: String, color: Color) {
-    val context = LocalContext.current
     val density = LocalDensity.current
+    val typeface = LocalFontFamilyResolver.current.resolve(
+        fontFamily = MaterialTheme.typography.bodyLarge.fontFamily ?: FontFamily.Default,
+        fontWeight = FontWeight.Medium,
+    ).value as Typeface
     val fontSize = with(density) { 28.sp.toPx() }
     val inset = with(density) { 6.dp.toPx() }
-    val paint = remember(context) {
+    val paint = remember(typeface) {
         Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
-            typeface = launcherTypeface(context, FontWeight.Medium.weight)
+            this.typeface = typeface
         }
     }
     val glyphBounds = remember { Rect() }

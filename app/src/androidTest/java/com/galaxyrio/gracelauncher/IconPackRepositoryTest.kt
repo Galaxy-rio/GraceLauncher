@@ -122,5 +122,31 @@ class IconPackRepositoryTest {
         }
     }
 
+    @Test fun orderedPacksUseLaterMatchesAndReversingChangesSharedIcons() = runBlocking {
+        val packs = IconPackRepository(context)
+        val installed = packs.installedPacks().map { it.packageName }
+        assumeTrue("Install two packs to verify priority with real artwork", installed.size >= 2)
+        val first = installed[0]
+        val second = installed[1]
+        val repository = AppRepository(context, packs)
+        val firstOnly = repository.loadApps(first).associateBy { it.key }
+        val secondOnly = repository.loadApps(second).associateBy { it.key }
+        val combined = repository.loadApps(listOf("grace.missing.pack", first, second))
+        val reversed = repository.loadApps(listOf(second, first)).associateBy { it.key }
+        combined.forEach { app ->
+            val firstApp = firstOnly.getValue(app.key)
+            val secondApp = secondOnly.getValue(app.key)
+            val expected = if (firstApp.iconPackPackage != null) firstApp else secondApp
+            assertEquals(expected.iconPackPackage, app.iconPackPackage)
+            if (expected.icon != null) assertTrue(expected.icon.asAndroidBitmap().sameAs(app.icon!!.asAndroidBitmap()))
+        }
+        val shared = firstOnly.values.filter { it.iconPackPackage != null && secondOnly.getValue(it.key).iconPackPackage != null }
+        assertTrue("Both packs should cover some of the same installed apps", shared.isNotEmpty())
+        shared.forEach { app -> assertEquals(second, reversed.getValue(app.key).iconPackPackage) }
+        val loadedFirst = requireNotNull(packs.load(first))
+        packs.load(second)
+        assertSame("Loading another selected pack must not evict the previous pack", loadedFirst, packs.load(first))
+    }
+
     companion object { const val PurePackage = "me.morirain.dev.iconpack.pure" }
 }

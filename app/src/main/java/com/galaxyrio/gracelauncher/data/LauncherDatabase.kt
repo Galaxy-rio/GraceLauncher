@@ -30,6 +30,8 @@ data class LauncherSettingsEntity(
     val themeColor: Int,
     val darkMode: String,
     val iconPackPackage: String? = null,
+    val iconPackPackagesJson: String? = null,
+    val iconDesignJson: String? = null,
     @ColumnInfo(defaultValue = "1") val mediaPlayer: Boolean = true,
     @ColumnInfo(defaultValue = "0") val weatherEnabled: Boolean = false,
     @ColumnInfo(defaultValue = "7") val weatherForecastDays: Int = 7,
@@ -44,6 +46,8 @@ data class LauncherSettingsEntity(
     @ColumnInfo(defaultValue = "20") val wallpaperDimAmount: Int = 20,
     @ColumnInfo(defaultValue = "1") val blurWallpaper: Boolean = true,
     @ColumnInfo(defaultValue = "16") val wallpaperBlurRadius: Int = 16,
+    val appFontId: String? = null,
+    @ColumnInfo(defaultValue = "1") val applyFontToSettings: Boolean = true,
 )
 
 @Entity(tableName = "hidden_apps")
@@ -128,7 +132,7 @@ abstract class LauncherSettingsDao {
     entities = [LauncherSettingsEntity::class, HiddenAppEntity::class,
         LauncherFolderEntity::class, FolderAppEntity::class, ItemIconEntity::class,
         SavedShortcutEntity::class, AppPopupEntity::class],
-    version = 9,
+    version = 12,
     exportSchema = true,
 )
 abstract class LauncherDatabase : RoomDatabase() {
@@ -196,12 +200,32 @@ abstract class LauncherDatabase : RoomDatabase() {
             }
         }
 
+        val Migration9To10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN appFontId TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN applyFontToSettings INTEGER NOT NULL DEFAULT 1")
+            }
+        }
+
+        val Migration10To11 = object : Migration(10, 11) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // A null order reads the existing single selection, without rewriting it.
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN iconPackPackagesJson TEXT DEFAULT NULL")
+            }
+        }
+
+        val Migration11To12 = object : Migration(11, 12) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN iconDesignJson TEXT DEFAULT NULL")
+            }
+        }
+
         fun getInstance(context: Context): LauncherDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 LauncherDatabase::class.java,
                 "grace_launcher.db",
-            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7, Migration7To8, Migration8To9).build().also { instance = it }
+            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7, Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12).build().also { instance = it }
         }
     }
 }

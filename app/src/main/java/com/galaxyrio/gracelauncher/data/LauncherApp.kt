@@ -19,6 +19,11 @@ data class LauncherApp(
     val iconPackPackage: String? = null,
     val monochromeScale: Float = 1.4f,
     val shortcut: LauncherShortcut? = null,
+    /** Describe the original app icon, independently of packs and designer overrides. */
+    val isSystemApp: Boolean = false,
+    val isAdaptiveIcon: Boolean = false,
+    /** Preserve the enabled-pack match when a designer source changes the displayed artwork. */
+    val themeIconPackPackage: String? = iconPackPackage,
 ) {
     val key: String = shortcut?.key ?: componentName.flattenToString()
     val packageName: String = componentName.packageName

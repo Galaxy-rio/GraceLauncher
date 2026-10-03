@@ -200,6 +200,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             addAction(Intent.ACTION_DATE_CHANGED)
             addAction(Intent.ACTION_TIME_CHANGED)
             addAction(Intent.ACTION_TIMEZONE_CHANGED)
+            addAction(Intent.ACTION_WALLPAPER_CHANGED)
         }, ContextCompat.RECEIVER_NOT_EXPORTED)
         viewModelScope.launch {
             settingsRepository.snapshots
@@ -227,7 +228,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     if (previous.isLoadingSettings || previous.settings.mediaPlayer != snapshot.settings.mediaPlayer) {
                         mediaRepository.setEnabled(snapshot.settings.mediaPlayer)
                     }
-                    if (previous.isLoadingSettings || previous.settings.iconPackPackage != snapshot.settings.iconPackPackage) refreshApps()
+                    if (previous.isLoadingSettings || previous.settings.enabledIconPackPackages != snapshot.settings.enabledIconPackPackages ||
+                        previous.settings.iconDesign != snapshot.settings.iconDesign ||
+                        previous.settings.darkMode != snapshot.settings.darkMode) refreshApps()
                     if (previous.isLoadingSettings || previous.settings.weatherEnabled != snapshot.settings.weatherEnabled ||
                         previous.settings.weatherLocationId != snapshot.settings.weatherLocationId
                     ) refreshWeather()
@@ -261,17 +264,19 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 if (error is CancellationException) throw error
                 _uiState.update { it.copy(isLoadingIconPacks = false, iconPacksLoadFailed = true) }
             }
-            val selectedPack = _uiState.value.settings.iconPackPackage
+            val selectedPacks = _uiState.value.settings.enabledIconPackPackages
+            val availablePacks = selectedPacks.mapNotNull { iconPacks.load(it) }
             val status = when {
-                selectedPack == null -> IconPackStatus.System
-                iconPacks.load(selectedPack) != null -> IconPackStatus.Ready
+                selectedPacks.isEmpty() -> IconPackStatus.System
+                availablePacks.isNotEmpty() -> IconPackStatus.Ready
                 else -> IconPackStatus.Unavailable
             }
-            runCatching { appRepository.loadApps(selectedPack) }
+            runCatching { appRepository.loadApps(selectedPacks) }
                 .onSuccess { apps ->
                     val renames = preferences.renames()
                     val snapshot = itemsSnapshot
-                    suspend fun decorate(app: LauncherApp): LauncherApp = itemIcons.apply(app, snapshot.icons[app.key])
+                    val iconSettings = _uiState.value.settings
+                    suspend fun decorate(app: LauncherApp): LauncherApp = itemIcons.applyDesign(app, snapshot.icons[app.key], iconSettings.iconDesign, iconSettings)
                         .copy(label = renames[app.key] ?: app.originalLabel)
                     val shortcuts = snapshot.shortcuts.mapNotNull { saved ->
                         val owner = apps.firstOrNull { it.componentName.flattenToString() == saved.activity }
@@ -409,7 +414,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             val previous = itemsSnapshot.icons[app.key]
             itemsRepository.rememberShortcut(app)
             itemsRepository.saveIcon(app.key, choice)
-            if (previous != choice) itemIcons.deleteImage(previous)
+            if (previous?.kind == "image" && (choice?.kind != "image" || previous.source != choice.source) &&
+                !itemsRepository.isImageReferenced(previous.source)) itemIcons.deleteImage(previous)
             true
         } catch (error: Exception) {
             if (error is CancellationException) throw error
@@ -484,6 +490,22 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         } catch (error: Exception) {
             if (error is CancellationException) throw error
             Log.e("LauncherViewModel", "Unable to save clock style", error)
+            _uiState.update { it.copy(settingsSaveFailed = true) }
+            false
+        }
+    }
+
+    suspend fun applyIconDesign(choice: ItemIcon): Boolean = settingsWriteMutex.withLock {
+        try {
+            var previous: ItemIcon? = null
+            settingsRepository.mutateSettings { previous = it.iconDesign; it.copy(iconDesign = choice) }
+            if (previous?.kind == "image" && (choice.kind != "image" || previous?.source != choice.source) &&
+                !itemsRepository.isImageReferenced(previous!!.source)) itemIcons.deleteImage(previous)
+            _uiState.update { it.copy(settingsSaveFailed = false) }
+            true
+        } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            Log.e("LauncherViewModel", "Unable to save icon design", error)
             _uiState.update { it.copy(settingsSaveFailed = true) }
             false
         }

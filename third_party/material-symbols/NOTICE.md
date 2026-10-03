@@ -55,6 +55,11 @@ em dash with the supplied accessible description.
 
 ### Other icons
 
+Icon designer entry added 2026-10-03:
+
+- `ms_design_services.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/android/design_services/materialsymbolsoutlined/design_services_24px.xml
+  (Official Android vector; path and 960px viewport retained, tint supplied by Compose.)
+
 Clock-style reset button added 2026-10-02:
 
 - `ms_restart_alt.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/restart_alt/materialsymbolsoutlined/restart_alt_24px.svg

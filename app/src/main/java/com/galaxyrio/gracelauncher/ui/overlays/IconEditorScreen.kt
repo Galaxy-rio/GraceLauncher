@@ -132,7 +132,7 @@ internal fun IconEditorScreen(app: LauncherApp, uiState: LauncherUiState, action
 }
 
 @Composable
-private fun IconPackGrid(
+internal fun IconPackGrid(
     packageName: String,
     names: List<String>,
     query: String,

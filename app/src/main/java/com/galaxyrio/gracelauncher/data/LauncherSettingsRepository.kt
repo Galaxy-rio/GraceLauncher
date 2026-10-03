@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import org.json.JSONArray
 
 /**
  * New launcher data lives in Room; legacy favorites, renames, categories and
@@ -43,6 +44,9 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
             themeColor = settings.themeColor,
             darkMode = settings.darkMode.name,
             iconPackPackage = settings.iconPackPackage,
+            iconDesignJson = settings.iconDesign?.encode(),
+            iconPackPackagesJson = normalizeIconPackOrder(settings.iconPackPackages).takeIf { it.isNotEmpty() }
+                ?.let { JSONArray(it).toString() },
             mediaPlayer = settings.mediaPlayer,
             weatherEnabled = settings.weatherEnabled,
             weatherForecastDays = settings.weatherForecastDays.coerceIn(1, 14),
@@ -57,6 +61,8 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
             wallpaperDimAmount = settings.wallpaperDimAmount.coerceIn(0, 100),
             blurWallpaper = settings.blurWallpaper,
             wallpaperBlurRadius = settings.wallpaperBlurRadius.coerceIn(0, 48),
+            appFontId = settings.appFontId,
+            applyFontToSettings = settings.applyFontToSettings,
         ))
     }
 
@@ -96,6 +102,8 @@ private fun LauncherSettingsEntity.toSettings() = LauncherSettings(
     themeColor = themeColor,
     darkMode = ThemeMode.entries.firstOrNull { it.name == darkMode } ?: ThemeMode.System,
     iconPackPackage = iconPackPackage,
+    iconDesign = iconDesignJson?.let(ItemIcon::decode),
+    iconPackPackages = decodeIconPackOrder(iconPackPackagesJson),
     mediaPlayer = mediaPlayer,
     weatherEnabled = weatherEnabled,
     weatherForecastDays = weatherForecastDays.coerceIn(1, 14),
@@ -110,4 +118,14 @@ private fun LauncherSettingsEntity.toSettings() = LauncherSettings(
     wallpaperDimAmount = wallpaperDimAmount.coerceIn(0, 100),
     blurWallpaper = blurWallpaper,
     wallpaperBlurRadius = wallpaperBlurRadius.coerceIn(0, 48),
+    appFontId = appFontId,
+    applyFontToSettings = applyFontToSettings,
 )
+
+private fun decodeIconPackOrder(json: String?): List<String> = runCatching {
+    if (json == null) emptyList() else JSONArray(json).let { array ->
+        normalizeIconPackOrder((0 until array.length()).mapNotNull { index ->
+            (array.opt(index) as? String)?.takeIf(String::isNotBlank)
+        })
+    }
+}.getOrDefault(emptyList())

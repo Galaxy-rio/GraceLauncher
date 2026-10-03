@@ -4,12 +4,21 @@ import android.content.Context
 import android.graphics.Typeface
 import android.os.Build
 import androidx.annotation.RequiresApi
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.text.font.AndroidFont
+import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontLoadingStrategy
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
+import com.galaxyrio.gracelauncher.R
+import com.galaxyrio.gracelauncher.data.AppFont
+import com.galaxyrio.gracelauncher.data.ClockFontStore
+import com.galaxyrio.gracelauncher.data.ClockPresetFont
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import android.graphics.fonts.Font as PlatformFont
 import android.graphics.fonts.FontFamily as PlatformFontFamily
 import android.graphics.fonts.FontStyle as PlatformFontStyle
@@ -22,6 +31,62 @@ import android.graphics.fonts.FontStyle as PlatformFontStyle
 val LauncherFontFamily: FontFamily = FontFamily(
     (100..700 step 100).map { weight -> LauncherFont(FontWeight(weight)) },
 )
+
+// The app and clock share the same bundled font families, not separate font buffers.
+private val presetFamilies = mapOf(
+    ClockPresetFont.Sacramento to FontFamily(Font(R.font.sacramento)),
+    ClockPresetFont.Bokor to FontFamily(Font(R.font.bokor)),
+    ClockPresetFont.Plaster to FontFamily(Font(R.font.plaster)),
+    ClockPresetFont.Monoton to FontFamily(Font(R.font.monoton)),
+    ClockPresetFont.LuckiestGuy to FontFamily(Font(R.font.luckiest_guy)),
+)
+
+internal fun ClockPresetFont.family(): FontFamily = presetFamilies.getValue(this)
+
+@Composable
+internal fun rememberAppFontFamily(id: String?): FontFamily = remember(id) {
+    when (id) {
+        null -> LauncherFontFamily
+        AppFont.System.id -> FontFamily.Default
+        AppFont.Sacramento.id -> ClockPresetFont.Sacramento.family()
+        AppFont.Bokor.id -> ClockPresetFont.Bokor.family()
+        AppFont.Plaster.id -> ClockPresetFont.Plaster.family()
+        AppFont.Monoton.id -> ClockPresetFont.Monoton.family()
+        AppFont.LuckiestGuy.id -> ClockPresetFont.LuckiestGuy.family()
+        else -> if (id == AppFont.NotoSans.id || ClockFontStore.displayName(id) != null) {
+            FontFamily((100..900 step 100).map { SelectedFont(id, FontWeight(it)) })
+        } else LauncherFontFamily
+    }
+}
+
+/** Async per-weight faces keep imported variable fonts responsive without losing bold roles. */
+private data class SelectedFont(val id: String, override val weight: FontWeight) : AndroidFont(
+    loadingStrategy = FontLoadingStrategy.Async,
+    typefaceLoader = SelectedTypefaceLoader,
+    variationSettings = FontVariation.Settings(FontVariation.weight(weight.weight)),
+) {
+    override val style: FontStyle = FontStyle.Normal
+}
+
+private object SelectedTypefaceLoader : AndroidFont.TypefaceLoader {
+    private val notoFaces = mutableMapOf<Int, Typeface>()
+
+    override fun loadBlocking(context: Context, font: AndroidFont): Typeface? = null
+
+    override suspend fun awaitLoad(context: Context, font: AndroidFont): Typeface = withContext(Dispatchers.IO) {
+        val choice = font as SelectedFont
+        val weight = choice.weight.weight
+        if (choice.id == AppFont.NotoSans.id) synchronized(notoFaces) {
+            notoFaces.getOrPut(weight) {
+                Typeface.Builder(context.assets, "fonts/noto_sans.ttf")
+                    .setFontVariationSettings("'wght' $weight").setWeight(weight)
+                    .setItalic(false).setFallback("sans-serif").build()
+                    ?: launcherTypeface(context, weight.coerceIn(100, 700))
+            }
+        } else ClockFontStore(context).typeface(choice.id, weight)
+            ?: launcherTypeface(context, weight.coerceIn(100, 700))
+    }
+}
 
 private data class LauncherFont(
     override val weight: FontWeight,

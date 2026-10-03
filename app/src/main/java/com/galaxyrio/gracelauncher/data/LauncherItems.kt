@@ -6,15 +6,21 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import org.json.JSONArray
 import org.json.JSONObject
 
-/** An icon override is independent of the global pack. Resource names survive pack updates. */
-data class ItemIcon(val kind: String, val source: String = "", val name: String = "") {
-    fun encode(): String = JSONObject().put("kind", kind).put("source", source).put("name", name).toString()
+/**
+ * Shared Icon designer data, also written by the desktop's per-item editor.
+ * Overrides precede the enabled pack order. Resource names survive pack updates.
+ */
+data class ItemIcon(val kind: String, val source: String = "", val name: String = "", val design: IconDesign? = null) {
+    fun encode(): String = JSONObject().put("kind", kind).put("source", source).put("name", name)
+        .apply { design?.let { put("design", it.json()) } }.toString()
     companion object {
         val System = ItemIcon("system")
+        val Theme = ItemIcon("theme")
         fun decode(json: String): ItemIcon? = runCatching {
             val value = JSONObject(json)
-            ItemIcon(value.getString("kind"), value.optString("source"), value.optString("name"))
-                .takeIf { it.kind in setOf("system", "pack", "image") }
+            ItemIcon(value.getString("kind"), value.optString("source"), value.optString("name"),
+                IconDesign.decode(value.optJSONObject("design")))
+                .takeIf { it.kind in setOf("system", "theme", "pack", "image") }
         }.getOrNull()
     }
 }
@@ -54,6 +60,7 @@ data class AppPopupEntity(@PrimaryKey val ownerKey: String, val itemsJson: Strin
 @Dao
 abstract class LauncherItemsDao {
     @Query("SELECT * FROM item_icons") abstract fun icons(): kotlinx.coroutines.flow.Flow<List<ItemIconEntity>>
+    @Query("SELECT * FROM item_icons") abstract suspend fun readIcons(): List<ItemIconEntity>
     @Query("SELECT * FROM saved_shortcuts") abstract fun shortcuts(): kotlinx.coroutines.flow.Flow<List<SavedShortcutEntity>>
     @Query("SELECT * FROM app_popups") abstract fun popups(): kotlinx.coroutines.flow.Flow<List<AppPopupEntity>>
     @Query("SELECT * FROM app_popups WHERE ownerKey = :key") abstract suspend fun popup(key: String): AppPopupEntity?
@@ -81,6 +88,13 @@ class LauncherItemsRepository(private val database: LauncherDatabase) {
 
     suspend fun saveIcon(key: String, icon: ItemIcon?) {
         if (icon == null) dao.resetIcon(key) else dao.saveIcon(ItemIconEntity(key, icon.encode()))
+    }
+
+    /** A special design can inherit the bulk image source; retain it until its final reference is gone. */
+    suspend fun isImageReferenced(name: String): Boolean {
+        fun ItemIcon?.matches() = this?.kind == "image" && source == name
+        return dao.readIcons().any { ItemIcon.decode(it.iconJson).matches() } ||
+            database.settingsDao().readSettings()?.iconDesignJson?.let(ItemIcon::decode).matches()
     }
 
     suspend fun rememberShortcut(app: LauncherApp, showInAppList: Boolean? = null) {

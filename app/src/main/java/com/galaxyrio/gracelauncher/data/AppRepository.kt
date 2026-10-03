@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.content.pm.LauncherApps
+import android.content.pm.ApplicationInfo
 import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
@@ -22,8 +23,10 @@ import kotlinx.coroutines.ensureActive
 class AppRepository(private val context: Context, private val iconPacks: IconPackRepository = IconPackRepository(context)) {
     private val packageManager = context.packageManager
 
-    suspend fun loadApps(iconPackPackage: String? = null): List<LauncherApp> = withContext(Dispatchers.IO) {
-        val pack = iconPacks.load(iconPackPackage)
+    suspend fun loadApps(iconPackPackage: String?): List<LauncherApp> = loadApps(listOfNotNull(iconPackPackage))
+
+    suspend fun loadApps(iconPackPackages: List<String> = emptyList()): List<LauncherApp> = withContext(Dispatchers.IO) {
+        val packs = normalizeIconPackOrder(iconPackPackages).mapNotNull { iconPacks.load(it) }
         val coroutine = currentCoroutineContext()
         val launcherIntent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
         val resolved = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -49,7 +52,10 @@ class AppRepository(private val context: Context, private val iconPacks: IconPac
                     .trim()
                     .ifBlank { activityInfo.name.substringAfterLast('.') }
                 val drawable = runCatching { resolveInfo.loadIcon(packageManager) }.getOrNull()
-                val packed = pack?.iconFor(component, drawable)
+                // Only mapped icons count as a match. Generic masks/backgrounds do
+                // not intercept the remaining packs or the final system fallback.
+                val match = firstMatchingPackIcon(packs) { it.iconFor(component, null) }
+                val packed = match?.second
                 val icon = packed?.bitmap ?: runCatching { drawable?.toBitmap(144, 144)?.asImageBitmap() }.getOrNull()
                 val monochrome = if (packed != null) packed.monochrome else if (Build.VERSION.SDK_INT >= 33) {
                     runCatching {
@@ -64,7 +70,10 @@ class AppRepository(private val context: Context, private val iconPacks: IconPac
                     }.getOrNull()
                 } else null
                 LauncherApp(componentName = component, label = label, icon = icon, monochromeIcon = monochrome,
-                    iconPackPackage = pack?.packageName?.takeIf { packed != null }, monochromeScale = packed?.monochromeScale ?: 1.4f)
+                    iconPackPackage = match?.first?.packageName, monochromeScale = packed?.monochromeScale ?: 1.4f,
+                    isSystemApp = activityInfo.applicationInfo.flags and
+                        (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0,
+                    isAdaptiveIcon = drawable is AdaptiveIconDrawable)
             }
             .distinctBy(LauncherApp::key)
             .sortedWith(LauncherAppOrder)

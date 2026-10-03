@@ -38,10 +38,24 @@ internal fun clockAppSummary(uiState: LauncherUiState): String =
 /** Choosing a target persists a preference; it never launches the selected app. */
 @Composable
 internal fun ClockSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit) {
+    AppSelectionSettings(
+        uiState, actions, onBack, title = stringResource(R.string.settings_clock), tag = "clock",
+        selectedKey = uiState.settings.clockAppKey, showDefault = true,
+        description = stringResource(R.string.clock_choose_app_description),
+        onSelect = { key -> actions.updateSettings { it.copy(clockAppKey = key) } },
+    )
+}
+
+/** Shared searchable app page for clock targets and the Icon designer preview. */
+@Composable
+internal fun AppSelectionSettings(
+    uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
+    title: String, tag: String, selectedKey: String?, onSelect: (String?) -> Unit,
+    showDefault: Boolean = false, description: String? = null,
+) {
     val queryState = rememberTextFieldState()
     val query = queryState.text.toString()
     val ownPackage = LocalContext.current.packageName
-    val selectedKey = uiState.settings.clockAppKey
     // This preference stores an activity component, not a deep-shortcut identity.
     val available = remember(uiState.apps, ownPackage) { uiState.apps.filter { it.packageName != ownPackage && it.shortcut == null } }
     val filtered = remember(available, query) {
@@ -49,19 +63,19 @@ internal fun ClockSettings(uiState: LauncherUiState, actions: LauncherActions, o
         available.filter { it.label.contains(search, true) || it.originalLabel.contains(search, true) || it.packageName.contains(search, true) }
     }
     val enabled = LocalSettingsStorageState.current.canEdit
-    SettingsScaffold(stringResource(R.string.settings_clock), "settings_clock_page", onBack) { padding ->
+    SettingsScaffold(title, "settings_${tag}_page", onBack) { padding ->
         SettingsList(padding) {
-            item {
-                Text(stringResource(R.string.clock_choose_app_description),
+            if (description != null) item {
+                Text(description,
                     Modifier.padding(horizontal = 4.dp, vertical = 20.dp),
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            item {
+            if (showDefault) item {
                 SegmentedListItem(
                     selected = selectedKey == null,
-                    onClick = { actions.updateSettings { it.copy(clockAppKey = null) } },
+                    onClick = { onSelect(null) },
                     enabled = enabled,
-                    modifier = Modifier.testTag("clock_default_app"),
+                    modifier = Modifier.testTag("${tag}_default_app"),
                     shapes = ListItemDefaults.segmentedShapes(0, 1),
                     colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
                     content = { Text(stringResource(R.string.clock_default_app)) },
@@ -69,12 +83,12 @@ internal fun ClockSettings(uiState: LauncherUiState, actions: LauncherActions, o
                 )
             }
             if (selectedKey != null && !uiState.isLoadingApps && !uiState.appLoadFailed && available.none { it.key == selectedKey }) item {
-                Text(stringResource(R.string.clock_selected_unavailable), Modifier.padding(16.dp).testTag("clock_missing_app"),
+                Text(stringResource(R.string.clock_selected_unavailable), Modifier.padding(16.dp).testTag("${tag}_missing_app"),
                     color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium)
             }
             item {
                 Spacer(Modifier.height(20.dp))
-                LauncherSearchBar(queryState, stringResource(R.string.settings_search_apps), "clock_app_query",
+                LauncherSearchBar(queryState, stringResource(R.string.settings_search_apps), "${tag}_app_query",
                     enabled = enabled && !uiState.isLoadingApps && !uiState.appLoadFailed)
                 Spacer(Modifier.height(12.dp))
             }
@@ -92,9 +106,9 @@ internal fun ClockSettings(uiState: LauncherUiState, actions: LauncherActions, o
                 else -> itemsIndexed(filtered, key = { _, app -> app.key }) { index, app ->
                     SegmentedListItem(
                         selected = app.key == selectedKey,
-                        onClick = { actions.updateSettings { it.copy(clockAppKey = app.key) } },
+                        onClick = { onSelect(app.key) },
                         enabled = enabled,
-                        modifier = Modifier.testTag("clock_app:${app.key}"),
+                        modifier = Modifier.testTag("${tag}_app:${app.key}"),
                         shapes = ListItemDefaults.segmentedShapes(index, filtered.size),
                         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
                         leadingContent = { AppIcon(app, size = 36.dp) },

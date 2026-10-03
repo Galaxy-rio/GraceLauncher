@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
@@ -30,7 +31,6 @@ import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
 import com.galaxyrio.gracelauncher.ui.components.FolderRow
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
-import com.galaxyrio.gracelauncher.ui.theme.LauncherFontFamily
 
 @Composable
 fun AppDrawerScreen(
@@ -79,7 +79,7 @@ fun AppDrawerScreen(
                             .testTag("section:${item.section}"),
                         color = appearance.text,
                         style = TextStyle(
-                            fontFamily = LauncherFontFamily,
+                            fontFamily = MaterialTheme.typography.bodyLarge.fontFamily,
                             fontSize = 18.sp,
                             lineHeight = 24.sp,
                             fontWeight = FontWeight.Normal,

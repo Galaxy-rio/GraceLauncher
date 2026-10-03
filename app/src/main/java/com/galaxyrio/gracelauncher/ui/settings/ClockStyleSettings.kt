@@ -56,6 +56,7 @@ import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.home.ClockFace
 import com.galaxyrio.gracelauncher.ui.home.HomeClockHeader
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
+import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherTypography
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherAppearance
 import java.time.Instant
 import kotlin.math.roundToInt
@@ -96,7 +97,7 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
         }
     }
     if (dialog == "font" && draft.layout.allowsCustomFont) {
-        ClockFontDialog(fonts, face.fontId,
+        FontPickerDialog(fonts, face.fontId,
             onSelect = { id -> changeFace { it.copy(fontId = id) }; dialog = null },
             onImport = { dialog = null; picker.launch(arrayOf("*/*")) }, onDismiss = { dialog = null })
     }
@@ -322,6 +323,7 @@ private fun ClockStylePreview(
             drawContent()
         }, contentAlignment = Alignment.CenterStart) {
         CompositionLocalProvider(LocalLauncherAppearance provides appearance) {
+          MaterialTheme(typography = LocalLauncherTypography.current) {
             HomeClockHeader(
                 now = now, event = null, onDateClick = {}, onClockClick = {},
                 showBattery = uiState.settings.showBatteryPercentage, clockStyle = style,
@@ -331,6 +333,7 @@ private fun ClockStylePreview(
                 modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 12.dp),
                 interactive = false, clockTag = "clock_style_preview_text", dateTag = "clock_style_preview_date",
             )
+          }
         }
     }
 }
@@ -361,30 +364,6 @@ private fun ClockSlider(
             }
         },
     )
-}
-
-@Composable
-private fun ClockFontDialog(fonts: List<ClockFontFile>, selected: String?, onSelect: (String?) -> Unit, onImport: () -> Unit, onDismiss: () -> Unit) {
-    AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(R.string.settings_font)) },
-        text = {
-            LazyColumn(Modifier.heightIn(max = 360.dp).selectableGroup()) {
-                item { FontOption(stringResource(R.string.clock_font_default), null, selected, onSelect) }
-                items(fonts, key = { it.id }) { FontOption(it.name, it.id, selected, onSelect) }
-            }
-        },
-        confirmButton = { TextButton(onClick = onImport, modifier = Modifier.testTag("clock_font_import")) { Text(stringResource(R.string.clock_font_import)) } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_cancel)) } },
-    )
-}
-
-@Composable
-private fun FontOption(label: String, id: String?, selected: String?, onSelect: (String?) -> Unit) {
-    Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("clock_font:${id ?: "default"}")
-        .selectable(selected == id, role = Role.RadioButton, onClick = { onSelect(id) }).padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-        RadioButton(selected == id, onClick = null)
-        Text(label, style = MaterialTheme.typography.bodyLarge)
-    }
 }
 
 @Composable
