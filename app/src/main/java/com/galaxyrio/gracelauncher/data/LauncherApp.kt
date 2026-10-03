@@ -18,8 +18,9 @@ data class LauncherApp(
     val originalLabel: String = label,
     val iconPackPackage: String? = null,
     val monochromeScale: Float = 1.4f,
+    val shortcut: LauncherShortcut? = null,
 ) {
-    val key: String = componentName.flattenToString()
+    val key: String = shortcut?.key ?: componentName.flattenToString()
     val packageName: String = componentName.packageName
     val sortKey: String = appSortKey(label)
     val section: String = sectionForSortKey(sortKey)

@@ -21,7 +21,7 @@ import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherScreen
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.ScheduleStatus
-import com.galaxyrio.gracelauncher.ui.overlays.FavoritesSheet
+import com.galaxyrio.gracelauncher.ui.overlays.FavoritesScreen
 import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
 import java.io.File
 import org.junit.Assert.*
@@ -53,7 +53,7 @@ class FavoritesEditorTest {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
                     if (wholeLauncher) LauncherScreen(state, onDateClick = {}, onClockClick = {}, onLaunchApp = {},
                         onToggleFavorite = toggle, actions = LauncherActions(reorderFavorites = reorder))
-                    else Box(Modifier.fillMaxSize()) { FavoritesSheet(state, toggle, reorder, onDone = {}) }
+                    else Box(Modifier.fillMaxSize()) { FavoritesScreen(state, toggle, reorder, onDone = {}) }
                 }
             }
         }
@@ -113,7 +113,7 @@ class FavoritesEditorTest {
         compose.onNodeWithText("Move down").performClick()
         assertSelectedOrder(listOf(apps[1], apps[0], apps[2], apps[3]))
         compose.onNodeWithTag("favorites_done").performClick()
-        compose.onNodeWithTag("favorites_sheet").assertDoesNotExist()
+        compose.onNodeWithTag("favorites_screen").assertDoesNotExist()
         assertTrue(bounds("app:${apps[1].key}").top < bounds("app:${apps[0].key}").top)
         assertEquals(0, toggles)
         assertEquals(3, commits)
@@ -213,7 +213,7 @@ class FavoritesEditorTest {
         val instrumentation = InstrumentationRegistry.getInstrumentation()
         val file = File(instrumentation.targetContext.getExternalFilesDir("ui-verification"), name)
         file.parentFile!!.mkdirs()
-        val bitmap = compose.onNodeWithTag("favorites_sheet").captureToImage().asAndroidBitmap()
+        val bitmap = compose.onNodeWithTag("favorites_screen").captureToImage().asAndroidBitmap()
         file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 }

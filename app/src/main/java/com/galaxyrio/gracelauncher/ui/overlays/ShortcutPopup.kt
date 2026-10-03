@@ -1,14 +1,12 @@
 package com.galaxyrio.gracelauncher.ui.overlays
 
 import androidx.compose.animation.core.Animatable
-import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -21,7 +19,6 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.boundsInWindow
-import com.galaxyrio.gracelauncher.ui.components.launcherAnimationTarget
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -40,8 +37,13 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.ShortcutResult
 import com.galaxyrio.gracelauncher.data.ShortcutStatus
+import com.galaxyrio.gracelauncher.data.PopupItem
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.ui.LauncherActions
+import com.galaxyrio.gracelauncher.ui.LauncherUiState
+import com.galaxyrio.gracelauncher.ui.components.AppIcon
+import com.galaxyrio.gracelauncher.ui.widgets.HomeWidget
+import com.galaxyrio.gracelauncher.ui.widgets.rememberHostedWidget
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import kotlin.math.roundToInt
@@ -64,14 +66,23 @@ fun ShortcutPopup(
     onDismiss: () -> Unit,
     reveal: ShortcutRevealState = remember { ShortcutRevealState() },
     notifications: List<AppNotification> = emptyList(),
+    uiState: LauncherUiState = LauncherUiState(),
+    onEdit: () -> Unit = {},
+    onDetails: (LauncherApp) -> Unit = {},
+    onLaunchItem: (LauncherApp, Rect) -> Unit = { item, bounds ->
+        item.shortcut?.let { actions.launchShortcutAt?.invoke(it, bounds) ?: actions.launchShortcut(it) }
+    },
 ) {
     var retry by remember { mutableIntStateOf(0) }
     val loadShortcuts by rememberUpdatedState(actions.shortcuts)
     val initialResult = remember(app.key, hasAccess) { actions.cachedShortcuts(app) ?: ShortcutResult(ShortcutStatus.Loading) }
-    val result by produceState(initialResult, app.key, hasAccess, retry) {
+    val result by produceState(initialResult, app.key, hasAccess, retry, uiState.itemRevision) {
         // Keep cached content while refreshing; never insert a progress indicator.
         value = loadShortcuts(app)
     }
+    val shortcuts = result.shortcuts.map { uiState.findItem(it.key) ?: it.asApp(app) }
+    val customItems = uiState.popups[app.key]
+    val entries = customItems ?: shortcuts.map { PopupItem(it.key) }
     SwipeRevealPanel(
         anchor = anchor,
         reveal = reveal,
@@ -90,7 +101,7 @@ fun ShortcutPopup(
         ) {
             LauncherIcon(LauncherSymbol.Launch, Modifier.size(19.dp))
             Spacer(Modifier.width(10.dp))
-            Text(app.label, fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(app.label, Modifier.weight(1f), fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         LazyColumn(Modifier.heightIn(max = maxListHeight).testTag("shortcut_list")) {
             items(notifications, key = { "notification:${it.key}" }) { notification ->
@@ -102,7 +113,7 @@ fun ShortcutPopup(
                     gesturesEnabled = !reveal.dragging && reveal.expanded,
                 )
             }
-        when (result.status) {
+        if (customItems == null) when (result.status) {
             // Cold apps may need one binder query; keep the layout quiet.
             ShortcutStatus.Loading -> if (notifications.isEmpty()) item { Spacer(Modifier.height(56.dp)) }
             ShortcutStatus.DefaultLauncherRequired -> item {
@@ -121,31 +132,37 @@ fun ShortcutPopup(
                 if (result.shortcuts.isEmpty() && notifications.isEmpty()) item {
                     Text(stringResource(R.string.no_shortcuts), Modifier.padding(horizontal = 12.dp, vertical = 18.dp), style = MaterialTheme.typography.bodyMedium)
                 }
-                    items(result.shortcuts, key = { "shortcut:${it.id}" }) { shortcut ->
+            }
+        }
+        items(entries, key = { "entry:${it.key}" }) { entry ->
+            val widget = entry.widget
+            val itemApp = uiState.findItem(entry.key) ?: shortcuts.firstOrNull { it.key == entry.key }
+            when {
+                widget != null -> {
+                    val hosted = rememberHostedWidget(widget)
+                    Box(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+                        HomeWidget(widget, hosted, hosted.defaultHeight, editing = false,
+                            enabled = !reveal.dragging && reveal.expanded, hapticsEnabled = uiState.settings.allowHapticFeedback, onLongPress = onEdit)
+                    }
+                }
+                itemApp != null -> {
                         var iconBounds by remember { mutableStateOf(Rect.Zero) }
                         Row(
-                            Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("shortcut:${shortcut.id}")
+                            Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("shortcut:${itemApp.shortcut?.id ?: itemApp.key}")
                                 .clip(RoundedCornerShape(16.dp))
-                                .clickable {
-                                    actions.launchShortcutAt?.invoke(shortcut, iconBounds) ?: actions.launchShortcut(shortcut)
+                                .combinedClickable(enabled = !reveal.dragging && reveal.expanded, onLongClick = { onDetails(itemApp) }, onClick = {
+                                    onLaunchItem(itemApp, iconBounds)
                                     onDismiss()
-                                }.padding(horizontal = 12.dp, vertical = 8.dp),
+                                }).padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Box(Modifier.size(36.dp).onGloballyPositioned { iconBounds = it.boundsInWindow() }
-                                .launcherAnimationTarget(listOf(app.componentName))) {
-                                if (shortcut.icon != null) {
-                                    Image(shortcut.icon, null, Modifier.fillMaxSize())
-                                } else {
-                                    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.primaryContainer, CircleShape), contentAlignment = Alignment.Center) {
-                                        LauncherIcon(LauncherSymbol.Launch, Modifier.size(18.dp), MaterialTheme.colorScheme.onPrimaryContainer)
-                                    }
-                                }
-                            }
+                            AppIcon(itemApp, Modifier.onGloballyPositioned { iconBounds = it.boundsInWindow() }, size = 36.dp)
                             Spacer(Modifier.width(22.dp))
-                            Text(shortcut.label, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            Text(itemApp.label, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
-                    }
+                }
+                else -> Text(stringResource(R.string.popup_item_unavailable), Modifier.fillMaxWidth().clickable(onClick = onEdit).padding(16.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         }

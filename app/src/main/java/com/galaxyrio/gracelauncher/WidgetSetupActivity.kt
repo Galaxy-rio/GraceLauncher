@@ -18,6 +18,9 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
 import com.galaxyrio.gracelauncher.data.LauncherDatabase
 import com.galaxyrio.gracelauncher.data.LauncherSettingsRepository
+import com.galaxyrio.gracelauncher.data.LauncherItemsRepository
+import com.galaxyrio.gracelauncher.data.HomeLayout
+import com.galaxyrio.gracelauncher.data.PopupItem
 import com.galaxyrio.gracelauncher.platform.HomeWidgetHost
 import com.galaxyrio.gracelauncher.ui.LauncherAppTheme
 import com.galaxyrio.gracelauncher.ui.LauncherViewModel
@@ -32,6 +35,8 @@ import kotlinx.coroutines.withContext
 class WidgetSetupActivity : ComponentActivity() {
     private val viewModel: LauncherViewModel by viewModels()
     private val repository by lazy { LauncherSettingsRepository(LauncherDatabase.getInstance(this)) }
+    private val itemsRepository by lazy { LauncherItemsRepository(LauncherDatabase.getInstance(this)) }
+    private val popupOwner get() = intent.getStringExtra(EXTRA_POPUP_OWNER)
     private val manager by lazy { AppWidgetManager.getInstance(this) }
     private val host by lazy { HomeWidgetHost(this) }
     private var pendingId = -1
@@ -56,21 +61,22 @@ class WidgetSetupActivity : ComponentActivity() {
         lifecycleScope.launch {
             try {
                 val current = repository.snapshots.first().settings.homeLayout
+                val popupWidgets = itemsRepository.snapshots.first().popups.values.flatten().mapNotNull { it.widget?.widgetId }.toSet()
                 // Only discard this host's abandoned setup IDs; never touch the saved widget.
-                host.appWidgetIds.filter { it != current.widgetId && it != pendingId }.forEach(host::deleteAppWidgetId)
+                host.appWidgetIds.filter { it != current.widgetId && it != pendingId && it !in popupWidgets }.forEach(host::deleteAppWidgetId)
                 if (pendingId >= 0) {
-                    if (current.widgetId == pendingId && !configuringExisting) { pendingId = -1; finish() }
+                    if ((current.widgetId == pendingId || pendingId in popupWidgets) && !configuringExisting) { pendingId = -1; finish() }
                     else if (savedInstanceState?.getBoolean("saving", false) == true) finishAdding()
                     // Otherwise the restored platform activity will deliver its result.
                     return@launch
                 }
                 val configureId = intent.getIntExtra(EXTRA_CONFIGURE_ID, -1)
                 if (configureId >= 0) {
-                    if (configureId != current.widgetId) { fail(R.string.widget_unavailable); return@launch }
+                    if (configureId != current.widgetId && configureId !in popupWidgets) { fail(R.string.widget_unavailable); return@launch }
                     pendingId = configureId
                     configuringExisting = true
                     configure()
-                } else if (current.hasWidget) {
+                } else if (popupOwner == null && current.hasWidget) {
                     fail(R.string.widget_single_limit)
                 } else {
                     providers = withContext(Dispatchers.IO) {
@@ -140,7 +146,14 @@ class WidgetSetupActivity : ComponentActivity() {
         saving = true
         lifecycleScope.launch {
             try {
-                repository.mutateSettings { current ->
+                val layout = HomeLayout(widgetId = id, widgetProvider = info.provider.flattenToString(),
+                    widgetLabel = runCatching { info.loadLabel(packageManager) }.getOrDefault(info.provider.className))
+                val owner = popupOwner
+                if (owner != null) {
+                    itemsRepository.updatePopup(owner, emptyList()) { entries ->
+                        if (entries.any { it.widget?.widgetId == id }) entries else entries + PopupItem("widget:$id", layout)
+                    }
+                } else repository.mutateSettings { current ->
                     // A recreated setup activity can resume just after the old
                     // transaction committed. Keep ownership transfer idempotent.
                     if (current.homeLayout.widgetId == id) return@mutateSettings current
@@ -184,6 +197,7 @@ class WidgetSetupActivity : ComponentActivity() {
     }
 
     companion object {
+        const val EXTRA_POPUP_OWNER = "popupOwner"
         const val EXTRA_CONFIGURE_ID = "configureWidgetId"
         private const val REQUEST_BIND = 4001
         private const val REQUEST_CONFIGURE = 4002

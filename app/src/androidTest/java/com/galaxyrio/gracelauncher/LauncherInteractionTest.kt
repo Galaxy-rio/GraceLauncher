@@ -392,16 +392,16 @@ class LauncherInteractionTest {
         awaitSurface("app_details")
         compose.onNodeWithTag("app_details").assertIsDisplayed()
         listOf("Edit favorites", "App info", "Screen time", "Add to folder", "Uninstall", "Advanced", "Grace settings").forEach {
-            compose.onNodeWithText(it).assertIsDisplayed()
+            compose.onNodeWithText(it).performScrollTo().assertIsDisplayed()
         }
         assertEquals(0, toggles)
         val detailsBottom = compose.onNodeWithTag("app_details").fetchSemanticsNode().boundsInRoot.bottom
         val windowHeight = InstrumentationRegistry.getInstrumentation().targetContext.resources.displayMetrics.heightPixels
         assertTrue("The details sheet should be anchored to the bottom edge", detailsBottom > windowHeight * 0.91f)
         saveScreenshot("details-sample.png")
-        compose.onNodeWithTag("edit_favorites").performClick()
-        awaitSurface("favorites_sheet")
-        compose.onNodeWithTag("favorites_sheet").assertIsDisplayed()
+        compose.onNodeWithTag("edit_favorites").performScrollTo().performClick()
+        awaitSurface("favorites_screen")
+        compose.onNodeWithTag("favorites_screen").assertIsDisplayed()
         compose.onNodeWithTag("favorite:${apps[1].key}").performClick()
         assertEquals(1, toggles)
     }

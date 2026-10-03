@@ -22,6 +22,8 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.createBitmap
 import java.text.Collator
 import java.time.LocalDate
+import com.galaxyrio.gracelauncher.data.ItemIcon
+import org.xmlpull.v1.XmlPullParser
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
@@ -38,6 +40,34 @@ class IconPackRepository(private val context: Context) {
     private val cacheMutex = Mutex()
     private var cachedKey: String? = null
     private var cachedPack: LoadedIconPack? = null
+
+    suspend fun iconNames(packageName: String): List<String> = withContext(Dispatchers.IO) {
+        val pack = load(packageName) ?: return@withContext emptyList()
+        val names = linkedSetOf<String>()
+        // drawable.xml contains alternates which do not have an appfilter mapping.
+        val resources = safely { pm.getResourcesForApplication(packageName) } ?: return@withContext emptyList()
+        fun read(parser: XmlPullParser) {
+            var nodes = 0
+            while (parser.eventType != XmlPullParser.END_DOCUMENT && ++nodes < 200_000) {
+                if (parser.eventType == XmlPullParser.START_TAG && parser.name == "item") {
+                    parser.getAttributeValue(null, "drawable")?.takeIf { it.isNotBlank() }?.let(names::add)
+                }
+                parser.next()
+            }
+        }
+        @SuppressLint("DiscouragedApi") val xml = resources.getIdentifier("drawable", "xml", packageName)
+        if (xml != 0) safely { resources.getXml(xml).use(::read) }
+        if (names.isEmpty()) safely {
+            resources.assets.open("drawable.xml").use { stream -> read(Xml.newPullParser().apply { setInput(stream, null) }) }
+        }
+        names.addAll(pack.definition.icons.values)
+        pack.definition.calendars.values.forEach { prefix -> (1..31).forEach { names.add("$prefix$it") } }
+        names.toList()
+    }
+
+    internal suspend fun selectedIcon(choice: ItemIcon): PackIcon? = withContext(Dispatchers.IO) {
+        if (choice.kind != "pack") null else load(choice.source)?.namedIcon(choice.name)
+    }
 
     suspend fun installedPacks(): List<IconPackInfo> = withContext(Dispatchers.IO) {
         val packages = linkedSetOf<String>()
@@ -120,6 +150,17 @@ internal class LoadedIconPack(
 ) {
     private val bitmaps = LruCache<String, Bitmap>(96)
 
+    @Synchronized
+    fun namedIcon(name: String): PackIcon? {
+        val drawable = drawable(name) ?: return null
+        val bitmap = bitmap(name) ?: return null
+        val mono = if (drawable is AdaptiveIconDrawable && Build.VERSION.SDK_INT >= 33) drawable.monochrome else null
+        val themedLayer = mono ?: if (themed) (drawable as? AdaptiveIconDrawable)?.foreground ?: drawable else null
+        return PackIcon(bitmap.asImageBitmap(), safely { themedLayer?.let(::renderIcon)?.asImageBitmap() },
+            if (drawable is AdaptiveIconDrawable) 1.4f else 0.76f)
+    }
+
+    @Synchronized
     fun iconFor(component: ComponentName, original: Drawable?, day: Int = LocalDate.now().dayOfMonth): PackIcon? {
         definition.candidates(component.flattenToString(), day).forEach { name ->
             val drawable = drawable(name) ?: return@forEach

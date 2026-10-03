@@ -1,6 +1,8 @@
 package com.galaxyrio.gracelauncher.data
 
 import android.content.Context
+import android.content.ComponentName
+import android.net.Uri
 import android.content.pm.LauncherApps
 import android.content.pm.ShortcutInfo
 import android.graphics.Rect
@@ -15,13 +17,21 @@ import androidx.core.graphics.drawable.toBitmap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 data class LauncherShortcut(
     val id: String,
     val packageName: String,
     val label: String,
     val icon: ImageBitmap?,
-)
+    val activity: ComponentName? = null,
+) {
+    val key: String get() = "shortcut:$packageName/${Uri.encode(id)}"
+    fun asApp(owner: LauncherApp) = LauncherApp(
+        componentName = activity ?: owner.componentName, label = label, icon = icon, shortcut = this,
+    )
+}
 
 enum class ShortcutStatus { Loading, Ready, DefaultLauncherRequired, Error }
 
@@ -90,7 +100,7 @@ class ShortcutRepository(context: Context) : AutoCloseable {
         apps.distinctBy { it.key }.forEach { app -> launch { shortcutsFor(app) } }
     }
 
-    private fun LauncherApp.queryKey() = QueryKey(packageName, key)
+    private fun LauncherApp.queryKey() = QueryKey(packageName, componentName.flattenToString())
 
     private fun invalidate(packageName: String) {
         cache.invalidate { it.packageName == packageName }
@@ -119,6 +129,7 @@ class ShortcutRepository(context: Context) : AutoCloseable {
                             launcherApps.getShortcutIconDrawable(info, density)
                                 ?.toBitmap(width = 120, height = 120)?.asImageBitmap()
                         }.getOrNull(),
+                        activity = info.activity,
                     )
                 }
             ShortcutResult(ShortcutStatus.Ready, shortcuts)
@@ -134,6 +145,22 @@ class ShortcutRepository(context: Context) : AutoCloseable {
     fun launch(shortcut: LauncherShortcut, sourceBounds: Rect? = null, options: Bundle? = null): Boolean = runCatching {
         launcherApps.startShortcut(shortcut.packageName, shortcut.id, sourceBounds, options, user)
     }.isSuccess
+
+    /** Preserve dynamic shortcuts once the user adds them to a persistent surface. */
+    suspend fun pin(shortcuts: List<LauncherShortcut>) = withContext(Dispatchers.IO) {
+        if (!hasAccess()) return@withContext
+        shortcuts.groupBy { it.packageName }.forEach { (pkg, entries) ->
+            runCatching {
+                val existing = launcherApps.getShortcuts(LauncherApps.ShortcutQuery().setPackage(pkg)
+                    .setQueryFlags(LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED), user).orEmpty().map { it.id }
+                val next = (existing + entries.map { it.id }).distinct()
+                if (next.toSet() != existing.toSet()) {
+                    launcherApps.pinShortcuts(pkg, next, user)
+                    invalidate(pkg)
+                }
+            }
+        }
+    }
 
     override fun close() {
         if (callbackRegistered) launcherApps.unregisterCallback(callback)

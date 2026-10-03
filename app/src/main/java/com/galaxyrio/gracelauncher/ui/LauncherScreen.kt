@@ -74,6 +74,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.lifecycle.lifecycleScope
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.net.toUri
@@ -111,12 +112,15 @@ import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherHaptics
 import com.galaxyrio.gracelauncher.ui.theme.WallpaperBlur
+import com.galaxyrio.gracelauncher.ui.widgets.LocalWidgetHost
+import com.galaxyrio.gracelauncher.ui.widgets.rememberWidgetHost
 import com.materialkolor.PaletteStyle
 import com.materialkolor.ktx.toDynamicScheme
 import com.materialkolor.ktx.toneColor
 import java.time.Duration
 import java.time.Instant
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -244,6 +248,17 @@ fun LauncherRoute(
         },
         uninstall = { openSystemApp(Intent(Intent.ACTION_DELETE, Uri.fromParts("package", it.packageName, null))) },
         rename = viewModel::renameApp,
+        setItemIcon = viewModel::setItemIcon,
+        importItemIcon = viewModel::importItemIcon,
+        showShortcutInAppList = viewModel::showShortcutInAppList,
+        updatePopup = viewModel::updatePopup,
+        addPopupWidget = { owner, defaults ->
+            (context as? androidx.activity.ComponentActivity)?.lifecycleScope?.launch {
+                if (viewModel.ensurePopup(owner, defaults)) openSystemApp(Intent(context, WidgetSetupActivity::class.java)
+                    .putExtra(WidgetSetupActivity.EXTRA_POPUP_OWNER, owner.key))
+                else Toast.makeText(context, R.string.settings_storage_save_error, Toast.LENGTH_SHORT).show()
+            }
+        },
         categorize = viewModel::categorize,
         storePage = { openSystemApp(Intent(Intent.ACTION_VIEW, "https://play.google.com/store/apps/details?id=${it.packageName}".toUri())) },
         newEvent = {
@@ -361,7 +376,8 @@ internal fun LauncherScreen(
     val context = LocalContext.current
     val haptics = rememberLauncherHaptics(uiState.settings.allowHapticFeedback)
     val isSettings = overlay == LauncherOverlay.Settings || overlay is LauncherOverlay.FolderSettings || overlay is LauncherOverlay.SettingsDestination
-    val fullScreen = isSettings || overlay == LauncherOverlay.Search
+    val fullScreen = isSettings || overlay == LauncherOverlay.Search || overlay == LauncherOverlay.Favorites ||
+        overlay is LauncherOverlay.EditIcon || overlay is LauncherOverlay.EditPopup
     val screenActions = actions.copy(moveWidget = { drawerOpen = false; selectedLetter = null; overlay = null; editingHome = true })
     val backProgress = remember { Animatable(0f) }
     val darkSystemIcons = if (fullScreen) MaterialTheme.colorScheme.surface.luminance() > 0.5f else appearance.darkText
@@ -480,7 +496,8 @@ internal fun LauncherScreen(
             Color.Black.copy(alpha = homeScrimOpacity),
         ))
     }
-    CompositionLocalProvider(LocalLauncherAppearance provides appearance, LocalHapticFeedback provides haptics) {
+    val widgetHost = rememberWidgetHost()
+    CompositionLocalProvider(LocalLauncherAppearance provides appearance, LocalHapticFeedback provides haptics, LocalWidgetHost provides widgetHost) {
       CompositionLocalProvider(LocalLauncherInputEnabled provides (!fullScreen && !editingHome && backProgress.value == 0f)) {
       BoxWithConstraints(
         // Settings can reveal this retained page during a predictive root back.

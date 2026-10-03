@@ -42,7 +42,8 @@ internal fun ClockSettings(uiState: LauncherUiState, actions: LauncherActions, o
     val query = queryState.text.toString()
     val ownPackage = LocalContext.current.packageName
     val selectedKey = uiState.settings.clockAppKey
-    val available = remember(uiState.apps, ownPackage) { uiState.apps.filter { it.packageName != ownPackage } }
+    // This preference stores an activity component, not a deep-shortcut identity.
+    val available = remember(uiState.apps, ownPackage) { uiState.apps.filter { it.packageName != ownPackage && it.shortcut == null } }
     val filtered = remember(available, query) {
         val search = query.trim()
         available.filter { it.label.contains(search, true) || it.originalLabel.contains(search, true) || it.packageName.contains(search, true) }

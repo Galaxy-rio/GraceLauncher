@@ -45,7 +45,7 @@ class LauncherSettingsPersistenceTest {
         val reopened = Room.databaseBuilder(context, LauncherDatabase::class.java, databaseName)
             .addMigrations(LauncherDatabase.Migration1To2, LauncherDatabase.Migration2To3,
                 LauncherDatabase.Migration3To4, LauncherDatabase.Migration4To5, LauncherDatabase.Migration5To6,
-                LauncherDatabase.Migration6To7, LauncherDatabase.Migration7To8).build()
+                LauncherDatabase.Migration6To7, LauncherDatabase.Migration7To8, LauncherDatabase.Migration8To9).build()
         database = reopened
         return LauncherSettingsRepository(reopened)
     }

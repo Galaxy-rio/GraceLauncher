@@ -38,16 +38,23 @@ internal data class HostedWidget(
     val maxHeight: Int,
 )
 
+@Stable
+internal class WidgetHostState(val host: HomeWidgetHost) {
+    var revision by mutableIntStateOf(0)
+}
+
+internal val LocalWidgetHost = staticCompositionLocalOf<WidgetHostState?> { null }
+
+/** Only one listener per Activity/host ID, shared by HOME and pop-up widgets. */
 @Composable
-internal fun rememberHostedWidget(layout: HomeLayout): HostedWidget {
+internal fun rememberWidgetHost(): WidgetHostState {
     val context = LocalContext.current
-    val density = LocalDensity.current.density
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val host = remember(context) { HomeWidgetHost(context) }
-    var revision by remember { mutableIntStateOf(0) }
+    val state = remember(context) { WidgetHostState(HomeWidgetHost(context)) }
+    val host = state.host
     DisposableEffect(host, lifecycle) {
-        fun start() { revision++; runCatching { host.startListening() } }
-        host.onProvidersUpdated = { revision++ }
+        fun start() { state.revision++; runCatching { host.startListening() } }
+        host.onProvidersUpdated = { state.revision++ }
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 Lifecycle.Event.ON_START -> start()
@@ -59,7 +66,16 @@ internal fun rememberHostedWidget(layout: HomeLayout): HostedWidget {
         if (lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) start()
         onDispose { lifecycle.removeObserver(observer); host.onProvidersUpdated = null; runCatching { host.stopListening() } }
     }
-    val info = remember(layout.widgetId, layout.widgetProvider, revision) {
+    return state
+}
+
+@Composable
+internal fun rememberHostedWidget(layout: HomeLayout): HostedWidget {
+    val context = LocalContext.current
+    val density = LocalDensity.current.density
+    val state = LocalWidgetHost.current ?: rememberWidgetHost()
+    val host = state.host
+    val info = remember(layout.widgetId, layout.widgetProvider, state.revision) {
         runCatching { AppWidgetManager.getInstance(context).getAppWidgetInfo(layout.widgetId) }
             .getOrNull()?.takeIf { it.provider.flattenToString() == layout.widgetProvider }
     }

@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.Application
 import android.content.BroadcastReceiver
 import android.content.Context
+import android.net.Uri
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
@@ -32,6 +33,11 @@ import com.galaxyrio.gracelauncher.data.WallpaperTextMode
 import com.galaxyrio.gracelauncher.data.icons.IconPackInfo
 import com.galaxyrio.gracelauncher.data.icons.IconPackRepository
 import com.galaxyrio.gracelauncher.data.icons.IconPackStatus
+import com.galaxyrio.gracelauncher.data.icons.ItemIconStore
+import com.galaxyrio.gracelauncher.data.ItemIcon
+import com.galaxyrio.gracelauncher.data.PopupItem
+import com.galaxyrio.gracelauncher.data.LauncherItemsRepository
+import com.galaxyrio.gracelauncher.data.LauncherItemsSnapshot
 import com.galaxyrio.gracelauncher.platform.DefaultHome
 import com.galaxyrio.gracelauncher.platform.BreezyWeatherUpdates
 import com.galaxyrio.gracelauncher.data.media.MediaCommand
@@ -91,7 +97,13 @@ data class LauncherUiState(
     val notifications: Map<String, List<AppNotification>> = emptyMap(),
     val favoriteOrder: List<String> = emptyList(),
     val weather: WeatherState = WeatherState(),
+    val shortcutApps: List<LauncherApp> = emptyList(),
+    val popups: Map<String, List<PopupItem>> = emptyMap(),
+    val itemIcons: Map<String, ItemIcon> = emptyMap(),
+    val itemRevision: Int = 0,
 ) {
+    fun findItem(key: String): LauncherApp? = apps.firstOrNull { it.key == key }
+        ?: shortcutApps.firstOrNull { it.key == key }
     val homeMedia: NowPlaying?
         get() = media.nowPlaying.takeIf {
             settings.mediaPlayer && media.hasAccess && !isLoadingSettings && !settingsLoadFailed
@@ -116,6 +128,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val preferences = LauncherPreferences(application)
     private val shortcutRepository = ShortcutRepository(application)
     private val settingsRepository = LauncherSettingsRepository(LauncherDatabase.getInstance(application))
+    private val itemsRepository = LauncherItemsRepository(LauncherDatabase.getInstance(application))
+    private val itemIcons = ItemIconStore(application, iconPacks)
+    private var itemsSnapshot = LauncherItemsSnapshot()
+    private var itemsReady = false
     private val mediaRepository = MediaSessionRepository(application)
     private val weatherRepository = BreezyWeatherRepository(application)
     private val settingsWriteMutex = Mutex()
@@ -146,6 +162,19 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     init {
+        viewModelScope.launch {
+            itemsRepository.snapshots.catch { error ->
+                if (error is CancellationException) throw error
+                Log.e("LauncherViewModel", "Unable to read launcher items", error)
+                _uiState.update { it.copy(settingsLoadFailed = true) }
+            }.collect { snapshot ->
+                val reload = !itemsReady || snapshot.icons != itemsSnapshot.icons || snapshot.shortcuts != itemsSnapshot.shortcuts
+                itemsReady = true
+                itemsSnapshot = snapshot
+                _uiState.update { it.copy(popups = snapshot.popups, itemIcons = snapshot.icons, itemRevision = it.itemRevision + 1) }
+                if (reload) refreshApps()
+            }
+        }
         viewModelScope.launch {
             BreezyWeatherUpdates.events.collectLatest {
                 // Refresh after the final signal, so a forecast update following
@@ -219,7 +248,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val isDefaultHome = DefaultHome.isDefault(getApplication())
         _uiState.update { it.copy(isDefaultHome = isDefaultHome) }
         // Wait for the stored pack choice: do not flash system icons on cold start.
-        if (_uiState.value.isLoadingSettings || _uiState.value.settingsLoadFailed) return
+        if (!itemsReady || _uiState.value.isLoadingSettings || _uiState.value.settingsLoadFailed) return
         appLoadJob?.cancel()
         appLoadJob = viewModelScope.launch {
             _uiState.update {
@@ -241,12 +270,24 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             runCatching { appRepository.loadApps(selectedPack) }
                 .onSuccess { apps ->
                     val renames = preferences.renames()
-                    val displayedApps = apps.map { it.copy(label = renames[it.key] ?: it.originalLabel) }
+                    val snapshot = itemsSnapshot
+                    suspend fun decorate(app: LauncherApp): LauncherApp = itemIcons.apply(app, snapshot.icons[app.key])
+                        .copy(label = renames[app.key] ?: app.originalLabel)
+                    val shortcuts = snapshot.shortcuts.mapNotNull { saved ->
+                        val owner = apps.firstOrNull { it.componentName.flattenToString() == saved.activity }
+                            ?: apps.firstOrNull { it.packageName == saved.packageName } ?: return@mapNotNull null
+                        val current = shortcutRepository.shortcutsFor(owner).shortcuts.firstOrNull { it.id == saved.shortcutId }
+                            ?: LauncherShortcut(saved.shortcutId, saved.packageName, saved.label, owner.icon, owner.componentName)
+                        decorate(current.asApp(owner))
+                    }
+                    val shown = snapshot.shortcuts.filter { it.showInAppList }.map { it.itemKey }.toSet()
+                    val displayedApps = (apps.map { decorate(it) } + shortcuts.filter { it.key in shown })
                         .sortedWith(LauncherAppOrder)
                     val favorites = favoritesStore.favoritesFor(displayedApps)
                     _uiState.update {
                         it.copy(
                             apps = displayedApps,
+                            shortcutApps = shortcuts,
                             favoriteKeys = favorites.toSet(),
                             favoriteOrder = favorites,
                             // Settings also has an independent Activity/ViewModel.
@@ -326,7 +367,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun launch(app: LauncherApp, bounds: Rect? = null, options: Bundle? = null): Boolean =
-        appRepository.launch(app, bounds, options)
+        app.shortcut?.let { shortcutRepository.launch(it, bounds, options) } ?: appRepository.launch(app, bounds, options)
 
     suspend fun loadShortcuts(app: LauncherApp) = shortcutRepository.shortcutsFor(app)
 
@@ -353,10 +394,66 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun renameApp(app: LauncherApp, label: String) {
         preferences.rename(app.key, label)
+        if (app.shortcut != null) persistSettings { itemsRepository.rememberShortcut(app) }
         _uiState.update { state ->
             state.copy(apps = state.apps.map {
                 if (it.key == app.key) it.copy(label = label.trim().ifBlank { it.originalLabel }) else it
-            }.sortedWith(LauncherAppOrder))
+            }.sortedWith(LauncherAppOrder), shortcutApps = state.shortcutApps.map {
+                if (it.key == app.key) it.copy(label = label.trim().ifBlank { it.originalLabel }) else it
+            }, itemRevision = state.itemRevision + 1)
+        }
+    }
+
+    suspend fun setItemIcon(app: LauncherApp, choice: ItemIcon?): Boolean = settingsWriteMutex.withLock {
+        try {
+            val previous = itemsSnapshot.icons[app.key]
+            itemsRepository.rememberShortcut(app)
+            itemsRepository.saveIcon(app.key, choice)
+            if (previous != choice) itemIcons.deleteImage(previous)
+            true
+        } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            false
+        }
+    }
+
+    suspend fun importItemIcon(app: LauncherApp, uri: Uri): Boolean {
+        var imported: ItemIcon? = null
+        return try {
+            imported = itemIcons.importImage(uri)
+            setItemIcon(app, imported).also { if (!it) itemIcons.deleteImage(imported) }
+        } catch (error: Exception) {
+            itemIcons.deleteImage(imported)
+            if (error is CancellationException) throw error
+            false
+        }
+    }
+
+    fun showShortcutInAppList(app: LauncherApp, show: Boolean) = persistSettings {
+        app.shortcut?.let { shortcutRepository.pin(listOf(it)) }
+        itemsRepository.rememberShortcut(app, show)
+    }
+
+    private suspend fun rememberPopupItems(apps: List<LauncherApp>) {
+        apps.filter { it.shortcut != null }.forEach { itemsRepository.rememberShortcut(it) }
+        shortcutRepository.pin(apps.mapNotNull { it.shortcut })
+    }
+
+    fun updatePopup(owner: LauncherApp, defaults: List<LauncherApp>, transform: (List<PopupItem>) -> List<PopupItem>) = persistSettings {
+        rememberPopupItems(defaults + listOf(owner))
+        val removed = itemsRepository.updatePopup(owner.key, defaults.map { PopupItem(it.key) }, transform)
+        val host = com.galaxyrio.gracelauncher.platform.HomeWidgetHost(getApplication())
+        removed.forEach { runCatching { host.deleteAppWidgetId(it) } }
+    }
+
+    suspend fun ensurePopup(owner: LauncherApp, defaults: List<LauncherApp>): Boolean = settingsWriteMutex.withLock {
+        try {
+            rememberPopupItems(defaults + listOf(owner))
+            itemsRepository.updatePopup(owner.key, defaults.map { PopupItem(it.key) }) { it }
+            true
+        } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            false
         }
     }
 

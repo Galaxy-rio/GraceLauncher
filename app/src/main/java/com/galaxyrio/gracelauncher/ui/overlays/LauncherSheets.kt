@@ -1,6 +1,8 @@
 package com.galaxyrio.gracelauncher.ui.overlays
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -21,6 +24,8 @@ import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -41,7 +46,9 @@ import java.util.UUID
 
 sealed interface LauncherOverlay {
     data class Shortcuts(val app: LauncherApp, val anchor: Rect, val reveal: ShortcutRevealState = ShortcutRevealState()) : LauncherOverlay
-    data class AppDetails(val app: LauncherApp) : LauncherOverlay
+    data class AppDetails(val app: LauncherApp, val popupOwner: LauncherApp? = null) : LauncherOverlay
+    data class EditIcon(val app: LauncherApp, val popupOwner: LauncherApp? = null) : LauncherOverlay
+    data class EditPopup(val app: LauncherApp) : LauncherOverlay
     data class Folder(val folder: LauncherFolder, val anchor: Rect, val reveal: ShortcutRevealState = ShortcutRevealState()) : LauncherOverlay
     data class FolderSettings(val folderId: String) : LauncherOverlay
     data class Categories(val app: LauncherApp) : LauncherOverlay
@@ -77,6 +84,22 @@ fun LauncherOverlays(
     searchBackProgress: Float = 0f,
 ) {
     if (overlay == null) return
+    if (overlay == LauncherOverlay.Favorites) {
+        FavoritesScreen(uiState, onToggleFavorite, actions.reorderFavorites) { onChange(null) }
+        return
+    }
+    if (overlay is LauncherOverlay.EditIcon) {
+        IconEditorScreen(uiState.findItem(overlay.app.key) ?: overlay.app, uiState, actions) {
+            onChange(LauncherOverlay.AppDetails(overlay.app, overlay.popupOwner))
+        }
+        return
+    }
+    if (overlay is LauncherOverlay.EditPopup) {
+        val back = { onChange(LauncherOverlay.AppDetails(overlay.app)) }
+        BackHandler(onBack = back)
+        PopupEditorScreen(uiState.findItem(overlay.app.key) ?: overlay.app, uiState, actions, back)
+        return
+    }
     if (overlay == LauncherOverlay.Settings || overlay is LauncherOverlay.FolderSettings || overlay is LauncherOverlay.SettingsDestination) {
         LauncherSettingsScreen(
             uiState = uiState, actions = actions, onBack = { onChange(null) },
@@ -121,7 +144,14 @@ fun LauncherOverlays(
         ShortcutPopup(
             app = overlay.app, anchor = overlay.anchor, hasAccess = uiState.hasShortcutAccess, actions = actions,
             reveal = overlay.reveal,
-            notifications = uiState.notifications[overlay.app.packageName].orEmpty(),
+            notifications = if (overlay.app.shortcut == null) uiState.notifications[overlay.app.packageName].orEmpty() else emptyList(),
+            uiState = uiState,
+            onEdit = { onChange(LauncherOverlay.EditPopup(overlay.app)) },
+            onDetails = { onChange(LauncherOverlay.AppDetails(it, overlay.app)) },
+            onLaunchItem = { item, bounds ->
+                onChange(null)
+                actions.launchAppAt?.invoke(item, bounds) ?: onLaunchApp(item)
+            },
             onLaunchApp = { onChange(null); onLaunchApp(overlay.app) }, onDismiss = { onChange(null) },
         )
         return
@@ -149,16 +179,16 @@ fun LauncherOverlays(
           Box(Modifier.fillMaxWidth().heightIn(max = maxHeight)) {
             when (overlay) {
                 is LauncherOverlay.AppDetails -> AppDetailsSheet(
-                    app = uiState.apps.firstOrNull { it.key == overlay.app.key } ?: overlay.app,
-                    actions = actions, onChange = onChange,
+                    app = uiState.findItem(overlay.app.key) ?: overlay.app,
+                    actions = actions, onChange = onChange, popupOwner = overlay.popupOwner, uiState = uiState,
                 )
                 LauncherOverlay.Agenda -> AgendaSheet(uiState, actions, onRequestCalendar)
                 LauncherOverlay.HomeWidgetMenu -> HomeWidgetSheet(uiState, actions, onChange, custom = false)
                 LauncherOverlay.CustomWidgetMenu -> HomeWidgetSheet(uiState, actions, onChange, custom = true)
-                LauncherOverlay.Favorites -> FavoritesSheet(uiState, onToggleFavorite, actions.reorderFavorites) { onChange(null) }
                 is LauncherOverlay.Categories -> CategoryPicker(overlay.app, uiState, actions) { onChange(LauncherOverlay.AppDetails(overlay.app)) }
                 is LauncherOverlay.CategoryApps -> CategoryAppsSheet(overlay.name, uiState) { onChange(null); onLaunchApp(it) }
                 LauncherOverlay.Settings, LauncherOverlay.Search, is LauncherOverlay.Shortcuts,
+                LauncherOverlay.Favorites, is LauncherOverlay.EditIcon, is LauncherOverlay.EditPopup,
                 is LauncherOverlay.Folder, is LauncherOverlay.FolderSettings, is LauncherOverlay.SettingsDestination -> Unit
             }
           }
@@ -171,26 +201,47 @@ private val DetailsIconColumnWidth = 34.dp
 private val DetailsIconTextSpacing = 20.dp
 
 @Composable
-private fun AppDetailsSheet(app: LauncherApp, actions: LauncherActions, onChange: (LauncherOverlay?) -> Unit) {
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
+private fun AppDetailsSheet(app: LauncherApp, actions: LauncherActions, onChange: (LauncherOverlay?) -> Unit,
+    popupOwner: LauncherApp?, uiState: LauncherUiState) {
     var advanced by remember(app.key) { mutableStateOf(false) }
+    val advancedRotation by animateFloatAsState(
+        targetValue = if (advanced) 180f else 0f,
+        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+        label = "advancedArrow",
+    )
     var rename by remember(app.key) { mutableStateOf(false) }
+    val editIconDescription = stringResource(R.string.edit_icon)
     // Extend touch surfaces into the gutter, keeping their inset content on the
     // same two columns as the header (icon center and text leading edge).
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 12.dp).testTag("app_details")) {
         Row(Modifier.padding(horizontal = DetailsContentInset).padding(bottom = 8.dp).heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-            AppIcon(app, modifier = Modifier.testTag("app_details_icon"), size = DetailsIconColumnWidth)
+            AppIcon(app, modifier = Modifier.testTag("app_details_icon").clip(RoundedCornerShape(12.dp))
+                .semantics { contentDescription = editIconDescription }
+                .clickable(role = Role.Button, onClickLabel = editIconDescription) { onChange(LauncherOverlay.EditIcon(app, popupOwner)) }, size = DetailsIconColumnWidth)
             Spacer(Modifier.width(DetailsIconTextSpacing))
-            Text(app.label, modifier = Modifier.testTag("app_details_title"), fontSize = 25.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            Text(app.label, modifier = Modifier.weight(1f).testTag("app_details_title")
+                .clickable(onClickLabel = stringResource(R.string.rename_app)) { rename = true }.padding(vertical = 8.dp),
+                fontSize = 25.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+        val owner = popupOwner ?: app
+        if (app.shortcut != null) {
+            val shown = uiState.apps.any { it.key == app.key }
+            PanelAction(LauncherSymbol.Apps, stringResource(R.string.popup_show_in_app_list), "show_in_app_list",
+                iconColumnWidth = DetailsIconColumnWidth, iconTextSpacing = DetailsIconTextSpacing,
+                trailing = { Switch(shown, onCheckedChange = null) }) { actions.showShortcutInAppList(app, !shown) }
         }
         DetailsAction(LauncherSymbol.Star, stringResource(R.string.edit_favorites), "edit_favorites") { onChange(LauncherOverlay.Favorites) }
         DetailsAction(LauncherSymbol.Info, stringResource(R.string.app_info)) { onChange(null); actions.appInfo(app) }
         DetailsAction(LauncherSymbol.Hourglass, stringResource(R.string.screen_time)) { onChange(null); actions.screenTime(app) }
         DetailsAction(LauncherSymbol.Folder, stringResource(R.string.add_to_folder)) { onChange(LauncherOverlay.Categories(app)) }
-        DetailsAction(LauncherSymbol.Delete, stringResource(R.string.uninstall)) { onChange(null); actions.uninstall(app) }
-        DetailsAction(LauncherSymbol.Chevron, stringResource(R.string.advanced), "advanced") { advanced = !advanced }
+        if (app.shortcut == null) DetailsAction(LauncherSymbol.Delete, stringResource(R.string.uninstall)) { onChange(null); actions.uninstall(app) }
+        DetailsAction(LauncherSymbol.Chevron, stringResource(R.string.advanced), "advanced", iconRotation = advancedRotation) { advanced = !advanced }
         AnimatedVisibility(advanced) {
             Column {
                 DetailsAction(LauncherSymbol.Edit, stringResource(R.string.rename_app)) { rename = true }
+                DetailsAction(LauncherSymbol.Palette, stringResource(R.string.edit_icon)) { onChange(LauncherOverlay.EditIcon(app, popupOwner)) }
+                DetailsAction(LauncherSymbol.Launch, stringResource(R.string.edit_app_popup, owner.label)) { onChange(LauncherOverlay.EditPopup(owner)) }
                 DetailsAction(LauncherSymbol.Launch, stringResource(R.string.store_page)) { onChange(null); actions.storePage(app) }
                 Text(app.packageName, Modifier.padding(start = DetailsContentInset + DetailsIconColumnWidth + DetailsIconTextSpacing, end = DetailsContentInset, bottom = 14.dp).testTag("app_details_package"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -206,8 +257,9 @@ private fun AppDetailsSheet(app: LauncherApp, actions: LauncherActions, onChange
 }
 
 @Composable
-private fun DetailsAction(symbol: LauncherSymbol, label: String, tag: String = label, onClick: () -> Unit) {
-    PanelAction(symbol, label, tag, iconColumnWidth = DetailsIconColumnWidth, iconTextSpacing = DetailsIconTextSpacing, onClick = onClick)
+private fun DetailsAction(symbol: LauncherSymbol, label: String, tag: String = label, iconRotation: Float = 0f, onClick: () -> Unit) {
+    PanelAction(symbol, label, tag, iconColumnWidth = DetailsIconColumnWidth, iconTextSpacing = DetailsIconTextSpacing,
+        iconRotation = iconRotation, onClick = onClick)
 }
 
 @Composable
@@ -219,6 +271,7 @@ internal fun PanelAction(
     iconTextSpacing: Dp = 23.dp,
     summary: String? = null,
     trailing: (@Composable () -> Unit)? = null,
+    iconRotation: Float = 0f,
     onClick: () -> Unit,
 ) {
     Row(
@@ -229,7 +282,7 @@ internal fun PanelAction(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Box(Modifier.width(iconColumnWidth), contentAlignment = Alignment.Center) {
-            LauncherIcon(symbol, Modifier.size(23.dp).testTag("$tag:icon"))
+            LauncherIcon(symbol, Modifier.size(23.dp).rotate(iconRotation).testTag("$tag:icon"))
         }
         Spacer(Modifier.width(iconTextSpacing))
         Column(Modifier.weight(1f)) {

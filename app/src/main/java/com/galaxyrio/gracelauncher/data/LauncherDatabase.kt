@@ -126,12 +126,14 @@ abstract class LauncherSettingsDao {
 
 @Database(
     entities = [LauncherSettingsEntity::class, HiddenAppEntity::class,
-        LauncherFolderEntity::class, FolderAppEntity::class],
-    version = 8,
+        LauncherFolderEntity::class, FolderAppEntity::class, ItemIconEntity::class,
+        SavedShortcutEntity::class, AppPopupEntity::class],
+    version = 9,
     exportSchema = true,
 )
 abstract class LauncherDatabase : RoomDatabase() {
     abstract fun settingsDao(): LauncherSettingsDao
+    abstract fun itemsDao(): LauncherItemsDao
 
     companion object {
         val Migration1To2 = object : Migration(1, 2) {
@@ -186,12 +188,20 @@ abstract class LauncherDatabase : RoomDatabase() {
             }
         }
 
+        val Migration8To9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE TABLE IF NOT EXISTS item_icons (itemKey TEXT NOT NULL PRIMARY KEY, iconJson TEXT NOT NULL)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS saved_shortcuts (itemKey TEXT NOT NULL PRIMARY KEY, packageName TEXT NOT NULL, shortcutId TEXT NOT NULL, activity TEXT NOT NULL, label TEXT NOT NULL, showInAppList INTEGER NOT NULL)")
+                db.execSQL("CREATE TABLE IF NOT EXISTS app_popups (ownerKey TEXT NOT NULL PRIMARY KEY, itemsJson TEXT NOT NULL)")
+            }
+        }
+
         fun getInstance(context: Context): LauncherDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 LauncherDatabase::class.java,
                 "grace_launcher.db",
-            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7, Migration7To8).build().also { instance = it }
+            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7, Migration7To8, Migration8To9).build().also { instance = it }
         }
     }
 }

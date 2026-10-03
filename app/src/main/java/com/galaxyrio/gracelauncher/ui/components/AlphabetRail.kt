@@ -69,7 +69,7 @@ private class ScrubState {
 }
 
 /**
- * This is the only alphabet touch surface, shared by home and the app list.
+ * One alphabet touch surface for the home/app list and icon picker.
  * Keep the pointer coroutine independent of selection callbacks so opening the
  * list or changing a section never interrupts a finger already on the screen.
  */
@@ -82,10 +82,13 @@ fun AlphabetRail(
     modifier: Modifier = Modifier,
     onScrubFinished: () -> Unit = {},
     autoHide: Boolean = false,
+    includeHome: Boolean = true,
+    onWallpaper: Boolean = true,
 ) {
     if (letters.isEmpty()) return
     val appearance = LocalLauncherAppearance.current
-    val entries = remember(letters) { listOf<String?>(null) + letters }
+    val textColor = if (onWallpaper) appearance.text else MaterialTheme.colorScheme.onSurface
+    val entries = remember(letters, includeHome) { if (includeHome) listOf<String?>(null) + letters else letters }
     val state = remember { ScrubState() }
     val currentOnSelect by rememberUpdatedState(onLetterSelected)
     val currentOnScrubFinished by rememberUpdatedState(onScrubFinished)
@@ -159,7 +162,9 @@ fun AlphabetRail(
     ) {
         entries.forEachIndexed { index, letter ->
             val isSelected = if (state.active) state.selectedIndex == index else selectedLetter == letter
-            val description = if (letter == null) homeDescription else stringResource(R.string.jump_to_letter, letter)
+            val description = if (letter == null) homeDescription else stringResource(
+                if (includeHome) R.string.jump_to_letter else R.string.jump_to_section, letter,
+            )
             Box(
                 modifier = Modifier
                     .width(48.dp)
@@ -188,7 +193,7 @@ fun AlphabetRail(
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                val color = appearance.text.copy(alpha = if (isSelected) 1f else 0.85f)
+                val color = textColor.copy(alpha = if (isSelected) 1f else 0.85f)
                 if (letter == null) {
                     LauncherIcon(LauncherSymbol.Star, Modifier.size(18.dp), tint = color)
                 } else {
@@ -200,7 +205,7 @@ fun AlphabetRail(
                             fontSize = 14.sp,
                             lineHeight = 16.sp,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            shadow = appearance.textShadow,
+                            shadow = if (onWallpaper) appearance.textShadow else null,
                         ),
                     )
                 }
@@ -233,7 +238,7 @@ fun AlphabetRail(
                 Modifier.fillMaxSize().testTag("alphabet_indicator"),
                 contentAlignment = Alignment.Center,
             ) {
-                if (state.selectedIndex == 0) {
+                if (entries.getOrNull(state.selectedIndex) == null) {
                     LauncherIcon(
                         LauncherSymbol.Star,
                         Modifier.size(28.dp).testTag("alphabet_indicator_star"),
