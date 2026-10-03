@@ -282,4 +282,55 @@
     <string name="licenses_full_text">完整文本</string>
     <string name="licenses_named_full_text">%1$s · 完整文本</string>
     <string name="licenses_link_unavailable">没有可打开此链接的应用。</string>
+
+    <!-- Clock style -->
+    <string name="clock_style_apply">应用</string>
+    <string name="clock_layout">时钟样式</string>
+    <string name="clock_single_line">单行排列</string>
+    <string name="clock_two_lines">双行排列</string>
+    <string name="clock_font_default">默认字体 · Josefin Sans</string>
+    <string name="clock_font_import">导入字体</string>
+    <string name="clock_font_importing">正在导入字体…</string>
+    <string name="clock_font_unavailable">字体不可用 · 已使用默认字体</string>
+    <string name="clock_font_import_error">无法导入字体。请选择包含时钟数字的有效 TTF、OTF 或 TTC 文件，大小不超过 20 MB。</string>
+    <string name="clock_weight">字体粗细</string>
+    <string name="clock_size">字体大小</string>
+    <string name="clock_letter_spacing">字母间距</string>
+    <string name="clock_digit_spacing">数字间距</string>
+    <string name="clock_hour_minute_spacing">时分间距</string>
+    <string name="clock_font_shadow">字体阴影</string>
+    <string name="clock_separate_digits">数字分离</string>
+    <string name="clock_separate_digits_summary">在重叠字形之间留出透明描边</string>
+    <string name="clock_show_colon">显示冒号</string>
+    <string name="clock_show_colon_summary">在小时和分钟之间显示冒号</string>
+    <string name="clock_reset_value">恢复%1$s的默认值</string>
+
+    <!-- Search -->
+    <string name="search_clear_query">清空搜索</string>
+
+    <!-- Home widgets -->
+    <string name="widget_home_menu">Grace 小组件</string>
+    <string name="widget_add">添加自定义小组件</string>
+    <string name="widget_choose">选择小组件</string>
+    <string name="widget_search">搜索小组件</string>
+    <string name="widget_none">未找到小组件</string>
+    <string name="widget_single_limit">目前仅支持一个自定义小组件，叠加小组件将在以后实现。</string>
+    <string name="widget_setup_error">无法添加此小组件，请重试。</string>
+    <string name="widget_unavailable">此小组件暂不可用，长按可管理。</string>
+    <string name="widget_no_configuration">此小组件没有可用的设置页面。</string>
+    <string name="widget_move_resize">移动和调整大小</string>
+    <string name="widget_configuration">更改小组件设置</string>
+    <string name="widget_remove">移除</string>
+    <string name="widget_move_home">移动时钟和应用列表</string>
+    <string name="widget_resize">调整小组件大小</string>
+    <string name="widget_adjust_up">向上移动／减小高度</string>
+    <string name="widget_adjust_down">向下移动／增加高度</string>
+    <string name="widget_calendar">日历</string>
+    <string name="widget_calendar_access">允许访问日历</string>
+    <string name="widget_preview_unavailable">此应用未提供可用的预览</string>
+    <string name="widget_group_expanded">已展开</string>
+    <string name="widget_group_collapsed">已收起</string>
+    <plurals name="widget_count">
+        <item quantity="other">%d 个小组件</item>
+    </plurals>
 </resources>

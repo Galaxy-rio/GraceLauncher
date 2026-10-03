@@ -39,7 +39,7 @@ import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AppIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
-import com.galaxyrio.gracelauncher.ui.search.LauncherSearchBar
+import com.galaxyrio.gracelauncher.ui.components.LauncherSearchBar
 import java.util.UUID
 
 @Composable

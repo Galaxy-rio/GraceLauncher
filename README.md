@@ -38,6 +38,12 @@ Contributions are welcome. Feel free to open an issue to report a bug or suggest
 
 Translations are managed through [Weblate](https://hosted.weblate.org/engage/grace_launcher/). You can help translate Grace Launcher into your language there.
 
+Keep all UI strings in one `strings.xml` per language: `app/src/main/res/values/strings.xml` for the source text and `values-<locale>/strings.xml` for translations. Use section comments instead of splitting strings into feature-specific resource files.
+
+Code is grouped by responsibility: `data` contains models and storage, `platform` integrates Android services, and `ui` contains feature screens with reusable elements in `ui/components`. Keep related small helpers with their feature rather than adding extra layers.
+
+Generated build outputs, temporary captures, local release packages and `.local` maintainer drafts are ignored by Git. Only shared code styles and inspections from `.idea` are versioned; device selections and other local IDE state stay on your machine.
+
 <a href="https://hosted.weblate.org/engage/grace_launcher/">
   <img src="https://hosted.weblate.org/widget/grace_launcher/multi-auto.svg" alt="Translation status">
 </a>

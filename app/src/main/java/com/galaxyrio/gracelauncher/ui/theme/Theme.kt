@@ -1,18 +1,31 @@
 package com.galaxyrio.gracelauncher.ui.theme
 
 import android.os.Build
-import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
+import androidx.compose.material3.MaterialExpressiveTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.Color
-import com.materialkolor.rememberDynamicColorScheme
+import androidx.compose.ui.platform.LocalContext
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
+import com.materialkolor.rememberDynamicColorScheme
+
+val Ink = Color(0xFF071A19)
+val DeepTeal = Color(0xFF123B37)
+val Mint = Color(0xFF8BE0CA)
+val MintContainer = Color(0xFF1D514A)
+val Coral = Color(0xFFFFB3A7)
+val Moon = Color(0xFFF2FAF7)
+val Mist = Color(0xFFB7CBC5)
+
+val Paper = Color(0xFFF4FBF8)
+val Forest = Color(0xFF0A6257)
+val PaleMint = Color(0xFFA8F2DE)
+val Rose = Color(0xFF8E4A43)
 
 private val DarkColorScheme = darkColorScheme(
     primary = Mint,

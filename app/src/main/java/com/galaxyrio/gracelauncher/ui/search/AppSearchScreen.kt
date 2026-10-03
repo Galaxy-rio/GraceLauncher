@@ -21,6 +21,7 @@ import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
+import com.galaxyrio.gracelauncher.ui.components.LauncherSearchBar
 import com.galaxyrio.gracelauncher.ui.theme.LauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 

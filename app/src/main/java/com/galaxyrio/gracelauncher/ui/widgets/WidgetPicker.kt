@@ -31,7 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.galaxyrio.gracelauncher.R
-import com.galaxyrio.gracelauncher.ui.search.LauncherSearchBar
+import com.galaxyrio.gracelauncher.ui.components.LauncherSearchBar
 import com.galaxyrio.gracelauncher.ui.settings.SettingsScaffold
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

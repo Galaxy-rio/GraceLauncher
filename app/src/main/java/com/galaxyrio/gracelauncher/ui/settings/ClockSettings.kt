@@ -27,7 +27,7 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AppIcon
-import com.galaxyrio.gracelauncher.ui.search.LauncherSearchBar
+import com.galaxyrio.gracelauncher.ui.components.LauncherSearchBar
 
 @Composable
 internal fun clockAppSummary(uiState: LauncherUiState): String =

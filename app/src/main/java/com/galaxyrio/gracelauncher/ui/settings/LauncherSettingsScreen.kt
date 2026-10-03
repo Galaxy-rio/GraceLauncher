@@ -4,49 +4,47 @@ package com.galaxyrio.gracelauncher.ui.settings
 
 import android.net.Uri
 import androidx.activity.compose.PredictiveBackHandler
+import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import com.galaxyrio.gracelauncher.R
-import com.galaxyrio.gracelauncher.ui.LauncherActions
-import com.galaxyrio.gracelauncher.ui.LauncherUiState
-import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
-import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
-import com.galaxyrio.gracelauncher.ui.motion.settingsEnter
-import com.galaxyrio.gracelauncher.ui.motion.settingsExit
 import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -54,11 +52,16 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.galaxyrio.gracelauncher.R
+import com.galaxyrio.gracelauncher.ui.LauncherActions
+import com.galaxyrio.gracelauncher.ui.LauncherUiState
+import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
+import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
+import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.util.UUID
 
 internal enum class SettingsPage {
     Root, Productivity, Clock, ClockStyle, Calendar, Weather, Themes, Advanced, About, HiddenApps, Folders, FolderEditor,
@@ -268,3 +271,20 @@ private fun DefaultHomeBanner(onClick: () -> Unit) {
         }
     }
 }
+
+// Same hierarchy motion as Sudoku's MaterialTransitionPatterns: 30 dp travel,
+// 300 ms spatial motion, an outgoing 90 ms fade and an incoming 210 ms fade.
+// NavHost also seeks these transitions while a predictive-back gesture is held.
+internal fun <S> AnimatedContentTransitionScope<S>.settingsEnter(distance: Int, back: Boolean = false) =
+    slideIntoContainer(
+        towards = if (back) AnimatedContentTransitionScope.SlideDirection.End else AnimatedContentTransitionScope.SlideDirection.Start,
+        animationSpec = tween(300, easing = FastOutSlowInEasing),
+        initialOffset = { it.coerceIn(-distance, distance) },
+    ) + fadeIn(tween(210, delayMillis = 90, easing = LinearEasing))
+
+internal fun <S> AnimatedContentTransitionScope<S>.settingsExit(distance: Int, back: Boolean = false) =
+    slideOutOfContainer(
+        towards = if (back) AnimatedContentTransitionScope.SlideDirection.End else AnimatedContentTransitionScope.SlideDirection.Start,
+        animationSpec = tween(300, easing = FastOutSlowInEasing),
+        targetOffset = { it.coerceIn(-distance, distance) },
+    ) + fadeOut(tween(90, easing = LinearEasing))
