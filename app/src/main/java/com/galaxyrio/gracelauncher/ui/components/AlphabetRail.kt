@@ -81,6 +81,7 @@ fun AlphabetRail(
     onLetterSelected: (String?) -> Unit,
     modifier: Modifier = Modifier,
     onScrubFinished: () -> Unit = {},
+    autoHide: Boolean = false,
 ) {
     if (letters.isEmpty()) return
     val appearance = LocalLauncherAppearance.current
@@ -105,6 +106,10 @@ fun AlphabetRail(
         targetValue = if (state.active) 1f else 0f,
         animationSpec = spring(dampingRatio = 0.86f, stiffness = 700f),
         label = "alphabetWave",
+    )
+    val visibility by animateFloatAsState(
+        targetValue = if (!autoHide || state.active) 1f else 0f,
+        label = "alphabetVisibility",
     )
     val railDescription = stringResource(R.string.alphabet_scroller)
     val homeDescription = stringResource(R.string.back_home)
@@ -162,6 +167,9 @@ fun AlphabetRail(
                     .offset { IntOffset(0, (index * cellHeightPx).roundToInt()) }
                     .testTag(if (letter == null) "alphabet_home" else "alphabet:$letter")
                     .graphicsLayer {
+                        // Fade the glyphs only: keep the same touch surface alive
+                        // while hidden and when scrubbing switches between pages.
+                        alpha = visibility
                         // Pointer coordinates are read in the draw phase, without relaying
                         // every move through the launcher or the LazyColumn composition.
                         val distance = (index + 0.5f) * cellHeightPx - state.fingerY

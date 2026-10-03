@@ -44,7 +44,8 @@ class LauncherSettingsPersistenceTest {
         database?.close()
         val reopened = Room.databaseBuilder(context, LauncherDatabase::class.java, databaseName)
             .addMigrations(LauncherDatabase.Migration1To2, LauncherDatabase.Migration2To3,
-                LauncherDatabase.Migration3To4, LauncherDatabase.Migration4To5, LauncherDatabase.Migration5To6).build()
+                LauncherDatabase.Migration3To4, LauncherDatabase.Migration4To5, LauncherDatabase.Migration5To6,
+                LauncherDatabase.Migration6To7, LauncherDatabase.Migration7To8).build()
         database = reopened
         return LauncherSettingsRepository(reopened)
     }
@@ -163,6 +164,13 @@ class LauncherSettingsPersistenceTest {
             weatherForecastDays = 10,
             weatherLocationId = "beijing&china",
             clockAppKey = "test.clock/test.clock.MainActivity",
+            hideStatusBar = false,
+            hideAlphabet = true,
+            hideFavoriteNames = true,
+            dimWallpaper = true,
+            wallpaperDimAmount = 35,
+            blurWallpaper = false,
+            wallpaperBlurRadius = 24,
             clockStyle = ClockStyle(layout = ClockLayout.TwoLines,
                 singleLine = ClockStyle.defaults(ClockLayout.SingleLine).copy(weight = 700, showColon = true),
                 twoLines = ClockStyle.defaults(ClockLayout.TwoLines).copy(fontId = "test.ttf", size = 100, letterSpacing = 2)),

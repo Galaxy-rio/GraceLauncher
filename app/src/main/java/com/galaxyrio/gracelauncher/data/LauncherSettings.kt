@@ -18,6 +18,13 @@ data class LauncherSettings(
     val clockAppKey: String? = null,
     val clockStyle: ClockStyle = ClockStyle(),
     val homeLayout: HomeLayout = HomeLayout(),
+    val hideStatusBar: Boolean = true,
+    val hideAlphabet: Boolean = false,
+    val hideFavoriteNames: Boolean = false,
+    val dimWallpaper: Boolean = false,
+    val wallpaperDimAmount: Int = 20,
+    val blurWallpaper: Boolean = true,
+    val wallpaperBlurRadius: Int = 16,
 )
 
 enum class FolderPlacement { Favorites, AppList }

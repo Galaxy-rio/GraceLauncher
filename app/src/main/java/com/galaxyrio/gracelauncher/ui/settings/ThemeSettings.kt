@@ -3,6 +3,7 @@
 package com.galaxyrio.gracelauncher.ui.settings
 
 import androidx.compose.foundation.background
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -10,6 +11,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -17,12 +19,15 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedListItem
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -46,15 +51,18 @@ import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
+import com.galaxyrio.gracelauncher.ui.theme.rememberWallpaperBlurAvailable
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.ktx.toDynamicScheme
 import com.materialkolor.ktx.toneColor
+import kotlin.math.roundToInt
 
 @Composable
 internal fun ThemeSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit, onClockStyle: () -> Unit) {
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     val settings = uiState.settings
+    val blurAvailable = rememberWallpaperBlurAvailable()
     when (dialog) {
         "icons" -> IconPackPicker(
             uiState = uiState,
@@ -87,11 +95,20 @@ internal fun ThemeSettings(uiState: LauncherUiState, actions: LauncherActions, o
             item {
                 SettingsToggleItem(
                     stringResource(R.string.settings_dynamic_colors), stringResource(R.string.settings_dynamic_colors_summary),
-                    settings.useDynamicColors, 1, 3, "settings_dynamic_colors",
+                    settings.useDynamicColors, 1, 5, "settings_dynamic_colors",
                 ) { value -> actions.updateSettings { current -> current.copy(useDynamicColors = value) } }
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_theme_mode), settings.darkMode.label(), 2, 3, "settings_theme_mode") { dialog = "theme" }
+                SettingsActionItem(stringResource(R.string.settings_theme_mode), settings.darkMode.label(), 2, 5, "settings_theme_mode") { dialog = "theme" }
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.settings_wallpaper_text), uiState.textMode.label(), 3, 5, "settings_wallpaper_text") { dialog = "text" }
+            }
+            item {
+                SettingsToggleItem(
+                    stringResource(R.string.settings_themed_icons), stringResource(R.string.settings_themed_icons_summary),
+                    uiState.themedIcons, 4, 5, "settings_themed_icons", actions.themedIcons,
+                )
             }
             item { SettingsHeading(stringResource(R.string.settings_personalization)) }
             item {
@@ -112,14 +129,43 @@ internal fun ThemeSettings(uiState: LauncherUiState, actions: LauncherActions, o
             item {
                 SettingsActionItem(stringResource(R.string.settings_font), stringResource(R.string.settings_coming_soon), 2, 3, "settings_font", enabled = false) { }
             }
-            item { SettingsHeading(stringResource(R.string.settings_wallpaper)) }
+            item { SettingsHeading(stringResource(R.string.settings_misc)) }
             item {
-                SettingsActionItem(stringResource(R.string.settings_wallpaper_text), uiState.textMode.label(), 0, 2, "settings_wallpaper_text") { dialog = "text" }
+                SettingsToggleItem(
+                    stringResource(R.string.settings_hide_status_bar), stringResource(R.string.settings_hide_status_bar_summary),
+                    settings.hideStatusBar, 0, 5, "settings_hide_status_bar",
+                ) { value -> actions.updateSettings { it.copy(hideStatusBar = value) } }
             }
             item {
                 SettingsToggleItem(
-                    stringResource(R.string.settings_themed_icons), stringResource(R.string.settings_themed_icons_summary),
-                    uiState.themedIcons, 1, 2, "settings_themed_icons", actions.themedIcons,
+                    stringResource(R.string.settings_hide_alphabet), stringResource(R.string.settings_hide_alphabet_summary),
+                    settings.hideAlphabet, 1, 5, "settings_hide_alphabet",
+                ) { value -> actions.updateSettings { it.copy(hideAlphabet = value) } }
+            }
+            item {
+                SettingsToggleItem(
+                    stringResource(R.string.settings_hide_favorite_names), stringResource(R.string.settings_hide_favorite_names_summary),
+                    settings.hideFavoriteNames, 2, 5, "settings_hide_favorite_names",
+                ) { value -> actions.updateSettings { it.copy(hideFavoriteNames = value) } }
+            }
+            item {
+                WallpaperEffectItem(
+                    title = stringResource(R.string.settings_dim_wallpaper), summary = stringResource(R.string.settings_dim_wallpaper_summary),
+                    checked = settings.dimWallpaper, amount = settings.wallpaperDimAmount, range = 0..100,
+                    sliderLabel = stringResource(R.string.settings_wallpaper_opacity), index = 3, tag = "settings_dim_wallpaper",
+                    onToggle = { value -> actions.updateSettings { it.copy(dimWallpaper = value) } },
+                    onAmount = { value -> actions.updateSettings { it.copy(wallpaperDimAmount = value) } },
+                )
+            }
+            item {
+                WallpaperEffectItem(
+                    title = stringResource(R.string.settings_blur_wallpaper),
+                    summary = stringResource(if (blurAvailable) R.string.settings_blur_wallpaper_summary else R.string.settings_blur_unavailable),
+                    checked = settings.blurWallpaper, amount = settings.wallpaperBlurRadius, range = 0..48,
+                    sliderLabel = stringResource(R.string.settings_wallpaper_blur_amount), index = 4, tag = "settings_blur_wallpaper",
+                    amountEnabled = blurAvailable,
+                    onToggle = { value -> actions.updateSettings { it.copy(blurWallpaper = value) } },
+                    onAmount = { value -> actions.updateSettings { it.copy(wallpaperBlurRadius = value) } },
                 )
             }
         }
@@ -132,7 +178,7 @@ private fun AccentColorItem(isDynamic: Boolean, selectedColor: Int, onSelect: (C
     val initialPage = (AccentColors.indexOfFirst { it.toArgb() == selectedColor }.coerceAtLeast(0) / 5)
     val pager = rememberPagerState(initialPage = initialPage, pageCount = { pages.size })
     SegmentedListItem(
-        shapes = ListItemDefaults.segmentedShapes(0, 3),
+        shapes = ListItemDefaults.segmentedShapes(0, 5),
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
         modifier = Modifier.testTag("settings_accent_color"),
         content = {
@@ -159,6 +205,50 @@ private fun AccentColorItem(isDynamic: Boolean, selectedColor: Int, onSelect: (C
                             if (pager.settledPage == page) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
                         ))
                     }
+                }
+            }
+        },
+    )
+}
+
+/** Keep the toggle and its expanding slider in one unchanged segmented outline. */
+@Composable
+private fun WallpaperEffectItem(
+    title: String, summary: String, checked: Boolean, amount: Int, range: IntRange,
+    sliderLabel: String, index: Int, tag: String, amountEnabled: Boolean = true,
+    onToggle: (Boolean) -> Unit, onAmount: (Int) -> Unit,
+) {
+    val enabled = LocalSettingsStorageState.current.canEdit
+    var draft by remember(amount) { mutableFloatStateOf(amount.coerceIn(range).toFloat()) }
+    SegmentedListItem(
+        shapes = ListItemDefaults.segmentedShapes(index, 5),
+        colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
+        content = {
+            Column(Modifier.fillMaxWidth()) {
+                Row(
+                    Modifier.fillMaxWidth().testTag(tag)
+                        .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onToggle),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(title)
+                        Text(summary, Modifier.padding(top = 4.dp), style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked = checked, onCheckedChange = null, enabled = enabled,
+                        modifier = Modifier.testTag("${tag}_switch"))
+                }
+                AnimatedVisibility(visible = checked) {
+                    Slider(
+                        value = draft, onValueChange = { draft = it },
+                        // Do not enqueue a Room transaction for every drag frame.
+                        onValueChangeFinished = { onAmount(draft.roundToInt().coerceIn(range)) },
+                        valueRange = range.first.toFloat()..range.last.toFloat(),
+                        enabled = enabled && amountEnabled,
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp).testTag("${tag}_amount")
+                            .semantics { contentDescription = sliderLabel },
+                    )
                 }
             }
         },

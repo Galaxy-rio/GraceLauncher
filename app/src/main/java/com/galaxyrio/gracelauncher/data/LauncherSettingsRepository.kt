@@ -50,6 +50,13 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
             clockAppKey = settings.clockAppKey,
             clockStyleJson = settings.clockStyle.encode(),
             homeLayoutJson = settings.homeLayout.encode(),
+            hideStatusBar = settings.hideStatusBar,
+            hideAlphabet = settings.hideAlphabet,
+            hideFavoriteNames = settings.hideFavoriteNames,
+            dimWallpaper = settings.dimWallpaper,
+            wallpaperDimAmount = settings.wallpaperDimAmount.coerceIn(0, 100),
+            blurWallpaper = settings.blurWallpaper,
+            wallpaperBlurRadius = settings.wallpaperBlurRadius.coerceIn(0, 48),
         ))
     }
 
@@ -96,4 +103,11 @@ private fun LauncherSettingsEntity.toSettings() = LauncherSettings(
     clockAppKey = clockAppKey,
     clockStyle = ClockStyle.decode(clockStyleJson),
     homeLayout = HomeLayout.decode(homeLayoutJson),
+    hideStatusBar = hideStatusBar,
+    hideAlphabet = hideAlphabet,
+    hideFavoriteNames = hideFavoriteNames,
+    dimWallpaper = dimWallpaper,
+    wallpaperDimAmount = wallpaperDimAmount.coerceIn(0, 100),
+    blurWallpaper = blurWallpaper,
+    wallpaperBlurRadius = wallpaperBlurRadius.coerceIn(0, 48),
 )

@@ -37,6 +37,13 @@ data class LauncherSettingsEntity(
     val clockAppKey: String? = null,
     val clockStyleJson: String? = null,
     val homeLayoutJson: String? = null,
+    @ColumnInfo(defaultValue = "1") val hideStatusBar: Boolean = true,
+    @ColumnInfo(defaultValue = "0") val hideAlphabet: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val hideFavoriteNames: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val dimWallpaper: Boolean = false,
+    @ColumnInfo(defaultValue = "20") val wallpaperDimAmount: Int = 20,
+    @ColumnInfo(defaultValue = "1") val blurWallpaper: Boolean = true,
+    @ColumnInfo(defaultValue = "16") val wallpaperBlurRadius: Int = 16,
 )
 
 @Entity(tableName = "hidden_apps")
@@ -120,7 +127,7 @@ abstract class LauncherSettingsDao {
 @Database(
     entities = [LauncherSettingsEntity::class, HiddenAppEntity::class,
         LauncherFolderEntity::class, FolderAppEntity::class],
-    version = 7,
+    version = 8,
     exportSchema = true,
 )
 abstract class LauncherDatabase : RoomDatabase() {
@@ -167,12 +174,24 @@ abstract class LauncherDatabase : RoomDatabase() {
             }
         }
 
+        val Migration7To8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN hideStatusBar INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN hideAlphabet INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN hideFavoriteNames INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN dimWallpaper INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN wallpaperDimAmount INTEGER NOT NULL DEFAULT 20")
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN blurWallpaper INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN wallpaperBlurRadius INTEGER NOT NULL DEFAULT 16")
+            }
+        }
+
         fun getInstance(context: Context): LauncherDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 LauncherDatabase::class.java,
                 "grace_launcher.db",
-            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7).build().also { instance = it }
+            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7, Migration7To8).build().also { instance = it }
         }
     }
 }

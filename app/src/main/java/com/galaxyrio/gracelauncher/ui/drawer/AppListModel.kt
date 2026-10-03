@@ -2,6 +2,7 @@ package com.galaxyrio.gracelauncher.ui.drawer
 
 import com.galaxyrio.gracelauncher.data.LauncherAlphabet
 import com.galaxyrio.gracelauncher.data.LauncherApp
+import com.galaxyrio.gracelauncher.data.LauncherAppOrder
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.FolderPlacement
 
@@ -26,8 +27,10 @@ sealed interface DrawerItem {
 }
 
 class AppListModel(apps: List<LauncherApp>, folders: List<LauncherFolder> = emptyList()) {
-    private val grouped = apps.groupBy(LauncherApp::section)
-    private val appLetters = LauncherAlphabet.filter(grouped::containsKey)
+    private val grouped = apps.sortedWith(LauncherAppOrder).groupBy(LauncherApp::section)
+    private val appLetters = LauncherAlphabet.filter { it != "#" && it in grouped } +
+        grouped.keys.filter { it !in LauncherAlphabet }.sorted() +
+        if ("#" in grouped) listOf("#") else emptyList()
     private val drawerFolders = folders.filter { it.placement == FolderPlacement.AppList }
     val letters: List<String> = appLetters + if (drawerFolders.isEmpty()) emptyList() else listOf(FolderSection)
     val items: List<DrawerItem> = buildList {

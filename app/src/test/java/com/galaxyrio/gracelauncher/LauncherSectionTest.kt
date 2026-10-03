@@ -17,9 +17,13 @@ class LauncherSectionTest {
     }
 
     @Test
-    fun nonLatinAndNumericLabelsUseFallbackSection() {
-        assertEquals("#", sectionForLabel("相机"))
+    fun numericAndEmptyLabelsUseFallbackSection() {
         assertEquals("#", sectionForLabel("1Password"))
         assertEquals("#", sectionForLabel(""))
+    }
+
+    @Test
+    fun fullWidthLatinLabelsUseTheirLatinSection() {
+        assertEquals("C", sectionForLabel("Ｃａｍｅｒａ"))
     }
 }

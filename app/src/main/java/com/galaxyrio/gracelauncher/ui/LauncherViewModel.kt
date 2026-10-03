@@ -18,6 +18,7 @@ import com.galaxyrio.gracelauncher.data.AppRepository
 import com.galaxyrio.gracelauncher.data.CalendarRepository
 import com.galaxyrio.gracelauncher.data.FavoritesStore
 import com.galaxyrio.gracelauncher.data.LauncherApp
+import com.galaxyrio.gracelauncher.data.LauncherAppOrder
 import com.galaxyrio.gracelauncher.data.LauncherDatabase
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.LauncherPreferences
@@ -42,7 +43,6 @@ import com.galaxyrio.gracelauncher.data.notifications.appNotifications
 import com.galaxyrio.gracelauncher.data.weather.BreezyWeatherRepository
 import com.galaxyrio.gracelauncher.data.weather.WeatherState
 import com.galaxyrio.gracelauncher.data.weather.WeatherStatus
-import java.text.Collator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -241,9 +241,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             runCatching { appRepository.loadApps(selectedPack) }
                 .onSuccess { apps ->
                     val renames = preferences.renames()
-                    val collator = Collator.getInstance()
                     val displayedApps = apps.map { it.copy(label = renames[it.key] ?: it.originalLabel) }
-                        .sortedWith { a, b -> collator.compare(a.label, b.label) }
+                        .sortedWith(LauncherAppOrder)
                     val favorites = favoritesStore.favoritesFor(displayedApps)
                     _uiState.update {
                         it.copy(
@@ -354,11 +353,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun renameApp(app: LauncherApp, label: String) {
         preferences.rename(app.key, label)
-        val collator = Collator.getInstance()
         _uiState.update { state ->
             state.copy(apps = state.apps.map {
                 if (it.key == app.key) it.copy(label = label.trim().ifBlank { it.originalLabel }) else it
-            }.sortedWith { a, b -> collator.compare(a.label, b.label) })
+            }.sortedWith(LauncherAppOrder))
         }
     }
 

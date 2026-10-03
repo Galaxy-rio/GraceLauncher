@@ -61,7 +61,7 @@
             android:launchMode="singleTask"
             android:stateNotNeeded="true"
             android:taskAffinity=""
-            android:theme="@style/Theme.GraceLauncher"
+            android:theme="@style/Theme.GraceLauncher.Home"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />

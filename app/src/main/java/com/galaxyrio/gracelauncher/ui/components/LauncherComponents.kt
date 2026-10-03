@@ -127,6 +127,7 @@ fun LauncherAppRow(
     gestures: AppRowGestures = AppRowGestures(),
     highlighted: Boolean = false,
     notification: AppNotification? = null,
+    showLabel: Boolean = true,
 ) {
     LauncherRow(
         rowKey = "app:${app.key}",
@@ -142,6 +143,7 @@ fun LauncherAppRow(
         modifier = modifier,
         highlighted = highlighted,
         notification = notification,
+        showLabel = showLabel,
     ) { iconModifier -> AppIcon(app, modifier = iconModifier, size = 40.dp) }
 }
 
@@ -154,6 +156,7 @@ fun FolderRow(
     onDrag: (Rect, Boolean) -> Unit = { _, _ -> },
     onDragEnd: (Boolean) -> Unit = {},
     highlighted: Boolean = false,
+    showLabel: Boolean = true,
 ) {
     LauncherRow(
         rowKey = "folder:${folder.id}",
@@ -168,6 +171,7 @@ fun FolderRow(
         detailsDescription = stringResource(R.string.folder_actions),
         modifier = modifier,
         highlighted = highlighted,
+        showLabel = showLabel,
     ) { iconModifier -> FolderIcon(modifier = iconModifier) }
 }
 
@@ -187,6 +191,7 @@ private fun LauncherRow(
     modifier: Modifier,
     highlighted: Boolean,
     notification: AppNotification? = null,
+    showLabel: Boolean = true,
     icon: @Composable (Modifier) -> Unit,
 ) {
     val appearance = LocalLauncherAppearance.current
@@ -240,6 +245,9 @@ private fun LauncherRow(
                 }
             }
             .semantics {
+                // Visual labels may be hidden, but TalkBack must still identify
+                // favorites and expose their existing launch/shortcut actions.
+                if (!showLabel) contentDescription = label
                 selected = pressed || highlighted
                 customActions = listOf(
                     CustomAccessibilityAction(openDescription) { onOpen(iconBounds); true },
@@ -258,7 +266,7 @@ private fun LauncherRow(
         icon(Modifier.testTag("$rowKey:icon").onGloballyPositioned { iconBounds = it.boundsInWindow() })
         Spacer(Modifier.width(LauncherLayout.IconLabelGap))
         Column(Modifier.weight(1f)) {
-            Text(
+            if (showLabel) Text(
                 text = label + (notification?.let { " · ${notificationAge(it.postedAt)}" } ?: ""),
                 modifier = Modifier.testTag("$rowKey:label"),
                 style = MaterialTheme.typography.bodyLarge.merge(
@@ -269,7 +277,7 @@ private fun LauncherRow(
                 overflow = TextOverflow.Ellipsis,
             )
             if (notification != null) {
-                Spacer(Modifier.height(2.dp))
+                if (showLabel) Spacer(Modifier.height(2.dp))
                 listOf(notification.title, notification.text.replace('\n', ' ')).filter { it.isNotBlank() }.forEach { line ->
                     Text(line, color = appearance.text.copy(alpha = 0.88f),
                         style = MaterialTheme.typography.bodyMedium.copy(shadow = appearance.textShadow),

@@ -12,6 +12,9 @@
         <item name="android:windowLightNavigationBar">false</item>
         <item name="android:windowDisablePreview">true</item>
     </style>
+    <!-- Android 12+ supplies the translucent HOME variant for background blur. -->
+    <style name="Theme.GraceLauncher.Home" parent="Theme.GraceLauncher" />
+
     <!-- Settings is a regular application task, never a second HOME task. -->
     <style name="Theme.GraceLauncher.Settings" parent="Theme.GraceLauncher">
         <!-- Only the clock preview is transparent; ordinary settings remain opaque. -->

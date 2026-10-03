@@ -14,7 +14,6 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
 import com.galaxyrio.gracelauncher.SettingsActivity
 import com.galaxyrio.gracelauncher.data.icons.IconPackRepository
-import java.text.Collator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.currentCoroutineContext
@@ -37,7 +36,6 @@ class AppRepository(private val context: Context, private val iconPacks: IconPac
             packageManager.queryIntentActivities(launcherIntent, 0)
         }
 
-        val collator = Collator.getInstance().apply { strength = Collator.PRIMARY }
         resolved.asSequence()
             .mapNotNull { resolveInfo ->
                 coroutine.ensureActive()
@@ -69,7 +67,7 @@ class AppRepository(private val context: Context, private val iconPacks: IconPac
                     iconPackPackage = pack?.packageName?.takeIf { packed != null }, monochromeScale = packed?.monochromeScale ?: 1.4f)
             }
             .distinctBy(LauncherApp::key)
-            .sortedWith { left, right -> collator.compare(left.label, right.label) }
+            .sortedWith(LauncherAppOrder)
             .toList()
     }
 

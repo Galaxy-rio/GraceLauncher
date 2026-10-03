@@ -75,6 +75,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.net.toUri
 import androidx.core.content.ContextCompat
 import com.galaxyrio.gracelauncher.R
@@ -107,6 +108,10 @@ import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherHaptics
+import com.galaxyrio.gracelauncher.ui.theme.WallpaperBlur
+import com.materialkolor.PaletteStyle
+import com.materialkolor.ktx.toDynamicScheme
+import com.materialkolor.ktx.toneColor
 import java.time.Duration
 import java.time.Instant
 import kotlinx.coroutines.delay
@@ -356,6 +361,9 @@ internal fun LauncherScreen(
             WindowInsetsControllerCompat(window, view).apply {
                 isAppearanceLightStatusBars = darkSystemIcons
                 isAppearanceLightNavigationBars = darkSystemIcons
+                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                if (uiState.settings.hideStatusBar && !fullScreen) hide(WindowInsetsCompat.Type.statusBars())
+                else show(WindowInsetsCompat.Type.statusBars())
             }
         }
     }
@@ -396,15 +404,12 @@ internal fun LauncherScreen(
         animationSpec = tween(110),
         label = "appListFade",
     )
-    val scrim = remember(appearance.darkText) {
-        val opacity = if (appearance.darkText) 0f else 0.08f
-        Brush.verticalGradient(
-            listOf(
-                Color.Black.copy(alpha = opacity),
-                Color.Black.copy(alpha = opacity * 0.6f),
-                Color.Black.copy(alpha = opacity),
-            ),
-        )
+    val primary = MaterialTheme.colorScheme.primary
+    val wallpaperTint = remember(primary, appearance.darkText) {
+        // Adjust primary's tone, not a black scrim. Dark text gets the matching
+        // light tint so either text mode gains contrast against the wallpaper.
+        primary.toDynamicScheme(isDark = !appearance.darkText, style = PaletteStyle.TonalSpot)
+            .primaryPalette.toneColor(if (appearance.darkText) 95 else 10)
     }
 
     val finishScrubbing: () -> Unit = {
@@ -451,6 +456,21 @@ internal fun LauncherScreen(
     val drawerVisibility = if (drawerOpen) {
         drawerAlpha.value * if (overlay == null) (1f - backProgress.value) else 1f
     } else 0f
+    val wallpaperEffectVisibility = if (fullScreen) 0f else drawerVisibility
+    WallpaperBlur(if (uiState.settings.blurWallpaper) uiState.settings.wallpaperBlurRadius.dp * wallpaperEffectVisibility else 0.dp)
+    val dimAlpha = if (uiState.settings.dimWallpaper) {
+        uiState.settings.wallpaperDimAmount.coerceIn(0, 100) / 100f * wallpaperEffectVisibility
+    } else 0f
+    // Preserve the existing subtle contrast treatment on HOME. The app list
+    // gets only the optional primary-tinted overlay, never this black scrim.
+    val homeScrimOpacity = if (appearance.darkText) 0f else 0.08f * (1f - drawerVisibility)
+    val homeScrim = remember(homeScrimOpacity) {
+        Brush.verticalGradient(listOf(
+            Color.Black.copy(alpha = homeScrimOpacity),
+            Color.Black.copy(alpha = homeScrimOpacity * 0.6f),
+            Color.Black.copy(alpha = homeScrimOpacity),
+        ))
+    }
     CompositionLocalProvider(LocalLauncherAppearance provides appearance, LocalHapticFeedback provides haptics) {
       CompositionLocalProvider(LocalLauncherInputEnabled provides (!fullScreen && !editingHome && backProgress.value == 0f)) {
       BoxWithConstraints(
@@ -459,7 +479,7 @@ internal fun LauncherScreen(
         modifier = Modifier.fillMaxSize()
             .retainedPage(visible = !fullScreen || isSettings || backProgress.value > 0f)
             .then(if (fullScreen || backProgress.value > 0f) Modifier.clearAndSetSemantics {} else Modifier)
-            .background(scrim)
+            .background(homeScrim).background(wallpaperTint.copy(alpha = dimAlpha))
             // The lists extend behind the status bar. Insets belong to their
             // scrollable content, not a parent that clips the whole viewport.
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
@@ -544,6 +564,7 @@ internal fun LauncherScreen(
             },
             modifier = Modifier.align(Alignment.TopEnd).offset(y = railTop),
             onScrubFinished = finishScrubbing,
+            autoHide = uiState.settings.hideAlphabet && !drawerOpen,
         )
         if (!drawerOpen) {
             val fabDescription = stringResource(if (editingHome) R.string.done else R.string.launcher_fab_description)

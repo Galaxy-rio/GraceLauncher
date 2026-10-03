@@ -1,6 +1,11 @@
 package com.galaxyrio.gracelauncher.data
 
 import android.content.ComponentName
+import android.icu.text.AlphabeticIndex
+import android.icu.text.Transliterator
+import android.icu.util.ULocale
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.ui.graphics.ImageBitmap
 import java.text.Normalizer
 import java.util.Locale
@@ -16,17 +21,60 @@ data class LauncherApp(
 ) {
     val key: String = componentName.flattenToString()
     val packageName: String = componentName.packageName
-    val section: String = sectionForLabel(label)
+    val sortKey: String = appSortKey(label)
+    val section: String = sectionForSortKey(sortKey)
 }
 
 val LauncherAlphabet: List<String> = ('A'..'Z').map(Char::toString) + "#"
 
 private val combiningMarks = Regex("\\p{Mn}+")
-
-fun sectionForLabel(label: String): String {
-    val latinized = Normalizer.normalize(label.trim(), Normalizer.Form.NFD)
-        .replace(combiningMarks, "")
-        .uppercase(Locale.getDefault())
-    val first = latinized.firstOrNull()
-    return if (first != null && first in 'A'..'Z') first.toString() else "#"
+private val spacing = Regex("\\s+")
+private val sortKeys = object : LinkedHashMap<String, String>(64, 0.75f, true) {
+    override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, String>?): Boolean = size > 512
 }
+
+/** One cached key drives both the A–Z section and the order within it. */
+@Synchronized
+fun appSortKey(label: String): String = sortKeys.getOrPut(label) {
+    val normalized = Normalizer.normalize(label.trim(), Normalizer.Form.NFKC)
+    val romanized = when {
+        normalized.all { it.code < 128 } -> normalized
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q -> RomanizedLabels.transform(normalized)
+        else -> normalized
+    }
+    val folded = Normalizer.normalize(romanized, Normalizer.Form.NFKD)
+        .replace(combiningMarks, "").replace(spacing, "").lowercase(Locale.ROOT)
+    // Android 9 has no public Transliterator. Its native Chinese index still
+    // supplies pinyin initials; other untransliterated scripts retain a letter
+    // section instead of all being dumped into '#'. No hidden API or font table.
+    if (Build.VERSION.SDK_INT == Build.VERSION_CODES.P && folded.isNotEmpty() &&
+        Character.UnicodeScript.of(folded.codePointAt(0)) == Character.UnicodeScript.HAN
+    ) {
+        val bucket = legacyChineseIndex.getBucket(legacyChineseIndex.getBucketIndex(folded))?.label.orEmpty()
+        if (bucket.length == 1 && bucket[0] in 'A'..'Z') bucket.lowercase(Locale.ROOT) + folded else folded
+    } else folded
+}
+
+private val legacyChineseIndex by lazy {
+    AlphabeticIndex<Any>(ULocale.SIMPLIFIED_CHINESE).addLabels(ULocale.ENGLISH).buildImmutableIndex()
+}
+
+@RequiresApi(Build.VERSION_CODES.Q)
+private object RomanizedLabels {
+    // Han uses pinyin; kana, Hangul, Cyrillic, Greek, etc. use ICU's script
+    // transliterations. Latin-ASCII also handles accents, ligatures and stroke letters.
+    private val transliterator = runCatching { Transliterator.getInstance("Any-Latin; Latin-ASCII") }.getOrNull()
+    fun transform(label: String): String = transliterator?.transliterate(label) ?: label
+}
+
+fun sectionForLabel(label: String): String = sectionForSortKey(appSortKey(label))
+
+private fun sectionForSortKey(key: String): String {
+    if (key.isEmpty()) return "#"
+    val initial = key.uppercase(Locale.ROOT).codePointAt(0)
+    return if (Character.isLetter(initial)) String(Character.toChars(initial)) else "#"
+}
+
+/** Stable across refreshes and renames, regardless of the device UI language. */
+val LauncherAppOrder: Comparator<LauncherApp> = compareBy<LauncherApp> { it.section == "#" }
+    .thenBy { it.section }.thenBy { it.sortKey }.thenBy { it.label }.thenBy { it.key }

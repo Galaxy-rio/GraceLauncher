@@ -181,6 +181,7 @@ fun HomeScreen(
                 gestures = rowGestures,
                 highlighted = highlightedAppKey == app.key,
                 notification = uiState.notifications[app.packageName]?.firstOrNull(),
+                showLabel = !uiState.settings.hideFavoriteNames,
             )
         }
         items(folders, key = { "folder:${it.id}" }, contentType = { "folder" }) { folder ->
@@ -190,6 +191,7 @@ fun HomeScreen(
                 onLongClick = { onEditFolder(folder) },
                 onDrag = { bounds, expanded -> onFolderDrag(folder, bounds, expanded) },
                 onDragEnd = onFolderDragEnd,
+                showLabel = !uiState.settings.hideFavoriteNames,
             )
         }
     }
