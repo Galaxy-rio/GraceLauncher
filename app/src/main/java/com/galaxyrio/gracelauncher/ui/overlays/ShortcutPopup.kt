@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.boundsInWindow
+import com.galaxyrio.gracelauncher.ui.components.launcherAnimationTarget
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -131,7 +132,8 @@ fun ShortcutPopup(
                                 }.padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Box(Modifier.size(36.dp).onGloballyPositioned { iconBounds = it.boundsInWindow() }) {
+                            Box(Modifier.size(36.dp).onGloballyPositioned { iconBounds = it.boundsInWindow() }
+                                .launcherAnimationTarget(listOf(app.componentName))) {
                                 if (shortcut.icon != null) {
                                     Image(shortcut.icon, null, Modifier.fillMaxSize())
                                 } else {

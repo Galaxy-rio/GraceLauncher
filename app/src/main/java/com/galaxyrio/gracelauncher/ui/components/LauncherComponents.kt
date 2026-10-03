@@ -71,8 +71,9 @@ internal val LocalLauncherInputEnabled = staticCompositionLocalOf { true }
 
 @Composable
 fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp) {
+    val iconModifier = modifier.launcherAnimationTarget(listOf(app.componentName))
     if (LocalLauncherAppearance.current.themedIcons && app.monochromeIcon != null) {
-        Box(modifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+        Box(iconModifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
             Image(
                 bitmap = app.monochromeIcon,
                 contentDescription = null,
@@ -82,7 +83,7 @@ fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp) {
             )
         }
     } else if (app.icon != null) {
-        Image(bitmap = app.icon, contentDescription = null, modifier = modifier.size(size))
+        Image(bitmap = app.icon, contentDescription = null, modifier = iconModifier.size(size))
     } else {
         val colors = listOf(
             Color(0xFF65D5BE), Color(0xFFFFB3A7), Color(0xFFAEC6FF),
@@ -90,7 +91,7 @@ fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp) {
         )
         val color = remember(app.key) { colors[(app.key.hashCode() and Int.MAX_VALUE) % colors.size] }
         Box(
-            modifier = modifier.size(size).background(color, CircleShape),
+            modifier = iconModifier.size(size).background(color, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Text(
@@ -172,7 +173,10 @@ fun FolderRow(
         modifier = modifier,
         highlighted = highlighted,
         showLabel = showLabel,
-    ) { iconModifier -> FolderIcon(modifier = iconModifier) }
+    ) { iconModifier ->
+        FolderIcon(modifier = iconModifier.launcherAnimationTarget(
+            folder.appKeys.mapNotNull(android.content.ComponentName::unflattenFromString), folder = true))
+    }
 }
 
 /** Apps and folders share hit targets, ripple clipping, and one swipe recognizer. */

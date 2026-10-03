@@ -87,6 +87,8 @@ import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.ui.components.AlphabetRail
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LocalLauncherInputEnabled
+import com.galaxyrio.gracelauncher.ui.components.LocalAppTransitions
+import com.galaxyrio.gracelauncher.ui.components.LocalHomeAnimationTarget
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
 import com.galaxyrio.gracelauncher.ui.components.statusBarContentFade
 import com.galaxyrio.gracelauncher.platform.AppLaunchTransition
@@ -131,6 +133,7 @@ fun LauncherRoute(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val launchView = LocalView.current
+    val appTransitions = LocalAppTransitions.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -274,16 +277,22 @@ fun LauncherRoute(
         prepareShortcuts = viewModel::prepareShortcuts,
         reorderFavorites = viewModel::reorderFavorites,
         launchAppAt = { app, bounds ->
-            val transition = AppLaunchTransition.fromIcon(launchView, bounds.toAndroidRect())
-            if (!viewModel.launch(app, transition?.sourceBounds, transition?.options)) {
-                Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
+            val start: (AppLaunchTransition?) -> Unit = { transition ->
+                if (!viewModel.launch(app, transition?.sourceBounds, transition?.options)) {
+                    Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
+                }
             }
+            if (appTransitions != null) appTransitions.launch(launchView, bounds.toAndroidRect(), start)
+            else start(AppLaunchTransition.fromIcon(launchView, bounds.toAndroidRect()))
         },
         launchShortcutAt = { shortcut, bounds ->
-            val transition = AppLaunchTransition.fromIcon(launchView, bounds.toAndroidRect())
-            if (!viewModel.launchShortcut(shortcut, transition?.sourceBounds, transition?.options)) {
-                Toast.makeText(context, R.string.shortcut_error, Toast.LENGTH_SHORT).show()
+            val start: (AppLaunchTransition?) -> Unit = { transition ->
+                if (!viewModel.launchShortcut(shortcut, transition?.sourceBounds, transition?.options)) {
+                    Toast.makeText(context, R.string.shortcut_error, Toast.LENGTH_SHORT).show()
+                }
             }
+            if (appTransitions != null) appTransitions.launch(launchView, bounds.toAndroidRect(), start)
+            else start(AppLaunchTransition.fromIcon(launchView, bounds.toAndroidRect()))
         },
         launchShortcut = {
             if (!viewModel.launchShortcut(it)) Toast.makeText(context, R.string.shortcut_error, Toast.LENGTH_SHORT).show()
@@ -494,35 +503,37 @@ internal fun LauncherScreen(
         val railHeight = ((model.letters.size + 1) * 18).dp.coerceAtMost(safeHeight * 0.65f)
         val railTop = statusBarHeight + (safeHeight * 0.39f).coerceAtMost(safeHeight - railHeight - 72.dp).coerceAtLeast(0.dp)
 
-        HomeScreen(
-            uiState = uiState,
-            topSpace = homeTop,
-            onLaunchApp = onLaunchApp,
-            onAppDetails = { overlay = LauncherOverlay.AppDetails(it) },
-            onAppShortcuts = { app, bounds -> overlay = LauncherOverlay.Shortcuts(app, bounds) },
-            onDateClick = {
-                actions.refreshWeather()
-                actions.refreshAgenda()
-                overlay = LauncherOverlay.Agenda
-            },
-            onClockClick = onClockClick,
-            onWidgetMenu = { overlay = LauncherOverlay.HomeWidgetMenu },
-            onCustomWidgetMenu = { overlay = LauncherOverlay.CustomWidgetMenu },
-            editingLayout = editingHome,
-            widgetInputEnabled = !drawerOpen && overlay == null,
-            onTopOffsetChange = { offset -> actions.updateSettings { it.copy(homeLayout = it.homeLayout.copy(topOffsetDp = offset)) } },
-            onWidgetHeightChange = { height -> actions.updateSettings { it.copy(homeLayout = it.homeLayout.copy(widgetHeightDp = height)) } },
-            rowGestures = rowGestures,
-            highlightedAppKey = highlightedAppKey,
-            onOpenFolder = openFolder,
-            onEditFolder = editFolder,
-            onFolderDrag = dragFolder,
-            onFolderDragEnd = endFolderDrag,
-            onMediaCommand = actions.controlMedia,
-            onDismissMedia = actions.dismissMedia,
-            modifier = Modifier.retainedPage(visible = !drawerOpen || (overlay == null && backProgress.value > 0f))
-                .graphicsLayer { alpha = 1f - drawerVisibility }.statusBarContentFade(),
-        )
+        CompositionLocalProvider(LocalHomeAnimationTarget provides true) {
+            HomeScreen(
+                uiState = uiState,
+                topSpace = homeTop,
+                onLaunchApp = onLaunchApp,
+                onAppDetails = { overlay = LauncherOverlay.AppDetails(it) },
+                onAppShortcuts = { app, bounds -> overlay = LauncherOverlay.Shortcuts(app, bounds) },
+                onDateClick = {
+                    actions.refreshWeather()
+                    actions.refreshAgenda()
+                    overlay = LauncherOverlay.Agenda
+                },
+                onClockClick = onClockClick,
+                onWidgetMenu = { overlay = LauncherOverlay.HomeWidgetMenu },
+                onCustomWidgetMenu = { overlay = LauncherOverlay.CustomWidgetMenu },
+                editingLayout = editingHome,
+                widgetInputEnabled = !drawerOpen && overlay == null,
+                onTopOffsetChange = { offset -> actions.updateSettings { it.copy(homeLayout = it.homeLayout.copy(topOffsetDp = offset)) } },
+                onWidgetHeightChange = { height -> actions.updateSettings { it.copy(homeLayout = it.homeLayout.copy(widgetHeightDp = height)) } },
+                rowGestures = rowGestures,
+                highlightedAppKey = highlightedAppKey,
+                onOpenFolder = openFolder,
+                onEditFolder = editFolder,
+                onFolderDrag = dragFolder,
+                onFolderDragEnd = endFolderDrag,
+                onMediaCommand = actions.controlMedia,
+                onDismissMedia = actions.dismissMedia,
+                modifier = Modifier.retainedPage(visible = !drawerOpen || (overlay == null && backProgress.value > 0f))
+                    .graphicsLayer { alpha = 1f - drawerVisibility }.statusBarContentFade(),
+            )
+        }
 
         // One complete list and one scroll state for both held and released
         // views. Content padding anchors headings without reserving a viewport.
