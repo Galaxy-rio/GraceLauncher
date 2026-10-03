@@ -67,6 +67,7 @@ abstract class LauncherItemsDao {
     @Query("SELECT * FROM saved_shortcuts WHERE itemKey = :key") abstract suspend fun shortcut(key: String): SavedShortcutEntity?
     @Upsert abstract suspend fun saveIcon(value: ItemIconEntity)
     @Query("DELETE FROM item_icons WHERE itemKey = :key") abstract suspend fun resetIcon(key: String)
+    @Query("DELETE FROM item_icons WHERE itemKey IN (:keys)") abstract suspend fun resetIcons(keys: List<String>)
     @Upsert abstract suspend fun saveShortcut(value: SavedShortcutEntity)
     @Upsert abstract suspend fun savePopup(value: AppPopupEntity)
 }
@@ -88,6 +89,12 @@ class LauncherItemsRepository(private val database: LauncherDatabase) {
 
     suspend fun saveIcon(key: String, icon: ItemIcon?) {
         if (icon == null) dao.resetIcon(key) else dao.saveIcon(ItemIconEntity(key, icon.encode()))
+    }
+
+    suspend fun resetIcons(keys: Set<String>): List<ItemIcon> = database.withTransaction {
+        val previous = dao.readIcons().filter { it.itemKey in keys }.mapNotNull { ItemIcon.decode(it.iconJson) }
+        keys.toList().chunked(900).forEach { dao.resetIcons(it) }
+        previous
     }
 
     /** A special design can inherit the bulk image source; retain it until its final reference is gone. */

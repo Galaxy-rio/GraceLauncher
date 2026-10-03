@@ -18,6 +18,8 @@ data class IconDesign(
     val cookieSides: Int = 4,
     val background: IconColor? = null,
     val foreground: IconColor? = null,
+    val addTray: Boolean = false,
+    val trayColor: IconColor? = null,
     val x: Float = 0f,
     val y: Float = 0f,
     val size: Int = 100,
@@ -30,9 +32,10 @@ data class IconDesign(
     )
     internal fun json(): JSONObject = normalized().let { value ->
         JSONObject().put("shape", value.shape.name).put("cookieSides", value.cookieSides)
-            .put("x", value.x).put("y", value.y).put("size", value.size).apply {
+            .put("x", value.x).put("y", value.y).put("size", value.size).put("addTray", value.addTray).apply {
                 value.background?.let { put("background", it.json()) }
                 value.foreground?.let { put("foreground", it.json()) }
+                value.trayColor?.let { put("trayColor", it.json()) }
             }
     }
     companion object {
@@ -43,6 +46,7 @@ data class IconDesign(
                 cookieSides = it.optInt("cookieSides", 4),
                 background = IconColor.decode(it.optJSONObject("background")),
                 foreground = IconColor.decode(it.optJSONObject("foreground")),
+                addTray = it.optBoolean("addTray"), trayColor = IconColor.decode(it.optJSONObject("trayColor")),
                 x = it.optDouble("x", 0.0).toFloat(), y = it.optDouble("y", 0.0).toFloat(),
                 size = it.optInt("size", 100),
             ).normalized()

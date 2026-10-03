@@ -54,9 +54,10 @@ internal fun DesignerPreviewIcon(app: LauncherApp, layers: IconLayers?, design: 
             detectDragGestures(orientationLock = null, onDragStart = { down, _, _ ->
                 val position = down.position
                 val style = currentDesign
+                val symbolScale = style.size / 100f * if (style.addTray && !layers.layered) .8f else 1f
                 val symbol = if (style.foreground != null) layers.monochrome ?: layers.foreground else layers.foreground
-                val px = (position.x / this.size.width - .5f - style.x / 100f) / (style.size / 100f) + .5f
-                val py = (position.y / this.size.height - .5f - style.y / 100f) / (style.size / 100f) + .5f
+                val px = (position.x / this.size.width - .5f - style.x / 100f) / symbolScale + .5f
+                val py = (position.y / this.size.height - .5f - style.y / 100f) / symbolScale + .5f
                 moving = px in 0f..<1f && py in 0f..<1f &&
                     AndroidColor.alpha(symbol.getPixel((px * symbol.width).toInt(), (py * symbol.height).toInt())) > 24
             }, onDragEnd = { moving = false }, onDragCancel = { moving = false }) { pointer, delta ->

@@ -47,7 +47,7 @@ import java.util.UUID
 sealed interface LauncherOverlay {
     data class Shortcuts(val app: LauncherApp, val anchor: Rect, val reveal: ShortcutRevealState = ShortcutRevealState()) : LauncherOverlay
     data class AppDetails(val app: LauncherApp, val popupOwner: LauncherApp? = null) : LauncherOverlay
-    data class EditIcon(val app: LauncherApp, val popupOwner: LauncherApp? = null) : LauncherOverlay
+    data class IconDesigner(val app: LauncherApp, val popupOwner: LauncherApp? = null) : LauncherOverlay
     data class EditPopup(val app: LauncherApp) : LauncherOverlay
     data class Folder(val folder: LauncherFolder, val anchor: Rect, val reveal: ShortcutRevealState = ShortcutRevealState()) : LauncherOverlay
     data class FolderSettings(val folderId: String) : LauncherOverlay
@@ -88,10 +88,10 @@ fun LauncherOverlays(
         FavoritesScreen(uiState, onToggleFavorite, actions.reorderFavorites) { onChange(null) }
         return
     }
-    if (overlay is LauncherOverlay.EditIcon) {
-        IconEditorScreen(uiState.findItem(overlay.app.key) ?: overlay.app, uiState, actions) {
-            onChange(LauncherOverlay.AppDetails(overlay.app, overlay.popupOwner))
-        }
+    if (overlay is LauncherOverlay.IconDesigner) {
+        LauncherSettingsScreen(uiState, actions,
+            onBack = { onChange(LauncherOverlay.AppDetails(overlay.app, overlay.popupOwner)) },
+            initialPage = "IconDesigner", initialIconDesignerApp = overlay.app)
         return
     }
     if (overlay is LauncherOverlay.EditPopup) {
@@ -188,7 +188,7 @@ fun LauncherOverlays(
                 is LauncherOverlay.Categories -> CategoryPicker(overlay.app, uiState, actions) { onChange(LauncherOverlay.AppDetails(overlay.app)) }
                 is LauncherOverlay.CategoryApps -> CategoryAppsSheet(overlay.name, uiState) { onChange(null); onLaunchApp(it) }
                 LauncherOverlay.Settings, LauncherOverlay.Search, is LauncherOverlay.Shortcuts,
-                LauncherOverlay.Favorites, is LauncherOverlay.EditIcon, is LauncherOverlay.EditPopup,
+                LauncherOverlay.Favorites, is LauncherOverlay.IconDesigner, is LauncherOverlay.EditPopup,
                 is LauncherOverlay.Folder, is LauncherOverlay.FolderSettings, is LauncherOverlay.SettingsDestination -> Unit
             }
           }
@@ -211,14 +211,14 @@ private fun AppDetailsSheet(app: LauncherApp, actions: LauncherActions, onChange
         label = "advancedArrow",
     )
     var rename by remember(app.key) { mutableStateOf(false) }
-    val editIconDescription = stringResource(R.string.edit_icon)
+    val editIconDescription = stringResource(R.string.icon_designer_title)
     // Extend touch surfaces into the gutter, keeping their inset content on the
     // same two columns as the header (icon center and text leading edge).
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 20.dp, end = 20.dp, top = 22.dp, bottom = 12.dp).testTag("app_details")) {
         Row(Modifier.padding(horizontal = DetailsContentInset).padding(bottom = 8.dp).heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
             AppIcon(app, modifier = Modifier.testTag("app_details_icon").clip(RoundedCornerShape(12.dp))
                 .semantics { contentDescription = editIconDescription }
-                .clickable(role = Role.Button, onClickLabel = editIconDescription) { onChange(LauncherOverlay.EditIcon(app, popupOwner)) }, size = DetailsIconColumnWidth)
+                .clickable(role = Role.Button, onClickLabel = editIconDescription) { onChange(LauncherOverlay.IconDesigner(app, popupOwner)) }, size = DetailsIconColumnWidth)
             Spacer(Modifier.width(DetailsIconTextSpacing))
             Text(app.label, modifier = Modifier.weight(1f).testTag("app_details_title")
                 .clickable(onClickLabel = stringResource(R.string.rename_app)) { rename = true }.padding(vertical = 8.dp),
@@ -240,7 +240,7 @@ private fun AppDetailsSheet(app: LauncherApp, actions: LauncherActions, onChange
         AnimatedVisibility(advanced) {
             Column {
                 DetailsAction(LauncherSymbol.Edit, stringResource(R.string.rename_app)) { rename = true }
-                DetailsAction(LauncherSymbol.Palette, stringResource(R.string.edit_icon)) { onChange(LauncherOverlay.EditIcon(app, popupOwner)) }
+                DetailsAction(LauncherSymbol.DesignServices, stringResource(R.string.icon_designer_title)) { onChange(LauncherOverlay.IconDesigner(app, popupOwner)) }
                 DetailsAction(LauncherSymbol.Launch, stringResource(R.string.edit_app_popup, owner.label)) { onChange(LauncherOverlay.EditPopup(owner)) }
                 DetailsAction(LauncherSymbol.Launch, stringResource(R.string.store_page)) { onChange(null); actions.storePage(app) }
                 Text(app.packageName, Modifier.padding(start = DetailsContentInset + DetailsIconColumnWidth + DetailsIconTextSpacing, end = DetailsContentInset, bottom = 14.dp).testTag("app_details_package"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)

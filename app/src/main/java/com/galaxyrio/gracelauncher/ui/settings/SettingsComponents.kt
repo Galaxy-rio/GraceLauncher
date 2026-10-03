@@ -177,6 +177,7 @@ internal fun SettingsToggleItem(
     index: Int,
     count: Int,
     tag: String,
+    enabled: Boolean = true,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val shapes = ListItemDefaults.segmentedShapes(index = index, count = count)
@@ -184,7 +185,7 @@ internal fun SettingsToggleItem(
     SegmentedListItem(
         checked = checked,
         onCheckedChange = onCheckedChange,
-        enabled = LocalSettingsStorageState.current.canEdit,
+        enabled = enabled && LocalSettingsStorageState.current.canEdit,
         modifier = Modifier.testTag(tag),
         // A preference toggle is not a selected list item. Keep the group's
         // outline and colors stable; only the switch reflects the saved value.
@@ -206,7 +207,7 @@ internal fun SettingsToggleItem(
         trailingContent = {
             Switch(
                 checked = checked, onCheckedChange = null,
-                enabled = LocalSettingsStorageState.current.canEdit,
+                enabled = enabled && LocalSettingsStorageState.current.canEdit,
                 modifier = Modifier.testTag("${tag}_switch"),
             )
         },

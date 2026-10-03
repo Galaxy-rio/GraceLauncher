@@ -109,7 +109,7 @@ internal fun ThemeSettings(
             item {
                 SettingsToggleItem(
                     stringResource(R.string.settings_themed_icons), stringResource(R.string.settings_themed_icons_summary),
-                    uiState.themedIcons, 4, 5, "settings_themed_icons", actions.themedIcons,
+                    uiState.themedIcons, 4, 5, "settings_themed_icons", onCheckedChange = actions.themedIcons,
                 )
             }
             item { SettingsHeading(stringResource(R.string.settings_personalization)) }

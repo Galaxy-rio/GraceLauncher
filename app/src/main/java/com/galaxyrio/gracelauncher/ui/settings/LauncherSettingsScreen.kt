@@ -54,6 +54,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.galaxyrio.gracelauncher.R
+import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
@@ -81,6 +82,7 @@ fun LauncherSettingsScreen(
     initialPage: String? = null,
     initialFolderId: String? = null,
     handleRootBack: Boolean = true,
+    initialIconDesignerApp: LauncherApp? = null,
 ) {
     val navController = rememberNavController()
     val startDestination = remember(initialPage, initialFolderId) {
@@ -175,8 +177,11 @@ fun LauncherSettingsScreen(
                     SettingsPage.ClockStyle -> ClockStyleSettings(uiState, actions, back)
                     SettingsPage.IconPacks -> IconPackSettings(uiState, actions, back) { navigate(SettingsPage.IconDesigner) }
                     SettingsPage.IconDesigner -> {
-                        val selectedKey by entry.savedStateHandle.getStateFlow<String?>("icon_designer_app", null).collectAsState()
-                        IconDesignerSettings(uiState, actions, selectedKey, back) { navigate(SettingsPage.IconDesignerApp) }
+                        val selectedKey by entry.savedStateHandle.getStateFlow<String?>("icon_designer_app", initialIconDesignerApp?.key).collectAsState()
+                        IconDesignerSettings(uiState, actions, selectedKey, back,
+                            onChooseApp = { navigate(SettingsPage.IconDesignerApp) },
+                            onSelectApp = { key -> entry.savedStateHandle.set("icon_designer_app", key) },
+                            fallbackApp = initialIconDesignerApp)
                     }
                     SettingsPage.IconDesignerApp -> AppSelectionSettings(
                         uiState, actions, back, title = stringResource(R.string.icon_designer_choose_app), tag = "icon_designer",

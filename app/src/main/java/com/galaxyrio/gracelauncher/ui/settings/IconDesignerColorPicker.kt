@@ -63,7 +63,7 @@ internal fun IconDesignerColorPicker(title: String, choice: IconColor?, dynamic:
     })
     BoxWithConstraints(modifier.fillMaxSize().testTag("icon_designer_color_picker")) {
         val planeHeight = (maxHeight * .40f).coerceIn(96.dp, 160.dp)
-        Column(Modifier.fillMaxSize().clip(MaterialTheme.shapes.extraLarge)
+        Column(Modifier.fillMaxSize().clip(ListItemDefaults.segmentedShapes(0, 1).shape)
             .background(MaterialTheme.colorScheme.surfaceBright).verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

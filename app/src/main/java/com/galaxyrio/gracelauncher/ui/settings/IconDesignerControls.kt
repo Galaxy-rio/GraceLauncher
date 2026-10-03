@@ -3,6 +3,7 @@
 package com.galaxyrio.gracelauncher.ui.settings
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.LazyRow
@@ -17,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asComposePath
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.platform.testTag
@@ -36,10 +38,12 @@ import kotlin.math.roundToInt
 internal fun LazyListScope.iconDesignerControls(
     all: Boolean, enabled: Boolean, appLabel: String?, sourceLabel: String, design: IconDesign,
     layered: Boolean, dynamicColors: Pair<Int, Int>, onSwitch: () -> Unit, onSource: () -> Unit,
-    onColor: (Boolean) -> Unit, onChange: (IconDesign) -> Unit,
+    onColor: (String) -> Unit, onChange: (IconDesign) -> Unit,
+    colorModifier: @Composable (String) -> Modifier = { Modifier },
 ) {
     val cookie = design.shape == IconShape.Cookie
-    val count = (if (all) 5 else 6) + if (cookie) 1 else 0
+    val canAddTray = all || !layered
+    val count = (if (all) 5 else 6) + (if (cookie) 1 else 0) + (if (canAddTray) 1 else 0)
     var index = 0
     if (!all) {
         val position = index++
@@ -90,18 +94,32 @@ internal fun LazyListScope.iconDesignerControls(
             }
         }
     }
+    if (canAddTray) {
+        val trayIndex = index++
+        item("add_tray") {
+            SettingsToggleItem(stringResource(R.string.icon_designer_add_tray), stringResource(R.string.icon_designer_add_tray_summary),
+                design.addTray, trayIndex, count, "icon_designer_add_tray", enabled = enabled) { value ->
+                if (enabled) onChange(design.copy(addTray = value,
+                    trayColor = if (value) design.trayColor ?: IconColor(dynamicColors.first, true) else design.trayColor))
+            }
+        }
+    }
     val colorIndex = index++
     item("colors") {
         DesignerSegment(colorIndex, count, "icon_designer_colors") {
             Text(stringResource(R.string.icon_designer_color))
             if (all) Text(stringResource(R.string.icon_designer_color_mixed), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
+            if (canAddTray && design.addTray) DesignerColorRow(stringResource(R.string.icon_designer_added_tray_color), design.trayColor,
+                dynamicColors.first, enabled, "icon_designer_tray", colorModifier("tray"), { onColor("tray") }) {
+                onChange(design.copy(trayColor = null))
+            }
             DesignerColorRow(stringResource(if (all) R.string.icon_designer_tray_gradient else if (layered)
                 R.string.icon_designer_tray_color else R.string.icon_designer_gradient_start), design.background,
-                dynamicColors.first, enabled, "icon_designer_background", { onColor(true) }) { onChange(design.copy(background = null)) }
+                dynamicColors.first, enabled, "icon_designer_background", colorModifier("background"), { onColor("background") }) { onChange(design.copy(background = null)) }
             DesignerColorRow(stringResource(if (all) R.string.icon_designer_symbol_gradient else if (layered)
                 R.string.icon_designer_symbol_color else R.string.icon_designer_gradient_end), design.foreground,
-                dynamicColors.second, enabled, "icon_designer_foreground", { onColor(false) }) { onChange(design.copy(foreground = null)) }
+                dynamicColors.second, enabled, "icon_designer_foreground", colorModifier("foreground"), { onColor("foreground") }) { onChange(design.copy(foreground = null)) }
         }
     }
     val positionIndex = index++
@@ -147,12 +165,20 @@ private fun DesignerSlider(label: String, value: Float, default: Float, range: C
 
 @Composable
 private fun DesignerColorRow(label: String, choice: IconColor?, dynamic: Int, enabled: Boolean, tag: String,
-    onPick: () -> Unit, onReset: () -> Unit) {
+    modifier: Modifier, onPick: () -> Unit, onReset: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-        TextButton(onPick, enabled = enabled, modifier = Modifier.weight(1f).testTag(tag),
-            contentPadding = PaddingValues(horizontal = 0.dp, vertical = 12.dp)) {
-            Surface(Modifier.size(28.dp), shape = CircleShape, color = choice?.let { Color(if (it.dynamic) dynamic else it.argb) }
-                ?: MaterialTheme.colorScheme.surfaceContainerHighest, border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)) { }
+        Row(Modifier.weight(1f).then(modifier).heightIn(min = 64.dp).clip(MaterialTheme.shapes.medium)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onPick).testTag(tag).padding(horizontal = 4.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically) {
+            val swatch = choice?.let { Color(if (it.dynamic) dynamic else it.argb) } ?: MaterialTheme.colorScheme.surfaceContainerHighest
+            val outline = MaterialTheme.colorScheme.outline
+            Canvas(Modifier.size(28.dp)) {
+                val radius = size.minDimension / 2 - 1.dp.toPx()
+                drawCircle(swatch, radius)
+                drawCircle(outline, radius, style = Stroke(1.dp.toPx()))
+                if (choice == null) drawLine(outline, Offset(size.width * .20f, size.height * .80f),
+                    Offset(size.width * .80f, size.height * .20f), strokeWidth = 1.5.dp.toPx())
+            }
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(label)

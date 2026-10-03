@@ -278,6 +278,7 @@ fun LauncherRoute(
         refreshApps = viewModel::refreshApps,
         applyClockStyle = viewModel::applyClockStyle,
         applyIconDesign = viewModel::applyIconDesign,
+        deleteIconDesigns = viewModel::deleteIconDesigns,
         updateSettings = { change ->
             val enableCalendar = change(uiState.settings).calendarAgenda && !uiState.settings.calendarAgenda
             viewModel.updateSettings(change)
@@ -376,9 +377,10 @@ internal fun LauncherScreen(
     val view = LocalView.current
     val context = LocalContext.current
     val haptics = rememberLauncherHaptics(uiState.settings.allowHapticFeedback)
-    val isSettings = overlay == LauncherOverlay.Settings || overlay is LauncherOverlay.FolderSettings || overlay is LauncherOverlay.SettingsDestination
+    val isSettings = overlay == LauncherOverlay.Settings || overlay is LauncherOverlay.FolderSettings ||
+        overlay is LauncherOverlay.SettingsDestination || overlay is LauncherOverlay.IconDesigner
     val fullScreen = isSettings || overlay == LauncherOverlay.Search || overlay == LauncherOverlay.Favorites ||
-        overlay is LauncherOverlay.EditIcon || overlay is LauncherOverlay.EditPopup
+        overlay is LauncherOverlay.IconDesigner || overlay is LauncherOverlay.EditPopup
     val screenActions = actions.copy(moveWidget = { drawerOpen = false; selectedLetter = null; overlay = null; editingHome = true })
     val backProgress = remember { Animatable(0f) }
     val darkSystemIcons = if (fullScreen) MaterialTheme.colorScheme.surface.luminance() > 0.5f else appearance.darkText

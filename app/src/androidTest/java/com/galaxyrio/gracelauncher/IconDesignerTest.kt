@@ -116,7 +116,7 @@ class IconDesignerTest {
         compose.onNodeWithTag("icon_designer_size_reset").performClick()
         compose.runOnIdle { assertEquals(0, writes) }
         compose.onNodeWithTag("icon_designer_save").performClick()
-        compose.onNodeWithTag("icon_pack_settings").assertIsDisplayed()
+        compose.onNodeWithTag("icon_designer").assertIsDisplayed()
         compose.runOnIdle {
             assertEquals(1, writes)
             assertEquals(IconShape.Cookie, specialSaved?.design?.shape)

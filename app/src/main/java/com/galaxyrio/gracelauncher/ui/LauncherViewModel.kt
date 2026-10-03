@@ -511,6 +511,22 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
+    suspend fun deleteIconDesigns(keys: Set<String>): Boolean = settingsWriteMutex.withLock {
+        try {
+            val previous = itemsRepository.resetIcons(keys)
+            previous.filter { it.kind == "image" }.distinctBy { it.source }.forEach {
+                if (!itemsRepository.isImageReferenced(it.source)) itemIcons.deleteImage(it)
+            }
+            _uiState.update { it.copy(settingsSaveFailed = false) }
+            true
+        } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            Log.e("LauncherViewModel", "Unable to delete icon designs", error)
+            _uiState.update { it.copy(settingsSaveFailed = true) }
+            false
+        }
+    }
+
     fun removeHomeWidget() = persistSettings {
         var removedId = -1
         settingsRepository.mutateSettings { current ->

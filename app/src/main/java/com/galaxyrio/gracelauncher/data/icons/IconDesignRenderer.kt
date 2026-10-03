@@ -87,8 +87,10 @@ internal fun renderDesignedIcon(layers: IconLayers, design: IconDesign, dynamicB
     if (layers.layered) {
         if (background != null) canvas.drawColor(background)
         else layers.background?.let { canvas.drawBitmap(it, 0f, 0f, paint) }
+    } else if (style.addTray) {
+        style.trayColor?.let { canvas.drawColor(if (it.dynamic) dynamicBackground else it.argb) }
     }
-    val scale = style.size / 100f
+    val scale = style.size / 100f * if (style.addTray && !layers.layered) .8f else 1f
     val centerX = side * (0.5f + style.x / 100f)
     val centerY = side * (0.5f + style.y / 100f)
     val half = side * scale / 2f
