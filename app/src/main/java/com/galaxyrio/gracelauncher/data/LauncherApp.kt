@@ -25,8 +25,13 @@ data class LauncherApp(
     /** Preserve the enabled-pack match when a designer source changes the displayed artwork. */
     val themeIconPackPackage: String? = iconPackPackage,
     val folderId: String? = null,
+    /** null preserves the original personal-profile identities. */
+    val user: android.os.UserHandle? = null,
+    val userSerial: Long? = null,
+    val isPrivateSpace: Boolean = false,
 ) {
-    val key: String = folderId?.let { "folder:$it" } ?: shortcut?.key ?: componentName.flattenToString()
+    val key: String = folderId?.let { "folder:$it" } ?: shortcut?.key
+        ?: userSerial?.let { "profile:$it:${componentName.flattenToString()}" } ?: componentName.flattenToString()
     val packageName: String = componentName.packageName
     val sortKey: String = appSortKey(label)
     val section: String = sectionForSortKey(sortKey)

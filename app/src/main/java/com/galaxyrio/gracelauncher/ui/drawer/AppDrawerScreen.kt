@@ -1,22 +1,37 @@
 package com.galaxyrio.gracelauncher.ui.drawer
 
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -24,13 +39,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
+import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
 import com.galaxyrio.gracelauncher.ui.components.FolderRow
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
+import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
+import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
+import kotlinx.coroutines.flow.first
 
 @Composable
 fun AppDrawerScreen(
@@ -50,8 +69,40 @@ fun AppDrawerScreen(
     onFolderDragEnd: (Boolean) -> Unit = {},
     notifications: Map<String, List<AppNotification>> = emptyMap(),
     folderApps: Map<String, LauncherApp> = emptyMap(),
+    privateExpanded: Boolean = false,
+    privateLoading: Boolean = false,
+    privateFailed: Boolean = false,
+    onLockPrivateSpace: () -> Unit = {},
+    onPrivateSpaceSettings: () -> Unit = {},
+    onRetryPrivateSpace: () -> Unit = {},
 ) {
     val appearance = LocalLauncherAppearance.current
+    val density = LocalDensity.current
+    val safeTop = with(density) { (WindowInsets.safeDrawing.asPaddingValues().calculateTopPadding() + 12.dp)
+        .coerceAtLeast(LauncherLayout.TopFadeHeight).roundToPx() }
+    val currentModel by rememberUpdatedState(model)
+    val currentPrivateLoading by rememberUpdatedState(privateLoading)
+    LaunchedEffect(privateExpanded) {
+        if (!privateExpanded) return@LaunchedEffect
+        withFrameNanos { }
+        // Position this opening once, after its initial contents have been laid
+        // out. Later package/icon refreshes must leave the user's scroll alone.
+        snapshotFlow {
+            !currentPrivateLoading && listState.layoutInfo.totalItemsCount == currentModel.items.size &&
+                listState.layoutInfo.viewportEndOffset > listState.layoutInfo.viewportStartOffset
+        }.first { it }
+        val expandedModel = currentModel
+        val index = expandedModel.items.indexOfFirst { it is DrawerItem.Folder && it.folder.id == PrivateSpaceFolderId }
+        if (index < 0) return@LaunchedEffect
+        val viewport = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
+        val rowHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == expandedModel.items[index].key }?.size
+            ?: with(density) { LauncherLayout.RowMinHeight.roundToPx() }
+        val blockHeight = rowHeight * (expandedModel.items.size - index)
+        val desiredTop = (viewport - blockHeight - with(density) { 24.dp.roundToPx() }).coerceAtLeast(safeTop)
+        // Short lists settle against the real bottom inset; tall lists start with
+        // the Private row in view and continue below it in this same LazyColumn.
+        listState.animateScrollToItem(index, with(density) { topSpace.roundToPx() } - desiredTop)
+    }
     LazyColumn(
         state = listState,
         modifier = modifier
@@ -66,7 +117,7 @@ fun AppDrawerScreen(
         items(
             items = model.items,
             key = DrawerItem::key,
-            contentType = { when (it) { is DrawerItem.Header -> "header"; is DrawerItem.App -> "app"; is DrawerItem.Folder -> "folder" } },
+            contentType = { when (it) { is DrawerItem.Header -> "header"; is DrawerItem.App, is DrawerItem.PrivateApp -> "app"; is DrawerItem.Folder -> "folder"; DrawerItem.PrivateStatus -> "status" } },
         ) { item ->
             // Keep every item's key and measured height. Hiding a group must
             // not change scroll bounds or move the selected header on release.
@@ -104,7 +155,29 @@ fun AppDrawerScreen(
                         onLongClick = { onEditFolder(item.folder) },
                         onDrag = { bounds, expanded -> onFolderDrag(item.folder, bounds, expanded) },
                         onDragEnd = onFolderDragEnd,
+                        trailing = if (item.folder.id == PrivateSpaceFolderId && privateExpanded) ({
+                            val lockLabel = stringResource(R.string.private_space_lock)
+                            IconButton(onClick = onLockPrivateSpace,
+                                modifier = Modifier.size(40.dp).testTag("private_space_list_lock").semantics { contentDescription = lockLabel }) {
+                                LauncherIcon(LauncherSymbol.Lock, tint = appearance.text)
+                            }
+                        }) else null,
                     )
+                    is DrawerItem.PrivateApp -> LauncherAppRow(
+                        app = item.app, onClick = { onLaunchApp(item.app) }, onLongClick = { onAppDetails(item.app) },
+                        gestures = AppRowGestures(onLaunchAt = rowGestures.onLaunchAt),
+                        highlighted = highlightedAppKey == item.app.key,
+                        modifier = Modifier.animateItem(fadeOutSpec = null),
+                    )
+                    DrawerItem.PrivateStatus -> Column(Modifier.padding(start = LauncherLayout.ContentInset, bottom = 12.dp)) {
+                        Text(stringResource(when { privateLoading -> R.string.private_space_loading
+                            privateFailed -> R.string.private_space_unavailable; else -> R.string.private_space_empty }),
+                            Modifier.padding(vertical = 12.dp), color = appearance.text,
+                            style = MaterialTheme.typography.bodyMedium.copy(shadow = appearance.textShadow))
+                        if (!privateLoading) TextButton(onClick = if (privateFailed) onRetryPrivateSpace else onPrivateSpaceSettings) {
+                            Text(stringResource(if (privateFailed) R.string.retry else R.string.private_space_setup), color = appearance.text)
+                        }
+                    }
                 }
             }
         }

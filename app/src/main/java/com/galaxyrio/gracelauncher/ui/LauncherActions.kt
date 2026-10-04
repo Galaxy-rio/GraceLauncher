@@ -19,6 +19,12 @@ import com.galaxyrio.gracelauncher.data.media.MediaCommand
 /** Platform actions are injected so all launcher surfaces can be previewed and tested. */
 data class LauncherActions(
     val requestDefaultHome: () -> Unit = {},
+    val requestPrivateSpace: (Boolean, () -> Unit) -> Unit = { _, _ -> },
+    val lockPrivateSpace: () -> Unit = {},
+    val closePrivateSpace: () -> Unit = {},
+    val openPrivateSpaceSettings: () -> Unit = {},
+    val reorderPrivateApps: (List<String>) -> Unit = {},
+    val resetPrivateSpaceAppearance: suspend () -> Boolean = { false },
     val appInfo: (LauncherApp) -> Unit = {},
     val screenTime: (LauncherApp) -> Unit = {},
     val uninstall: (LauncherApp) -> Unit = {},

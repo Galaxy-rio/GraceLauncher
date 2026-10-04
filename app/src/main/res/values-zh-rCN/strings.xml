@@ -1,5 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="private_space_title">私密空间</string>
+    <string name="private_space_summary">为私密应用提供受保护的空间</string>
+    <string name="private_space_enable">启用私密空间</string>
+    <string name="private_space_enable_summary">在应用列表的文件夹分类底部显示私密空间</string>
+    <string name="private_space_password">密码保护</string>
+    <string name="private_space_password_summary">打开时使用指纹或系统密码验证。Android 也可能要求验证私密空间密码。</string>
+    <string name="private_space_display">显示方式</string>
+    <string name="private_space_display_list">列表</string>
+    <string name="private_space_display_folder">文件夹</string>
+    <string name="private_space_edit">编辑</string>
+    <string name="private_space_edit_summary">修改名称、图标和应用排序</string>
+    <string name="private_space_setup">打开私密空间设置</string>
+    <string name="private_space_setup_summary">在 Android 私密空间中添加或管理应用</string>
+    <string name="private_space_empty">私密空间中没有应用</string>
+    <string name="private_space_loading">正在加载私密空间…</string>
+    <string name="private_space_unavailable">私密空间暂时不可用，请重试。</string>
+    <string name="private_space_default_home">将 Grace 设为默认桌面以使用私密空间</string>
+    <string name="private_space_unsupported">私密空间需要 Android 15 或更新版本</string>
+    <string name="private_space_verify_title">验证身份</string>
+    <string name="private_space_security_required">请设置设备锁屏密码以启用密码保护</string>
+    <string name="private_space_unlock_edit">验证身份后编辑</string>
+    <string name="private_space_lock">锁定私密空间</string>
     <!-- 核心 -->
     <string name="app_name">Grace 启动器</string>
     <string name="alphabet_scroller">字母快速索引</string>

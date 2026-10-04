@@ -80,7 +80,13 @@ class WidgetSetupActivity : ComponentActivity() {
                     fail(R.string.widget_single_limit)
                 } else {
                     providers = withContext(Dispatchers.IO) {
-                        getSystemService(UserManager::class.java).userProfiles.flatMap { profile ->
+                        getSystemService(UserManager::class.java).userProfiles.filter { profile ->
+                            if (android.os.Build.VERSION.SDK_INT < 35 || profile == android.os.Process.myUserHandle()) true
+                            else runCatching {
+                                val type = getSystemService(android.content.pm.LauncherApps::class.java).getLauncherUserInfo(profile)?.userType
+                                type != null && type != UserManager.USER_TYPE_PROFILE_PRIVATE
+                            }.getOrDefault(false)
+                        }.flatMap { profile ->
                             runCatching { manager.getInstalledProvidersForProfile(profile) }.getOrDefault(emptyList())
                         }.distinctBy { it.provider.flattenToString() to it.profile }
                             .sortedBy { runCatching { it.loadLabel(packageManager) }.getOrDefault(it.provider.className).lowercase() }

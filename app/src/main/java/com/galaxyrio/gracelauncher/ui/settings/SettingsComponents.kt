@@ -155,6 +155,7 @@ internal fun SettingsActionItem(
     tag: String,
     enabled: Boolean = true,
     leading: @Composable (() -> Unit)? = null,
+    trailing: @Composable (() -> Unit)? = null,
     onClick: () -> Unit,
 ) {
     SegmentedListItem(
@@ -166,6 +167,7 @@ internal fun SettingsActionItem(
         leadingContent = leading,
         content = { Text(title) },
         supportingContent = if (summary == null) null else ({ Text(summary) }),
+        trailingContent = trailing,
     )
 }
 

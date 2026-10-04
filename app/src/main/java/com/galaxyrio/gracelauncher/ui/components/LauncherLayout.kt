@@ -18,6 +18,7 @@ internal object LauncherLayout {
     val End = 56.dp
     val ContentInset = 8.dp
     val IconLabelGap = 20.dp
+    val RowMinHeight = 56.dp
     val RowShape = RoundedCornerShape(18.dp)
     // Roughly two status bars tall; keep the fade independent of inset variations.
     val TopFadeHeight = 56.dp

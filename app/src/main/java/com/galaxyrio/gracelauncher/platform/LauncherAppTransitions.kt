@@ -140,8 +140,8 @@ private class HomeReturnAnimation(
     fun onHomeIntent(intent: Intent) {
         close()
         val incoming = GestureNavContract.fromIntent(intent) ?: return
-        // Grace currently lists the current user's apps only. A work-profile
-        // app must not animate into a personal-profile icon of the same package.
+        // Only personal-profile HOME targets participate in this return animation.
+        // A private/work app must not animate into a personal icon of the same package.
         if (incoming.user != Process.myUserHandle()) return
         contract = incoming
         token = ParcelUuid(UUID.randomUUID())

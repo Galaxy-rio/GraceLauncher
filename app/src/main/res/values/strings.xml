@@ -1,4 +1,26 @@
 <resources>
+    <string name="private_space_title">Private space</string>
+    <string name="private_space_summary">A protected space for your private apps</string>
+    <string name="private_space_enable">Enable Private space</string>
+    <string name="private_space_enable_summary">Show Private space at the bottom of Folders in the app list</string>
+    <string name="private_space_password">Password protection</string>
+    <string name="private_space_password_summary">Verify with fingerprint or a system password when opening. Android may also require the Private space password.</string>
+    <string name="private_space_display">Display as</string>
+    <string name="private_space_display_list">List</string>
+    <string name="private_space_display_folder">Folder</string>
+    <string name="private_space_edit">Edit</string>
+    <string name="private_space_edit_summary">Change the name, icon and app order</string>
+    <string name="private_space_setup">Open Private space settings</string>
+    <string name="private_space_setup_summary">Add or manage apps in Android Private space</string>
+    <string name="private_space_empty">No apps in Private space</string>
+    <string name="private_space_loading">Loading Private space…</string>
+    <string name="private_space_unavailable">Private space is unavailable. Please try again.</string>
+    <string name="private_space_default_home">Set Grace as your default launcher to use Private space</string>
+    <string name="private_space_unsupported">Private space requires Android 15 or later</string>
+    <string name="private_space_verify_title">Verify it’s you</string>
+    <string name="private_space_security_required">Set a device screen lock to enable password protection</string>
+    <string name="private_space_unlock_edit">Unlock to edit</string>
+    <string name="private_space_lock">Lock Private space</string>
     <!-- Core -->
     <string name="app_name">Grace Launcher</string>
     <string name="alphabet_scroller">Alphabet quick scroll</string>

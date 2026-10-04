@@ -104,14 +104,18 @@ internal fun ProductivitySettings(
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_hide_apps), pluralStringResource(R.plurals.settings_hidden_count, uiState.hiddenAppKeys.size, uiState.hiddenAppKeys.size),
-                    0, 2, "settings_open_hidden_apps",
+                    0, 3, "settings_open_hidden_apps",
                 ) { navigate(SettingsPage.HiddenApps) }
             }
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_folders), pluralStringResource(R.plurals.settings_folder_count, uiState.folders.size, uiState.folders.size),
-                    1, 2, "settings_open_folders",
+                    1, 3, "settings_open_folders",
                 ) { navigate(SettingsPage.Folders) }
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.private_space_title), stringResource(R.string.private_space_summary),
+                    2, 3, "settings_open_private_space") { navigate(SettingsPage.PrivateSpace) }
             }
             item { SettingsHeading(stringResource(R.string.settings_advanced)) }
             item {

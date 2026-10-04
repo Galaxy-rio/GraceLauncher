@@ -6,6 +6,8 @@ import android.graphics.ImageDecoder
 import android.graphics.drawable.AdaptiveIconDrawable
 import android.graphics.drawable.ColorDrawable
 import android.graphics.drawable.InsetDrawable
+import android.graphics.drawable.Drawable
+import android.content.pm.LauncherApps
 import androidx.core.content.ContextCompat
 import com.galaxyrio.gracelauncher.R
 import android.content.res.Configuration
@@ -19,6 +21,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import com.galaxyrio.gracelauncher.data.ItemIcon
 import com.galaxyrio.gracelauncher.data.LauncherApp
+import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
 import com.galaxyrio.gracelauncher.data.LauncherSettings
 import com.galaxyrio.gracelauncher.data.ThemeMode
 import com.galaxyrio.gracelauncher.data.isBulkIconDesignEligible
@@ -73,14 +76,15 @@ class ItemIconStore(private val context: Context, private val packs: IconPackRep
         withContext(Dispatchers.IO) {
             if (app.folderId != null && choice.kind in setOf("system", "theme")) {
                 val colors = dynamicColors(settings)
-                val glyph = ContextCompat.getDrawable(context, R.drawable.ms_folder)?.mutate() ?: return@withContext null
+                val glyph = ContextCompat.getDrawable(context, if (app.folderId == PrivateSpaceFolderId) R.drawable.ms_lock else R.drawable.ms_folder)
+                    ?.mutate() ?: return@withContext null
                 glyph.setTint(colors.second)
                 return@withContext iconLayers(AdaptiveIconDrawable(ColorDrawable(colors.first), InsetDrawable(glyph, 0.22f)), size)
             }
             val drawable = when (choice.kind) {
                 "theme" -> settings.enabledIconPackPackages.firstNotNullOfOrNull { packs.load(it)?.designDrawableFor(app.componentName) }
-                    ?: runCatching { context.packageManager.getActivityIcon(app.componentName) }.getOrNull()
-                "system" -> runCatching { context.packageManager.getActivityIcon(app.componentName) }.getOrNull()
+                    ?: systemDrawable(app)
+                "system" -> systemDrawable(app)
                 "pack" -> packs.load(choice.source)?.let {
                     if (choice.name.isEmpty()) it.designDrawableFor(app.componentName) else it.designDrawable(choice.name)
                 }
@@ -103,7 +107,7 @@ class ItemIconStore(private val context: Context, private val packs: IconPackRep
             "pack" -> packs.selectedIcon(choice)
             "image" -> imageBitmap(choice.source, 144)?.let { PackIcon(it.asImageBitmap()) }
             "system" -> if (app.folderId != null) null else if (app.shortcut != null) app.shortcut.icon?.let { PackIcon(it) } else runCatching {
-                val drawable = context.packageManager.getActivityIcon(app.componentName)
+                val drawable = systemDrawable(app) ?: return@withContext app
                 val mono = if (Build.VERSION.SDK_INT >= 33) (drawable as? AdaptiveIconDrawable)?.monochrome else null
                 PackIcon(renderIcon(drawable).asImageBitmap(), mono?.let { renderIcon(it).asImageBitmap() })
             }.getOrNull()
@@ -112,6 +116,12 @@ class ItemIconStore(private val context: Context, private val packs: IconPackRep
         if (icon == null) app else app.copy(icon = icon.bitmap, monochromeIcon = icon.monochrome,
             monochromeScale = icon.monochromeScale, iconPackPackage = choice.source.takeIf { choice.kind == "pack" })
     }
+
+    private fun systemDrawable(app: LauncherApp): Drawable? = runCatching {
+        if (app.user == null) context.packageManager.getActivityIcon(app.componentName)
+        else context.getSystemService(LauncherApps::class.java).getActivityList(app.packageName, app.user)
+            .firstOrNull { it.componentName == app.componentName }?.getIcon(0)
+    }.getOrNull()
 
     /** Special (including desktop edits) > mapped packs > bulk design > system. */
     internal suspend fun isMappedBulkSource(app: LauncherApp, choice: ItemIcon): Boolean =

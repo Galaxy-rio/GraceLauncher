@@ -49,6 +49,18 @@ import kotlinx.coroutines.isActive
 private data class SelectionEntry(val key: String, val label: String, val app: LauncherApp? = null, val widget: HomeLayout? = null)
 
 @Composable
+internal fun PrivateSpaceEditorScreen(owner: LauncherApp, uiState: LauncherUiState, actions: LauncherActions,
+    onBack: () -> Unit, header: @Composable () -> Unit) {
+    ItemSelectionScreen(
+        title = stringResource(R.string.edit_app_popup, owner.label), tag = "private_space_editor",
+        selected = uiState.privateSpaceApps.map { SelectionEntry(it.key, it.label, it) },
+        apps = emptyList(), enabled = !uiState.privateAppsLoading && !uiState.privateAppsFailed,
+        onToggle = {}, onRemove = {}, onReorder = actions.reorderPrivateApps, onDone = onBack,
+        header = header, reorderOnly = true, loading = uiState.privateAppsLoading,
+    )
+}
+
+@Composable
 internal fun FavoritesScreen(uiState: LauncherUiState, onToggle: (LauncherApp) -> Unit, onReorder: (List<String>) -> Unit, onDone: () -> Unit) {
     ItemSelectionScreen(
         title = stringResource(R.string.edit_favorites), tag = "favorites",
@@ -100,6 +112,8 @@ private fun ItemSelectionScreen(
     shortcuts: List<LauncherApp>? = null, shortcutTitle: String = "", shortcutStatus: ShortcutStatus = ShortcutStatus.Ready,
     onRetry: () -> Unit = {}, onRequestAccess: () -> Unit = {}, onAddWidget: (() -> Unit)? = null,
     header: (@Composable () -> Unit)? = null,
+    reorderOnly: Boolean = false,
+    loading: Boolean = false,
 ) {
     val selectedKeys = selected.map { it.key }
     val selectedEntries = selected.associateBy { it.key }
@@ -136,8 +150,9 @@ private fun ItemSelectionScreen(
         ) {
             if (header != null) item(key = "editor_header", contentType = "header") { header() }
             item(key = "selected_header", contentType = "header") { SelectionHeading(stringResource(R.string.favorites_selected), "${tag}_selected") }
-            if (reorder.keys.isEmpty()) item(key = "empty") {
-                Text(stringResource(if (onAddWidget == null) R.string.favorites_empty else R.string.popup_empty), Modifier.padding(8.dp),
+            if (loading) item(key = "loading") { LinearProgressIndicator(Modifier.fillMaxWidth().padding(8.dp)) }
+            if (!loading && reorder.keys.isEmpty()) item(key = "empty") {
+                Text(stringResource(if (reorderOnly) R.string.private_space_empty else if (onAddWidget == null) R.string.favorites_empty else R.string.popup_empty), Modifier.padding(8.dp),
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             items(reorder.keys.mapNotNull(selectedEntries::get), key = { FavoritesReorderState.itemKey(it.key) }, contentType = { if (it.widget == null) "selected" else "widget" }) { entry ->
@@ -159,7 +174,8 @@ private fun ItemSelectionScreen(
                             if (index < reorder.keys.lastIndex) add(CustomAccessibilityAction(moveDown) { reorder.moveBy(entry.key, 1) })
                         }
                     }) {
-                    SelectionChoice(entry, true, "favorite:${entry.key}", enabled && reorder.draggingKey == null, { onRemove(entry.key) }) {
+                    SelectionChoice(entry, true, "favorite:${entry.key}", enabled && reorder.draggingKey == null, { onRemove(entry.key) },
+                        selectable = !reorderOnly) {
                         var menu by remember { mutableStateOf(false) }
                         Box {
                             IconButton(onClick = { menu = true }, enabled = enabled,
@@ -216,6 +232,7 @@ private fun ItemSelectionScreen(
                     }
                 }
             }
+            if (!reorderOnly) {
             item(key = "all_header", contentType = "header") { SelectionHeading(stringResource(R.string.favorites_all_apps), "${tag}_all_apps") }
             item(key = "search") {
                 LauncherSearchBar(query, stringResource(R.string.search_apps), "${tag}_search", Modifier.padding(bottom = 12.dp))
@@ -226,6 +243,7 @@ private fun ItemSelectionScreen(
             items(filtered, key = { "all:${it.key}" }, contentType = { "app" }) { app ->
                 SelectionChoice(SelectionEntry(app.key, app.label, app), app.key in selectedKeys, "favorite_all:${app.key}",
                     enabled && reorder.draggingKey == null, { onToggle(app) }, Modifier.animateItem())
+            }
             }
         }
     }
@@ -239,12 +257,15 @@ private fun SelectionHeading(text: String, tag: String) {
 
 @Composable
 private fun SelectionChoice(entry: SelectionEntry, checked: Boolean, tag: String, enabled: Boolean, onToggle: () -> Unit,
-    modifier: Modifier = Modifier, trailing: @Composable () -> Unit = {}) {
+    modifier: Modifier = Modifier, selectable: Boolean = true, trailing: @Composable () -> Unit = {}) {
     Row(modifier.fillMaxWidth().heightIn(min = 64.dp).testTag(tag).clip(RoundedCornerShape(16.dp))
-        .toggleable(checked, enabled = enabled, role = Role.Checkbox, onValueChange = { onToggle() }).padding(horizontal = 8.dp, vertical = 8.dp),
+        .then(if (selectable) Modifier.toggleable(checked, enabled = enabled, role = Role.Checkbox, onValueChange = { onToggle() }) else Modifier)
+        .padding(horizontal = 8.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically) {
-        Checkbox(checked, null, Modifier.size(24.dp))
-        Spacer(Modifier.width(16.dp))
+        if (selectable) {
+            Checkbox(checked, null, Modifier.size(24.dp))
+            Spacer(Modifier.width(16.dp))
+        }
         if (entry.app != null) AppIcon(entry.app, size = 36.dp)
         else Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) { LauncherIcon(LauncherSymbol.Apps) }
         Spacer(Modifier.width(16.dp))

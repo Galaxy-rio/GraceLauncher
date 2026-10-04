@@ -36,6 +36,7 @@ data class LauncherSettings(
     /** null keeps the original Josefin Sans; imported fonts use their private file id. */
     val appFontId: String? = null,
     val applyFontToSettings: Boolean = true,
+    val privateSpace: PrivateSpaceSettings = PrivateSpaceSettings(),
 ) {
     /** Icon designer overrides precede this order; system icons always follow it. */
     val enabledIconPackPackages: List<String>

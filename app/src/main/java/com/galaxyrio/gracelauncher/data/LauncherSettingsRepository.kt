@@ -65,6 +65,7 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
             wallpaperBlurRadius = settings.wallpaperBlurRadius.coerceIn(0, 48),
             appFontId = settings.appFontId,
             applyFontToSettings = settings.applyFontToSettings,
+            privateSpaceJson = settings.privateSpace.encode(),
         ))
     }
 
@@ -142,6 +143,7 @@ private fun LauncherSettingsEntity.toSettings() = LauncherSettings(
     wallpaperBlurRadius = wallpaperBlurRadius.coerceIn(0, 48),
     appFontId = appFontId,
     applyFontToSettings = applyFontToSettings,
+    privateSpace = PrivateSpaceSettings.decode(privateSpaceJson),
 )
 
 private fun decodeIconPackOrder(json: String?): List<String> = runCatching {

@@ -62,6 +62,7 @@ import androidx.compose.ui.res.stringResource
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
+import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 
@@ -85,7 +86,7 @@ fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp) {
     } else if (app.icon != null) {
         Image(bitmap = app.icon, contentDescription = null, modifier = iconModifier.size(size))
     } else if (app.folderId != null) {
-        FolderIcon(iconModifier, size)
+        FolderIcon(iconModifier, size, if (app.folderId == PrivateSpaceFolderId) LauncherSymbol.Lock else LauncherSymbol.Folder)
     } else {
         val colors = listOf(
             Color(0xFF65D5BE), Color(0xFFFFB3A7), Color(0xFFAEC6FF),
@@ -107,13 +108,13 @@ fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp) {
 }
 
 @Composable
-fun FolderIcon(modifier: Modifier = Modifier, size: Dp = 40.dp) {
+fun FolderIcon(modifier: Modifier = Modifier, size: Dp = 40.dp, symbol: LauncherSymbol = LauncherSymbol.Folder) {
     Box(
         modifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer),
         contentAlignment = Alignment.Center,
     ) {
         LauncherIcon(
-            LauncherSymbol.Folder,
+            symbol,
             modifier = Modifier.size(size * 0.6f),
             tint = MaterialTheme.colorScheme.onPrimaryContainer,
         )
@@ -161,6 +162,7 @@ fun FolderRow(
     highlighted: Boolean = false,
     showLabel: Boolean = true,
     app: LauncherApp = folder.asApp(),
+    trailing: (@Composable () -> Unit)? = null,
 ) {
     LauncherRow(
         rowKey = "folder:${folder.id}",
@@ -176,6 +178,7 @@ fun FolderRow(
         modifier = modifier,
         highlighted = highlighted,
         showLabel = showLabel,
+        trailing = trailing,
     ) { iconModifier ->
         AppIcon(app, modifier = iconModifier.launcherAnimationTarget(
             folder.appKeys.mapNotNull(android.content.ComponentName::unflattenFromString), folder = true), size = 40.dp)
@@ -199,6 +202,7 @@ private fun LauncherRow(
     highlighted: Boolean,
     notification: AppNotification? = null,
     showLabel: Boolean = true,
+    trailing: (@Composable () -> Unit)? = null,
     icon: @Composable (Modifier) -> Unit,
 ) {
     val appearance = LocalLauncherAppearance.current
@@ -219,7 +223,7 @@ private fun LauncherRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 56.dp)
+            .heightIn(min = LauncherLayout.RowMinHeight)
             .testTag(rowKey)
             .onGloballyPositioned { bounds = it.boundsInWindow() }
             .clip(LauncherLayout.RowShape)
@@ -292,6 +296,7 @@ private fun LauncherRow(
                 }
             }
         }
+        trailing?.invoke()
         if (notification != null) {
             IconButton(
                 onClick = { onPrepare(); onOpen(iconBounds) },

@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.ContentUris
 import android.content.ComponentName
 import android.content.Intent
+import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
@@ -42,11 +43,13 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -71,10 +74,12 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.withResumed
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.net.toUri
@@ -84,6 +89,8 @@ import com.galaxyrio.gracelauncher.MainActivity
 import com.galaxyrio.gracelauncher.WidgetSetupActivity
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
+import com.galaxyrio.gracelauncher.data.PrivateSpaceDisplay
+import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.ui.components.AlphabetRail
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
@@ -121,6 +128,7 @@ import java.time.Duration
 import java.time.Instant
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
@@ -139,6 +147,21 @@ fun LauncherRoute(
     val launchView = LocalView.current
     val appTransitions = LocalAppTransitions.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
+    DisposableEffect(lifecycle, viewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> viewModel.privateSpaceController.onResume()
+                Lifecycle.Event.ON_PAUSE -> viewModel.privateSpaceController.onPause()
+                else -> Unit
+            }
+        }
+        lifecycle.addObserver(observer)
+        onDispose {
+            lifecycle.removeObserver(observer)
+            (context as? Activity)?.let(viewModel.privateSpaceController::cancelAuthentication)
+            viewModel.privateSpaceController.close()
+        }
+    }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) { viewModel.refreshSchedule() }
@@ -177,8 +200,38 @@ fun LauncherRoute(
             Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
         }
     }
+    val openPrivateAppAction: (LauncherApp, () -> Unit) -> Unit = { app, open ->
+        // App info may itself run in the private profile. Hide our contents now
+        // and defer Android's profile lock until returning, as for an app launch.
+        if (viewModel.preparePrivateAppLaunch(app)) {
+            runCatching(open).onFailure {
+                viewModel.privateSpaceController.lock()
+                Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
+            }
+            viewModel.privateSpaceController.finishAppLaunch()
+        }
+    }
 
     val actions = LauncherActions(
+        requestPrivateSpace = { forceAuthentication, ready ->
+            (context as? androidx.activity.ComponentActivity)?.let { activity ->
+                viewModel.privateSpaceController.unlock(activity, forceAuthentication || uiState.settings.privateSpace.passwordProtected) {
+                    activity.lifecycleScope.launch {
+                        // Availability can arrive while Android's credential Activity is still
+                        // closing. Let NavHost receive RESUME before its guarded navigation.
+                        yield()
+                        activity.lifecycle.withResumed {
+                            if (viewModel.privateSpaceController.state.value.accessible) ready()
+                        }
+                    }
+                }
+            }
+        },
+        lockPrivateSpace = viewModel.privateSpaceController::lock,
+        closePrivateSpace = viewModel.privateSpaceController::close,
+        openPrivateSpaceSettings = { (context as? Activity)?.let(viewModel.privateSpaceController::openSettings) },
+        reorderPrivateApps = viewModel::reorderPrivateApps,
+        resetPrivateSpaceAppearance = viewModel::resetPrivateSpaceAppearance,
         requestCalendarAccess = { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) },
         addWidget = {
             when {
@@ -240,13 +293,23 @@ fun LauncherRoute(
             runCatching { homeRoleLauncher.launch(DefaultHome.requestIntent(context)) }
                 .onFailure { openSystemApp(Intent(Settings.ACTION_HOME_SETTINGS)) }
         },
-        appInfo = { openSystemApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", it.packageName, null))) },
+        appInfo = { app ->
+            if (app.isPrivateSpace) openPrivateAppAction(app) {
+                context.getSystemService(LauncherApps::class.java).startAppDetailsActivity(
+                    app.componentName, requireNotNull(app.user), null, null)
+            } else openSystemApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", app.packageName, null)))
+        },
         screenTime = { app ->
             if (Build.VERSION.SDK_INT >= 29) {
                 openSystemApp(Intent(Settings.ACTION_APP_USAGE_SETTINGS).putExtra(Intent.EXTRA_PACKAGE_NAME, app.packageName))
             } else Toast.makeText(context, R.string.action_unavailable, Toast.LENGTH_SHORT).show()
         },
-        uninstall = { openSystemApp(Intent(Intent.ACTION_DELETE, Uri.fromParts("package", it.packageName, null))) },
+        uninstall = { app ->
+            val intent = Intent(Intent.ACTION_DELETE, Uri.fromParts("package", app.packageName, null))
+            if (app.isPrivateSpace) openPrivateAppAction(app) {
+                context.startActivity(intent.putExtra(Intent.EXTRA_USER, requireNotNull(app.user)))
+            } else openSystemApp(intent)
+        },
         rename = viewModel::renameApp,
         setItemIcon = viewModel::setItemIcon,
         importItemIcon = viewModel::importItemIcon,
@@ -300,8 +363,11 @@ fun LauncherRoute(
                     Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
                 }
             }
-            if (appTransitions != null) appTransitions.launch(launchView, bounds.toAndroidRect(), start)
-            else start(AppLaunchTransition.fromIcon(launchView, bounds.toAndroidRect()))
+            // Hide private contents before the optional icon capture suspends.
+            if (!app.isPrivateSpace || viewModel.preparePrivateAppLaunch(app)) {
+                if (appTransitions != null) appTransitions.launch(launchView, bounds.toAndroidRect(), start)
+                else start(AppLaunchTransition.fromIcon(launchView, bounds.toAndroidRect()))
+            }
         },
         launchShortcutAt = { shortcut, bounds ->
             val start: (AppLaunchTransition?) -> Unit = { transition ->
@@ -371,8 +437,20 @@ internal fun LauncherScreen(
     var selectedLetter by remember { mutableStateOf<String?>(null) }
     var overlay by remember { mutableStateOf<LauncherOverlay?>(null) }
     var editingHome by rememberSaveable { mutableStateOf(false) }
+    var privateListOpen by remember { mutableStateOf(false) }
+    var privateSwipeAnchor by remember { mutableStateOf<Rect?>(null) }
+    var privateFolderWasOpen by remember { mutableStateOf(false) }
+    val latestUiState by rememberUpdatedState(uiState)
+    val privateExpanded = privateListOpen && uiState.privateSpace.accessible && !uiState.privateSpace.locked &&
+        uiState.settings.privateSpace.enabled && uiState.settings.privateSpace.display == PrivateSpaceDisplay.List
+    val privateFolder = uiState.privateFolder.takeIf {
+        uiState.settings.privateSpace.enabled && uiState.privateSpace.supported && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
+    }
     val appListApps = uiState.appListApps
-    val model = remember(appListApps, uiState.folders) { AppListModel(appListApps, uiState.folders) }
+    val privateApps = uiState.privateSpaceApps
+    val model = remember(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps) {
+        AppListModel(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps)
+    }
     val drawerState = rememberLazyListState()
     val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons)
     val view = LocalView.current
@@ -382,6 +460,28 @@ internal fun LauncherScreen(
         overlay is LauncherOverlay.SettingsDestination || overlay is LauncherOverlay.IconDesigner
     val fullScreen = isSettings || overlay == LauncherOverlay.Search || overlay == LauncherOverlay.Favorites ||
         overlay is LauncherOverlay.IconDesigner || overlay is LauncherOverlay.EditPopup
+    val privateAppEditing = when (val current = overlay) {
+        is LauncherOverlay.AppDetails -> current.app.isPrivateSpace
+        is LauncherOverlay.IconDesigner -> current.app.isPrivateSpace
+        else -> false
+    }
+    LaunchedEffect(uiState.privateSpace.accessible, uiState.privateSpace.locked, uiState.settings.privateSpace.enabled) {
+        if (!uiState.privateSpace.accessible || uiState.privateSpace.locked || !uiState.settings.privateSpace.enabled) {
+            privateListOpen = false
+            if ((overlay as? LauncherOverlay.Folder)?.folder?.id == PrivateSpaceFolderId || privateAppEditing) overlay = null
+        }
+    }
+    LaunchedEffect(drawerOpen, overlay, privateListOpen, uiState.settings.privateSpace.display) {
+        val editingPrivate = (overlay as? LauncherOverlay.SettingsDestination)?.page == "PrivateSpaceEditor"
+        if (privateListOpen && (!drawerOpen || (overlay != null && !privateAppEditing) || uiState.settings.privateSpace.display != PrivateSpaceDisplay.List)) {
+            privateListOpen = false
+            if (!editingPrivate) actions.closePrivateSpace()
+        }
+        val folderOpen = (overlay as? LauncherOverlay.Folder)?.folder?.id == PrivateSpaceFolderId
+        if (privateFolderWasOpen && !folderOpen && !editingPrivate && !privateAppEditing) actions.closePrivateSpace()
+        privateFolderWasOpen = folderOpen || (privateFolderWasOpen && privateAppEditing)
+        if (!drawerOpen && folderOpen) overlay = null
+    }
     val screenActions = actions.copy(moveWidget = { drawerOpen = false; selectedLetter = null; overlay = null; editingHome = true })
     val backProgress = remember { Animatable(0f) }
     val darkSystemIcons = if (fullScreen) MaterialTheme.colorScheme.surface.luminance() > 0.5f else appearance.darkText
@@ -408,7 +508,7 @@ internal fun LauncherScreen(
     }
     BackHandler(enabled = overlay != LauncherOverlay.Search && !(overlay == null && drawerOpen)) {
         when {
-            overlay != null -> overlay = null
+            overlay != null -> overlay = (overlay as? LauncherOverlay.AppDetails)?.returnTo
             editingHome -> editingHome = false
             selectedLetter != null -> selectedLetter = null
             else -> drawerOpen = false
@@ -465,15 +565,44 @@ internal fun LauncherScreen(
         },
     )
     val highlightedAppKey = (overlay as? LauncherOverlay.AppDetails)?.app?.key
-    val openFolder: (LauncherFolder, Rect) -> Unit = { folder, bounds -> overlay = LauncherOverlay.Folder(folder, bounds) }
-    val editFolder: (LauncherFolder) -> Unit = { overlay = LauncherOverlay.AppDetails(uiState.folderItem(it)) }
+    val openPrivateSpace: (Rect) -> Unit = { bounds ->
+        when {
+            uiState.isDefaultHome == false -> actions.requestDefaultHome()
+            uiState.privateSpace.user == null -> actions.openPrivateSpaceSettings()
+            else -> actions.requestPrivateSpace(false) {
+                drawerOpen = true
+                selectedLetter = null
+                if (latestUiState.settings.privateSpace.display == PrivateSpaceDisplay.List) privateListOpen = true
+                else overlay = LauncherOverlay.Folder(latestUiState.privateFolder, bounds)
+            }
+        }
+    }
+    val editPrivateSpace: () -> Unit = {
+        if (uiState.privateSpace.user == null) actions.openPrivateSpaceSettings()
+        else actions.requestPrivateSpace(true) {
+            privateListOpen = false
+            overlay = LauncherOverlay.SettingsDestination("PrivateSpaceEditor")
+        }
+    }
+    val openFolder: (LauncherFolder, Rect) -> Unit = { folder, bounds ->
+        if (folder.id == PrivateSpaceFolderId) openPrivateSpace(bounds) else overlay = LauncherOverlay.Folder(folder, bounds)
+    }
+    val editFolder: (LauncherFolder) -> Unit = {
+        if (it.id == PrivateSpaceFolderId) editPrivateSpace() else overlay = LauncherOverlay.AppDetails(uiState.folderItem(it))
+    }
     val dragFolder: (LauncherFolder, Rect, Boolean) -> Unit = { folder, bounds, expanded ->
-        val current = overlay as? LauncherOverlay.Folder
-        if (current?.folder?.id == folder.id) current.reveal.expanded = expanded
-        else overlay = LauncherOverlay.Folder(folder, bounds, ShortcutRevealState(expanded, dragging = true))
+        if (folder.id == PrivateSpaceFolderId) privateSwipeAnchor = bounds
+        else {
+            val current = overlay as? LauncherOverlay.Folder
+            if (current?.folder?.id == folder.id) current.reveal.expanded = expanded
+            else overlay = LauncherOverlay.Folder(folder, bounds, ShortcutRevealState(expanded, dragging = true))
+        }
     }
     val endFolderDrag: (Boolean) -> Unit = { commit ->
-        (overlay as? LauncherOverlay.Folder)?.reveal?.let { it.expanded = commit; it.dragging = false }
+        val privateAnchor = privateSwipeAnchor
+        privateSwipeAnchor = null
+        if (privateAnchor != null) { if (commit) openPrivateSpace(privateAnchor) }
+        else (overlay as? LauncherOverlay.Folder)?.reveal?.let { it.expanded = commit; it.dragging = false }
     }
     val popupReveal = when (val current = overlay) {
         is LauncherOverlay.Shortcuts -> current.reveal
@@ -560,7 +689,7 @@ internal fun LauncherScreen(
         // views. Content padding anchors headings without reserving a viewport.
         AppDrawerScreen(
             model = model,
-            folderApps = uiState.folders.associate { it.id to uiState.folderItem(it) },
+            folderApps = (uiState.folders + listOfNotNull(privateFolder)).associate { it.id to uiState.folderItem(it) },
             notifications = uiState.notifications,
             listState = drawerState,
             selectedLetter = selectedLetter,
@@ -574,6 +703,12 @@ internal fun LauncherScreen(
             onEditFolder = editFolder,
             onFolderDrag = dragFolder,
             onFolderDragEnd = endFolderDrag,
+            privateExpanded = privateExpanded,
+            privateLoading = uiState.privateAppsLoading,
+            privateFailed = uiState.privateAppsFailed,
+            onLockPrivateSpace = actions.lockPrivateSpace,
+            onPrivateSpaceSettings = actions.openPrivateSpaceSettings,
+            onRetryPrivateSpace = actions.refreshApps,
             modifier = Modifier.retainedPage(visible = drawerOpen)
                 .graphicsLayer { alpha = drawerVisibility }.statusBarContentFade(),
         )

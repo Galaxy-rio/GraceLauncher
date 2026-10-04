@@ -63,10 +63,11 @@ fun FolderPopup(
     reveal: ShortcutRevealState = remember { ShortcutRevealState() },
     uiState: LauncherUiState = LauncherUiState(apps = apps, folders = listOf(folder)),
     actions: LauncherActions = LauncherActions(), onDetails: (LauncherApp) -> Unit = {},
+    onLock: (() -> Unit)? = null,
 ) = ShortcutPopup(
     app = uiState.folderItem(folder), anchor = anchor, hasAccess = uiState.hasShortcutAccess,
     actions = actions, onLaunchApp = {}, onDismiss = onDismiss, reveal = reveal,
-    uiState = uiState, onEdit = onEdit, onDetails = onDetails, onLaunchItem = onLaunchApp,
+    uiState = uiState, onEdit = onEdit, onDetails = onDetails, onLaunchItem = onLaunchApp, onLock = onLock,
 )
 
 /** Same-window overlay: adding a popup window during DOWN would cancel the row's drag. */
@@ -83,6 +84,7 @@ fun ShortcutPopup(
     uiState: LauncherUiState = LauncherUiState(),
     onEdit: () -> Unit = {},
     onDetails: (LauncherApp) -> Unit = {},
+    onLock: (() -> Unit)? = null,
     onLaunchItem: (LauncherApp, Rect) -> Unit = { item, bounds ->
         item.shortcut?.let { actions.launchShortcutAt?.invoke(it, bounds) ?: actions.launchShortcut(it) }
     },
@@ -119,6 +121,11 @@ fun ShortcutPopup(
             if (isFolder) AppIcon(app, size = 24.dp) else LauncherIcon(LauncherSymbol.Launch, Modifier.size(19.dp))
             Spacer(Modifier.width(10.dp))
             Text(app.label, Modifier.weight(1f), fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            if (onLock != null) {
+                IconButton(onClick = onLock, modifier = Modifier.size(40.dp).testTag("private_space_folder_lock")) {
+                    Icon(androidx.compose.ui.res.painterResource(R.drawable.ms_lock), stringResource(R.string.private_space_lock), Modifier.size(20.dp))
+                }
+            }
         }
         LazyColumn(Modifier.heightIn(max = maxListHeight).testTag(if (isFolder) "folder_members" else "shortcut_list")) {
             items(notifications, key = { "notification:${it.key}" }) { notification ->
@@ -131,8 +138,18 @@ fun ShortcutPopup(
                 )
             }
         if (isFolder && entries.isEmpty()) item {
-            Text(stringResource(R.string.folder_contents_empty), Modifier.testTag("folder_empty").padding(horizontal = 12.dp, vertical = 18.dp), style = MaterialTheme.typography.bodyMedium)
-            TextButton(onClick = onEdit, modifier = Modifier.testTag("folder_edit")) { Text(stringResource(R.string.settings_folder_edit)) }
+            if (onLock != null && uiState.privateAppsLoading) {
+                Text(stringResource(R.string.private_space_loading), Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium)
+            } else if (onLock != null) {
+                Text(stringResource(if (uiState.privateAppsFailed) R.string.private_space_unavailable else R.string.private_space_empty),
+                    Modifier.testTag("private_space_empty").padding(horizontal = 12.dp, vertical = 18.dp), style = MaterialTheme.typography.bodyMedium)
+                TextButton(onClick = if (uiState.privateAppsFailed) actions.refreshApps else actions.openPrivateSpaceSettings) {
+                    Text(stringResource(if (uiState.privateAppsFailed) R.string.retry else R.string.private_space_setup))
+                }
+            } else {
+                Text(stringResource(R.string.folder_contents_empty), Modifier.testTag("folder_empty").padding(horizontal = 12.dp, vertical = 18.dp), style = MaterialTheme.typography.bodyMedium)
+                TextButton(onClick = onEdit, modifier = Modifier.testTag("folder_edit")) { Text(stringResource(R.string.settings_folder_edit)) }
+            }
         }
         if (!isFolder && customItems == null) when (result.status) {
             // Cold apps may need one binder query; keep the layout quiet.
@@ -173,7 +190,7 @@ fun ShortcutPopup(
                                 .clip(RoundedCornerShape(16.dp))
                                 .combinedClickable(enabled = !reveal.dragging && reveal.expanded, onLongClick = { onDetails(itemApp) }, onClick = {
                                     onLaunchItem(itemApp, iconBounds)
-                                    onDismiss()
+                                    if (onLock == null) onDismiss()
                                 }).padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {

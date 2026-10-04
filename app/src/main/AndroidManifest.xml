@@ -3,6 +3,9 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <!-- Hidden profiles are accessible only while Grace holds the default HOME role. -->
+    <uses-permission android:name="android.permission.ACCESS_HIDDEN_PROFILES" />
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
     <!-- Actual widget binding is still granted by the user through Android's bind UI. -->
     <uses-permission android:name="android.permission.BIND_APPWIDGET" tools:ignore="ProtectedPermissions" />
     <!-- Some OEM clocks, including Samsung's, protect SHOW_ALARMS with this permission. -->

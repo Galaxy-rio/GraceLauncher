@@ -10,6 +10,8 @@ import android.graphics.Rect
 import android.os.Build
 import android.os.Bundle
 import android.os.Process
+import android.os.UserHandle
+import android.graphics.drawable.Drawable
 import android.graphics.drawable.AdaptiveIconDrawable
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.drawable.toBitmap
@@ -52,32 +54,43 @@ class AppRepository(private val context: Context, private val iconPacks: IconPac
                     .trim()
                     .ifBlank { activityInfo.name.substringAfterLast('.') }
                 val drawable = runCatching { resolveInfo.loadIcon(packageManager) }.getOrNull()
-                // Only mapped icons count as a match. Generic masks/backgrounds do
-                // not intercept the remaining packs or the final system fallback.
-                val match = firstMatchingPackIcon(packs) { it.iconFor(component, null) }
-                val packed = match?.second
-                val icon = packed?.bitmap ?: runCatching { drawable?.toBitmap(144, 144)?.asImageBitmap() }.getOrNull()
-                val monochrome = if (packed != null) packed.monochrome else if (Build.VERSION.SDK_INT >= 33) {
-                    runCatching {
-                        (drawable as? AdaptiveIconDrawable)?.monochrome?.toBitmap(144, 144)?.let { bitmap ->
-                            val pixels = IntArray(bitmap.width * bitmap.height)
-                            bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
-                            // Some packages publish an effectively empty placeholder.
-                            // Use their normal icon instead of a tiny dot in a circle.
-                            bitmap.takeIf { pixels.count { pixel -> pixel ushr 24 > 32 } >= pixels.size / 100 }
-                                ?.asImageBitmap()
-                        }
-                    }.getOrNull()
-                } else null
-                LauncherApp(componentName = component, label = label, icon = icon, monochromeIcon = monochrome,
-                    iconPackPackage = match?.first?.packageName, monochromeScale = packed?.monochromeScale ?: 1.4f,
-                    isSystemApp = activityInfo.applicationInfo.flags and
-                        (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0,
-                    isAdaptiveIcon = drawable is AdaptiveIconDrawable)
+                makeApp(component, label, drawable, packs, activityInfo.applicationInfo.flags)
             }
             .distinctBy(LauncherApp::key)
             .sortedWith(LauncherAppOrder)
             .toList()
+    }
+
+    suspend fun loadPrivateApps(user: UserHandle, serial: Long, iconPackPackages: List<String>): List<LauncherApp> = withContext(Dispatchers.IO) {
+        val packs = normalizeIconPackOrder(iconPackPackages).mapNotNull { iconPacks.load(it) }
+        val coroutine = currentCoroutineContext()
+        context.getSystemService(LauncherApps::class.java).getActivityList(null, user).map { activity ->
+            coroutine.ensureActive()
+            makeApp(activity.componentName, activity.label.toString().trim().ifBlank { activity.componentName.shortClassName },
+                runCatching { activity.getIcon(0) }.getOrNull(), packs, activity.applicationInfo.flags)
+                .copy(user = user, userSerial = serial, isPrivateSpace = true)
+        }.distinctBy(LauncherApp::key).sortedWith(LauncherAppOrder)
+    }
+
+    private fun makeApp(component: ComponentName, label: String, drawable: Drawable?,
+        packs: List<com.galaxyrio.gracelauncher.data.icons.LoadedIconPack>, flags: Int): LauncherApp {
+        // Generic masks/backgrounds do not intercept the remaining packs or the system fallback.
+        val match = firstMatchingPackIcon(packs) { it.iconFor(component, null) }
+        val packed = match?.second
+        val icon = packed?.bitmap ?: runCatching { drawable?.toBitmap(144, 144)?.asImageBitmap() }.getOrNull()
+        val monochrome = if (packed != null) packed.monochrome else if (Build.VERSION.SDK_INT >= 33) {
+            runCatching {
+                (drawable as? AdaptiveIconDrawable)?.monochrome?.toBitmap(144, 144)?.let { bitmap ->
+                    val pixels = IntArray(bitmap.width * bitmap.height)
+                    bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+                    bitmap.takeIf { pixels.count { pixel -> pixel ushr 24 > 32 } >= pixels.size / 100 }?.asImageBitmap()
+                }
+            }.getOrNull()
+        } else null
+        return LauncherApp(componentName = component, label = label, icon = icon, monochromeIcon = monochrome,
+            iconPackPackage = match?.first?.packageName, monochromeScale = packed?.monochromeScale ?: 1.4f,
+            isSystemApp = flags and (ApplicationInfo.FLAG_SYSTEM or ApplicationInfo.FLAG_UPDATED_SYSTEM_APP) != 0,
+            isAdaptiveIcon = drawable is AdaptiveIconDrawable)
     }
 
     fun launch(
@@ -89,7 +102,7 @@ class AppRepository(private val context: Context, private val iconPacks: IconPac
         // animate the launch from the real clicked icon, without private APIs.
         context.getSystemService(LauncherApps::class.java).startMainActivity(
             app.componentName,
-            Process.myUserHandle(),
+            app.user ?: Process.myUserHandle(),
             sourceBounds,
             options,
         )

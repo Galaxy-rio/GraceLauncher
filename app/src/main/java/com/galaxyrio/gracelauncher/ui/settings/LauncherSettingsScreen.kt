@@ -28,6 +28,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -68,7 +70,7 @@ import kotlinx.coroutines.withContext
 
 internal enum class SettingsPage {
     Root, Productivity, Clock, ClockStyle, Calendar, Weather, Themes, Advanced, About, HiddenApps, Folders, FolderEditor,
-    Changelog, Licenses, AppLicense, IconPacks, IconDesigner, IconDesignerApp,
+    Changelog, Licenses, AppLicense, IconPacks, IconDesigner, IconDesignerApp, PrivateSpace, PrivateSpaceEditor,
 }
 
 /** Navigation owns each page's saved state and seekable predictive-back transition. */
@@ -82,8 +84,11 @@ fun LauncherSettingsScreen(
     initialFolderId: String? = null,
     handleRootBack: Boolean = true,
     initialIconDesignerApp: LauncherApp? = null,
+    closePrivateSpaceOnDispose: Boolean = true,
 ) {
     val navController = rememberNavController()
+    val closePrivateSpace by rememberUpdatedState(actions.closePrivateSpace)
+    DisposableEffect(closePrivateSpaceOnDispose) { onDispose { if (closePrivateSpaceOnDispose) closePrivateSpace() } }
     val startDestination = remember(initialPage, initialFolderId) {
         when {
             initialFolderId != null -> "FolderEditor/${Uri.encode(initialFolderId)}"
@@ -93,6 +98,10 @@ fun LauncherSettingsScreen(
         }
     }
     val currentEntry by navController.currentBackStackEntryAsState()
+    LaunchedEffect(currentEntry?.id) {
+        // NavHost's predictive back can pop the editor without invoking its app-bar callback.
+        if (currentEntry?.destination?.route == SettingsPage.PrivateSpace.name) closePrivateSpace()
+    }
     val canPop = currentEntry != null && navController.previousBackStackEntry != null
     val scope = rememberCoroutineScope()
     val rootExit = remember { Animatable(0f) }
@@ -208,6 +217,14 @@ fun LauncherSettingsScreen(
                     }
                     SettingsPage.About -> AboutSettings(back, navigate)
                     SettingsPage.HiddenApps -> HiddenAppsSettings(uiState, actions, back)
+                    SettingsPage.PrivateSpace -> PrivateSpaceSettings(uiState, actions, back) { navigate(SettingsPage.PrivateSpaceEditor) }
+                    SettingsPage.PrivateSpaceEditor -> PrivateSpaceEditorSettings(uiState, actions,
+                        onBack = { actions.closePrivateSpace(); back() }, onEditIcon = { app ->
+                            if (isCurrent()) {
+                                navController.navigate(SettingsPage.IconDesigner.name)
+                                navController.currentBackStackEntry?.savedStateHandle?.set("icon_designer_app", app.key)
+                            }
+                        })
                     SettingsPage.Folders -> FolderSettings(uiState, actions, back) { folderId ->
                         if (isCurrent()) navController.navigate("FolderEditor/${Uri.encode(folderId)}")
                     }
