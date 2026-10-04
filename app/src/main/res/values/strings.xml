@@ -38,6 +38,9 @@
     <string name="uninstall">Uninstall</string>
     <string name="advanced">Advanced</string>
     <string name="rename_app">Rename app</string>
+    <string name="rename_folder">Rename folder</string>
+    <string name="folder_contents_empty">Choose apps or widgets for this folder.</string>
+    <string name="folder_unavailable">This folder is not available.</string>
     <string name="edit_icon">Edit icon</string>
     <string name="icon_edit_default">Default</string>
     <string name="icon_edit_follow_theme">Follow icon theme</string>
@@ -159,11 +162,11 @@
     <string name="settings_folder_favorites">Favorites</string>
     <string name="settings_folder_app_list">App list</string>
     <plurals name="settings_folder_summary">
-        <item quantity="one">%1$d app · %2$s</item>
-        <item quantity="other">%1$d apps · %2$s</item>
+        <item quantity="one">%1$d item · %2$s</item>
+        <item quantity="other">%1$d items · %2$s</item>
     </plurals>
     <string name="settings_folder_delete">Delete folder</string>
-    <string name="settings_folder_delete_confirmation">Delete “%1$s”? The apps inside will stay installed.</string>
+    <string name="settings_folder_delete_confirmation">Delete “%1$s” and its widgets? The apps inside will stay installed.</string>
     <plurals name="settings_select_count">
         <item quantity="one">%1$d selected</item>
         <item quantity="other">%1$d selected</item>

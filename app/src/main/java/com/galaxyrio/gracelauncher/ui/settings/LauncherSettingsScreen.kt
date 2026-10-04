@@ -61,7 +61,6 @@ import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherTypography
 import com.galaxyrio.gracelauncher.ui.theme.SystemLauncherTypography
-import java.util.UUID
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
@@ -209,10 +208,16 @@ fun LauncherSettingsScreen(
                     }
                     SettingsPage.About -> AboutSettings(back, navigate)
                     SettingsPage.HiddenApps -> HiddenAppsSettings(uiState, actions, back)
-                    SettingsPage.Folders -> FolderSettings(uiState, back) { folderId ->
-                        if (isCurrent()) navController.navigate("FolderEditor/${Uri.encode(folderId ?: UUID.randomUUID().toString())}")
+                    SettingsPage.Folders -> FolderSettings(uiState, actions, back) { folderId ->
+                        if (isCurrent()) navController.navigate("FolderEditor/${Uri.encode(folderId)}")
                     }
-                    SettingsPage.FolderEditor -> FolderEditorSettings(entry.arguments?.getString("folderId"), uiState, actions, back)
+                    SettingsPage.FolderEditor -> FolderEditorSettings(entry.arguments?.getString("folderId"), uiState, actions, back,
+                        onEditIcon = { app ->
+                            if (isCurrent()) {
+                                navController.navigate(SettingsPage.IconDesigner.name)
+                                navController.currentBackStackEntry?.savedStateHandle?.set("icon_designer_app", app.key)
+                            }
+                        })
                     SettingsPage.Changelog -> ChangelogSettings(back)
                     SettingsPage.Licenses -> LicenseSettings(back, navigate)
                     SettingsPage.AppLicense -> AppLicenseSettings(back)

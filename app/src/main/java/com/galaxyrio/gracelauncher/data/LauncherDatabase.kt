@@ -4,14 +4,10 @@ import android.content.Context
 import androidx.room.Dao
 import androidx.room.ColumnInfo
 import androidx.room.Database
-import androidx.room.Embedded
 import androidx.room.Entity
-import androidx.room.ForeignKey
-import androidx.room.Index
 import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
-import androidx.room.Relation
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.Transaction
@@ -19,6 +15,8 @@ import androidx.room.Upsert
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.coroutines.flow.Flow
+import org.json.JSONArray
+import org.json.JSONObject
 
 @Entity(tableName = "launcher_settings")
 data class LauncherSettingsEntity(
@@ -60,24 +58,6 @@ data class LauncherFolderEntity(
     val placement: String,
 )
 
-@Entity(
-    tableName = "folder_apps",
-    primaryKeys = ["folderId", "appKey"],
-    foreignKeys = [ForeignKey(
-        entity = LauncherFolderEntity::class,
-        parentColumns = ["id"],
-        childColumns = ["folderId"],
-        onDelete = ForeignKey.CASCADE,
-    )],
-    indices = [Index("folderId")],
-)
-data class FolderAppEntity(val folderId: String, val appKey: String, val position: Int)
-
-data class FolderWithApps(
-    @Embedded val folder: LauncherFolderEntity,
-    @Relation(parentColumn = "id", entityColumn = "folderId") val apps: List<FolderAppEntity>,
-)
-
 @Dao
 abstract class LauncherSettingsDao {
     @Query("SELECT * FROM launcher_settings WHERE id = 0")
@@ -89,9 +69,11 @@ abstract class LauncherSettingsDao {
     @Query("SELECT appKey FROM hidden_apps ORDER BY appKey")
     abstract fun observeHiddenApps(): Flow<List<String>>
 
-    @Transaction
     @Query("SELECT * FROM folders ORDER BY name COLLATE NOCASE, id")
-    abstract fun observeFolders(): Flow<List<FolderWithApps>>
+    abstract fun observeFolders(): Flow<List<LauncherFolderEntity>>
+
+    @Query("SELECT * FROM folders WHERE id = :id")
+    abstract suspend fun folder(id: String): LauncherFolderEntity?
 
     @Upsert
     abstract suspend fun saveSettings(settings: LauncherSettingsEntity)
@@ -109,20 +91,7 @@ abstract class LauncherSettingsDao {
     }
 
     @Upsert
-    protected abstract suspend fun upsertFolder(folder: LauncherFolderEntity)
-
-    @Query("DELETE FROM folder_apps WHERE folderId = :folderId")
-    protected abstract suspend fun clearFolderApps(folderId: String)
-
-    @Insert
-    protected abstract suspend fun insertFolderApps(apps: List<FolderAppEntity>)
-
-    @Transaction
-    open suspend fun saveFolder(folder: LauncherFolderEntity, apps: List<FolderAppEntity>) {
-        upsertFolder(folder)
-        clearFolderApps(folder.id)
-        insertFolderApps(apps)
-    }
+    abstract suspend fun upsertFolder(folder: LauncherFolderEntity)
 
     @Query("DELETE FROM folders WHERE id = :folderId")
     abstract suspend fun deleteFolder(folderId: String)
@@ -130,9 +99,9 @@ abstract class LauncherSettingsDao {
 
 @Database(
     entities = [LauncherSettingsEntity::class, HiddenAppEntity::class,
-        LauncherFolderEntity::class, FolderAppEntity::class, ItemIconEntity::class,
+        LauncherFolderEntity::class, ItemIconEntity::class,
         SavedShortcutEntity::class, AppPopupEntity::class],
-    version = 12,
+    version = 13,
     exportSchema = true,
 )
 abstract class LauncherDatabase : RoomDatabase() {
@@ -220,12 +189,29 @@ abstract class LauncherDatabase : RoomDatabase() {
             }
         }
 
+        val Migration12To13 = object : Migration(12, 13) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                // Keep unavailable members and their order when adopting shared pop-up storage.
+                db.query("SELECT id FROM folders").use { folders ->
+                    while (folders.moveToNext()) {
+                        val id = folders.getString(0)
+                        val items = JSONArray()
+                        db.query("SELECT appKey FROM folder_apps WHERE folderId = ? ORDER BY position", arrayOf(id)).use { apps ->
+                            while (apps.moveToNext()) items.put(JSONObject().put("key", apps.getString(0)))
+                        }
+                        db.execSQL("INSERT OR IGNORE INTO app_popups (ownerKey, itemsJson) VALUES (?, ?)", arrayOf("folder:$id", items.toString()))
+                    }
+                }
+                db.execSQL("DROP TABLE folder_apps")
+            }
+        }
+
         fun getInstance(context: Context): LauncherDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 LauncherDatabase::class.java,
                 "grace_launcher.db",
-            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7, Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12).build().also { instance = it }
+            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7, Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12, Migration12To13).build().also { instance = it }
         }
     }
 }

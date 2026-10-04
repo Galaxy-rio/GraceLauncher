@@ -39,6 +39,9 @@
     <string name="uninstall">卸载</string>
     <string name="advanced">高级</string>
     <string name="rename_app">重命名应用</string>
+    <string name="rename_folder">重命名文件夹</string>
+    <string name="folder_contents_empty">为此文件夹选择应用或小组件。</string>
+    <string name="folder_unavailable">此文件夹不可用。</string>
     <string name="edit_icon">修改图标</string>
     <string name="icon_edit_default">默认图标</string>
     <string name="icon_edit_follow_theme">跟随图标主题</string>
@@ -158,10 +161,10 @@
     <string name="settings_folder_favorites">收藏列表</string>
     <string name="settings_folder_app_list">应用列表</string>
     <plurals name="settings_folder_summary">
-        <item quantity="other">%1$d 个应用 · %2$s</item>
+        <item quantity="other">%1$d 个项目 · %2$s</item>
     </plurals>
     <string name="settings_folder_delete">删除文件夹</string>
-    <string name="settings_folder_delete_confirmation">删除“%1$s”？其中的应用不会被卸载。</string>
+    <string name="settings_folder_delete_confirmation">删除“%1$s”及其中的小组件？其中的应用不会被卸载。</string>
     <plurals name="settings_select_count">
         <item quantity="other">已选择 %1$d 个</item>
     </plurals>

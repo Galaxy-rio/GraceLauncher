@@ -71,7 +71,7 @@ internal val LocalLauncherInputEnabled = staticCompositionLocalOf { true }
 
 @Composable
 fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp) {
-    val iconModifier = modifier.launcherAnimationTarget(listOf(app.componentName))
+    val iconModifier = if (app.folderId == null) modifier.launcherAnimationTarget(listOf(app.componentName)) else modifier
     if (LocalLauncherAppearance.current.themedIcons && app.monochromeIcon != null) {
         Box(iconModifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
             Image(
@@ -84,6 +84,8 @@ fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp) {
         }
     } else if (app.icon != null) {
         Image(bitmap = app.icon, contentDescription = null, modifier = iconModifier.size(size))
+    } else if (app.folderId != null) {
+        FolderIcon(iconModifier, size)
     } else {
         val colors = listOf(
             Color(0xFF65D5BE), Color(0xFFFFB3A7), Color(0xFFAEC6FF),
@@ -158,6 +160,7 @@ fun FolderRow(
     onDragEnd: (Boolean) -> Unit = {},
     highlighted: Boolean = false,
     showLabel: Boolean = true,
+    app: LauncherApp = folder.asApp(),
 ) {
     LauncherRow(
         rowKey = "folder:${folder.id}",
@@ -174,8 +177,8 @@ fun FolderRow(
         highlighted = highlighted,
         showLabel = showLabel,
     ) { iconModifier ->
-        FolderIcon(modifier = iconModifier.launcherAnimationTarget(
-            folder.appKeys.mapNotNull(android.content.ComponentName::unflattenFromString), folder = true))
+        AppIcon(app, modifier = iconModifier.launcherAnimationTarget(
+            folder.appKeys.mapNotNull(android.content.ComponentName::unflattenFromString), folder = true), size = 40.dp)
     }
 }
 

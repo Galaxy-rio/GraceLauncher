@@ -6,20 +6,22 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -40,6 +42,10 @@ import com.galaxyrio.gracelauncher.ui.components.AppIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import com.galaxyrio.gracelauncher.ui.components.LauncherSearchBar
+import com.galaxyrio.gracelauncher.ui.overlays.PopupEditorScreen
+import com.galaxyrio.gracelauncher.ui.overlays.TextEntryDialog
+import com.galaxyrio.gracelauncher.ui.overlays.FolderPlacementDialog
+import com.galaxyrio.gracelauncher.ui.overlays.DeleteFolderDialog
 import java.util.UUID
 
 @Composable
@@ -176,111 +182,87 @@ internal fun HiddenAppsSettings(uiState: LauncherUiState, actions: LauncherActio
 }
 
 @Composable
-internal fun FolderSettings(uiState: LauncherUiState, onBack: () -> Unit, onEdit: (String?) -> Unit) {
+internal fun FolderSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit, onEdit: (String) -> Unit) {
+    var creating by rememberSaveable { mutableStateOf(false) }
+    var openingId by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(openingId, uiState.folders, uiState.settingsSaveFailed) {
+        val id = openingId ?: return@LaunchedEffect
+        if (uiState.folders.any { it.id == id }) {
+            openingId = null
+            onEdit(id)
+        } else if (uiState.settingsSaveFailed) openingId = null
+    }
     SettingsScaffold(stringResource(R.string.settings_folders), "settings_folders", onBack) { padding ->
         SettingsList(padding) {
             item { Spacer(Modifier.height(24.dp)) }
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_folder_create), null, 0, 1, "folder_create",
+                    enabled = openingId == null,
                     leading = { LauncherIcon(LauncherSymbol.Plus) },
-                ) { onEdit(null) }
+                ) { creating = true }
             }
             if (uiState.folders.isEmpty()) {
                 item { Text(stringResource(R.string.settings_folder_empty), Modifier.padding(horizontal = 4.dp, vertical = 24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant) }
             } else {
                 item { SettingsHeading(stringResource(R.string.settings_folders)) }
                 itemsIndexed(uiState.folders, key = { _, folder -> folder.id }) { index, folder ->
+                    val count = uiState.popups[folder.key]?.size ?: folder.appKeys.size
                     SettingsActionItem(
                         folder.name,
-                        pluralStringResource(R.plurals.settings_folder_summary, folder.appKeys.size, folder.appKeys.size, folder.placement.label()),
+                        pluralStringResource(R.plurals.settings_folder_summary, count, count, folder.placement.label()),
                         index, uiState.folders.size, "folder:${folder.id}",
-                        leading = { LauncherIcon(LauncherSymbol.Folder) },
+                        leading = { AppIcon(uiState.folderItem(folder), size = 32.dp) },
                     ) { onEdit(folder.id) }
                 }
             }
         }
     }
+    if (creating) TextEntryDialog(stringResource(R.string.settings_folder_create), "", { creating = false }, { name ->
+        val id = UUID.randomUUID().toString()
+        actions.saveFolder(LauncherFolder(id, name, emptyList(), FolderPlacement.Favorites))
+        creating = false
+        openingId = id
+    })
 }
 
 @Composable
-internal fun FolderEditorSettings(folderId: String?, uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit) {
-    val existing = uiState.folders.firstOrNull { it.id == folderId }
-    val id = rememberSaveable { folderId ?: UUID.randomUUID().toString() }
-    var name by rememberSaveable { mutableStateOf(existing?.name.orEmpty()) }
-    var selectedKeys by rememberSaveable { mutableStateOf<List<String>>(existing?.appKeys.orEmpty().toList()) }
-    var placementName by rememberSaveable { mutableStateOf((existing?.placement ?: FolderPlacement.Favorites).name) }
-    val queryState = rememberTextFieldState()
-    val query = queryState.text.toString()
-    var confirmDelete by rememberSaveable { mutableStateOf(false) }
-    val filtered = filterApps(uiState.apps, query)
-    val placement = FolderPlacement.valueOf(placementName)
-
-    SettingsScaffold(
-        stringResource(if (existing == null) R.string.settings_folder_create else R.string.settings_folder_edit),
-        "settings_folder_editor", onBack,
-        actions = {
-            SettingsAppBarAction(
-                text = stringResource(R.string.settings_save),
-                onClick = {
-                    actions.saveFolder(LauncherFolder(id, name.trim(), selectedKeys.toList(), placement))
-                    onBack()
-                },
-                enabled = name.isNotBlank() && LocalSettingsStorageState.current.canEdit,
-                modifier = Modifier.testTag("folder_save"),
-            )
-        },
-    ) { padding ->
-        SettingsList(padding) {
-            item {
-                OutlinedTextField(
-                    value = name, onValueChange = { name = it.take(80) },
-                    enabled = LocalSettingsStorageState.current.canEdit,
-                    label = { Text(stringResource(R.string.settings_folder_name)) }, singleLine = true,
-                    modifier = Modifier.fillMaxWidth().padding(top = 16.dp).testTag("folder_name"),
-                )
-            }
-            item { SettingsHeading(stringResource(R.string.settings_folder_placement)) }
-            FolderPlacement.entries.forEachIndexed { index, option ->
-                item(key = "placement:${option.name}") {
-                    SegmentedListItem(
-                        selected = placement == option,
-                        enabled = LocalSettingsStorageState.current.canEdit,
-                        onClick = { placementName = option.name },
-                        shapes = ListItemDefaults.segmentedShapes(index, FolderPlacement.entries.size),
-                        colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
-                        modifier = Modifier.testTag("folder_placement:${option.name}"),
-                        content = { Text(option.label()) },
-                        trailingContent = { RadioButton(selected = placement == option, onClick = null) },
-                    )
-                }
-            }
-            if (existing != null) item {
-                TextButton(onClick = { confirmDelete = true }, enabled = LocalSettingsStorageState.current.canEdit, modifier = Modifier.testTag("folder_delete")) {
-                    Text(stringResource(R.string.settings_folder_delete), color = MaterialTheme.colorScheme.error)
-                }
-            }
-            item { SettingsHeading(stringResource(R.string.settings_folder_members)) }
-            item { AppSearchField(queryState) }
-            item {
-                Text(pluralStringResource(R.plurals.settings_select_count, selectedKeys.size, selectedKeys.size), Modifier.padding(horizontal = 4.dp, vertical = 12.dp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            appSelectionItems(filtered, selectedKeys.toSet(), "folder_app") { key ->
-                selectedKeys = toggledKeys(selectedKeys, key)
+internal fun FolderEditorSettings(folderId: String?, uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
+    onEditIcon: (LauncherApp) -> Unit = {}) {
+    val folder = uiState.folders.firstOrNull { it.id == folderId }
+    if (folder == null) {
+        SettingsScaffold(stringResource(R.string.settings_folder_edit), "settings_folder_editor", onBack) { padding ->
+            Box(Modifier.padding(padding)) {
+                Text(stringResource(R.string.folder_unavailable), Modifier.padding(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
+        return
     }
-    if (confirmDelete) AlertDialog(
-        onDismissRequest = { confirmDelete = false },
-        title = { Text(stringResource(R.string.settings_folder_delete)) },
-        text = { Text(stringResource(R.string.settings_folder_delete_confirmation, existing?.name ?: name)) },
-        confirmButton = {
-            TextButton(onClick = { actions.deleteFolder(id); onBack() }, enabled = LocalSettingsStorageState.current.canEdit, modifier = Modifier.testTag("folder_confirm_delete")) {
-                Text(stringResource(R.string.settings_delete), color = MaterialTheme.colorScheme.error)
+    val app = uiState.folderItem(folder)
+    var rename by rememberSaveable(folder.id) { mutableStateOf(false) }
+    var placement by rememberSaveable(folder.id) { mutableStateOf(false) }
+    var confirmDelete by rememberSaveable(folder.id) { mutableStateOf(false) }
+    PopupEditorScreen(app, uiState, actions, onBack, header = {
+        Column(Modifier.padding(top = 16.dp)) {
+            SettingsActionItem(folder.name, stringResource(R.string.settings_folder_name), 0, 2, "folder_name",
+                leading = { AppIcon(app, Modifier.clickable(onClickLabel = stringResource(R.string.icon_designer_title)) { onEditIcon(app) }, size = 36.dp) }) { rename = true }
+            Spacer(Modifier.height(ListItemDefaults.SegmentedGap))
+            SettingsActionItem(stringResource(R.string.settings_folder_placement), folder.placement.label(), 1, 2, "folder_placement",
+                leading = { LauncherIcon(LauncherSymbol.Folder) }) { placement = true }
+            TextButton(onClick = { confirmDelete = true }, enabled = LocalSettingsStorageState.current.canEdit, modifier = Modifier.testTag("folder_delete")) {
+                Text(stringResource(R.string.settings_folder_delete), color = MaterialTheme.colorScheme.error)
             }
-        },
-        dismissButton = { TextButton(onClick = { confirmDelete = false }) { Text(stringResource(R.string.settings_cancel)) } },
-    )
+        }
+    })
+    if (rename) TextEntryDialog(stringResource(R.string.rename_folder), folder.name, { rename = false }, {
+        actions.rename(app, it); rename = false
+    })
+    if (placement) FolderPlacementDialog(folder.placement, { placement = false }) {
+        actions.updateFolder(folder.id, null, it); placement = false
+    }
+    if (confirmDelete) DeleteFolderDialog(folder.name, { confirmDelete = false }) {
+        actions.deleteFolder(folder.id); onBack()
+    }
 }
 
 @Composable

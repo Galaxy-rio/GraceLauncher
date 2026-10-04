@@ -49,6 +49,7 @@ fun AppDrawerScreen(
     onFolderDrag: (LauncherFolder, Rect, Boolean) -> Unit = { _, _, _ -> },
     onFolderDragEnd: (Boolean) -> Unit = {},
     notifications: Map<String, List<AppNotification>> = emptyMap(),
+    folderApps: Map<String, LauncherApp> = emptyMap(),
 ) {
     val appearance = LocalLauncherAppearance.current
     LazyColumn(
@@ -97,6 +98,8 @@ fun AppDrawerScreen(
                     )
                     is DrawerItem.Folder -> FolderRow(
                         folder = item.folder,
+                        app = folderApps[item.folder.id] ?: item.folder.asApp(),
+                        highlighted = highlightedAppKey == item.folder.key,
                         onOpen = { onOpenFolder(item.folder, it) },
                         onLongClick = { onEditFolder(item.folder) },
                         onDrag = { bounds, expanded -> onFolderDrag(item.folder, bounds, expanded) },

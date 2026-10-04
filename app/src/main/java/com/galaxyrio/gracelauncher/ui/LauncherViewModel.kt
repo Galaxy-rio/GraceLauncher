@@ -22,6 +22,7 @@ import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherAppOrder
 import com.galaxyrio.gracelauncher.data.LauncherDatabase
 import com.galaxyrio.gracelauncher.data.LauncherFolder
+import com.galaxyrio.gracelauncher.data.FolderPlacement
 import com.galaxyrio.gracelauncher.data.LauncherPreferences
 import com.galaxyrio.gracelauncher.data.LauncherSettings
 import com.galaxyrio.gracelauncher.data.ClockStyle
@@ -98,12 +99,21 @@ data class LauncherUiState(
     val favoriteOrder: List<String> = emptyList(),
     val weather: WeatherState = WeatherState(),
     val shortcutApps: List<LauncherApp> = emptyList(),
+    val folderApps: List<LauncherApp> = emptyList(),
     val popups: Map<String, List<PopupItem>> = emptyMap(),
     val itemIcons: Map<String, ItemIcon> = emptyMap(),
     val itemRevision: Int = 0,
 ) {
     fun findItem(key: String): LauncherApp? = apps.firstOrNull { it.key == key }
         ?: shortcutApps.firstOrNull { it.key == key }
+        ?: folders.firstOrNull { it.key == key }?.let(::folderItem)
+
+    fun folderItem(folder: LauncherFolder): LauncherApp = (folderApps.firstOrNull { it.folderId == folder.id }
+        ?: folder.asApp()).copy(label = folder.name, originalLabel = folder.name)
+
+    fun popupItems(owner: LauncherApp, defaults: List<LauncherApp>): List<PopupItem> = popups[owner.key]
+        ?: (if (owner.folderId == null) defaults.map { it.key }
+            else folders.firstOrNull { it.id == owner.folderId }?.appKeys.orEmpty()).distinct().map { PopupItem(it) }
     val homeMedia: NowPlaying?
         get() = media.nowPlaying.takeIf {
             settings.mediaPlayer && media.hasAccess && !isLoadingSettings && !settingsLoadFailed
@@ -288,11 +298,15 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     val shown = snapshot.shortcuts.filter { it.showInAppList }.map { it.itemKey }.toSet()
                     val displayedApps = (apps.map { decorate(it) } + shortcuts.filter { it.key in shown })
                         .sortedWith(LauncherAppOrder)
+                    val folderApps = _uiState.value.folders.map { folder ->
+                        itemIcons.apply(folder.asApp(), snapshot.icons[folder.key], iconSettings)
+                    }
                     val favorites = favoritesStore.favoritesFor(displayedApps)
                     _uiState.update {
                         it.copy(
                             apps = displayedApps,
                             shortcutApps = shortcuts,
+                            folderApps = folderApps,
                             favoriteKeys = favorites.toSet(),
                             favoriteOrder = favorites,
                             // Settings also has an independent Activity/ViewModel.
@@ -372,7 +386,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun launch(app: LauncherApp, bounds: Rect? = null, options: Bundle? = null): Boolean =
-        app.shortcut?.let { shortcutRepository.launch(it, bounds, options) } ?: appRepository.launch(app, bounds, options)
+        app.folderId == null && (app.shortcut?.let { shortcutRepository.launch(it, bounds, options) } ?: appRepository.launch(app, bounds, options))
 
     suspend fun loadShortcuts(app: LauncherApp) = shortcutRepository.shortcutsFor(app)
 
@@ -398,6 +412,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun openNotification(key: String, revision: Long): Boolean = appNotifications.open(getApplication(), key, revision)
 
     fun renameApp(app: LauncherApp, label: String) {
+        if (app.folderId != null) {
+            updateFolder(app.folderId, label, null)
+            return
+        }
         preferences.rename(app.key, label)
         if (app.shortcut != null) persistSettings { itemsRepository.rememberShortcut(app) }
         _uiState.update { state ->
@@ -546,11 +564,22 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun saveFolder(folder: LauncherFolder) {
         val snapshot = folder.copy(appKeys = folder.appKeys.toList())
-        persistSettings { settingsRepository.saveFolder(snapshot) }
+        persistSettings {
+            rememberPopupItems(snapshot.appKeys.mapNotNull(_uiState.value::findItem))
+            settingsRepository.saveFolder(snapshot)
+        }
+    }
+
+    fun updateFolder(id: String, name: String?, placement: FolderPlacement?) = persistSettings {
+        settingsRepository.updateFolder(id, name, placement)
     }
 
     fun deleteFolder(id: String) = persistSettings {
-        settingsRepository.deleteFolder(id)
+        val previous = itemsSnapshot.icons["folder:$id"]
+        val removed = settingsRepository.deleteFolder(id)
+        val host = com.galaxyrio.gracelauncher.platform.HomeWidgetHost(getApplication())
+        removed.forEach { runCatching { host.deleteAppWidgetId(it) } }
+        if (previous?.kind == "image" && !itemsRepository.isImageReferenced(previous.source)) itemIcons.deleteImage(previous)
     }
 
     /** Room emissions update the UI only after the operation has committed. */

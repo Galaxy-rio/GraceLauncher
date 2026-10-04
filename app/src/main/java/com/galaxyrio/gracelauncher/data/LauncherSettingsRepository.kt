@@ -19,16 +19,18 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
         dao.observeSettings(),
         dao.observeHiddenApps(),
         dao.observeFolders(),
-    ) { settings, hiddenApps, folders ->
+        database.itemsDao().popups(),
+    ) { settings, hiddenApps, folders, popups ->
+        val contents = popups.associate { it.ownerKey to PopupItem.decode(it.itemsJson) }
         LauncherStorageSnapshot(
             settings = settings?.toSettings() ?: LauncherSettings(),
             hiddenAppKeys = hiddenApps.toSet(),
             folders = folders.map { entry ->
                 LauncherFolder(
-                    id = entry.folder.id,
-                    name = entry.folder.name,
-                    appKeys = entry.apps.sortedBy(FolderAppEntity::position).map(FolderAppEntity::appKey),
-                    placement = FolderPlacement.entries.firstOrNull { it.name == entry.folder.placement }
+                    id = entry.id,
+                    name = entry.name,
+                    appKeys = contents["folder:${entry.id}"].orEmpty().filter { it.widget == null }.map { it.key },
+                    placement = FolderPlacement.entries.firstOrNull { it.name == entry.placement }
                         ?: FolderPlacement.AppList,
                 )
             },
@@ -85,13 +87,34 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
         val name = folder.name.trim()
         require(name.isNotEmpty()) { "A folder name must not be blank" }
         val keys = folder.appKeys.filter(String::isNotBlank).distinct()
-        dao.saveFolder(
-            LauncherFolderEntity(folder.id, name, folder.placement.name),
-            keys.mapIndexed { index, key -> FolderAppEntity(folder.id, key, index) },
-        )
+        database.withTransaction {
+            dao.upsertFolder(LauncherFolderEntity(folder.id, name, folder.placement.name))
+            val itemsDao = database.itemsDao()
+            val previous = itemsDao.popup(folder.key)?.let { PopupItem.decode(it.itemsJson) }.orEmpty()
+            // Membership callers must not discard widgets or move them to the end.
+            val remaining = keys.toMutableList()
+            val next = previous.mapNotNull { item ->
+                if (item.widget != null) item else remaining.firstOrNull()?.let { remaining.removeAt(0); PopupItem(it) }
+            } + remaining.map { PopupItem(it) }
+            itemsDao.savePopup(AppPopupEntity(folder.key, PopupItem.encode(next)))
+        }
     }
 
-    suspend fun deleteFolder(id: String) = dao.deleteFolder(id)
+    suspend fun updateFolder(id: String, name: String? = null, placement: FolderPlacement? = null) = database.withTransaction {
+        val folder = dao.folder(id) ?: return@withTransaction
+        dao.upsertFolder(folder.copy(name = name?.trim()?.takeIf { it.isNotEmpty() } ?: folder.name,
+            placement = placement?.name ?: folder.placement))
+    }
+
+    suspend fun deleteFolder(id: String): List<Int> = database.withTransaction {
+        val key = "folder:$id"
+        val itemsDao = database.itemsDao()
+        val widgets = itemsDao.popup(key)?.let { PopupItem.decode(it.itemsJson) }.orEmpty().mapNotNull { it.widget?.widgetId }
+        itemsDao.deletePopup(key)
+        itemsDao.resetIcon(key)
+        dao.deleteFolder(id)
+        widgets
+    }
 }
 
 private fun LauncherSettingsEntity.toSettings() = LauncherSettings(

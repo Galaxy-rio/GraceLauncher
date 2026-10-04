@@ -96,6 +96,15 @@ class LauncherSettingsIntegrationTest {
                             updateSettings = { transform -> state.value = state.value.copy(settings = transform(state.value.settings)) },
                             setHiddenApps = { state.value = state.value.copy(hiddenAppKeys = it) },
                             saveFolder = { folder -> state.value = state.value.copy(folders = state.value.folders.filterNot { it.id == folder.id } + folder) },
+                            updateFolder = { id, name, placement -> state.value = state.value.copy(folders = state.value.folders.map {
+                                if (it.id == id) it.copy(name = name ?: it.name, placement = placement ?: it.placement) else it
+                            }) },
+                            updatePopup = { owner, defaults, transform ->
+                                val contents = transform(state.value.popupItems(owner, defaults))
+                                state.value = state.value.copy(popups = state.value.popups + (owner.key to contents),
+                                    folders = state.value.folders.map { if (it.id == owner.folderId)
+                                        it.copy(appKeys = contents.filter { item -> item.widget == null }.map { item -> item.key }) else it })
+                            },
                             deleteFolder = { id -> state.value = state.value.copy(folders = state.value.folders.filterNot { it.id == id }) },
                             textMode = { state.value = state.value.copy(textMode = it) },
                             themedIcons = { state.value = state.value.copy(themedIcons = it) },
@@ -162,12 +171,12 @@ class LauncherSettingsIntegrationTest {
     }
 
     @Test
-    fun folderStillRespondsToTheFirstTapAfterLeavingLongPressEditor() {
+    fun folderStillRespondsToTheFirstTapAfterLeavingLongPressDetails() {
         val folder = LauncherFolder("retained", "Everyday", listOf(apps[1].key), FolderPlacement.Favorites)
         showLauncher(fixture().copy(folders = listOf(folder)))
         compose.onNodeWithTag("folder:${folder.id}").performTouchInput { longClick() }
-        compose.onNodeWithTag("settings_folder_editor").assertIsDisplayed()
-        settingsBack()
+        compose.onNodeWithTag("app_details").assertIsDisplayed()
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
         compose.onNodeWithTag("folder:${folder.id}").assertIsDisplayed().performClick()
         compose.onNodeWithTag("folder_popup").assertIsDisplayed()
         compose.onNodeWithTag("folder_app:${apps[1].key}").assertIsDisplayed()
@@ -261,12 +270,12 @@ class LauncherSettingsIntegrationTest {
         clickSetting("settings_root", "settings_category_productivity")
         clickSetting("settings_productivity", "settings_open_folders")
         clickSetting("settings_folders", "folder_create")
-        compose.onNodeWithTag("folder_name").performTextReplacement("Everyday")
+        compose.onNodeWithTag("text_entry").performTextReplacement("Everyday")
+        compose.onNodeWithText(InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.save)).performClick()
         compose.runOnIdle { keyboard?.hide() }
-        clickSetting("settings_folder_editor", "folder_app:${apps[1].key}")
-        compose.onNodeWithTag("settings_list").performScrollToIndex(0)
-        saveScreenshot("settings-folder-editor.png")
-        compose.onNodeWithTag("folder_save").performClick()
+        compose.onNodeWithTag("popup_editor_list").performScrollToNode(hasTestTag("favorite_all:${apps[1].key}"))
+        compose.onNodeWithTag("favorite_all:${apps[1].key}").performClick()
+        compose.onNodeWithTag("popup_editor_done").performClick()
         val folder = compose.runOnIdle { state.value.folders.single() }
         assertEquals("Everyday", folder.name)
         assertEquals(FolderPlacement.Favorites, folder.placement)
@@ -275,9 +284,14 @@ class LauncherSettingsIntegrationTest {
         compose.onNodeWithTag("folder:${folder.id}").assertIsDisplayed()
 
         compose.onNodeWithTag("folder:${folder.id}").performTouchInput { longClick() }
-        clickSetting("settings_folder_editor", "folder_placement:AppList")
-        clickSetting("settings_folder_editor", "folder_app:${apps[1].key}")
-        compose.onNodeWithTag("folder_save").performClick()
+        compose.onNodeWithTag("advanced").performClick()
+        compose.onNodeWithTag("edit_popup").performClick()
+        compose.onNodeWithTag("folder_placement").performClick()
+        compose.onNodeWithTag("folder_placement:AppList").performClick()
+        compose.onNodeWithTag("popup_editor_list").performScrollToNode(hasTestTag("favorite:${apps[1].key}"))
+        compose.onNodeWithTag("favorite:${apps[1].key}").performClick()
+        compose.onNodeWithTag("popup_editor_done").performClick()
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK)
         compose.onNodeWithTag("folder:${folder.id}").assertDoesNotExist()
         compose.runOnIdle {
             assertEquals(FolderPlacement.AppList, state.value.folders.single().placement)
@@ -287,7 +301,7 @@ class LauncherSettingsIntegrationTest {
         compose.onNodeWithTag("folder:${folder.id}").performClick()
         compose.onNodeWithTag("folder_empty").assertIsDisplayed()
         compose.onNodeWithTag("folder_edit").performClick()
-        clickSetting("settings_folder_editor", "folder_delete")
+        compose.onNodeWithTag("folder_delete").performClick()
         compose.runOnIdle { assertEquals(1, state.value.folders.size) }
         compose.onNodeWithTag("folder_confirm_delete").performClick()
         compose.runOnIdle { assertTrue(state.value.folders.isEmpty()) }

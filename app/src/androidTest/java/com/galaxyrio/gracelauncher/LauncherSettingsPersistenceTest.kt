@@ -11,6 +11,10 @@ import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.LauncherSettings
 import com.galaxyrio.gracelauncher.data.LauncherSettingsRepository
 import com.galaxyrio.gracelauncher.data.ThemeMode
+import com.galaxyrio.gracelauncher.data.LauncherItemsRepository
+import com.galaxyrio.gracelauncher.data.PopupItem
+import com.galaxyrio.gracelauncher.data.HomeLayout
+import com.galaxyrio.gracelauncher.data.ItemIcon
 import com.galaxyrio.gracelauncher.data.ClockStyle
 import com.galaxyrio.gracelauncher.data.ClockLayout
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
@@ -46,7 +50,8 @@ class LauncherSettingsPersistenceTest {
             .addMigrations(LauncherDatabase.Migration1To2, LauncherDatabase.Migration2To3,
                 LauncherDatabase.Migration3To4, LauncherDatabase.Migration4To5, LauncherDatabase.Migration5To6,
                 LauncherDatabase.Migration6To7, LauncherDatabase.Migration7To8, LauncherDatabase.Migration8To9,
-                LauncherDatabase.Migration9To10, LauncherDatabase.Migration10To11, LauncherDatabase.Migration11To12).build()
+                LauncherDatabase.Migration9To10, LauncherDatabase.Migration10To11, LauncherDatabase.Migration11To12,
+                LauncherDatabase.Migration12To13).build()
         database = reopened
         return LauncherSettingsRepository(reopened)
     }
@@ -257,6 +262,26 @@ class LauncherSettingsPersistenceTest {
         repository.saveFolder(original.copy(appKeys = emptyList()))
         val reopened = withTimeout(10_000) { openRepository().snapshots.first() }
         assertTrue(reopened.folders.single().appKeys.isEmpty())
+    }
+
+    @Test
+    fun folderAndPopupShareOrderedWidgetsAndDeletingTheFolderReleasesTheirIds() = runBlocking {
+        val repository = openRepository()
+        val items = LauncherItemsRepository(requireNotNull(database))
+        val folder = LauncherFolder("mixed", "Mixed", listOf("one/A", "two/B"), FolderPlacement.Favorites)
+        repository.saveFolder(folder)
+        val widget = PopupItem("widget:17", HomeLayout(widgetId = 17, widgetProvider = "widget/Provider", widgetLabel = "Widget"))
+        items.updatePopup(folder.key, emptyList()) { listOf(it.last(), widget, it.first()) }
+        items.saveIcon(folder.key, ItemIcon("pack", "icons", "folder"))
+        repository.updateFolder(folder.id, name = "Renamed", placement = FolderPlacement.AppList)
+        val saved = repository.snapshots.first().folders.single()
+        assertEquals(folder.copy(name = "Renamed", appKeys = listOf("two/B", "one/A"), placement = FolderPlacement.AppList), saved)
+        assertEquals(listOf(PopupItem("two/B"), widget, PopupItem("one/A")), items.snapshots.first().popups[folder.key])
+        assertEquals(listOf(17), repository.deleteFolder(folder.id))
+        assertFalse(folder.key in items.snapshots.first().popups)
+        assertFalse(folder.key in items.snapshots.first().icons)
+        // A provider returning from setup after deletion must not recreate the owner.
+        assertTrue(runCatching { items.updatePopup(folder.key, emptyList()) { listOf(widget) } }.isFailure)
     }
 
     @Test

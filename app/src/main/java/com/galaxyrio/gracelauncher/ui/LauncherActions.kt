@@ -6,6 +6,7 @@ import com.galaxyrio.gracelauncher.data.ItemIcon
 import com.galaxyrio.gracelauncher.data.PopupItem
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
+import com.galaxyrio.gracelauncher.data.FolderPlacement
 import com.galaxyrio.gracelauncher.data.LauncherSettings
 import com.galaxyrio.gracelauncher.data.ClockStyle
 import com.galaxyrio.gracelauncher.data.LauncherShortcut
@@ -42,6 +43,7 @@ data class LauncherActions(
     val deleteIconDesigns: suspend (Set<String>) -> Boolean = { false },
     val setHiddenApps: (Set<String>) -> Unit = {},
     val saveFolder: (LauncherFolder) -> Unit = {},
+    val updateFolder: (String, String?, FolderPlacement?) -> Unit = { _, _, _ -> },
     val deleteFolder: (String) -> Unit = {},
     val shortcuts: suspend (LauncherApp) -> ShortcutResult = { ShortcutResult(ShortcutStatus.DefaultLauncherRequired) },
     val cachedShortcuts: (LauncherApp) -> ShortcutResult? = { null },

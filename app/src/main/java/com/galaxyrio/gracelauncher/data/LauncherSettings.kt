@@ -54,7 +54,15 @@ data class LauncherFolder(
     val name: String,
     val appKeys: List<String>,
     val placement: FolderPlacement,
-)
+) {
+    val key: String get() = "folder:$id"
+
+    /** Local identity only: folders must never be sent to Android as activities. */
+    fun asApp() = LauncherApp(
+        componentName = android.content.ComponentName("com.galaxyrio.gracelauncher", key),
+        label = name, icon = null, folderId = id,
+    )
+}
 
 /** A complete first emission is available only after all Room tables have loaded. */
 data class LauncherStorageSnapshot(

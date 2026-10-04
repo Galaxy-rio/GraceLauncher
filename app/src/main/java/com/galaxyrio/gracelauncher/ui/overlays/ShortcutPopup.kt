@@ -35,9 +35,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
+import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.ShortcutResult
 import com.galaxyrio.gracelauncher.data.ShortcutStatus
-import com.galaxyrio.gracelauncher.data.PopupItem
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
@@ -54,6 +54,20 @@ class ShortcutRevealState(expanded: Boolean = true, dragging: Boolean = false) {
     var dragging by mutableStateOf(dragging)
     var expanded by mutableStateOf(expanded)
 }
+
+/** Folders differ only in their owner and initial contents, not their popup UI. */
+@Composable
+fun FolderPopup(
+    folder: LauncherFolder, apps: List<LauncherApp>, anchor: Rect, onDismiss: () -> Unit,
+    onLaunchApp: (LauncherApp, Rect) -> Unit, onEdit: () -> Unit,
+    reveal: ShortcutRevealState = remember { ShortcutRevealState() },
+    uiState: LauncherUiState = LauncherUiState(apps = apps, folders = listOf(folder)),
+    actions: LauncherActions = LauncherActions(), onDetails: (LauncherApp) -> Unit = {},
+) = ShortcutPopup(
+    app = uiState.folderItem(folder), anchor = anchor, hasAccess = uiState.hasShortcutAccess,
+    actions = actions, onLaunchApp = {}, onDismiss = onDismiss, reveal = reveal,
+    uiState = uiState, onEdit = onEdit, onDetails = onDetails, onLaunchItem = onLaunchApp,
+)
 
 /** Same-window overlay: adding a popup window during DOWN would cancel the row's drag. */
 @Composable
@@ -73,21 +87,24 @@ fun ShortcutPopup(
         item.shortcut?.let { actions.launchShortcutAt?.invoke(it, bounds) ?: actions.launchShortcut(it) }
     },
 ) {
+    val isFolder = app.folderId != null
     var retry by remember { mutableIntStateOf(0) }
     val loadShortcuts by rememberUpdatedState(actions.shortcuts)
-    val initialResult = remember(app.key, hasAccess) { actions.cachedShortcuts(app) ?: ShortcutResult(ShortcutStatus.Loading) }
+    val initialResult = remember(app.key, hasAccess) {
+        if (isFolder) ShortcutResult(ShortcutStatus.Ready) else actions.cachedShortcuts(app) ?: ShortcutResult(ShortcutStatus.Loading)
+    }
     val result by produceState(initialResult, app.key, hasAccess, retry, uiState.itemRevision) {
         // Keep cached content while refreshing; never insert a progress indicator.
-        value = loadShortcuts(app)
+        if (!isFolder) value = loadShortcuts(app)
     }
     val shortcuts = result.shortcuts.map { uiState.findItem(it.key) ?: it.asApp(app) }
     val customItems = uiState.popups[app.key]
-    val entries = customItems ?: shortcuts.map { PopupItem(it.key) }
+    val entries = uiState.popupItems(app, shortcuts).filterNot { isFolder && it.widget == null && it.key in uiState.hiddenAppKeys }
     SwipeRevealPanel(
         anchor = anchor,
         reveal = reveal,
-        panelTag = "shortcut_popup",
-        title = stringResource(R.string.app_shortcuts),
+        panelTag = if (isFolder) "folder_popup" else "shortcut_popup",
+        title = if (isFolder) app.label else stringResource(R.string.app_shortcuts),
         onDismiss = onDismiss,
     ) { maxListHeight ->
         Row(
@@ -95,15 +112,15 @@ fun ShortcutPopup(
                 .heightIn(min = 48.dp)
                 .testTag("shortcut_header")
                 .clip(RoundedCornerShape(16.dp))
-                .clickable(onClick = onLaunchApp)
+                .combinedClickable(onLongClick = { onDetails(app) }, onClick = { if (isFolder) onDetails(app) else onLaunchApp() })
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            LauncherIcon(LauncherSymbol.Launch, Modifier.size(19.dp))
+            if (isFolder) AppIcon(app, size = 24.dp) else LauncherIcon(LauncherSymbol.Launch, Modifier.size(19.dp))
             Spacer(Modifier.width(10.dp))
             Text(app.label, Modifier.weight(1f), fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        LazyColumn(Modifier.heightIn(max = maxListHeight).testTag("shortcut_list")) {
+        LazyColumn(Modifier.heightIn(max = maxListHeight).testTag(if (isFolder) "folder_members" else "shortcut_list")) {
             items(notifications, key = { "notification:${it.key}" }) { notification ->
                 NotificationPopupItem(
                     app, notification,
@@ -113,7 +130,11 @@ fun ShortcutPopup(
                     gesturesEnabled = !reveal.dragging && reveal.expanded,
                 )
             }
-        if (customItems == null) when (result.status) {
+        if (isFolder && entries.isEmpty()) item {
+            Text(stringResource(R.string.folder_contents_empty), Modifier.testTag("folder_empty").padding(horizontal = 12.dp, vertical = 18.dp), style = MaterialTheme.typography.bodyMedium)
+            TextButton(onClick = onEdit, modifier = Modifier.testTag("folder_edit")) { Text(stringResource(R.string.settings_folder_edit)) }
+        }
+        if (!isFolder && customItems == null) when (result.status) {
             // Cold apps may need one binder query; keep the layout quiet.
             ShortcutStatus.Loading -> if (notifications.isEmpty()) item { Spacer(Modifier.height(56.dp)) }
             ShortcutStatus.DefaultLauncherRequired -> item {
@@ -148,7 +169,7 @@ fun ShortcutPopup(
                 itemApp != null -> {
                         var iconBounds by remember { mutableStateOf(Rect.Zero) }
                         Row(
-                            Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("shortcut:${itemApp.shortcut?.id ?: itemApp.key}")
+                            Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag(if (isFolder) "folder_app:${itemApp.key}" else "shortcut:${itemApp.shortcut?.id ?: itemApp.key}")
                                 .clip(RoundedCornerShape(16.dp))
                                 .combinedClickable(enabled = !reveal.dragging && reveal.expanded, onLongClick = { onDetails(itemApp) }, onClick = {
                                     onLaunchItem(itemApp, iconBounds)

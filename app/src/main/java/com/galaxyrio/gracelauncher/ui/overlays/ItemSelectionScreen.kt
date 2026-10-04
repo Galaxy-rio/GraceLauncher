@@ -59,12 +59,14 @@ internal fun FavoritesScreen(uiState: LauncherUiState, onToggle: (LauncherApp) -
 }
 
 @Composable
-internal fun PopupEditorScreen(owner: LauncherApp, uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit) {
+internal fun PopupEditorScreen(owner: LauncherApp, uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
+    header: (@Composable () -> Unit)? = null) {
+    val isFolder = owner.folderId != null
     var retry by remember { mutableIntStateOf(0) }
-    val result by produceState(actions.cachedShortcuts(owner) ?: ShortcutResult(ShortcutStatus.Loading),
-        owner.key, uiState.hasShortcutAccess, retry, uiState.itemRevision) { value = actions.shortcuts(owner) }
+    val result by produceState(if (isFolder) ShortcutResult(ShortcutStatus.Ready) else actions.cachedShortcuts(owner) ?: ShortcutResult(ShortcutStatus.Loading),
+        owner.key, uiState.hasShortcutAccess, retry, uiState.itemRevision) { if (!isFolder) value = actions.shortcuts(owner) }
     val shortcuts = result.shortcuts.map { uiState.findItem(it.key) ?: it.asApp(owner) }
-    val entries = uiState.popups[owner.key] ?: shortcuts.map { PopupItem(it.key) }
+    val entries = uiState.popupItems(owner, shortcuts)
     val missing = stringResource(R.string.popup_item_unavailable)
     val selected = entries.map { item ->
         val app = uiState.findItem(item.key) ?: shortcuts.firstOrNull { it.key == item.key }
@@ -75,7 +77,8 @@ internal fun PopupEditorScreen(owner: LauncherApp, uiState: LauncherUiState, act
     ItemSelectionScreen(
         title = stringResource(R.string.edit_app_popup, owner.label), tag = "popup_editor", selected = selected,
         apps = uiState.visibleApps.filterNot { it.key == owner.key }, enabled = ready,
-        shortcuts = shortcuts, shortcutTitle = stringResource(R.string.popup_app_shortcuts, owner.label),
+        shortcuts = shortcuts.takeUnless { isFolder }, shortcutTitle = stringResource(R.string.popup_app_shortcuts, owner.label),
+        header = header,
         shortcutStatus = result.status, onRetry = { retry++ }, onRequestAccess = actions.requestDefaultHome,
         onAddWidget = { actions.addPopupWidget(owner, shortcuts) },
         onToggle = { app -> actions.updatePopup(owner, shortcuts) { current ->
@@ -96,6 +99,7 @@ private fun ItemSelectionScreen(
     onToggle: (LauncherApp) -> Unit, onRemove: (String) -> Unit, onReorder: (List<String>) -> Unit, onDone: () -> Unit,
     shortcuts: List<LauncherApp>? = null, shortcutTitle: String = "", shortcutStatus: ShortcutStatus = ShortcutStatus.Ready,
     onRetry: () -> Unit = {}, onRequestAccess: () -> Unit = {}, onAddWidget: (() -> Unit)? = null,
+    header: (@Composable () -> Unit)? = null,
 ) {
     val selectedKeys = selected.map { it.key }
     val selectedEntries = selected.associateBy { it.key }
@@ -130,9 +134,10 @@ private fun ItemSelectionScreen(
             Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding().padding(horizontal = 20.dp).testTag("${tag}_list"),
             state = list, contentPadding = PaddingValues(bottom = 24.dp), userScrollEnabled = reorder.draggingKey == null,
         ) {
+            if (header != null) item(key = "editor_header", contentType = "header") { header() }
             item(key = "selected_header", contentType = "header") { SelectionHeading(stringResource(R.string.favorites_selected), "${tag}_selected") }
             if (reorder.keys.isEmpty()) item(key = "empty") {
-                Text(stringResource(if (shortcuts == null) R.string.favorites_empty else R.string.popup_empty), Modifier.padding(8.dp),
+                Text(stringResource(if (onAddWidget == null) R.string.favorites_empty else R.string.popup_empty), Modifier.padding(8.dp),
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             items(reorder.keys.mapNotNull(selectedEntries::get), key = { FavoritesReorderState.itemKey(it.key) }, contentType = { if (it.widget == null) "selected" else "widget" }) { entry ->

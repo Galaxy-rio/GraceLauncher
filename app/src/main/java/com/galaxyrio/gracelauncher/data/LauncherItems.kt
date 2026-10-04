@@ -70,6 +70,7 @@ abstract class LauncherItemsDao {
     @Query("DELETE FROM item_icons WHERE itemKey IN (:keys)") abstract suspend fun resetIcons(keys: List<String>)
     @Upsert abstract suspend fun saveShortcut(value: SavedShortcutEntity)
     @Upsert abstract suspend fun savePopup(value: AppPopupEntity)
+    @Query("DELETE FROM app_popups WHERE ownerKey = :key") abstract suspend fun deletePopup(key: String)
 }
 
 data class LauncherItemsSnapshot(
@@ -87,8 +88,15 @@ class LauncherItemsRepository(private val database: LauncherDatabase) {
         )
     }.distinctUntilChanged()
 
-    suspend fun saveIcon(key: String, icon: ItemIcon?) {
+    suspend fun saveIcon(key: String, icon: ItemIcon?) = database.withTransaction {
+        requireExistingFolder(key)
         if (icon == null) dao.resetIcon(key) else dao.saveIcon(ItemIconEntity(key, icon.encode()))
+    }
+
+    private suspend fun requireExistingFolder(key: String) {
+        if (key.startsWith("folder:")) check(database.settingsDao().folder(key.removePrefix("folder:")) != null) {
+            "Folder no longer exists"
+        }
     }
 
     suspend fun resetIcons(keys: Set<String>): List<ItemIcon> = database.withTransaction {
@@ -117,6 +125,7 @@ class LauncherItemsRepository(private val database: LauncherDatabase) {
     /** Atomic edits also preserve widgets appended by the separate Android setup Activity. */
     suspend fun updatePopup(key: String, defaults: List<PopupItem>, transform: (List<PopupItem>) -> List<PopupItem>): List<Int> =
         database.withTransaction {
+            requireExistingFolder(key)
             val previous = dao.popup(key)?.let { PopupItem.decode(it.itemsJson) } ?: defaults
             val next = transform(previous).distinctBy { it.key }
             dao.savePopup(AppPopupEntity(key, PopupItem.encode(next)))

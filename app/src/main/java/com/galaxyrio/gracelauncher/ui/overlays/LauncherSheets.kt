@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,6 +36,7 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.FolderPlacement
+import com.galaxyrio.gracelauncher.data.PopupItem
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AppIcon
@@ -102,7 +104,10 @@ fun LauncherOverlays(
     }
     if (overlay == LauncherOverlay.Settings || overlay is LauncherOverlay.FolderSettings || overlay is LauncherOverlay.SettingsDestination) {
         LauncherSettingsScreen(
-            uiState = uiState, actions = actions, onBack = { onChange(null) },
+            uiState = uiState, actions = actions, onBack = {
+                val folder = (overlay as? LauncherOverlay.FolderSettings)?.folderId?.let { uiState.findItem("folder:$it") }
+                onChange(folder?.let { LauncherOverlay.AppDetails(it) })
+            },
             initialPage = when (overlay) {
                 is LauncherOverlay.FolderSettings -> "folders"
                 is LauncherOverlay.SettingsDestination -> overlay.page
@@ -131,6 +136,10 @@ fun LauncherOverlays(
         val members = folder.appKeys.mapNotNull { key -> uiState.visibleApps.firstOrNull { it.key == key } }
         FolderPopup(
             folder = folder, apps = members, anchor = overlay.anchor, reveal = overlay.reveal,
+            uiState = uiState, actions = actions,
+            onDetails = { member ->
+                onChange(LauncherOverlay.AppDetails(member, if (member.folderId == null) uiState.folderItem(folder) else null))
+            },
             onDismiss = { onChange(null) },
             onLaunchApp = { app, bounds ->
                 onChange(null)
@@ -211,6 +220,14 @@ private fun AppDetailsSheet(app: LauncherApp, actions: LauncherActions, onChange
         label = "advancedArrow",
     )
     var rename by remember(app.key) { mutableStateOf(false) }
+    var confirmDelete by remember(app.key) { mutableStateOf(false) }
+    var placement by remember(app.key) { mutableStateOf(false) }
+    val folder = uiState.folders.firstOrNull { it.id == app.folderId }
+    if (app.folderId != null && folder == null) {
+        LaunchedEffect(app.key) { onChange(null) }
+        return
+    }
+    val renameTitle = stringResource(if (folder != null) R.string.rename_folder else R.string.rename_app)
     val editIconDescription = stringResource(R.string.icon_designer_title)
     // Extend touch surfaces into the gutter, keeping their inset content on the
     // same two columns as the header (icon center and text leading edge).
@@ -221,10 +238,10 @@ private fun AppDetailsSheet(app: LauncherApp, actions: LauncherActions, onChange
                 .clickable(role = Role.Button, onClickLabel = editIconDescription) { onChange(LauncherOverlay.IconDesigner(app, popupOwner)) }, size = DetailsIconColumnWidth)
             Spacer(Modifier.width(DetailsIconTextSpacing))
             Text(app.label, modifier = Modifier.weight(1f).testTag("app_details_title")
-                .clickable(onClickLabel = stringResource(R.string.rename_app)) { rename = true }.padding(vertical = 8.dp),
+                .clickable(onClickLabel = renameTitle) { rename = true }.padding(vertical = 8.dp),
                 fontSize = 25.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }
-        val owner = popupOwner ?: app
+        val owner = popupOwner?.let { uiState.findItem(it.key) ?: it } ?: app
         if (app.shortcut != null) {
             val shown = uiState.apps.any { it.key == app.key }
             PanelAction(LauncherSymbol.Apps, stringResource(R.string.popup_show_in_app_list), "show_in_app_list",
@@ -232,28 +249,43 @@ private fun AppDetailsSheet(app: LauncherApp, actions: LauncherActions, onChange
                 trailing = { Switch(shown, onCheckedChange = null) }) { actions.showShortcutInAppList(app, !shown) }
         }
         DetailsAction(LauncherSymbol.Star, stringResource(R.string.edit_favorites), "edit_favorites") { onChange(LauncherOverlay.Favorites) }
-        DetailsAction(LauncherSymbol.Info, stringResource(R.string.app_info)) { onChange(null); actions.appInfo(app) }
-        DetailsAction(LauncherSymbol.Hourglass, stringResource(R.string.screen_time)) { onChange(null); actions.screenTime(app) }
-        DetailsAction(LauncherSymbol.Folder, stringResource(R.string.add_to_folder)) { onChange(LauncherOverlay.Categories(app)) }
-        if (app.shortcut == null) DetailsAction(LauncherSymbol.Delete, stringResource(R.string.uninstall)) { onChange(null); actions.uninstall(app) }
+        if (folder != null) {
+            DetailsAction(LauncherSymbol.Folder, stringResource(R.string.settings_folder_placement)) { placement = true }
+            DetailsAction(LauncherSymbol.Delete, stringResource(R.string.settings_folder_delete), "folder_delete") { confirmDelete = true }
+        } else {
+            DetailsAction(LauncherSymbol.Info, stringResource(R.string.app_info)) { onChange(null); actions.appInfo(app) }
+            DetailsAction(LauncherSymbol.Hourglass, stringResource(R.string.screen_time)) { onChange(null); actions.screenTime(app) }
+            DetailsAction(LauncherSymbol.Folder, stringResource(R.string.add_to_folder)) { onChange(LauncherOverlay.Categories(app)) }
+            if (app.shortcut == null) DetailsAction(LauncherSymbol.Delete, stringResource(R.string.uninstall)) { onChange(null); actions.uninstall(app) }
+        }
         DetailsAction(LauncherSymbol.Chevron, stringResource(R.string.advanced), "advanced", iconRotation = advancedRotation) { advanced = !advanced }
         AnimatedVisibility(advanced) {
             Column {
-                DetailsAction(LauncherSymbol.Edit, stringResource(R.string.rename_app)) { rename = true }
+                DetailsAction(LauncherSymbol.Edit, renameTitle) { rename = true }
                 DetailsAction(LauncherSymbol.DesignServices, stringResource(R.string.icon_designer_title)) { onChange(LauncherOverlay.IconDesigner(app, popupOwner)) }
-                DetailsAction(LauncherSymbol.Launch, stringResource(R.string.edit_app_popup, owner.label)) { onChange(LauncherOverlay.EditPopup(owner)) }
-                DetailsAction(LauncherSymbol.Launch, stringResource(R.string.store_page)) { onChange(null); actions.storePage(app) }
-                Text(app.packageName, Modifier.padding(start = DetailsContentInset + DetailsIconColumnWidth + DetailsIconTextSpacing, end = DetailsContentInset, bottom = 14.dp).testTag("app_details_package"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                DetailsAction(LauncherSymbol.Launch, stringResource(R.string.edit_app_popup, owner.label), "edit_popup") {
+                    onChange(owner.folderId?.let { LauncherOverlay.FolderSettings(it) } ?: LauncherOverlay.EditPopup(owner))
+                }
+                if (folder == null) {
+                    DetailsAction(LauncherSymbol.Launch, stringResource(R.string.store_page)) { onChange(null); actions.storePage(app) }
+                    Text(app.packageName, Modifier.padding(start = DetailsContentInset + DetailsIconColumnWidth + DetailsIconTextSpacing, end = DetailsContentInset, bottom = 14.dp).testTag("app_details_package"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         }
         HorizontalDivider(Modifier.padding(horizontal = DetailsContentInset).padding(top = 6.dp, bottom = 8.dp), thickness = 1.dp, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
         DetailsAction(LauncherSymbol.Settings, stringResource(R.string.grace_settings), "grace_settings") { onChange(LauncherOverlay.Settings) }
     }
     if (rename) TextEntryDialog(
-        title = stringResource(R.string.rename_app), initial = app.label,
+        title = renameTitle, initial = app.label,
         onDismiss = { rename = false }, onSave = { actions.rename(app, it); rename = false },
-        onReset = { actions.rename(app, ""); rename = false },
+        onReset = if (folder == null) ({ actions.rename(app, ""); rename = false }) else null,
     )
+    if (placement && folder != null) FolderPlacementDialog(folder.placement, { placement = false }) {
+        actions.updateFolder(folder.id, null, it); placement = false
+    }
+    if (confirmDelete && folder != null) DeleteFolderDialog(folder.name, { confirmDelete = false }) {
+        actions.deleteFolder(folder.id); onChange(null)
+    }
 }
 
 @Composable
@@ -307,7 +339,9 @@ private fun CategoryPicker(app: LauncherApp, uiState: LauncherUiState, actions: 
         uiState.folders.forEach { folder ->
             val isMember = app.key in folder.appKeys
             PanelAction(if (isMember) LauncherSymbol.Check else LauncherSymbol.Folder, folder.name) {
-                actions.saveFolder(folder.copy(appKeys = if (isMember) folder.appKeys - app.key else folder.appKeys + app.key))
+                actions.updatePopup(uiState.folderItem(folder), listOf(app)) { current ->
+                    if (current.any { it.key == app.key }) current.filterNot { it.key == app.key } else current + PopupItem(app.key)
+                }
                 onDone()
             }
         }
@@ -344,13 +378,13 @@ private fun CategoryAppsSheet(name: String, uiState: LauncherUiState, onLaunch: 
 }
 
 @Composable
-private fun TextEntryDialog(title: String, initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit, onReset: (() -> Unit)? = null) {
+internal fun TextEntryDialog(title: String, initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit, onReset: (() -> Unit)? = null) {
     var value by remember { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(40.dp),
         title = { Text(title) },
-        text = { OutlinedTextField(value, onValueChange = { value = it.take(80) }, singleLine = true) },
+        text = { OutlinedTextField(value, onValueChange = { value = it.take(80) }, singleLine = true, modifier = Modifier.testTag("text_entry")) },
         confirmButton = { TextButton(onClick = { onSave(value.trim()) }, enabled = value.isNotBlank()) { Text(stringResource(R.string.save)) } },
         dismissButton = {
             Row {
@@ -359,4 +393,28 @@ private fun TextEntryDialog(title: String, initial: String, onDismiss: () -> Uni
             }
         },
     )
+}
+
+@Composable
+internal fun FolderPlacementDialog(selected: FolderPlacement, onDismiss: () -> Unit, onSelect: (FolderPlacement) -> Unit) {
+    AlertDialog(onDismissRequest = onDismiss, shape = RoundedCornerShape(40.dp), title = { Text(stringResource(R.string.settings_folder_placement)) },
+        text = { Column {
+            FolderPlacement.entries.forEach { option ->
+                Row(Modifier.fillMaxWidth().testTag("folder_placement:${option.name}").selectable(option == selected, role = Role.RadioButton, onClick = { onSelect(option) }).padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(option == selected, null)
+                    Spacer(Modifier.width(16.dp))
+                    Text(stringResource(if (option == FolderPlacement.Favorites) R.string.settings_folder_favorites else R.string.settings_folder_app_list))
+                }
+            }
+        } }, confirmButton = {}, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
+}
+
+@Composable
+internal fun DeleteFolderDialog(name: String, onDismiss: () -> Unit, onDelete: () -> Unit) {
+    AlertDialog(onDismissRequest = onDismiss, shape = RoundedCornerShape(40.dp), title = { Text(stringResource(R.string.settings_folder_delete)) },
+        text = { Text(stringResource(R.string.settings_folder_delete_confirmation, name)) },
+        confirmButton = { TextButton(onClick = onDelete, modifier = Modifier.testTag("folder_confirm_delete")) {
+            Text(stringResource(R.string.settings_delete), color = MaterialTheme.colorScheme.error)
+        } }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
 }

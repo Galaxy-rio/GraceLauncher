@@ -187,6 +187,8 @@ fun HomeScreen(
         items(folders, key = { "folder:${it.id}" }, contentType = { "folder" }) { folder ->
             FolderRow(
                 folder = folder,
+                app = uiState.folderItem(folder),
+                highlighted = highlightedAppKey == folder.key,
                 onOpen = { onOpenFolder(folder, it) },
                 onLongClick = { onEditFolder(folder) },
                 onDrag = { bounds, expanded -> onFolderDrag(folder, bounds, expanded) },

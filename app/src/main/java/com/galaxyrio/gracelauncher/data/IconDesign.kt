@@ -56,4 +56,4 @@ data class IconDesign(
 
 /** Desktop overrides and pack-adapted icons are never candidates for bulk styling. */
 fun isBulkIconDesignEligible(app: LauncherApp, special: ItemIcon?): Boolean =
-    special == null && app.themeIconPackPackage == null && app.shortcut == null
+    special == null && app.themeIconPackPackage == null && app.shortcut == null && app.folderId == null

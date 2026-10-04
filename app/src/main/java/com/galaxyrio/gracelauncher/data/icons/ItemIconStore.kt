@@ -4,6 +4,10 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.ImageDecoder
 import android.graphics.drawable.AdaptiveIconDrawable
+import android.graphics.drawable.ColorDrawable
+import android.graphics.drawable.InsetDrawable
+import androidx.core.content.ContextCompat
+import com.galaxyrio.gracelauncher.R
 import android.content.res.Configuration
 import android.net.Uri
 import android.os.Build
@@ -67,6 +71,12 @@ class ItemIconStore(private val context: Context, private val packs: IconPackRep
 
     internal suspend fun layers(app: LauncherApp, choice: ItemIcon, settings: LauncherSettings, size: Int = 384): IconLayers? =
         withContext(Dispatchers.IO) {
+            if (app.folderId != null && choice.kind in setOf("system", "theme")) {
+                val colors = dynamicColors(settings)
+                val glyph = ContextCompat.getDrawable(context, R.drawable.ms_folder)?.mutate() ?: return@withContext null
+                glyph.setTint(colors.second)
+                return@withContext iconLayers(AdaptiveIconDrawable(ColorDrawable(colors.first), InsetDrawable(glyph, 0.22f)), size)
+            }
             val drawable = when (choice.kind) {
                 "theme" -> settings.enabledIconPackPackages.firstNotNullOfOrNull { packs.load(it)?.designDrawableFor(app.componentName) }
                     ?: runCatching { context.packageManager.getActivityIcon(app.componentName) }.getOrNull()
@@ -92,7 +102,7 @@ class ItemIconStore(private val context: Context, private val packs: IconPackRep
         val icon = when (choice.kind) {
             "pack" -> packs.selectedIcon(choice)
             "image" -> imageBitmap(choice.source, 144)?.let { PackIcon(it.asImageBitmap()) }
-            "system" -> if (app.shortcut != null) app.shortcut.icon?.let { PackIcon(it) } else runCatching {
+            "system" -> if (app.folderId != null) null else if (app.shortcut != null) app.shortcut.icon?.let { PackIcon(it) } else runCatching {
                 val drawable = context.packageManager.getActivityIcon(app.componentName)
                 val mono = if (Build.VERSION.SDK_INT >= 33) (drawable as? AdaptiveIconDrawable)?.monochrome else null
                 PackIcon(renderIcon(drawable).asImageBitmap(), mono?.let { renderIcon(it).asImageBitmap() })

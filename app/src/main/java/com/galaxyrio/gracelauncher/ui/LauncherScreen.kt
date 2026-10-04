@@ -288,6 +288,7 @@ fun LauncherRoute(
         },
         setHiddenApps = viewModel::setHiddenApps,
         saveFolder = viewModel::saveFolder,
+        updateFolder = viewModel::updateFolder,
         deleteFolder = viewModel::deleteFolder,
         shortcuts = viewModel::loadShortcuts,
         cachedShortcuts = viewModel::cachedShortcuts,
@@ -465,7 +466,7 @@ internal fun LauncherScreen(
     )
     val highlightedAppKey = (overlay as? LauncherOverlay.AppDetails)?.app?.key
     val openFolder: (LauncherFolder, Rect) -> Unit = { folder, bounds -> overlay = LauncherOverlay.Folder(folder, bounds) }
-    val editFolder: (LauncherFolder) -> Unit = { overlay = LauncherOverlay.FolderSettings(it.id) }
+    val editFolder: (LauncherFolder) -> Unit = { overlay = LauncherOverlay.AppDetails(uiState.folderItem(it)) }
     val dragFolder: (LauncherFolder, Rect, Boolean) -> Unit = { folder, bounds, expanded ->
         val current = overlay as? LauncherOverlay.Folder
         if (current?.folder?.id == folder.id) current.reveal.expanded = expanded
@@ -559,6 +560,7 @@ internal fun LauncherScreen(
         // views. Content padding anchors headings without reserving a viewport.
         AppDrawerScreen(
             model = model,
+            folderApps = uiState.folders.associate { it.id to uiState.folderItem(it) },
             notifications = uiState.notifications,
             listState = drawerState,
             selectedLetter = selectedLetter,

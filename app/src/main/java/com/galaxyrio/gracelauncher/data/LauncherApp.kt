@@ -24,8 +24,9 @@ data class LauncherApp(
     val isAdaptiveIcon: Boolean = false,
     /** Preserve the enabled-pack match when a designer source changes the displayed artwork. */
     val themeIconPackPackage: String? = iconPackPackage,
+    val folderId: String? = null,
 ) {
-    val key: String = shortcut?.key ?: componentName.flattenToString()
+    val key: String = folderId?.let { "folder:$it" } ?: shortcut?.key ?: componentName.flattenToString()
     val packageName: String = componentName.packageName
     val sortKey: String = appSortKey(label)
     val section: String = sectionForSortKey(sortKey)
