@@ -147,7 +147,7 @@
         <item quantity="one">%1$d app hidden</item>
         <item quantity="other">%1$d apps hidden</item>
     </plurals>
-    <string name="settings_hide_apps_description">Hidden apps stay installed and can be shown again here.</string>
+    <string name="settings_hide_apps_description">Hide apps from the app list only. They remain available in favorites, folders, pop-ups and search.</string>
     <string name="settings_folders">Folders</string>
     <plurals name="settings_folder_count">
         <item quantity="one">%1$d folder</item>

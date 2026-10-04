@@ -99,7 +99,7 @@ fun ShortcutPopup(
     }
     val shortcuts = result.shortcuts.map { uiState.findItem(it.key) ?: it.asApp(app) }
     val customItems = uiState.popups[app.key]
-    val entries = uiState.popupItems(app, shortcuts).filterNot { isFolder && it.widget == null && it.key in uiState.hiddenAppKeys }
+    val entries = uiState.popupItems(app, shortcuts)
     SwipeRevealPanel(
         anchor = anchor,
         reveal = reveal,

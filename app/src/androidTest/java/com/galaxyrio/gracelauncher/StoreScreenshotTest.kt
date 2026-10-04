@@ -153,7 +153,7 @@ class StoreScreenshotTest {
                     }
                     "03" -> compose.onNodeWithTag("home_media_artwork").assertIsDisplayed()
                     "04" -> {
-                        val letters = AppListModel(base.visibleApps).letters
+                        val letters = AppListModel(base.appListApps).letters
                         compose.onNodeWithTag("alphabet_rail").performTouchInput {
                             down(Offset(centerX, height * (letters.indexOf("C") + 1.5f) / (letters.size + 1)))
                             moveBy(Offset(-35f, 0f), delayMillis = 250)

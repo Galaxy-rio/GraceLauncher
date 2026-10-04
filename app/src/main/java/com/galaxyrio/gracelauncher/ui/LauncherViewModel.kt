@@ -119,13 +119,15 @@ data class LauncherUiState(
             settings.mediaPlayer && media.hasAccess && !isLoadingSettings && !settingsLoadFailed
         }
 
-    val visibleApps: List<LauncherApp>
+    /** Hide Apps affects only the alphabetical app list, not other launcher surfaces. */
+    val appListApps: List<LauncherApp>
         get() = if (isLoadingSettings || settingsLoadFailed) emptyList()
         else apps.filterNot { it.key in hiddenAppKeys }
 
     val favoriteApps: List<LauncherApp>
         get() {
-            val favorites = visibleApps.filter { it.key in favoriteKeys }.associateBy(LauncherApp::key)
+            if (isLoadingSettings || settingsLoadFailed) return emptyList()
+            val favorites = apps.filter { it.key in favoriteKeys }.associateBy(LauncherApp::key)
             return (favoriteOrder + favorites.keys).distinct().mapNotNull(favorites::get)
         }
 }
@@ -244,7 +246,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     if (previous.isLoadingSettings || previous.settings.weatherEnabled != snapshot.settings.weatherEnabled ||
                         previous.settings.weatherLocationId != snapshot.settings.weatherLocationId
                     ) refreshWeather()
-                    if (previous.isLoadingSettings || previous.hiddenAppKeys != snapshot.hiddenAppKeys) {
+                    if (previous.isLoadingSettings) {
                         val favorites = _uiState.value.favoriteApps
                         viewModelScope.launch { shortcutRepository.prefetch(favorites) }
                     }

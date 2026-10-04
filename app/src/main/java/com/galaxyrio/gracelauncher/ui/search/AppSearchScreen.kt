@@ -37,10 +37,10 @@ internal fun AppSearchScreen(
 ) {
     val queryState = rememberTextFieldState()
     val query = queryState.text.toString()
-    val visibleApps = uiState.visibleApps
-    val results = remember(visibleApps, query) {
+    val apps = uiState.apps
+    val results = remember(apps, query) {
         val term = query.trim()
-        visibleApps.filter { it.label.contains(term, ignoreCase = true) || it.originalLabel.contains(term, ignoreCase = true) }
+        apps.filter { it.label.contains(term, ignoreCase = true) || it.originalLabel.contains(term, ignoreCase = true) }
     }
     val backDistance = with(LocalDensity.current) { 30.dp.toPx() } *
         if (LocalLayoutDirection.current == LayoutDirection.Ltr) 1 else -1

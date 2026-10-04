@@ -116,14 +116,14 @@ class LauncherSettingsIntegrationTest {
     }
 
     @Test
-    fun fabClickSearchesVisibleAppsAndLaunchesTheFilteredResult() {
+    fun fabSearchIncludesHiddenAppsAndLaunchesTheFilteredResult() {
         showLauncher(fixture().copy(hiddenAppKeys = setOf(apps.last().key)))
         compose.onNodeWithTag("launcher_fab").performClick()
         compose.onNodeWithTag("app_search").assertIsDisplayed()
         compose.onNodeWithTag("settings_root").assertDoesNotExist()
         compose.onNodeWithTag("launcher_sheet").assertDoesNotExist()
         compose.onNodeWithTag("app_search_query").performTextReplacement("Vault")
-        compose.onNodeWithTag("app:${apps.last().key}").assertDoesNotExist()
+        compose.onNodeWithTag("app:${apps.last().key}").assertIsDisplayed()
         compose.onNodeWithTag("app_search_query").performTextReplacement("cAm")
         compose.onNodeWithTag("app:${apps[1].key}").assertIsDisplayed()
         listOf(apps[0], apps[2], apps[3], apps[4]).forEach {
@@ -208,7 +208,7 @@ class LauncherSettingsIntegrationTest {
     }
 
     @Test
-    fun foldersRespectPlacementAndHiddenMembersDisappearFromPopupAndSearch() {
+    fun foldersRespectPlacementAndHiddenMembersRemainInPopupAndSearch() {
         val homeFolder = LauncherFolder("home", "Everyday", listOf(apps[1].key, apps[3].key), FolderPlacement.Favorites)
         val drawerFolder = LauncherFolder("drawer", "Tools", listOf(apps[2].key), FolderPlacement.AppList)
         showLauncher(fixture().copy(folders = listOf(homeFolder, drawerFolder)))
@@ -229,7 +229,7 @@ class LauncherSettingsIntegrationTest {
         settingsBack()
         compose.onNodeWithTag("folder:home").performClick()
         compose.onNodeWithTag("folder_app:${apps[1].key}").assertIsDisplayed()
-        compose.onNodeWithTag("folder_app:${apps[3].key}").assertDoesNotExist()
+        compose.onNodeWithTag("folder_app:${apps[3].key}").assertIsDisplayed()
         compose.runOnIdle {
             assertTrue(apps[3].key in state.value.hiddenAppKeys)
             assertTrue(apps[3].key in state.value.folders.first { it.id == "home" }.appKeys)
@@ -251,7 +251,7 @@ class LauncherSettingsIntegrationTest {
             throw failure
         }
         compose.onNodeWithTag("app_search_query").performTextReplacement("Gmail")
-        compose.onNodeWithTag("app:${apps[3].key}").assertDoesNotExist()
+        compose.onNodeWithTag("app:${apps[3].key}").assertIsDisplayed()
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         compose.onNodeWithText(context.getString(R.string.cancel)).performClick()
         compose.onNodeWithTag("alphabet:◇").performClick()

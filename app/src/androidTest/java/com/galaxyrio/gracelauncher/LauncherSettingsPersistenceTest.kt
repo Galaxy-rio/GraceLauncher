@@ -285,7 +285,7 @@ class LauncherSettingsPersistenceTest {
     }
 
     @Test
-    fun hiddenAppsKeepFavoriteAndFolderMembershipAndCanBeRestored() = runBlocking {
+    fun hiddenAppsRemainAvailableOutsideTheAppList() = runBlocking {
         val app = LauncherApp(ComponentName("hidden", "hidden.Activity"), "Hidden", icon = null)
         val folder = LauncherFolder("folder", "Folder", listOf(app.key), FolderPlacement.Favorites)
         val repository = openRepository()
@@ -296,14 +296,16 @@ class LauncherSettingsPersistenceTest {
             apps = listOf(app), favoriteKeys = setOf(app.key),
             hiddenAppKeys = snapshot.hiddenAppKeys, folders = snapshot.folders,
         )
-        assertTrue(state.visibleApps.isEmpty())
-        assertTrue(state.favoriteApps.isEmpty())
+        assertTrue(state.appListApps.isEmpty())
+        assertEquals(listOf(app), state.favoriteApps)
+        assertEquals(app, state.findItem(app.key))
+        assertEquals(listOf(PopupItem(app.key)), state.popupItems(folder.asApp(), emptyList()))
         assertTrue(app.key in state.favoriteKeys)
         assertEquals(listOf(app.key), state.folders.single().appKeys)
 
         repository.setHiddenApps(emptySet())
         val restored = state.copy(hiddenAppKeys = withTimeout(10_000) { repository.snapshots.first().hiddenAppKeys })
-        assertEquals(listOf(app), restored.visibleApps)
+        assertEquals(listOf(app), restored.appListApps)
         assertEquals(listOf(app), restored.favoriteApps)
         assertEquals(listOf(app.key), restored.folders.single().appKeys)
     }
@@ -326,9 +328,9 @@ class LauncherSettingsPersistenceTest {
     fun appsDoNotFlashBeforeSettingsLoadOrAfterAReadFailure() {
         val app = LauncherApp(ComponentName("one", "one.Activity"), "One", icon = null)
         val loading = LauncherUiState(apps = listOf(app), favoriteKeys = setOf(app.key), isLoadingSettings = true)
-        assertTrue(loading.visibleApps.isEmpty())
+        assertTrue(loading.appListApps.isEmpty())
         assertTrue(loading.favoriteApps.isEmpty())
-        assertTrue(loading.copy(isLoadingSettings = false, settingsLoadFailed = true).visibleApps.isEmpty())
-        assertFalse(loading.copy(isLoadingSettings = false).visibleApps.isEmpty())
+        assertTrue(loading.copy(isLoadingSettings = false, settingsLoadFailed = true).appListApps.isEmpty())
+        assertFalse(loading.copy(isLoadingSettings = false).appListApps.isEmpty())
     }
 }

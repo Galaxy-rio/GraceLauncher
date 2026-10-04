@@ -371,8 +371,8 @@ internal fun LauncherScreen(
     var selectedLetter by remember { mutableStateOf<String?>(null) }
     var overlay by remember { mutableStateOf<LauncherOverlay?>(null) }
     var editingHome by rememberSaveable { mutableStateOf(false) }
-    val visibleApps = uiState.visibleApps
-    val model = remember(visibleApps, uiState.folders) { AppListModel(visibleApps, uiState.folders) }
+    val appListApps = uiState.appListApps
+    val model = remember(appListApps, uiState.folders) { AppListModel(appListApps, uiState.folders) }
     val drawerState = rememberLazyListState()
     val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons)
     val view = LocalView.current

@@ -133,7 +133,7 @@ fun LauncherOverlays(
             LaunchedEffect(overlay.folder.id) { onChange(null) }
             return
         }
-        val members = folder.appKeys.mapNotNull { key -> uiState.visibleApps.firstOrNull { it.key == key } }
+        val members = folder.appKeys.mapNotNull(uiState::findItem)
         FolderPopup(
             folder = folder, apps = members, anchor = overlay.anchor, reveal = overlay.reveal,
             uiState = uiState, actions = actions,
@@ -359,7 +359,7 @@ private fun CategoryAppsSheet(name: String, uiState: LauncherUiState, onLaunch: 
     Column(Modifier.fillMaxWidth().padding(horizontal = 32.dp)) {
         PanelTitle(name)
         LazyColumn(Modifier.heightIn(max = panelWindowHeight() * 0.65f)) {
-            items(uiState.visibleApps.filter { uiState.categories[it.key] == name }, key = LauncherApp::key) { app ->
+            items(uiState.apps.filter { uiState.categories[it.key] == name }, key = LauncherApp::key) { app ->
                 Row(
                     Modifier.fillMaxWidth().heightIn(min = 56.dp)
                         .clip(RoundedCornerShape(16.dp))

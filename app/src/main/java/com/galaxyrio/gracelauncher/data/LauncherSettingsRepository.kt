@@ -77,8 +77,7 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
     }
 
     suspend fun setHiddenApps(keys: Set<String>) {
-        // Membership and favorites are deliberately retained when an app is
-        // hidden or temporarily uninstalled; unhide/reinstall restores them.
+        // This changes app-list visibility only; other surfaces and memberships are unaffected.
         dao.replaceHiddenApps(keys.filter(String::isNotBlank).map(::HiddenAppEntity))
     }
 

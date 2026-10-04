@@ -61,10 +61,11 @@ class FavoritesStoreTest {
         assertEquals(listOf(keys[1], keys[2]), FavoritesStore(prefs).favoritesFor(apps))
     }
 
-    @Test fun homeUsesExplicitOrderAndRestoresHiddenAppsInTheirOriginalSlot() {
+    @Test fun homeUsesExplicitOrderRegardlessOfAppListVisibility() {
         val order = keys.reversed()
         val state = LauncherUiState(apps = apps, favoriteKeys = keys.toSet(), favoriteOrder = order, hiddenAppKeys = setOf(keys[1]))
-        assertEquals(order - keys[1], state.favoriteApps.map(LauncherApp::key))
+        assertEquals(order, state.favoriteApps.map(LauncherApp::key))
+        assertEquals(keys - keys[1], state.appListApps.map(LauncherApp::key))
         assertEquals(order, state.copy(hiddenAppKeys = emptySet()).favoriteApps.map(LauncherApp::key))
         assertEquals(order, state.copy(apps = apps.reversed(), hiddenAppKeys = emptySet()).favoriteApps.map(LauncherApp::key))
     }

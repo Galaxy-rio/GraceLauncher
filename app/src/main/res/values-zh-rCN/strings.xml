@@ -147,7 +147,7 @@
     <plurals name="settings_hidden_count">
         <item quantity="other">已隐藏 %1$d 个应用</item>
     </plurals>
-    <string name="settings_hide_apps_description">隐藏的应用仍保留在设备上，可在此重新显示。</string>
+    <string name="settings_hide_apps_description">仅从应用列表中隐藏。收藏、文件夹、弹出窗口和搜索中仍可显示。</string>
     <string name="settings_folders">文件夹</string>
     <plurals name="settings_folder_count">
         <item quantity="other">%1$d 个文件夹</item>
