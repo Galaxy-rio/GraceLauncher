@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.0
+
+- Added icon pack support and Icon Designer.
+- Added app shortcuts.
+- Added widget support.
+- Added experimental support for some system animations.
+- Added new clock styles.
+
 ## 1.0.0
 
 First release of Grace Launcher.

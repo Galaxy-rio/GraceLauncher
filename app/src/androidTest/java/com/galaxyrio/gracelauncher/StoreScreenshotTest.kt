@@ -1,209 +1,247 @@
 package com.galaxyrio.gracelauncher
 
-import android.content.ComponentName
-import androidx.activity.ComponentActivity
+import android.app.WallpaperManager
+import android.appwidget.AppWidgetManager
+import android.graphics.Bitmap
+import android.graphics.Canvas
+import android.graphics.LinearGradient
+import android.graphics.Paint
+import android.graphics.Shader
+import android.graphics.drawable.ColorDrawable
+import android.os.SystemClock
+import android.provider.Settings
+import android.view.View
+import android.view.ViewGroup
+import android.view.WindowManager
+import android.widget.TextView
 import androidx.activity.SystemBarStyle
+import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
-import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performTouchInput
-import androidx.core.content.ContextCompat
-import androidx.core.graphics.drawable.toBitmap
-import androidx.compose.ui.graphics.asImageBitmap
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
-import com.galaxyrio.gracelauncher.data.LauncherApp
-import com.galaxyrio.gracelauncher.data.LauncherSettings
-import com.galaxyrio.gracelauncher.data.ScheduleEvent
-import com.galaxyrio.gracelauncher.data.WallpaperTextMode
+import com.galaxyrio.gracelauncher.data.ClockLayout
+import com.galaxyrio.gracelauncher.data.ClockStyle
+import com.galaxyrio.gracelauncher.data.HomeLayout
 import com.galaxyrio.gracelauncher.data.media.MediaSnapshot
-import com.galaxyrio.gracelauncher.data.media.NowPlaying
-import com.galaxyrio.gracelauncher.data.weather.WeatherCondition
-import com.galaxyrio.gracelauncher.data.weather.WeatherCurrent
-import com.galaxyrio.gracelauncher.data.weather.WeatherDay
-import com.galaxyrio.gracelauncher.data.weather.WeatherHour
-import com.galaxyrio.gracelauncher.data.weather.WeatherLocation
-import com.galaxyrio.gracelauncher.data.weather.WeatherSnapshot
-import com.galaxyrio.gracelauncher.data.weather.WeatherState
-import com.galaxyrio.gracelauncher.data.weather.WeatherStatus
-import com.galaxyrio.gracelauncher.data.weather.WeatherTemperature
+import com.galaxyrio.gracelauncher.platform.HomeWidgetHost
+import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherScreen
-import com.galaxyrio.gracelauncher.ui.LauncherUiState
-import com.galaxyrio.gracelauncher.ui.ScheduleStatus
 import com.galaxyrio.gracelauncher.ui.drawer.AppListModel
+import com.galaxyrio.gracelauncher.ui.settings.LauncherSettingsScreen
 import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
 import java.io.FileInputStream
-import java.time.Instant
-import java.time.ZoneId
+import org.json.JSONObject
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
-/** Opt-in asset capture using production composables and fictional, local sample data. */
+/** Opt-in captures of production UI, installed Monocons icons and local demonstration data. */
 @RunWith(AndroidJUnit4::class)
 class StoreScreenshotTest {
-    @get:Rule val compose = createAndroidComposeRule<ComponentActivity>()
+    @get:Rule val compose = createAndroidComposeRule<MainActivity>()
     private val instrumentation get() = InstrumentationRegistry.getInstrumentation()
     private val context get() = instrumentation.targetContext
 
     @Test
     fun captureEnglishStoreListing() {
-        assumeTrue(InstrumentationRegistry.getArguments().getString("storeScreenshots") == "true")
+        val arguments = InstrumentationRegistry.getArguments()
+        assumeTrue(arguments.getString("storeScreenshots") == "true")
         check(context.resources.configuration.locales[0].language == "en") {
-            "Use an English emulator to capture the store screenshots."
+            "Use an English emulator with Monocons installed."
         }
-        compose.runOnUiThread {
-            compose.activity.enableEdgeToEdge(
-                statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-                navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
-            )
-        }
-
-        // Existing Apache-2.0 Material Symbols serve as a small demo icon pack.
-        val apps = listOf(
-            "Browser" to R.drawable.ms_link,
-            "Calculator" to R.drawable.ms_apps,
-            "Calendar" to R.drawable.ms_category,
-            "Camera" to R.drawable.ms_palette,
-            "Clock" to R.drawable.ms_hourglass_empty,
-            "Contacts" to R.drawable.ms_person,
-            "Files" to R.drawable.ms_folder,
-            "Gallery" to R.drawable.ms_palette,
-            "Mail" to R.drawable.ms_link,
-            "Messages" to R.drawable.ms_edit,
-            "Music" to R.drawable.ms_music_note,
-            "Notes" to R.drawable.ms_edit,
-            "Phone" to R.drawable.ms_person,
-            "Settings" to R.drawable.ms_settings,
-            "Terminal" to R.drawable.ms_code,
-            "Weather" to R.drawable.ms_palette,
-        ).map { (label, resource) ->
-            val icon = requireNotNull(ContextCompat.getDrawable(context, resource))
-                .toBitmap(96, 96).asImageBitmap()
-            LauncherApp(
-                ComponentName("store.sample", "store.sample.$label"), label,
-                icon = icon, monochromeIcon = icon, monochromeScale = 0.65f,
-            )
-        }
-        val favorites = listOf("Phone", "Messages", "Browser", "Camera", "Music", "Notes")
-            .map { label -> apps.single { it.label == label }.key }
-        val now = Instant.now()
-        val zone = ZoneId.systemDefault()
-        val today = now.atZone(zone).toLocalDate()
-        val tomorrow = today.plusDays(1)
-        fun event(id: Long, title: String, start: Instant, minutes: Long, color: Int) =
-            ScheduleEvent(id, title, start, start.plusSeconds(minutes * 60), false, null, color)
-        val events = listOf(
-            event(1, "Design review", now.plusSeconds(30 * 60), 45, 0xFF81C7B4.toInt()),
-            event(2, "Coffee with Alex", now.plusSeconds(2 * 60 * 60), 30, 0xFFB7B8F0.toInt()),
-            event(3, "Morning walk", tomorrow.atTime(8, 0).atZone(ZoneId.systemDefault()).toInstant(), 45, 0xFF81C7B4.toInt()),
-            event(4, "Read a chapter", tomorrow.atTime(19, 0).atZone(ZoneId.systemDefault()).toInstant(), 30, 0xFFE9BD8C.toInt()),
+        val selected = arguments.getString("storeScreenshotScenes")?.split(',')?.toSet()
+        val fixture = StoreScreenshotFixtures(context, instrumentation)
+        val base = fixture.launcherState()
+        val gmail = base.apps.single { it.packageName == "com.google.android.gm" }
+        val shortcuts = fixture.gmailShortcuts(gmail)
+        var state by mutableStateOf(base)
+        val actions = LauncherActions(
+            shortcuts = { shortcuts }, cachedShortcuts = { shortcuts },
+            updateSettings = { change -> state = state.copy(settings = change(state.settings)) },
+            themedIcons = { state = state.copy(themedIcons = it) },
+            textMode = { state = state.copy(textMode = it) },
         )
-        fun temperature(value: Int) = WeatherTemperature(value.toDouble(), "c")
-        val weather = WeatherSnapshot(
-            location = WeatherLocation("store-demo", "San Francisco", zone),
-            current = WeatherCurrent(
-                temperature(24), WeatherCondition.PartlyCloudy,
-                now.atZone(zone).hour in 6..18, "Partly cloudy",
-            ),
-            hourly = (1..12).map { hour ->
-                val at = now.plusSeconds(hour * 3600L)
-                WeatherHour(
-                    at, temperature(listOf(25, 26, 25, 24, 23, 22, 21, 20, 19, 18, 18, 17)[hour - 1]),
-                    if (hour <= 3) WeatherCondition.Clear else WeatherCondition.PartlyCloudy,
-                    at.atZone(zone).hour in 6..18, null,
-                )
-            },
-            daily = listOf(
-                WeatherCondition.PartlyCloudy, WeatherCondition.Clear, WeatherCondition.Rain,
-                WeatherCondition.Cloudy, WeatherCondition.Clear,
-            ).mapIndexed { day, condition ->
-                WeatherDay(today.plusDays(day.toLong()), temperature(26 - day), temperature(18 - day / 2), condition, null)
-            },
-            updatedAt = now.minusSeconds(5 * 60),
-            attribution = "Sample forecast",
-        )
-        var state by mutableStateOf(LauncherUiState(
-            apps = apps, favoriteKeys = favorites.toSet(), favoriteOrder = favorites,
-            isLoadingApps = false, isDefaultHome = true,
-            textMode = WallpaperTextMode.Light,
-            scheduleStatus = ScheduleStatus.Ready, events = events,
-            weather = WeatherState(WeatherStatus.Ready, weather, listOf(weather.location)),
-            settings = LauncherSettings(
-                showBatteryPercentage = false, useDynamicColors = false,
-                weatherEnabled = true, weatherForecastDays = 5,
-            ),
-        ))
-        compose.setContent {
-            GraceLauncherTheme(darkTheme = true, dynamicColor = false, seedColor = Color(0xFF82CDBB)) {
-                Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(
-                    Color(0xFF101D26), Color(0xFF203D42), Color(0xFF3B625B),
-                )))) {
-                    LauncherScreen(state, onDateClick = {}, onClockClick = {},
-                        onLaunchApp = {}, onToggleFavorite = {})
-                }
-            }
-        }
-
-        compose.onNodeWithTag("home_clock").assertIsDisplayed()
-        compose.onNodeWithTag("home_weather", useUnmergedTree = true).assertIsDisplayed()
-        save("01-home.png")
-
-        compose.onNodeWithTag("home_date").performClick()
-        compose.onNodeWithTag("agenda_sheet").assertIsDisplayed()
-        compose.onNodeWithTag("weather_hourly").assertIsDisplayed()
-        compose.onNodeWithTag("weather_location").assertIsDisplayed()
-        compose.onNodeWithTag("agenda_event:1").assertIsDisplayed()
-        compose.onNodeWithTag("agenda_event:2").assertIsDisplayed()
-        save("02-agenda.png")
-        androidx.test.espresso.Espresso.pressBack()
-        compose.waitForIdle()
-
-        compose.runOnIdle {
-            state = state.copy(media = MediaSnapshot(true, NowPlaying(
-                sessionId = "store-demo", playerName = "Music", title = "Morning Light",
-                artist = "The Quiet Hours", playing = true,
-                canToggle = true, canPrevious = true, canNext = true,
-            )))
-        }
-        compose.onNodeWithTag("home_media_player").assertIsDisplayed()
-        save("03-music.png")
-
-        val letters = AppListModel(apps).letters
-        val rail = compose.onNodeWithTag("alphabet_rail")
-        rail.performTouchInput {
-            down(Offset(centerX, height * (letters.indexOf("C") + 1.5f) / (letters.size + 1)))
-            moveBy(Offset(-35f, 0f), delayMillis = 250)
-        }
+        enableWallpaperColors()
+        var widgetId: Int? = null
+        val widgetHost = HomeWidgetHost(context)
         try {
-            compose.onNodeWithTag("section:C").assertIsDisplayed()
-            compose.onNodeWithTag("alphabet_indicator", useUnmergedTree = true).assertIsDisplayed()
-            save("04-app-list-c.png")
+            StoreScenes.filter { selected == null || it.name.take(2) in selected }.forEach { current ->
+                applyWallpaper(current)
+                var next = base
+                when (current.name.take(2)) {
+                    "03" -> next = base.copy(
+                        media = MediaSnapshot(true, fixture.playDeviceSong()),
+                        settings = base.settings.copy(homeLayout = HomeLayout(topOffsetDp = -75f)),
+                    )
+                    "05" -> next = base.copy(notifications = fixture.gmailNotifications(gmail),
+                        shortcutApps = shortcuts.shortcuts.map { shortcut ->
+                            shortcut.asApp(gmail).copy(
+                                monochromeIcon = if (shortcut.id == "compose") shortcut.icon else gmail.monochromeIcon,
+                                monochromeScale = if (shortcut.id == "compose") 0.6f else gmail.monochromeScale,
+                            )
+                        })
+                    "06" -> {
+                        val manager = AppWidgetManager.getInstance(context)
+                        val provider = manager.installedProviders.first {
+                            it.provider.packageName == "com.android.chrome" &&
+                                it.provider.className.endsWith("QuickActionSearchWidgetProviderSearch")
+                        }
+                        val id = widgetHost.allocateAppWidgetId().also { widgetId = it }
+                        instrumentation.uiAutomation.adoptShellPermissionIdentity("android.permission.BIND_APPWIDGET")
+                        try {
+                            check(manager.bindAppWidgetIdIfAllowed(id, provider.provider)) { "Could not bind the Chrome search widget." }
+                        } finally { instrumentation.uiAutomation.dropShellPermissionIdentity() }
+                        next = base.copy(settings = base.settings.copy(homeLayout = HomeLayout(
+                            topOffsetDp = -165f, widgetId = id, widgetProvider = provider.provider.flattenToString(),
+                            widgetLabel = provider.loadLabel(context.packageManager), widgetHeightDp = 112,
+                        )))
+                    }
+                    "08" -> next = base.copy(settings = base.settings.copy(clockStyle = ClockStyle(layout = ClockLayout.Sacramento)))
+                }
+                // Applying Material You overlays can recreate the activity. Attach the
+                // real screens to the current activity only after those overlays settle.
+                compose.runOnUiThread {
+                    state = next
+                    compose.activity.enableEdgeToEdge(
+                        statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+                        navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
+                    )
+                    compose.activity.window.apply {
+                        addFlags(WindowManager.LayoutParams.FLAG_SHOW_WALLPAPER or WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                        setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+                    }
+                    compose.activity.setContent {
+                      key(current.name) {
+                        GraceLauncherTheme(darkTheme = true, dynamicColor = true) {
+                            if (current.page != null) LauncherSettingsScreen(
+                                state, actions, onBack = {}, initialPage = current.page,
+                                initialIconDesignerApp = gmail.takeIf { current.page == "IconDesigner" },
+                            ) else LauncherScreen(state, onDateClick = {}, onClockClick = {},
+                                onLaunchApp = {}, onToggleFavorite = {}, actions = actions)
+                        }
+                      }
+                    }
+                    WindowInsetsControllerCompat(compose.activity.window, compose.activity.window.decorView).apply {
+                        isAppearanceLightStatusBars = false
+                        isAppearanceLightNavigationBars = false
+                        if (current.page != null) show(WindowInsetsCompat.Type.statusBars())
+                    }
+                }
+                when (current.name.take(2)) {
+                    "01" -> {
+                        compose.onNodeWithTag("home_clock").assertIsDisplayed()
+                        compose.onNodeWithTag("home_weather", useUnmergedTree = true).assertIsDisplayed()
+                    }
+                    "02" -> {
+                        compose.onNodeWithTag("home_date").performClick()
+                        compose.onNodeWithTag("agenda_sheet").assertIsDisplayed()
+                        compose.onNodeWithTag("weather_location").assertIsDisplayed()
+                        compose.onNodeWithTag("weather_location").assertTextContains("Shanghai", substring = true)
+                        compose.onNodeWithTag("weather_hourly").assertIsDisplayed()
+                        compose.onNodeWithTag("agenda_event:1").assertIsDisplayed()
+                        compose.onNodeWithTag("agenda_event:2").assertIsDisplayed()
+                    }
+                    "03" -> compose.onNodeWithTag("home_media_artwork").assertIsDisplayed()
+                    "04" -> {
+                        val letters = AppListModel(base.visibleApps).letters
+                        compose.onNodeWithTag("alphabet_rail").performTouchInput {
+                            down(Offset(centerX, height * (letters.indexOf("C") + 1.5f) / (letters.size + 1)))
+                            moveBy(Offset(-35f, 0f), delayMillis = 250)
+                        }
+                        compose.onNodeWithTag("section:C").assertIsDisplayed()
+                        compose.onNodeWithTag("alphabet_indicator", useUnmergedTree = true).assertIsDisplayed()
+                    }
+                    "05" -> {
+                        compose.onNodeWithTag("app:${gmail.key}").performTouchInput { swipeRight() }
+                        compose.onNodeWithTag("notification:store-gmail-1").assertIsDisplayed()
+                        compose.onNodeWithTag("shortcut:compose").assertIsDisplayed()
+                    }
+                    "06" -> {
+                        compose.onNodeWithTag("home_clock").assertIsDisplayed()
+                        SystemClock.sleep(1_000)
+                        compose.waitUntil(10_000) { widgetTexts().none { it.contains("loading", ignoreCase = true) } }
+                        compose.onNodeWithText(context.getString(R.string.widget_unavailable)).assertDoesNotExist()
+                    }
+                    "07" -> compose.onNodeWithTag("settings_themes").assertIsDisplayed()
+                    "08" -> {
+                        compose.onNodeWithTag("clock_layout:Sacramento").performScrollTo().assertIsSelected()
+                        compose.onNodeWithTag("clock_style_preview_text", useUnmergedTree = true).assertIsDisplayed()
+                    }
+                    "09" -> compose.onNodeWithTag("icon_pack_selected:${StoreScreenshotFixtures.Monocons}").assertIsDisplayed()
+                    "10" -> {
+                        compose.waitUntil(10_000) {
+                            compose.onAllNodesWithTag("icon_designer_selected_app").fetchSemanticsNodes().isNotEmpty()
+                        }
+                        compose.onNodeWithTag("icon_designer_selected_app").assertIsDisplayed()
+                    }
+                }
+                save(current.name)
+                if (current.name.startsWith("04")) compose.onNodeWithTag("alphabet_rail").performTouchInput { cancel() }
+                fixture.stopSong()
+            }
         } finally {
-            rail.performTouchInput { cancel() }
+            fixture.stopSong()
+            widgetId?.let(widgetHost::deleteAppWidgetId)
         }
+    }
+
+    private fun widgetTexts(): List<String> {
+        val texts = mutableListOf<String>()
+        compose.runOnUiThread {
+            fun visit(view: View) {
+                if (view is TextView) texts += view.text.toString()
+                if (view is ViewGroup) repeat(view.childCount) { visit(view.getChildAt(it)) }
+            }
+            visit(compose.activity.window.decorView)
+        }
+        return texts
+    }
+
+    private fun enableWallpaperColors() {
+        val setting = "theme_customization_overlay_packages"
+        val theme = JSONObject(Settings.Secure.getString(context.contentResolver, setting) ?: "{}")
+        listOf("system_palette", "accent_color", "color_index").forEach {
+            theme.remove("android.theme.customization.$it")
+        }
+        theme.put("android.theme.customization.color_source", "home_wallpaper")
+        instrumentation.uiAutomation.adoptShellPermissionIdentity("android.permission.WRITE_SECURE_SETTINGS")
+        try { Settings.Secure.putString(context.contentResolver, setting, theme.toString()) }
+        finally { instrumentation.uiAutomation.dropShellPermissionIdentity() }
+    }
+
+    private fun applyWallpaper(scene: StoreScene) {
+        val manager = WallpaperManager.getInstance(context)
+        val oldAccent = context.getColor(android.R.color.system_accent1_200)
+        val bitmap = Bitmap.createBitmap(1080, 2400, Bitmap.Config.ARGB_8888)
+        Canvas(bitmap).drawRect(0f, 0f, 1080f, 2400f, Paint().apply {
+            shader = LinearGradient(0f, 0f, 1080f, 2400f,
+                scene.colors.map(android.graphics.Color::parseColor).toIntArray(), null, Shader.TileMode.CLAMP)
+        })
+        instrumentation.uiAutomation.adoptShellPermissionIdentity("android.permission.SET_WALLPAPER")
+        try { manager.setBitmap(bitmap, null, false, WallpaperManager.FLAG_SYSTEM) }
+        finally { instrumentation.uiAutomation.dropShellPermissionIdentity(); bitmap.recycle() }
+        // Wait for SystemUI to generate and install the Material You color overlays.
+        val deadline = SystemClock.uptimeMillis() + 8_000
+        while (context.getColor(android.R.color.system_accent1_200) == oldAccent && SystemClock.uptimeMillis() < deadline) {
+            SystemClock.sleep(200)
+        }
+        SystemClock.sleep(700)
+        println("Store screenshot ${scene.name}: dynamic accent ${context.getColor(android.R.color.system_accent1_200).toUInt().toString(16)}")
     }
 
     private fun save(name: String) {
         compose.waitForIdle()
-        // Allow platform drawing and window transitions to settle after Compose
-        // publishes its updated semantics, before capturing the displayed frame.
         instrumentation.uiAutomation.waitForIdle(500, 5_000)
-        // The shell captures real dialogs and insets. Downloads survives the test
-        // runner uninstalling the test APK, unlike app-scoped external storage.
         val directory = "/sdcard/Download/grace-launcher-store-screenshots"
         listOf("mkdir -p $directory", "screencap -p $directory/$name").forEach { command ->
             instrumentation.uiAutomation.executeShellCommand(command).use { descriptor ->
@@ -213,3 +251,18 @@ class StoreScreenshotTest {
         }
     }
 }
+
+private data class StoreScene(val name: String, val colors: List<String>, val page: String? = null)
+
+private val StoreScenes = listOf(
+    StoreScene("01-home.png", listOf("#102F36", "#285A59", "#72A69D")),
+    StoreScene("02-agenda.png", listOf("#172743", "#354B77", "#9DAED1")),
+    StoreScene("03-music.png", listOf("#301C2A", "#6D3A48", "#C89280")),
+    StoreScene("04-app-list-c.png", listOf("#101C3B", "#284985", "#6A98C7")),
+    StoreScene("05-gmail-shortcuts.png", listOf("#192A26", "#3C5B43", "#9AA777")),
+    StoreScene("06-home-widget.png", listOf("#32251F", "#6F4B35", "#CCA275")),
+    StoreScene("07-themes.png", listOf("#29223E", "#5B4B83", "#B7A5D5"), "Themes"),
+    StoreScene("08-clock-style.png", listOf("#392538", "#805569", "#D0A0AD"), "ClockStyle"),
+    StoreScene("09-icon-packs.png", listOf("#132D41", "#295D71", "#7DB4B7"), "IconPacks"),
+    StoreScene("10-icon-designer.png", listOf("#302039", "#724668", "#C28AB1"), "IconDesigner"),
+)
