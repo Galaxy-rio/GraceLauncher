@@ -34,7 +34,7 @@ import kotlinx.coroutines.withContext
 
 /** Reuse desktop icon-pack browsing, but return a draft source without changing stored icons. */
 @Composable
-internal fun IconDesignerSourceSettings(uiState: LauncherUiState, all: Boolean, repository: IconPackRepository,
+internal fun IconDesignerSourceSettings(uiState: LauncherUiState, repository: IconPackRepository,
     store: ItemIconStore, onSelect: (ItemIcon) -> Unit, onImport: (ItemIcon) -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -76,17 +76,13 @@ internal fun IconDesignerSourceSettings(uiState: LauncherUiState, all: Boolean, 
                 item { SettingsActionItem(stringResource(R.string.icon_edit_image), null, 2, 3, "icon_designer_source_image",
                     enabled = !importing, leading = { LauncherIcon(LauncherSymbol.Plus) }) { picker.launch("image/*") } }
                 item { SettingsHeading(stringResource(R.string.settings_icon_pack)) }
-                if (all) item {
-                    Text(stringResource(R.string.icon_designer_bulk_source_hint), Modifier.padding(8.dp),
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
                 itemsIndexed(uiState.iconPacks, key = { _, item -> item.packageName }) { index, item ->
                     SettingsActionItem(item.label, null, index, uiState.iconPacks.size, "icon_designer_source_pack:${item.packageName}",
                         enabled = !importing, leading = {
                             Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) {
                                 if (item.icon != null) Image(item.icon, null, Modifier.fillMaxSize()) else LauncherIcon(LauncherSymbol.Palette)
                             }
-                        }) { if (all) onSelect(ItemIcon("pack", item.packageName)) else pack = item.packageName }
+                        }) { pack = item.packageName }
                 }
             } else {
                 LauncherSearchBar(query, stringResource(R.string.icon_edit_search), "icon_designer_source_query",

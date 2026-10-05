@@ -36,6 +36,7 @@ import com.galaxyrio.gracelauncher.data.icons.IconPackRepository
 import com.galaxyrio.gracelauncher.data.icons.IconPackStatus
 import com.galaxyrio.gracelauncher.data.icons.ItemIconStore
 import com.galaxyrio.gracelauncher.data.ItemIcon
+import com.galaxyrio.gracelauncher.data.IconDesign
 import com.galaxyrio.gracelauncher.data.PopupItem
 import com.galaxyrio.gracelauncher.data.LauncherItemsRepository
 import com.galaxyrio.gracelauncher.data.LauncherItemsSnapshot
@@ -259,6 +260,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     _uiState.update {
                         it.copy(
                             settings = snapshot.settings,
+                            themedIcons = snapshot.settings.iconDesign?.design?.withThemeDefaults(IconDesign.defaults(preferences.themedIcons))?.themeIcons
+                                ?: preferences.themedIcons,
                             hiddenAppKeys = snapshot.hiddenAppKeys,
                             folders = snapshot.folders,
                             isLoadingSettings = false,
@@ -273,7 +276,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     }
                     if (previous.isLoadingSettings || previous.settings.enabledIconPackPackages != snapshot.settings.enabledIconPackPackages ||
                         previous.settings.iconDesign != snapshot.settings.iconDesign ||
-                        previous.settings.darkMode != snapshot.settings.darkMode) refreshApps()
+                        previous.settings.darkMode != snapshot.settings.darkMode ||
+                        previous.settings.useDynamicColors != snapshot.settings.useDynamicColors ||
+                        previous.settings.themeColor != snapshot.settings.themeColor) refreshApps()
                     if (previous.settings.privateSpace.enabled && !snapshot.settings.privateSpace.enabled ||
                         previous.settings.privateSpace.display != snapshot.settings.privateSpace.display) privateSpaceController.lock()
                     if (previous.settings.privateSpace.enabled != snapshot.settings.privateSpace.enabled) refreshPrivateApps()
@@ -323,7 +328,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     val renames = preferences.renames()
                     val snapshot = itemsSnapshot
                     val iconSettings = _uiState.value.settings
-                    suspend fun decorate(app: LauncherApp): LauncherApp = itemIcons.applyDesign(app, snapshot.icons[app.key], iconSettings.iconDesign, iconSettings)
+                    suspend fun decorate(app: LauncherApp): LauncherApp = itemIcons.applyDesign(app, snapshot.icons[app.key], iconSettings.iconDesign, iconSettings, preferences.themedIcons)
                         .copy(label = renames[app.key] ?: app.originalLabel)
                     val shortcuts = snapshot.shortcuts.mapNotNull { saved ->
                         val owner = apps.firstOrNull { it.componentName.flattenToString() == saved.activity }
@@ -352,7 +357,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                             // Refresh legacy preferences when returning to HOME.
                             categories = preferences.categories(),
                             textMode = preferences.textMode,
-                            themedIcons = preferences.themedIcons,
+                            themedIcons = iconSettings.iconDesign?.design?.withThemeDefaults(IconDesign.defaults(preferences.themedIcons))?.themeIcons
+                                ?: preferences.themedIcons,
                             iconPackStatus = status,
                             isLoadingApps = false,
                         )
@@ -381,7 +387,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             try {
                 val settings = state.settings
                 val apps = appRepository.loadPrivateApps(user, profile.serial, settings.enabledIconPackPackages).map { app ->
-                    itemIcons.applyDesign(app, itemsSnapshot.icons[app.key], settings.iconDesign, settings)
+                    itemIcons.applyDesign(app, itemsSnapshot.icons[app.key], settings.iconDesign, settings, preferences.themedIcons)
                 }
                 val renames = preferences.renames()
                 // A lock or profile change can race the binder/icon work. Never publish stale private contents.

@@ -34,7 +34,6 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.IconDesign
 import com.galaxyrio.gracelauncher.data.ItemIcon
 import com.galaxyrio.gracelauncher.data.LauncherApp
-import com.galaxyrio.gracelauncher.data.isBulkIconDesignEligible
 import com.galaxyrio.gracelauncher.data.icons.IconLayers
 import com.galaxyrio.gracelauncher.data.icons.IconPackRepository
 import com.galaxyrio.gracelauncher.data.icons.ItemIconStore
@@ -42,7 +41,7 @@ import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import kotlinx.coroutines.launch
 
-private enum class DesignerPage { Special, All, Data }
+private enum class DesignerPage { Single, All, Data }
 
 @Composable
 internal fun IconDesignerSettings(
@@ -53,14 +52,14 @@ internal fun IconDesignerSettings(
     val repository = remember(context) { IconPackRepository(context) }
     val store = remember(context) { ItemIconStore(context, repository) }
     val scope = rememberCoroutineScope()
-    var pageName by rememberSaveable { mutableStateOf(DesignerPage.Special.name) }
-    val page = DesignerPage.valueOf(pageName)
+    var pageName by rememberSaveable { mutableStateOf(if (selectedKey == null) DesignerPage.All.name else DesignerPage.Single.name) }
+    val page = DesignerPage.entries.firstOrNull { it.name == pageName } ?: DesignerPage.Single
     val app = selectedKey?.let(uiState::findItem) ?: fallbackApp?.takeIf { it.key == selectedKey }
     val initial = initialDesignerChoice(uiState, app)
     var special by rememberSaveable(selectedKey, app?.key) { mutableStateOf(initial.encode()) }
     var specialBaseline by rememberSaveable(selectedKey, app?.key) { mutableStateOf(initial.encode()) }
     var specialSaved by rememberSaveable(selectedKey, app?.key) { mutableStateOf(selectedKey in uiState.itemIcons) }
-    var bulk by rememberSaveable { mutableStateOf((uiState.settings.iconDesign ?: ItemIcon.Theme).encode()) }
+    var bulk by rememberSaveable { mutableStateOf(ItemIcon.Theme.copy(design = sharedDesignerDefaults(uiState)).encode()) }
     var bulkBaseline by rememberSaveable { mutableStateOf(bulk) }
     var pendingImages by rememberSaveable { mutableStateOf(emptyList<String>()) }
     var sourcePicker by rememberSaveable { mutableStateOf(false) }
@@ -69,17 +68,17 @@ internal fun IconDesignerSettings(
     var selection by rememberSaveable { mutableStateOf(emptyList<String>()) }
     var saving by remember { mutableStateOf(false) }
     val specialChoice = remember(special) { ItemIcon.decode(special) ?: initial }
-    val bulkChoice = remember(bulk) { ItemIcon.decode(bulk) ?: ItemIcon.Theme }
+    val bulkChoice = remember(bulk) { ItemIcon.decode(bulk) ?: ItemIcon.Theme.copy(design = sharedDesignerDefaults(uiState)) }
     val choice = if (page == DesignerPage.All) bulkChoice else specialChoice
     val design = choice.design ?: IconDesign()
     val dirty = when (page) {
-        DesignerPage.Special -> app != null && normalizedChoice(specialChoice) != normalizedChoice(ItemIcon.decode(specialBaseline) ?: initial)
+        DesignerPage.Single -> app != null && normalizedChoice(specialChoice) != normalizedChoice(ItemIcon.decode(specialBaseline) ?: initial)
         DesignerPage.All -> normalizedChoice(bulkChoice) != normalizedChoice(ItemIcon.decode(bulkBaseline) ?: ItemIcon.Theme)
         DesignerPage.Data -> false
     }
     fun change(value: ItemIcon) {
         if (saving) return
-        if (page == DesignerPage.All) bulk = value.encode() else if (page == DesignerPage.Special && app != null) special = value.encode()
+        if (page == DesignerPage.All) bulk = value.encode() else if (page == DesignerPage.Single && app != null) special = value.encode()
     }
     fun changeDesign(value: IconDesign) { change(choice.copy(design = value.normalized())) }
     suspend fun cleanImports(keep: String? = null) {
@@ -93,7 +92,7 @@ internal fun IconDesignerSettings(
             target == "choose" -> onChooseApp()
             target.startsWith("page:") -> {
                 colorPicker = null; sourcePicker = false; selection = emptyList()
-                if (target == "page:Special" && !specialSaved) {
+                if (target == "page:Single" && !specialSaved) {
                     val savedBulk = ItemIcon.decode(bulkBaseline)
                     special = initialDesignerChoice(uiState.copy(settings = uiState.settings.copy(iconDesign = savedBulk)), app).encode()
                     specialBaseline = special
@@ -105,10 +104,10 @@ internal fun IconDesignerSettings(
                 if (uiState.findItem(key) == null && fallbackApp?.key != key) {
                     Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
                 } else {
-                    special = (uiState.itemIcons[key] ?: initialDesignerChoice(uiState, uiState.findItem(key))).encode()
+                    special = initialDesignerChoice(uiState, uiState.findItem(key) ?: fallbackApp).encode()
                     specialBaseline = special
                     specialSaved = true
-                    onSelectApp(key); selection = emptyList(); pageName = DesignerPage.Special.name
+                    onSelectApp(key); selection = emptyList(); pageName = DesignerPage.Single.name
                 }
             }
         }
@@ -118,9 +117,10 @@ internal fun IconDesignerSettings(
         if (dirty) pendingAction = target else perform(target)
     }
     fun save(then: String? = null) {
-        if (saving || page == DesignerPage.Data || (page == DesignerPage.Special && app == null)) return
+        if (saving || page == DesignerPage.Data || (page == DesignerPage.Single && app == null)) return
         val savedPage = page
-        val saved = normalizedChoice(choice)
+        val saved = normalizedChoice(if (page == DesignerPage.All) ItemIcon.Theme.copy(design = design)
+            else choice.copy(design = design.copy(iconSize = bulkChoice.design?.iconSize ?: 100)))
         val savedApp = app
         saving = true
         scope.launch {
@@ -170,7 +170,7 @@ internal fun IconDesignerSettings(
         }, modifier = Modifier.testTag("icon_designer_unsaved"),
     )
     if (sourcePicker) {
-        IconDesignerSourceSettings(uiState, page == DesignerPage.All, repository, store,
+        IconDesignerSourceSettings(uiState, repository, store,
             onSelect = { change(it.copy(design = design)); sourcePicker = false },
             onImport = { pendingImages = pendingImages + it.source }, onBack = { sourcePicker = false })
         return
@@ -182,6 +182,8 @@ internal fun IconDesignerSettings(
     }
     val layered = layers?.layered ?: (specialChoice.kind != "image" && app?.isAdaptiveIcon == true)
     val dynamicColors = store.dynamicColors(uiState.settings)
+    val themeColors = store.themeColors(uiState.settings)
+    val shared = bulkChoice.design ?: sharedDesignerDefaults(uiState)
     LaunchedEffect(uiState.itemIcons.keys) { selection = selection.filter { it in uiState.itemIcons } }
     SettingsScaffold(stringResource(R.string.icon_designer_title), "icon_designer", back, fixedCollapsed = true,
         actions = {
@@ -209,7 +211,8 @@ internal fun IconDesignerSettings(
                 modifier = Modifier.padding(end = 8.dp).testTag("icon_designer_save")) { Text(stringResource(R.string.icon_designer_save)) }
         }) { padding ->
         BoxWithConstraints(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
-            val previewHeight = (maxHeight * .40f).coerceIn(168.dp, 264.dp)
+            val previewHeight = (maxHeight * .40f).coerceIn(if (page == DesignerPage.All)
+                (40.dp * (shared.iconSize / 100f) + 16.dp) * 3 + 24.dp else 168.dp, 264.dp)
             AnimatedContent(page, modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).clipToBounds(),
                 transitionSpec = {
                     val direction = if (targetState.ordinal > initialState.ordinal) 1 else -1
@@ -221,7 +224,7 @@ internal fun IconDesignerSettings(
                 else {
                     val isAll = displayed == DesignerPage.All
                     val shownChoice = if (isAll) bulkChoice else specialChoice
-                    val shownDesign = shownChoice.design ?: IconDesign()
+                    val shownDesign = (shownChoice.design ?: shared).copy(iconSize = shared.iconSize)
                     val sourceLabel = when (shownChoice.kind) {
                         "pack" -> uiState.iconPacks.firstOrNull { it.packageName == shownChoice.source }?.label ?: shownChoice.source
                         "image" -> stringResource(R.string.icon_edit_image)
@@ -229,11 +232,12 @@ internal fun IconDesignerSettings(
                         else -> stringResource(R.string.icon_edit_follow_theme)
                     }
                     Column(Modifier.fillMaxSize()) {
-                        IconDesignerPreview(uiState, app, shownChoice, shownDesign, layers, store, dynamicColors, isAll,
+                        IconDesignerPreview(uiState, app, shownChoice, shownDesign, layers, store, dynamicColors, themeColors, isAll,
                             !saving && page == displayed, { request("choose") }, ::changeDesign,
                             Modifier.padding(top = 8.dp, bottom = 16.dp).height(previewHeight))
-                        DesignerControlsPane(isAll, shownChoice, layered, !saving && page == displayed,
-                            app?.label, sourceLabel, dynamicColors, colorPicker,
+                        DesignerControlsPane(isAll, shownChoice, layered, !saving && page == displayed && (isAll || app != null),
+                            app?.label, sourceLabel, dynamicColors, themeColors,
+                            if (isAll) IconDesign.defaults() else shared, colorPicker,
                             onSwitch = { request("choose") }, onSource = { sourcePicker = true }, onColor = { colorPicker = it },
                             onCloseColor = { colorPicker = null }, onChange = ::changeDesign, modifier = Modifier.weight(1f))
                     }
@@ -250,7 +254,7 @@ internal fun IconDesignerSettings(
                     Row {
                         DesignerPage.entries.forEach { destination ->
                             DesignerMode(stringResource(when (destination) {
-                                DesignerPage.Special -> R.string.icon_designer_special; DesignerPage.All -> R.string.icon_designer_all
+                                DesignerPage.Single -> R.string.icon_designer_single; DesignerPage.All -> R.string.icon_designer_all
                                 DesignerPage.Data -> R.string.icon_designer_data
                             }), page == destination, !saving, "icon_designer_${destination.name.lowercase()}") {
                                 if (page != destination) request("page:${destination.name}")
@@ -266,7 +270,7 @@ internal fun IconDesignerSettings(
 /** Shared bounds make the selected color row grow into the lower pane, leaving the preview visible. */
 @Composable
 private fun DesignerControlsPane(all: Boolean, choice: ItemIcon, layered: Boolean, enabled: Boolean,
-    appLabel: String?, sourceLabel: String, dynamicColors: Pair<Int, Int>, color: String?,
+    appLabel: String?, sourceLabel: String, dynamicColors: Pair<Int, Int>, themeColors: Pair<Int, Int>, defaults: IconDesign, color: String?,
     onSwitch: () -> Unit, onSource: () -> Unit, onColor: (String) -> Unit, onCloseColor: () -> Unit,
     onChange: (IconDesign) -> Unit, modifier: Modifier = Modifier) {
     val design = choice.design ?: IconDesign()
@@ -280,22 +284,19 @@ private fun DesignerControlsPane(all: Boolean, choice: ItemIcon, layered: Boolea
             val visibility = this
             if (activeColor == null) LazyColumn(Modifier.fillMaxSize().testTag("icon_designer_controls"), state = list,
                 verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap), contentPadding = PaddingValues(bottom = 88.dp)) {
-                iconDesignerControls(all, enabled, appLabel, sourceLabel, design, layered, dynamicColors,
+                iconDesignerControls(all, enabled, appLabel, sourceLabel, design, layered, dynamicColors, themeColors, defaults,
                     onSwitch, onSource, onColor, onChange,
                     colorModifier = { field -> Modifier.sharedBounds(rememberSharedContentState("color:$field"), visibility,
                         boundsTransform = heroBounds, clipInOverlayDuringTransition = OverlayClip(shape)) })
             } else {
                 val background = activeColor != "foreground"
-                val title = stringResource(when (activeColor) {
-                    "tray" -> R.string.icon_designer_added_tray_color
-                    "background" -> if (all || layered) R.string.icon_designer_tray_color else R.string.icon_designer_gradient_start
-                    else -> if (all || layered) R.string.icon_designer_symbol_color else R.string.icon_designer_gradient_end
-                })
-                IconDesignerColorPicker(title, when (activeColor) { "tray" -> design.trayColor; "background" -> design.background; else -> design.foreground },
+                val title = stringResource(if (background) R.string.icon_designer_tray_color else R.string.icon_designer_symbol_color)
+                IconDesignerColorPicker(title, if (background) design.background else design.foreground,
                     if (background) dynamicColors.first else dynamicColors.second,
-                    onChange = { value -> if (enabled) onChange(when (activeColor) {
-                        "tray" -> design.copy(trayColor = value); "background" -> design.copy(background = value); else -> design.copy(foreground = value)
-                    }) }, onClose = onCloseColor,
+                    if (background) themeColors.first else themeColors.second,
+                    if (background) defaults.background else defaults.foreground,
+                    onChange = { value -> if (enabled) onChange(if (background) design.copy(background = value)
+                        else design.copy(foreground = value)) }, onClose = onCloseColor,
                     modifier = Modifier.sharedBounds(rememberSharedContentState("color:$activeColor"), visibility,
                         boundsTransform = heroBounds, clipInOverlayDuringTransition = OverlayClip(shape)))
             }
@@ -315,11 +316,14 @@ private fun DesignerMode(label: String, selected: Boolean, enabled: Boolean, tag
 
 private fun normalizedChoice(value: ItemIcon): ItemIcon {
     val design = (value.design ?: IconDesign()).normalized()
-    return value.copy(design = if (design.addTray) design else design.copy(trayColor = null))
+    return value.copy(design = design)
 }
 
-private fun initialDesignerChoice(uiState: LauncherUiState, app: LauncherApp?, includeSpecial: Boolean = true): ItemIcon = app?.let {
-    (if (includeSpecial) uiState.itemIcons[it.key] else null) ?: uiState.settings.iconDesign?.takeIf { _ -> isBulkIconDesignEligible(it, null) }?.let { bulk ->
-        if (bulk.kind == "pack" && app.iconPackPackage == bulk.source) bulk.copy(design = IconDesign()) else bulk
-    }
-} ?: ItemIcon.Theme
+private fun sharedDesignerDefaults(uiState: LauncherUiState): IconDesign =
+    IconDesign.defaults(uiState.themedIcons).let { uiState.settings.iconDesign?.design?.withThemeDefaults(it) ?: it }
+
+private fun initialDesignerChoice(uiState: LauncherUiState, app: LauncherApp?, includeSpecial: Boolean = true): ItemIcon {
+    val shared = sharedDesignerDefaults(uiState)
+    val saved = if (includeSpecial) app?.let { uiState.itemIcons[it.key] } else null
+    return (saved ?: ItemIcon.Theme).copy(design = (saved?.design?.withThemeDefaults(shared) ?: shared).copy(iconSize = shared.iconSize))
+}

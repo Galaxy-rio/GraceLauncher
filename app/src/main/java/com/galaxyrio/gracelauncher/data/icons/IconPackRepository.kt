@@ -168,6 +168,13 @@ internal class LoadedIconPack(
         definition.candidates(component.flattenToString(), LocalDate.now().dayOfMonth).firstNotNullOfOrNull(::drawable)
 
     @Synchronized
+    fun designLayers(name: String, size: Int): IconLayers? = drawable(name)?.let { iconLayers(it, size, themed) }
+
+    @Synchronized
+    fun designLayersFor(component: ComponentName, size: Int): IconLayers? =
+        designDrawableFor(component)?.let { iconLayers(it, size, themed) }
+
+    @Synchronized
     fun iconFor(component: ComponentName, original: Drawable?, day: Int = LocalDate.now().dayOfMonth): PackIcon? {
         definition.candidates(component.flattenToString(), day).forEach { name ->
             val drawable = drawable(name) ?: return@forEach

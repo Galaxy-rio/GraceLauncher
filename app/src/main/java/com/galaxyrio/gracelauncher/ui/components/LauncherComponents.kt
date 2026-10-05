@@ -71,22 +71,23 @@ import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 internal val LocalLauncherInputEnabled = staticCompositionLocalOf { true }
 
 @Composable
-fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp) {
+fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp, applyDisplaySize: Boolean = true) {
+    val displaySize = size * if (applyDisplaySize) LocalLauncherAppearance.current.iconSize / 100f else 1f
     val iconModifier = if (app.folderId == null) modifier.launcherAnimationTarget(listOf(app.componentName)) else modifier
     if (LocalLauncherAppearance.current.themedIcons && app.monochromeIcon != null) {
-        Box(iconModifier.size(size).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+        Box(iconModifier.size(displaySize).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
             Image(
                 bitmap = app.monochromeIcon,
                 contentDescription = null,
                 colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onPrimaryContainer),
                 // Adaptive monochrome drawables include the platform's safe-zone inset.
-                modifier = Modifier.size(size).graphicsLayer { scaleX = app.monochromeScale; scaleY = app.monochromeScale },
+                modifier = Modifier.size(displaySize).graphicsLayer { scaleX = app.monochromeScale; scaleY = app.monochromeScale },
             )
         }
     } else if (app.icon != null) {
-        Image(bitmap = app.icon, contentDescription = null, modifier = iconModifier.size(size))
+        Image(bitmap = app.icon, contentDescription = null, modifier = iconModifier.size(displaySize))
     } else if (app.folderId != null) {
-        FolderIcon(iconModifier, size, if (app.folderId == PrivateSpaceFolderId) LauncherSymbol.Lock else LauncherSymbol.Folder)
+        FolderIcon(iconModifier, displaySize, if (app.folderId == PrivateSpaceFolderId) LauncherSymbol.Lock else LauncherSymbol.Folder)
     } else {
         val colors = listOf(
             Color(0xFF65D5BE), Color(0xFFFFB3A7), Color(0xFFAEC6FF),
@@ -94,13 +95,13 @@ fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp) {
         )
         val color = remember(app.key) { colors[(app.key.hashCode() and Int.MAX_VALUE) % colors.size] }
         Box(
-            modifier = iconModifier.size(size).background(color, CircleShape),
+            modifier = iconModifier.size(displaySize).background(color, CircleShape),
             contentAlignment = Alignment.Center,
         ) {
             Text(
                 text = app.label.firstOrNull()?.uppercase().orEmpty(),
                 color = Color(0xFF13201E),
-                fontSize = (size.value * 0.43f).sp,
+                fontSize = (displaySize.value * 0.43f).sp,
                 fontWeight = FontWeight.Medium,
             )
         }

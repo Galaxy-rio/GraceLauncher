@@ -37,22 +37,31 @@ import kotlin.math.roundToInt
 
 internal fun LazyListScope.iconDesignerControls(
     all: Boolean, enabled: Boolean, appLabel: String?, sourceLabel: String, design: IconDesign,
-    layered: Boolean, dynamicColors: Pair<Int, Int>, onSwitch: () -> Unit, onSource: () -> Unit,
+    layered: Boolean, dynamicColors: Pair<Int, Int>, themeColors: Pair<Int, Int>, defaults: IconDesign,
+    onSwitch: () -> Unit, onSource: () -> Unit,
     onColor: (String) -> Unit, onChange: (IconDesign) -> Unit,
     colorModifier: @Composable (String) -> Modifier = { Modifier },
 ) {
     val cookie = design.shape == IconShape.Cookie
     val canAddTray = all || !layered
-    val count = (if (all) 5 else 6) + (if (cookie) 1 else 0) + (if (canAddTray) 1 else 0)
+    val count = (if (all) 7 else 8) + (if (cookie) 1 else 0) + (if (canAddTray) 1 else 0)
     var index = 0
     if (!all) {
         val position = index++
         item("switch") { SettingsActionItem(stringResource(R.string.icon_designer_switch_app), appLabel,
             position, count, "icon_designer_switch", onClick = onSwitch) }
+        val sourceIndex = index++
+        item("source") { SettingsActionItem(stringResource(R.string.icon_designer_source), sourceLabel,
+            sourceIndex, count, "icon_designer_source", enabled = enabled, onClick = onSource) }
+    } else {
+        val sizeIndex = index++
+        item("icon_size") {
+            DesignerSegment(sizeIndex, count, "icon_designer_display_size") {
+                DesignerSlider(stringResource(R.string.icon_designer_icon_size), design.iconSize.toFloat(), 100f, 80f..150f,
+                    enabled, "icon_designer_icon_size") { onChange(design.copy(iconSize = it.roundToInt())) }
+            }
+        }
     }
-    val sourceIndex = index++
-    item("source") { SettingsActionItem(stringResource(R.string.icon_designer_source), sourceLabel,
-        sourceIndex, count, "icon_designer_source", enabled = enabled, onClick = onSource) }
     val shapeIndex = index++
     item("shape") {
         DesignerSegment(shapeIndex, count, "icon_designer_shape") {
@@ -99,38 +108,45 @@ internal fun LazyListScope.iconDesignerControls(
         item("add_tray") {
             SettingsToggleItem(stringResource(R.string.icon_designer_add_tray), stringResource(R.string.icon_designer_add_tray_summary),
                 design.addTray, trayIndex, count, "icon_designer_add_tray", enabled = enabled) { value ->
-                if (enabled) onChange(design.copy(addTray = value,
-                    trayColor = if (value) design.trayColor ?: IconColor(dynamicColors.first, true) else design.trayColor))
+                if (enabled) onChange(design.copy(addTray = value))
             }
+        }
+    }
+    val themeIndex = index++
+    item("theme_icon") {
+        SettingsToggleItem(stringResource(R.string.icon_designer_theme_icon), stringResource(R.string.settings_themed_icons_summary),
+            design.themeIcons, themeIndex, count, "icon_designer_theme_icon", enabled = enabled) {
+            onChange(design.copy(themeIcons = it))
+        }
+    }
+    val unsupportedIndex = index++
+    item("theme_unsupported") {
+        SettingsToggleItem(stringResource(R.string.icon_designer_theme_unsupported), stringResource(R.string.icon_designer_theme_unsupported_summary),
+            design.themeUnsupportedIcons, unsupportedIndex, count, "icon_designer_theme_unsupported", enabled = enabled && design.themeIcons) {
+            onChange(design.copy(themeUnsupportedIcons = it))
         }
     }
     val colorIndex = index++
     item("colors") {
         DesignerSegment(colorIndex, count, "icon_designer_colors") {
             Text(stringResource(R.string.icon_designer_color))
-            if (all) Text(stringResource(R.string.icon_designer_color_mixed), style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
-            if (canAddTray && design.addTray) DesignerColorRow(stringResource(R.string.icon_designer_added_tray_color), design.trayColor,
-                dynamicColors.first, enabled, "icon_designer_tray", colorModifier("tray"), { onColor("tray") }) {
-                onChange(design.copy(trayColor = null))
-            }
-            DesignerColorRow(stringResource(if (all) R.string.icon_designer_tray_gradient else if (layered)
-                R.string.icon_designer_tray_color else R.string.icon_designer_gradient_start), design.background,
-                dynamicColors.first, enabled, "icon_designer_background", colorModifier("background"), { onColor("background") }) { onChange(design.copy(background = null)) }
-            DesignerColorRow(stringResource(if (all) R.string.icon_designer_symbol_gradient else if (layered)
-                R.string.icon_designer_symbol_color else R.string.icon_designer_gradient_end), design.foreground,
-                dynamicColors.second, enabled, "icon_designer_foreground", colorModifier("foreground"), { onColor("foreground") }) { onChange(design.copy(foreground = null)) }
+            if (all || layered || design.addTray) DesignerColorRow(stringResource(R.string.icon_designer_tray_color), design.background,
+                defaults.background, dynamicColors.first, themeColors.first, enabled, "icon_designer_background",
+                colorModifier("background"), { onColor("background") }) { onChange(design.copy(background = defaults.background)) }
+            DesignerColorRow(stringResource(R.string.icon_designer_symbol_color), design.foreground,
+                defaults.foreground, dynamicColors.second, themeColors.second, enabled, "icon_designer_foreground",
+                colorModifier("foreground"), { onColor("foreground") }) { onChange(design.copy(foreground = defaults.foreground)) }
         }
     }
     val positionIndex = index++
     item("position") {
         DesignerSegment(positionIndex, count, "icon_designer_position") {
             Text(stringResource(R.string.icon_designer_size_position))
-            DesignerSlider(stringResource(R.string.icon_designer_x), design.x, 0f, -50f..50f,
+            DesignerSlider(stringResource(R.string.icon_designer_x), design.x, defaults.x, -50f..50f,
                 enabled, "icon_designer_x") { onChange(design.copy(x = it)) }
-            DesignerSlider(stringResource(R.string.icon_designer_y), design.y, 0f, -50f..50f,
+            DesignerSlider(stringResource(R.string.icon_designer_y), design.y, defaults.y, -50f..50f,
                 enabled, "icon_designer_y") { onChange(design.copy(y = it)) }
-            DesignerSlider(stringResource(R.string.icon_designer_size), design.size.toFloat(), 100f, 25f..200f,
+            DesignerSlider(stringResource(R.string.icon_designer_size), design.size.toFloat(), defaults.size.toFloat(), 25f..200f,
                 enabled, "icon_designer_size") { onChange(design.copy(size = it.roundToInt())) }
         }
     }
@@ -164,13 +180,13 @@ private fun DesignerSlider(label: String, value: Float, default: Float, range: C
 }
 
 @Composable
-private fun DesignerColorRow(label: String, choice: IconColor?, dynamic: Int, enabled: Boolean, tag: String,
+private fun DesignerColorRow(label: String, choice: IconColor?, default: IconColor?, dynamic: Int, theme: Int, enabled: Boolean, tag: String,
     modifier: Modifier, onPick: () -> Unit, onReset: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f).then(modifier).heightIn(min = 64.dp).clip(MaterialTheme.shapes.medium)
             .clickable(enabled = enabled, role = Role.Button, onClick = onPick).testTag(tag).padding(horizontal = 4.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically) {
-            val swatch = choice?.let { Color(if (it.dynamic) dynamic else it.argb) } ?: MaterialTheme.colorScheme.surfaceContainerHighest
+            val swatch = choice?.let { Color(it.resolve(dynamic, theme)) } ?: MaterialTheme.colorScheme.surfaceContainerHighest
             val outline = MaterialTheme.colorScheme.outline
             Canvas(Modifier.size(28.dp)) {
                 val radius = size.minDimension / 2 - 1.dp.toPx()
@@ -182,11 +198,12 @@ private fun DesignerColorRow(label: String, choice: IconColor?, dynamic: Int, en
             Spacer(Modifier.width(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(label)
-                Text(stringResource(if (choice == null) R.string.icon_designer_original_color else if (choice.dynamic)
+                Text(stringResource(if (choice == null) R.string.icon_designer_original_color else if (choice.theme)
+                    R.string.icon_designer_theme_color else if (choice.dynamic)
                     R.string.settings_dynamic_colors else R.string.icon_designer_custom_color), style = MaterialTheme.typography.labelSmall)
             }
         }
-        ResetIconButton(label, enabled && choice != null, "${tag}_reset", onReset)
+        ResetIconButton(label, enabled && choice != default, "${tag}_reset", onReset)
     }
 }
 

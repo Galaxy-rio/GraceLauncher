@@ -305,7 +305,7 @@ private fun ClockStylePreview(
     boundsTransform: BoundsTransform,
     modifier: Modifier = Modifier,
 ) {
-    val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons)
+    val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons, uiState.settings.iconDesign?.design?.iconSize ?: 100)
     val now by produceState(Instant.now()) {
         while (true) { value = Instant.now(); delay(60_000 - System.currentTimeMillis() % 60_000) }
     }

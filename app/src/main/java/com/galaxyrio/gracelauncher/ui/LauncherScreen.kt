@@ -458,7 +458,7 @@ internal fun LauncherScreen(
         AppListModel(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps)
     }
     val drawerState = rememberLazyListState()
-    val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons)
+    val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons, uiState.settings.iconDesign?.design?.iconSize ?: 100)
     val view = LocalView.current
     val context = LocalContext.current
     val haptics = rememberLauncherHaptics(uiState.settings.allowHapticFeedback)

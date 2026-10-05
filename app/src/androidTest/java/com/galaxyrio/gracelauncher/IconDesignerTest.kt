@@ -9,9 +9,9 @@ import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.data.IconShape
+import com.galaxyrio.gracelauncher.data.IconColor
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
-import androidx.test.platform.app.InstrumentationRegistry
 import com.galaxyrio.gracelauncher.data.ItemIcon
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.ui.LauncherActions
@@ -19,7 +19,6 @@ import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.settings.LauncherSettingsScreen
 import com.galaxyrio.gracelauncher.ui.settings.iconDesignerPreviewRows
 import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
-import java.io.File
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
@@ -28,7 +27,8 @@ class IconDesignerTest {
     @get:Rule val compose = createComposeRule()
     private val apps = (0..8).map { index ->
         LauncherApp(ComponentName("test.app$index", "AppActivity"), "App $index", null,
-            isSystemApp = index < 3, isAdaptiveIcon = index < 6)
+            isSystemApp = index < 3, isAdaptiveIcon = index < 6,
+            themeIconPackPackage = "test.icons".takeIf { index < 3 })
     }
     private var state by mutableStateOf(LauncherUiState(apps = apps, isLoadingApps = false))
     private var writes = 0
@@ -46,37 +46,36 @@ class IconDesignerTest {
         compose.onNodeWithTag("icon_pack_designer").performClick()
     }
 
-    @Test fun specialReusesAppSelectionAndAllShowsThreeRowsOfThree() {
+    @Test fun allIsTheDefaultAndSingleReusesAppSelection() {
         show()
-        compose.onNodeWithTag("icon_designer_special").assertIsSelected()
+        compose.onNodeWithTag("icon_designer_all").assertIsSelected()
+        compose.onNodeWithTag("icon_designer_source").assertDoesNotExist()
+        compose.onNodeWithTag("icon_designer_single").performClick().assertIsSelected()
         compose.onNodeWithTag("icon_designer_save").assertIsNotEnabled()
         compose.onNodeWithTag("icon_designer_choose_app").performClick()
         compose.onNodeWithTag("settings_icon_designer_page").assertIsDisplayed()
         compose.onNodeWithTag("icon_designer_app_query").performTextReplacement("App 4")
         compose.onNodeWithTag("icon_designer_app:${apps[4].key}").performClick()
-        compose.onNodeWithTag("icon_designer_selected_app").assertIsDisplayed().assertWidthIsEqualTo(128.dp).assertHasNoClickAction()
+        compose.onNodeWithTag("icon_designer_selected_app").assertIsDisplayed().assertWidthIsEqualTo(80.dp).assertHasNoClickAction()
+        compose.onNodeWithTag("icon_designer_icon_size").assertDoesNotExist()
         compose.onNodeWithTag("icon_designer_selected_app").performTouchInput { click() }
         compose.onNodeWithTag("settings_icon_designer_page").assertDoesNotExist()
-        screenshot("icon-designer-special.png")
         compose.onNodeWithTag("icon_designer_all").performClick().assertIsSelected()
         repeat(3) { row ->
             compose.onNodeWithTag("icon_designer_row:$row").assertIsDisplayed()
-            repeat(3) { column -> compose.onNodeWithTag("icon_designer_icon:$row:$column").assertIsDisplayed() }
+            compose.onNodeWithTag("icon_designer_icon:$row:0", useUnmergedTree = true).assertIsDisplayed()
+            compose.onNodeWithTag("icon_designer_icon:$row:1", useUnmergedTree = true).assertDoesNotExist()
         }
-        screenshot("icon-designer-all.png")
-        compose.onNodeWithTag("icon_designer_special").performClick()
+        compose.onNodeWithTag("icon_designer_single").performClick()
         compose.onNodeWithTag("icon_designer_selected_app").assertIsDisplayed()
         compose.runOnIdle { assertEquals(0, writes) }
     }
 
-    @Test fun gridClassificationUsesOriginalIconMetadataAndEmptyDevicesGetNineExamples() {
-        assertEquals(apps.chunked(3), iconDesignerPreviewRows(apps.reversed()).map { it.reversed() })
+    @Test fun previewUsesPackMatchesAndEmptyDevicesGetThreeExamples() {
+        assertEquals(listOf(listOf(apps[2]), listOf(apps[5]), listOf(apps[8])), iconDesignerPreviewRows(apps.reversed()))
         state = state.copy(apps = emptyList())
         show()
-        compose.onNodeWithTag("icon_designer_all").performClick()
-        repeat(3) { row -> repeat(3) { column ->
-            compose.onNodeWithTag("icon_designer_icon:$row:$column").assertIsDisplayed()
-        } }
+        repeat(3) { row -> compose.onNodeWithTag("icon_designer_icon:$row:0", useUnmergedTree = true).assertIsDisplayed() }
     }
 
     @Test fun previewUsesTheIconAlreadyCustomizedByTheDesktopEditor() {
@@ -84,6 +83,7 @@ class IconDesignerTest {
         state = state.copy(apps = apps.map { if (it.key == apps[4].key) it.copy(icon = customized.asImageBitmap()) else it },
             itemIcons = mapOf(apps[4].key to ItemIcon("image", "shared-designer-image.png")))
         show()
+        compose.onNodeWithTag("icon_designer_single").performClick()
         compose.onNodeWithTag("icon_designer_choose_app").performClick()
         compose.onNodeWithTag("icon_designer_app_query").performTextReplacement("App 4")
         compose.onNodeWithTag("icon_designer_app:${apps[4].key}").performClick()
@@ -93,12 +93,13 @@ class IconDesignerTest {
     }
 
     private fun chooseApp(index: Int = 4) {
+        compose.onNodeWithTag("icon_designer_single").performClick()
         compose.onNodeWithTag("icon_designer_choose_app").performClick()
         compose.onNodeWithTag("icon_designer_app_query").performTextReplacement("App $index")
         compose.onNodeWithTag("icon_designer_app:${apps[index].key}").performClick()
     }
 
-    @Test fun specialControlsStayDraftsUntilSaveAndColorPickerStaysBelowPreview() {
+    @Test fun singleControlsStayDraftsUntilSaveAndColorPickerStaysBelowPreview() {
         show(); chooseApp()
         compose.onNodeWithTag("icon_designer_shape").performScrollTo()
         compose.onNodeWithTag("icon_designer_shapes").performScrollToIndex(5)
@@ -157,17 +158,9 @@ class IconDesignerTest {
         compose.runOnIdle {
             assertEquals("system", specialSaved?.kind)
             assertEquals(0xFFED5234.toInt(), specialSaved?.design?.background?.argb)
-            assertNull(specialSaved?.design?.foreground)
+            assertEquals(IconColor.Theme, specialSaved?.design?.foreground)
             assertEquals(0f, specialSaved?.design?.x)
         }
     }
 
-    private fun screenshot(name: String) {
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val directory = requireNotNull(context.getExternalFilesDir("ui-verification"))
-        directory.mkdirs()
-        val bitmap = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
-        File(directory, name).outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
-        bitmap.recycle()
-    }
 }

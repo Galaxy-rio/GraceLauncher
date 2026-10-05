@@ -40,9 +40,9 @@ import java.util.Locale
 
 /** Confined to the controls pane: never covers the live icon preview. */
 @Composable
-internal fun IconDesignerColorPicker(title: String, choice: IconColor?, dynamic: Int,
+internal fun IconDesignerColorPicker(title: String, choice: IconColor?, dynamic: Int, theme: Int, default: IconColor?,
     onChange: (IconColor?) -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier) {
-    val initial = choice?.let { if (it.dynamic) dynamic else it.argb } ?: dynamic
+    val initial = choice?.resolve(dynamic, theme) ?: theme
     val initialHsv = remember { FloatArray(3).also { AndroidColor.colorToHSV(initial, it) } }
     var hue by rememberSaveable { mutableFloatStateOf(initialHsv[0]) }
     var saturation by rememberSaveable { mutableFloatStateOf(initialHsv[1]) }
@@ -106,20 +106,30 @@ internal fun IconDesignerColorPicker(title: String, choice: IconColor?, dynamic:
             Text(stringResource(R.string.icon_designer_color_presets), style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.padding(top = 8.dp))
             LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                item("theme") {
+                    FilterChip(selected = choice?.theme == true, onClick = {
+                        setColor(theme); onChange(IconColor.Theme)
+                    }, label = { Text(stringResource(R.string.icon_designer_theme_color)) },
+                        modifier = Modifier.testTag("icon_designer_theme_color"))
+                }
                 item("dynamic") {
                     FilterChip(selected = choice?.dynamic == true, onClick = { setColor(dynamic, true) },
                         label = { Text(stringResource(R.string.settings_dynamic_colors)) }, modifier = Modifier.testTag("icon_designer_dynamic_color"))
                 }
                 items(AccentColors, key = { it.toArgb() }) { color ->
-                    val selected = choice?.dynamic != true && choice?.argb == color.toArgb()
+                    val selected = choice?.theme != true && choice?.dynamic != true && choice?.argb == color.toArgb()
                     Surface(onClick = { setColor(color.toArgb()) }, shape = CircleShape, color = color,
                         border = if (selected) androidx.compose.foundation.BorderStroke(3.dp, MaterialTheme.colorScheme.onSurface) else null,
                         modifier = Modifier.size(40.dp).semantics { contentDescription = "#${colorHex(color.toArgb())}" }
                             .testTag("icon_designer_preset:${colorHex(color.toArgb())}")) { }
                 }
+                item("original") {
+                    FilterChip(selected = choice == null, onClick = { onChange(null); onClose() },
+                        label = { Text(stringResource(R.string.icon_designer_original_color)) })
+                }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = { onChange(null); onClose() }, Modifier.testTag("icon_designer_color_reset")) {
+                TextButton(onClick = { onChange(default); onClose() }, Modifier.testTag("icon_designer_color_reset")) {
                     Text(stringResource(R.string.icon_designer_reset))
                 }
                 FilledTonalButton(onClose, Modifier.testTag("icon_designer_color_done")) { Text(stringResource(R.string.icon_designer_color_done)) }

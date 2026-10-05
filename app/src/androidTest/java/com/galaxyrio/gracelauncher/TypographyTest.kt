@@ -115,8 +115,8 @@ class TypographyTest {
         assertTextFamily(compose.onNodeWithText(string(R.string.settings_productivity_summary), useUnmergedTree = true))
         compose.onNodeWithTag("settings_category_themes").performClick()
         assertTextFamily(compose.onNodeWithText(string(R.string.settings_dynamic_colors_summary), useUnmergedTree = true))
-        compose.onNodeWithTag("settings_list").performScrollToNode(hasTestTag("settings_themed_icons"))
-        val description = compose.onNodeWithText(string(R.string.settings_themed_icons_summary), useUnmergedTree = true)
+        compose.onNodeWithTag("settings_list").performScrollToNode(hasTestTag("settings_hide_status_bar"))
+        val description = compose.onNodeWithText(string(R.string.settings_hide_status_bar_summary), useUnmergedTree = true)
         assertTextFamily(description)
         saveScreenshot("typography-settings.png")
     }

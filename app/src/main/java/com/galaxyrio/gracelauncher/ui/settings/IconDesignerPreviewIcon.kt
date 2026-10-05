@@ -19,7 +19,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -28,8 +29,6 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.IconDesign
 import com.galaxyrio.gracelauncher.data.ItemIcon
 import com.galaxyrio.gracelauncher.data.LauncherApp
-import com.galaxyrio.gracelauncher.data.LauncherSettings
-import com.galaxyrio.gracelauncher.data.isBulkIconDesignEligible
 import com.galaxyrio.gracelauncher.data.icons.IconLayers
 import com.galaxyrio.gracelauncher.data.icons.ItemIconStore
 import com.galaxyrio.gracelauncher.data.icons.iconLayers
@@ -41,9 +40,11 @@ import kotlinx.coroutines.withContext
 
 @Composable
 internal fun DesignerPreviewIcon(app: LauncherApp, layers: IconLayers?, design: IconDesign, dynamicColors: Pair<Int, Int>,
-    size: Dp, modifier: Modifier = Modifier, draggable: Boolean = false, onChange: (IconDesign) -> Unit = {}) {
-    val bitmap by produceState<ImageBitmap?>(layers?.original?.asImageBitmap(), layers, design, dynamicColors) {
-        value = layers?.let { withContext(Dispatchers.Default) { renderDesignedIcon(it, design, dynamicColors.first, dynamicColors.second).asImageBitmap() } }
+    size: Dp, modifier: Modifier = Modifier, draggable: Boolean = false, themeColors: Pair<Int, Int> = dynamicColors,
+    onChange: (IconDesign) -> Unit = {}) {
+    val bitmap by produceState<ImageBitmap?>(layers?.original?.asImageBitmap(), layers, design, dynamicColors, themeColors) {
+        value = layers?.let { withContext(Dispatchers.Default) { renderDesignedIcon(it, design, dynamicColors.first, dynamicColors.second,
+            themeColors.first, themeColors.second).asImageBitmap() } }
     }
     val currentDesign by rememberUpdatedState(design)
     val changeDesign by rememberUpdatedState(onChange)
@@ -55,7 +56,7 @@ internal fun DesignerPreviewIcon(app: LauncherApp, layers: IconLayers?, design: 
                 val position = down.position
                 val style = currentDesign
                 val symbolScale = style.size / 100f * if (style.addTray && !layers.layered) .8f else 1f
-                val symbol = if (style.foreground != null) layers.monochrome ?: layers.foreground else layers.foreground
+                val symbol = if (style.themeIcons && style.foreground != null) layers.monochrome ?: layers.foreground else layers.foreground
                 val px = (position.x / this.size.width - .5f - style.x / 100f) / symbolScale + .5f
                 val py = (position.y / this.size.height - .5f - style.y / 100f) / symbolScale + .5f
                 moving = px in 0f..<1f && py in 0f..<1f &&
@@ -68,38 +69,35 @@ internal fun DesignerPreviewIcon(app: LauncherApp, layers: IconLayers?, design: 
                 }
             }
         }), contentAlignment = Alignment.Center) {
-        if (bitmap != null) Image(bitmap!!, null, Modifier.fillMaxSize()) else AppIcon(app, size = size)
+        if (bitmap != null) Image(bitmap!!, null, Modifier.fillMaxSize()) else AppIcon(app, size = size, applyDisplaySize = false)
     }
 }
 
 @Composable
 internal fun DesignerBulkPreviewIcon(app: LauncherApp, uiState: LauncherUiState, choice: ItemIcon,
-    store: ItemIconStore, dynamicColors: Pair<Int, Int>, size: Dp) {
-    if (!isBulkIconDesignEligible(app, uiState.itemIcons[app.key])) {
-        AppIcon(app, size = size)
-        return
-    }
-    val data by produceState<Pair<IconLayers?, Boolean>>(null to false, app.key, choice.kind, choice.source, choice.name,
+    store: ItemIconStore, dynamicColors: Pair<Int, Int>, themeColors: Pair<Int, Int>, size: Dp) {
+    val single = uiState.itemIcons[app.key]
+    val source = single ?: ItemIcon.Theme
+    val shared = choice.design ?: IconDesign.defaults(uiState.themedIcons)
+    val design = single?.design?.withThemeDefaults(shared) ?: shared
+    val layers by produceState<IconLayers?>(null, app.key, source.kind, source.source, source.name,
         uiState.settings.enabledIconPackPackages) {
-        val mapped = store.isMappedBulkSource(app, choice)
-        val source = if (choice.kind == "pack" && choice.name.isEmpty() && !mapped) ItemIcon.System else choice
-        value = store.layers(app, source, uiState.settings) to mapped
+        value = store.layers(app, source, uiState.settings)
     }
-    DesignerPreviewIcon(app, data.first, if (data.second) IconDesign() else choice.design ?: IconDesign(), dynamicColors, size)
+    DesignerPreviewIcon(app, layers, design, dynamicColors, size, themeColors = themeColors)
 }
 
 @Composable
-internal fun DesignerSamplePreviewIcon(row: Int, column: Int, choice: ItemIcon, store: ItemIconStore,
-    settings: LauncherSettings, dynamicColors: Pair<Int, Int>, size: Dp) {
-    val context = LocalContext.current
-    val original = remember(context, row, column, dynamicColors) {
-        val symbols = listOf(listOf(R.drawable.ms_schedule, R.drawable.ms_calendar_month, R.drawable.ms_settings),
-            listOf(R.drawable.ms_sunny, R.drawable.ms_folder, R.drawable.ms_star),
-            listOf(R.drawable.ms_hourglass_empty, R.drawable.ms_category, R.drawable.ms_palette))
-        val glyph = requireNotNull(context.getDrawable(symbols[row][column])).mutate()
+internal fun DesignerSamplePreviewIcon(row: Int, choice: ItemIcon,
+    dynamicColors: Pair<Int, Int>, themeColors: Pair<Int, Int>, size: Dp) {
+    val resources = LocalResources.current
+    val configuration = LocalConfiguration.current
+    val original = remember(resources, configuration, row, dynamicColors) {
+        val symbols = listOf(R.drawable.ms_schedule, R.drawable.ms_sunny, R.drawable.ms_hourglass_empty)
+        val glyph = requireNotNull(resources.getDrawable(symbols[row], null)).mutate()
         glyph.setTint(if (row == 0) dynamicColors.second else 0xFF24354C.toInt())
-        val background = if (row == 0) dynamicColors.first else listOf(0xFFDBEBFA.toInt(), 0xFFFCE2C5.toInt(), 0xFFD9EDCD.toInt())[column]
-        if (row < 2) iconLayers(AdaptiveIconDrawable(ColorDrawable(background), InsetDrawable(glyph, .30f)), 384)
+        val background = if (row == 0) dynamicColors.first else 0xFFDBEBFA.toInt()
+        if (row < 2) iconLayers(AdaptiveIconDrawable(ColorDrawable(background), InsetDrawable(glyph, .30f)), 384, themed = true)
         else {
             val bitmap = Bitmap.createBitmap(384, 384, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
@@ -108,11 +106,8 @@ internal fun DesignerSamplePreviewIcon(row: Int, column: Int, choice: ItemIcon, 
             IconLayers(bitmap)
         }
     }
-    val app = remember(original, row, column) {
-        LauncherApp(ComponentName("designer.sample$row$column", "Preview"), "", original.original.asImageBitmap())
+    val app = remember(original, row) {
+        LauncherApp(ComponentName("designer.sample$row", "Preview"), "", original.original.asImageBitmap())
     }
-    val layers by produceState(original, choice.kind, choice.source, original) {
-        value = if (choice.kind == "image") store.layers(app, choice, settings) ?: original else original
-    }
-    DesignerPreviewIcon(app, layers, choice.design ?: IconDesign(), dynamicColors, size)
+    DesignerPreviewIcon(app, original, choice.design ?: IconDesign.defaults(), dynamicColors, size, themeColors = themeColors)
 }

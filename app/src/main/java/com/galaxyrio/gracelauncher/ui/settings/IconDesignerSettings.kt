@@ -19,7 +19,10 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.ItemIcon
@@ -29,6 +32,7 @@ import com.galaxyrio.gracelauncher.data.icons.ItemIconStore
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
+import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherTypography
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherAppearance
@@ -36,7 +40,7 @@ import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherAppearance
 @Composable
 internal fun IconDesignerPreview(
     uiState: LauncherUiState, selectedApp: LauncherApp?, choice: ItemIcon, design: IconDesign, layers: IconLayers?,
-    store: ItemIconStore, dynamicColors: Pair<Int, Int>, all: Boolean, enabled: Boolean, onChooseApp: () -> Unit,
+    store: ItemIconStore, dynamicColors: Pair<Int, Int>, themeColors: Pair<Int, Int>, all: Boolean, enabled: Boolean, onChooseApp: () -> Unit,
     onChange: (IconDesign) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -49,7 +53,7 @@ internal fun IconDesignerPreview(
     }, contentAlignment = Alignment.Center) {
         CompositionLocalProvider(LocalLauncherAppearance provides appearance) {
             MaterialTheme(typography = LocalLauncherTypography.current) {
-                if (all) AllIconsPreview(uiState, choice, store, dynamicColors)
+                if (all) AllIconsPreview(uiState, choice, store, dynamicColors, themeColors)
                 else if (selectedApp == null) {
                     val description = stringResource(R.string.icon_designer_choose_app)
                     Box(
@@ -60,49 +64,48 @@ internal fun IconDesignerPreview(
                     ) {
                         LauncherIcon(LauncherSymbol.Plus, Modifier.size(32.dp), MaterialTheme.colorScheme.onPrimaryContainer)
                     }
-                } else DesignerPreviewIcon(selectedApp, layers, design, dynamicColors, 128.dp,
-                    Modifier.testTag("icon_designer_selected_app"), draggable = enabled, onChange = onChange)
+                } else DesignerPreviewIcon(selectedApp, layers, design, dynamicColors, 80.dp * (design.iconSize / 100f),
+                    Modifier.testTag("icon_designer_selected_app"), draggable = enabled, onChange = onChange, themeColors = themeColors)
             }
         }
     }
 }
 
-/** Rows reflect the original icon type even when a pack or a per-app design changes the artwork. */
+/** One enabled-pack match, one unmatched adaptive icon, and one unmatched legacy icon. */
 internal fun iconDesignerPreviewRows(apps: List<LauncherApp>): List<List<LauncherApp>> {
-    val activities = apps.filter { it.shortcut == null }
+    val activities = apps.filter { it.shortcut == null && it.folderId == null }
     return listOf(
-        activities.filter { it.isSystemApp }.take(3),
-        activities.filter { !it.isSystemApp && it.isAdaptiveIcon }.take(3),
-        activities.filter { !it.isSystemApp && !it.isAdaptiveIcon }.take(3),
+        activities.filter { it.themeIconPackPackage != null }.sortedByDescending { it.isSystemApp }.take(1),
+        activities.filter { it.themeIconPackPackage == null && it.isAdaptiveIcon }.take(1),
+        activities.filter { it.themeIconPackPackage == null && !it.isAdaptiveIcon }.take(1),
     )
 }
 
 @Composable
-private fun AllIconsPreview(uiState: LauncherUiState, choice: ItemIcon, store: ItemIconStore, dynamicColors: Pair<Int, Int>) {
+private fun AllIconsPreview(uiState: LauncherUiState, choice: ItemIcon, store: ItemIconStore, dynamicColors: Pair<Int, Int>, themeColors: Pair<Int, Int>) {
     val rows = remember(uiState.apps) { iconDesignerPreviewRows(uiState.apps) }
-    val categories = listOf(stringResource(R.string.icon_designer_system_apps), stringResource(R.string.icon_designer_adaptive_apps),
+    val categories = listOf(stringResource(R.string.icon_designer_pack_apps), stringResource(R.string.icon_designer_adaptive_apps),
         stringResource(R.string.icon_designer_legacy_apps))
-    BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp).testTag("icon_designer_grid")) {
-        val iconSize = ((maxHeight / 3 - 28.dp).coerceAtLeast(20.dp)).coerceAtMost(52.dp)
-        Column(Modifier.fillMaxSize(), verticalArrangement = Arrangement.SpaceEvenly) {
+    val iconSize = 40.dp * ((choice.design?.iconSize ?: 100) / 100f)
+    val appearance = LocalLauncherAppearance.current
+    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 12.dp).testTag("icon_designer_grid"),
+        verticalArrangement = Arrangement.Center) {
             rows.forEachIndexed { row, entries ->
-                Row(Modifier.fillMaxWidth().weight(1f).testTag("icon_designer_row:$row"), verticalAlignment = Alignment.CenterVertically) {
-                    repeat(3) { column ->
-                        val app = entries.getOrNull(column)
-                        val label = app?.label ?: stringResource(R.string.icon_designer_sample, row * 3 + column + 1)
-                        Column(
-                            Modifier.weight(1f).testTag("icon_designer_icon:$row:$column")
-                                .semantics(mergeDescendants = true) { contentDescription = "${categories[row]} · $label" },
-                            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            if (app != null) DesignerBulkPreviewIcon(app, uiState, choice, store, dynamicColors, iconSize)
-                            else DesignerSamplePreviewIcon(row, column, choice, store, uiState.settings, dynamicColors, iconSize)
-                            Text(label, color = LocalLauncherAppearance.current.text,
-                                style = MaterialTheme.typography.labelSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                        }
+                val app = entries.firstOrNull()
+                val label = app?.label ?: stringResource(R.string.icon_designer_example)
+                Row(Modifier.fillMaxWidth().heightIn(min = LauncherLayout.RowMinHeight).testTag("icon_designer_row:$row")
+                    .semantics(mergeDescendants = true) { contentDescription = "${categories[row]} · $label" }
+                    .padding(LauncherLayout.ContentInset), verticalAlignment = Alignment.CenterVertically) {
+                    Box(Modifier.testTag("icon_designer_icon:$row:0")) {
+                        if (app != null) DesignerBulkPreviewIcon(app, uiState, choice, store, dynamicColors, themeColors, iconSize)
+                        else DesignerSamplePreviewIcon(row, choice, dynamicColors, themeColors, iconSize)
                     }
+                    Spacer(Modifier.width(LauncherLayout.IconLabelGap))
+                    Text(label, color = appearance.text,
+                        style = MaterialTheme.typography.bodyLarge.merge(TextStyle(fontWeight = FontWeight.Normal,
+                            letterSpacing = 0.2.sp, shadow = appearance.textShadow)),
+                        maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }
-        }
     }
 }

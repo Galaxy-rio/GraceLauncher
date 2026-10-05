@@ -2,6 +2,8 @@ package com.galaxyrio.gracelauncher
 
 import android.content.ComponentName
 import android.graphics.*
+import android.graphics.drawable.AdaptiveIconDrawable
+import android.graphics.drawable.ColorDrawable
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.test.platform.app.InstrumentationRegistry
@@ -25,6 +27,22 @@ class IconDesignRenderingTest {
     }
     private fun render(layers: IconLayers, style: IconDesign) = renderDesignedIcon(layers, style, Color.GREEN, Color.YELLOW)
 
+    @Test fun adaptiveIconsWithMissingLayersKeepTheirArtworkWithoutCrashing() {
+        val drawables = listOf(
+            AdaptiveIconDrawable(ColorDrawable(Color.BLUE), null),
+            AdaptiveIconDrawable(null, ColorDrawable(Color.BLUE)),
+        )
+        for (drawable in drawables) {
+            val source = iconLayers(drawable, 100)
+            assertFalse(source.layered)
+            assertEquals(Color.BLUE, source.original.getPixel(50, 50))
+            assertSame(source.original, render(source, IconDesign()))
+            val themed = render(source, IconDesign(shape = IconShape.Circle, foreground = IconColor(Color.RED),
+                themeIcons = true, themeUnsupportedIcons = true))
+            assertEquals(Color.RED, themed.getPixel(50, 50))
+        }
+    }
+
     @Test fun foregroundMovesAndScalesWithoutMovingTheTrayAndResetRestoresOriginal() {
         val source = layers()
         val result = render(source, IconDesign(x = 25f, size = 50))
@@ -39,10 +57,10 @@ class IconDesignRenderingTest {
     @Test fun adaptiveColorsUseSeparateLayersAndDynamicRoles() {
         val source = layers()
         val result = render(source, IconDesign(background = IconColor(Color.RED, dynamic = true),
-            foreground = IconColor(Color.BLUE, dynamic = true)))
+            foreground = IconColor(Color.BLUE, dynamic = true), themeIcons = true))
         assertEquals(Color.GREEN, result.getPixel(10, 10))
         assertEquals(Color.YELLOW, result.getPixel(50, 50))
-        val resetForeground = render(source, IconDesign(background = IconColor(Color.GREEN)))
+        val resetForeground = render(source, IconDesign(background = IconColor(Color.GREEN), themeIcons = true))
         assertEquals(Color.RED, resetForeground.getPixel(50, 50))
     }
 
@@ -56,6 +74,10 @@ class IconDesignRenderingTest {
         assertEquals(128, Color.alpha(result.getPixel(2, 0)))
         assertTrue(Color.red(result.getPixel(2, 0)) in 126..129)
         assertTrue(Color.blue(result.getPixel(2, 0)) in 126..129)
+        val mono = normalizedMonochrome(source)
+        assertEquals(0, Color.alpha(mono.getPixel(1, 0)))
+        assertEquals(255, Color.alpha(mono.getPixel(3, 0)))
+        assertTrue(Color.alpha(mono.getPixel(2, 0)) in 63..65)
     }
 
     @Test fun allCropChoicesRenderAndCookieCountsProduceDistinctMasks() {
@@ -74,20 +96,24 @@ class IconDesignRenderingTest {
         assertEquals(5, masks.distinct().size)
     }
 
-    @Test fun bulkLeavesMappedAndSpecialIconsIntactAndStylesOnlyTheRemainder() = runBlocking {
+    @Test fun allStylesPackMatchesAndSingleParametersTakePriority() = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val store = ItemIconStore(context, IconPackRepository(context))
         val original = solid(Color.GREEN).asImageBitmap()
         val app = LauncherApp(ComponentName("test.legacy", "Main"), "Legacy", original)
-        val bulk = ItemIcon.Theme.copy(design = IconDesign(foreground = IconColor(Color.RED)))
+        val bulk = ItemIcon.Theme.copy(design = IconDesign(shape = IconShape.Circle, foreground = IconColor(Color.RED),
+            themeIcons = true, themeUnsupportedIcons = true))
         val settings = LauncherSettings(iconDesign = bulk)
         val mapped = app.copy(iconPackPackage = "adapted.icons", themeIconPackPackage = "adapted.icons")
-        assertSame(original, store.applyDesign(mapped, null, bulk, settings).icon)
-        assertSame(original, store.applyDesign(app, ItemIcon.System, bulk, settings).icon)
+        val adapted = store.applyDesign(mapped, null, bulk, settings).icon!!.asAndroidBitmap()
+        assertEquals(Color.RED, adapted.getPixel(50, 50))
+        assertEquals(0, Color.alpha(adapted.getPixel(0, 0)))
+        assertEquals(Color.RED, store.applyDesign(app, ItemIcon.System, bulk, settings).icon!!.asAndroidBitmap().getPixel(50, 50))
         val styled = store.applyDesign(app, null, bulk, settings).icon!!.asAndroidBitmap()
         assertEquals(Color.RED, styled.getPixel(50, 50))
         assertEquals(Color.GREEN, original.asAndroidBitmap().getPixel(50, 50))
-        val special = ItemIcon.System.copy(design = IconDesign(foreground = IconColor(Color.BLUE)))
+        val special = ItemIcon.System.copy(design = IconDesign(foreground = IconColor(Color.BLUE), themeIcons = true,
+            themeUnsupportedIcons = true))
         assertEquals(Color.BLUE, store.applyDesign(app, special, bulk, settings).icon!!.asAndroidBitmap().getPixel(50, 50))
     }
 
@@ -95,7 +121,8 @@ class IconDesignRenderingTest {
         val desktop = """{"kind":"pack","source":"example.icons","name":"alternate"}"""
         assertEquals(ItemIcon("pack", "example.icons", "alternate"), ItemIcon.decode(desktop))
         val design = ItemIcon("image", "example.png", design = IconDesign(shape = IconShape.Cookie, cookieSides = 9,
-            background = IconColor(Color.GREEN, true), foreground = IconColor(Color.BLUE), x = 12.5f, y = -10f, size = 175))
+            background = IconColor.Theme, foreground = IconColor(Color.BLUE), x = 12.5f, y = -10f, size = 175,
+            iconSize = 150, themeIcons = true, themeUnsupportedIcons = true))
         assertEquals(design, ItemIcon.decode(design.encode()))
     }
 }

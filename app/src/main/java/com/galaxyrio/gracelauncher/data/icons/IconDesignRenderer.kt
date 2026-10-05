@@ -35,68 +35,99 @@ internal class IconLayers(
     val originalMask: Path? = null,
 ) {
     val layered: Boolean get() = background != null
-    private var tintedKey: Pair<Int?, Int?>? = null
+    private var tintedKey: Pair<Int?, Boolean>? = null
     private var tinted: Bitmap? = null
+    private val normalizedMonochrome by lazy { normalizedMonochrome(foreground) }
 
     @Synchronized
-    fun symbol(backgroundColor: Int?, foregroundColor: Int?): Bitmap {
-        if (backgroundColor == null && foregroundColor == null) return foreground
-        val key = backgroundColor to foregroundColor
+    fun symbol(foregroundColor: Int?, themeUnsupported: Boolean): Bitmap {
+        if (foregroundColor == null || (monochrome == null && !themeUnsupported)) return foreground
+        val key = foregroundColor to themeUnsupported
         if (tintedKey == key) tinted?.let { return it }
-        val result = if (layered) {
-            if (foregroundColor == null) foreground else createBitmap(original.width, original.height).also {
-                val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
-                    colorFilter = PorterDuffColorFilter(foregroundColor, PorterDuff.Mode.SRC_IN)
-                }
-                Canvas(it).drawBitmap(monochrome ?: foreground, 0f, 0f, paint)
+        val result = createBitmap(original.width, original.height).also {
+            val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
+                colorFilter = PorterDuffColorFilter(foregroundColor, PorterDuff.Mode.SRC_IN)
             }
-        } else recolorGrayscale(foreground, backgroundColor ?: Color.BLACK, foregroundColor ?: Color.WHITE)
+            Canvas(it).drawBitmap(monochrome ?: normalizedMonochrome, 0f, 0f, paint)
+        }
         tintedKey = key
         tinted = result
         return result
     }
 }
 
-internal fun iconLayers(drawable: Drawable, size: Int): IconLayers {
+internal fun iconLayers(drawable: Drawable, size: Int, themed: Boolean = false): IconLayers {
     val original = renderIcon(drawable, size)
-    if (drawable !is AdaptiveIconDrawable) return IconLayers(original)
+    if (drawable !is AdaptiveIconDrawable) return IconLayers(original, monochrome = original.takeIf { themed })
+    // Platform/OEM wrappers may be adaptive drawables with only one populated layer.
+    // Keep their complete artwork instead of treating a missing layer as a drawable.
+    val foregroundDrawable = drawable.foreground ?: return IconLayers(original)
+    val backgroundDrawable = drawable.background ?: return IconLayers(original)
     val previous = Rect(drawable.bounds)
     try {
         drawable.setBounds(0, 0, size, size)
         // AdaptiveIconDrawable sets expanded child bounds, preserving Android's safe zone.
         fun layer(child: Drawable): Bitmap = createBitmap(size, size).also { child.draw(Canvas(it)) }
         val mono = if (Build.VERSION.SDK_INT >= 33) drawable.monochrome?.let {
-            it.bounds = drawable.foreground.bounds
-            layer(it)
+            it.bounds = foregroundDrawable.bounds
+            layer(it).takeIf(::hasVisibleSymbol)
         } else null
-        return IconLayers(original, layer(drawable.background), layer(drawable.foreground), mono, Path(drawable.iconMask))
+        val foreground = layer(foregroundDrawable)
+        return IconLayers(original, layer(backgroundDrawable), foreground, mono ?: foreground.takeIf { themed }, Path(drawable.iconMask))
     } finally { drawable.bounds = previous }
 }
 
-internal fun renderDesignedIcon(layers: IconLayers, design: IconDesign, dynamicBackground: Int, dynamicForeground: Int): Bitmap {
+internal fun renderDesignedIcon(layers: IconLayers, design: IconDesign, dynamicBackground: Int, dynamicForeground: Int,
+    themeBackground: Int = dynamicBackground, themeForeground: Int = dynamicForeground): Bitmap {
     val style = design.normalized()
     if (style == IconDesign()) return layers.original
     val side = layers.original.width
     val output = createBitmap(side, side)
     val canvas = Canvas(output)
     val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
-    val mask = if (style.shape == IconShape.None) layers.originalMask else iconShapePath(style.shape, style.cookieSides, side.toFloat())
+    val mask = if (style.shape == IconShape.None) layers.originalMask ?: if (style.addTray)
+        iconShapePath(IconShape.Circle, size = side.toFloat()) else null
+        else iconShapePath(style.shape, style.cookieSides, side.toFloat())
     mask?.let(canvas::clipPath)
-    val background = style.background?.let { if (it.dynamic) dynamicBackground else it.argb }
-    val foreground = style.foreground?.let { if (it.dynamic) dynamicForeground else it.argb }
+    val canTheme = style.themeIcons && (layers.monochrome != null || style.themeUnsupportedIcons)
+    val background = style.background?.resolve(dynamicBackground, themeBackground)
+    val foreground = style.foreground?.resolve(dynamicForeground, themeForeground)?.takeIf { canTheme }
     if (layers.layered) {
-        if (background != null) canvas.drawColor(background)
+        if (canTheme && background != null) canvas.drawColor(background)
         else layers.background?.let { canvas.drawBitmap(it, 0f, 0f, paint) }
     } else if (style.addTray) {
-        style.trayColor?.let { canvas.drawColor(if (it.dynamic) dynamicBackground else it.argb) }
+        background?.let(canvas::drawColor)
+    } else if (canTheme && layers.monochrome != null && background != null) {
+        // A flat monochrome pack still has a themeable symbol and needs its theme tray.
+        if (style.shape == IconShape.None) canvas.clipPath(iconShapePath(IconShape.Circle, size = side.toFloat()))
+        canvas.drawColor(background)
     }
     val scale = style.size / 100f * if (style.addTray && !layers.layered) .8f else 1f
     val centerX = side * (0.5f + style.x / 100f)
     val centerY = side * (0.5f + style.y / 100f)
     val half = side * scale / 2f
-    canvas.drawBitmap(layers.symbol(background, foreground), null,
+    canvas.drawBitmap(layers.symbol(foreground, style.themeUnsupportedIcons), null,
         RectF(centerX - half, centerY - half, centerX + half, centerY + half), paint)
     return output
+}
+
+private fun hasVisibleSymbol(bitmap: Bitmap): Boolean {
+    val pixels = IntArray(bitmap.width * bitmap.height)
+    bitmap.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+    return pixels.count { Color.alpha(it) > 32 } >= pixels.size / 100
+}
+
+/** A normalized grayscale surface becomes an alpha mask, tinted like a native monochrome layer. */
+internal fun normalizedMonochrome(bitmap: Bitmap): Bitmap {
+    val grayscale = recolorGrayscale(bitmap, Color.BLACK, Color.WHITE)
+    val pixels = IntArray(bitmap.width * bitmap.height)
+    grayscale.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
+    grayscale.recycle()
+    for (index in pixels.indices) {
+        val pixel = pixels[index]
+        pixels[index] = Color.argb(Color.alpha(pixel) * Color.red(pixel) / 255, 255, 255, 255)
+    }
+    return Bitmap.createBitmap(pixels, bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
 }
 
 /** Normalize only visible pixels; transparent padding must not compress the luminance range. */

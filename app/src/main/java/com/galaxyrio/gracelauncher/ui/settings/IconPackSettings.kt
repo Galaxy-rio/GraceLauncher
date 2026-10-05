@@ -84,7 +84,7 @@ internal fun IconPackSettings(uiState: LauncherUiState, actions: LauncherActions
         val order = settings.enabledIconPackPackages
         settings.withIconPacks(if (packageName in order) order - packageName else order + packageName)
     }
-    SettingsScaffold(stringResource(R.string.settings_icon_pack), "icon_pack_settings", onBack, fixedCollapsed = true) { padding ->
+    SettingsScaffold(stringResource(R.string.settings_icons), "icon_pack_settings", onBack, fixedCollapsed = true) { padding ->
         LazyColumn(
             Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()
                 .padding(horizontal = 16.dp).testTag("icon_pack_list"),

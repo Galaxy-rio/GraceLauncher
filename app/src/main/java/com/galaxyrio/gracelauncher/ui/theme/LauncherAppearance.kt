@@ -30,7 +30,7 @@ import androidx.core.content.ContextCompat
 import com.galaxyrio.gracelauncher.data.WallpaperTextMode
 import java.util.function.Consumer
 
-data class LauncherAppearance(val darkText: Boolean = false, val themedIcons: Boolean = true) {
+data class LauncherAppearance(val darkText: Boolean = false, val themedIcons: Boolean = true, val iconSize: Int = 100) {
     val text: Color get() = if (darkText) Color(0xFF202025) else Color(0xFFFAF9FE)
     val textShadow: Shadow get() = if (darkText) Shadow.None else Shadow(Color.Black.copy(alpha = 0.32f), blurRadius = 4f)
 }
@@ -38,7 +38,7 @@ data class LauncherAppearance(val darkText: Boolean = false, val themedIcons: Bo
 val LocalLauncherAppearance = staticCompositionLocalOf { LauncherAppearance() }
 
 @Composable
-fun rememberLauncherAppearance(mode: WallpaperTextMode, themedIcons: Boolean): LauncherAppearance {
+fun rememberLauncherAppearance(mode: WallpaperTextMode, themedIcons: Boolean, iconSize: Int = 100): LauncherAppearance {
     val context = LocalContext.current
     val manager = remember(context) { WallpaperManager.getInstance(context) }
     fun prefersDark(colors: WallpaperColors?): Boolean = Build.VERSION.SDK_INT >= 31 &&
@@ -60,6 +60,7 @@ fun rememberLauncherAppearance(mode: WallpaperTextMode, themedIcons: Boolean): L
             WallpaperTextMode.Dark -> true
         },
         themedIcons = themedIcons,
+        iconSize = iconSize.coerceIn(80, 150),
     )
 }
 
