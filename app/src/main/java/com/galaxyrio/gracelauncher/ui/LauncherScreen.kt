@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -212,6 +213,20 @@ fun LauncherRoute(
         }
     }
 
+    fun launchApp(app: LauncherApp, bounds: Rect?, fromSearch: Boolean = false) {
+        val start: (AppLaunchTransition?) -> Unit = { transition ->
+            if (!viewModel.launch(app, transition?.sourceBounds, transition?.options, fromSearch = fromSearch)) {
+                Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
+            }
+        }
+        // Preserve the same icon launch animation and private-profile protection for every entry.
+        if (!app.isPrivateSpace || viewModel.preparePrivateAppLaunch(app)) {
+            if (bounds == null) start(null)
+            else if (appTransitions != null) appTransitions.launch(launchView, bounds.toAndroidRect(), start)
+            else start(AppLaunchTransition.fromIcon(launchView, bounds.toAndroidRect()))
+        }
+    }
+
     val actions = LauncherActions(
         requestPrivateSpace = { forceAuthentication, ready ->
             (context as? androidx.activity.ComponentActivity)?.let { activity ->
@@ -357,18 +372,8 @@ fun LauncherRoute(
         cachedShortcuts = viewModel::cachedShortcuts,
         prepareShortcuts = viewModel::prepareShortcuts,
         reorderFavorites = viewModel::reorderFavorites,
-        launchAppAt = { app, bounds ->
-            val start: (AppLaunchTransition?) -> Unit = { transition ->
-                if (!viewModel.launch(app, transition?.sourceBounds, transition?.options)) {
-                    Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
-                }
-            }
-            // Hide private contents before the optional icon capture suspends.
-            if (!app.isPrivateSpace || viewModel.preparePrivateAppLaunch(app)) {
-                if (appTransitions != null) appTransitions.launch(launchView, bounds.toAndroidRect(), start)
-                else start(AppLaunchTransition.fromIcon(launchView, bounds.toAndroidRect()))
-            }
-        },
+        launchAppAt = { app, bounds -> launchApp(app, bounds) },
+        launchSearchApp = { app, bounds -> launchApp(app, bounds, fromSearch = true) },
         launchShortcutAt = { shortcut, bounds ->
             val start: (AppLaunchTransition?) -> Unit = { transition ->
                 if (!viewModel.launchShortcut(shortcut, transition?.sourceBounds, transition?.options)) {
@@ -436,6 +441,7 @@ internal fun LauncherScreen(
     var drawerOpen by rememberSaveable { mutableStateOf(initialDrawerOpen) }
     var selectedLetter by remember { mutableStateOf<String?>(null) }
     var overlay by remember { mutableStateOf<LauncherOverlay?>(null) }
+    val searchQuery = rememberTextFieldState()
     var editingHome by rememberSaveable { mutableStateOf(false) }
     var privateListOpen by remember { mutableStateOf(false) }
     var privateSwipeAnchor by remember { mutableStateOf<Rect?>(null) }
@@ -456,6 +462,8 @@ internal fun LauncherScreen(
     val view = LocalView.current
     val context = LocalContext.current
     val haptics = rememberLauncherHaptics(uiState.settings.allowHapticFeedback)
+    val searching = overlay == LauncherOverlay.Search
+    val searchAlpha by animateFloatAsState(if (searching) 1f else 0f, tween(210), label = "searchFade")
     val isSettings = overlay == LauncherOverlay.Settings || overlay is LauncherOverlay.FolderSettings ||
         overlay is LauncherOverlay.SettingsDestination || overlay is LauncherOverlay.IconDesigner
     val fullScreen = isSettings || overlay == LauncherOverlay.Search || overlay == LauncherOverlay.Favorites ||
@@ -484,14 +492,14 @@ internal fun LauncherScreen(
     }
     val screenActions = actions.copy(moveWidget = { drawerOpen = false; selectedLetter = null; overlay = null; editingHome = true })
     val backProgress = remember { Animatable(0f) }
-    val darkSystemIcons = if (fullScreen) MaterialTheme.colorScheme.surface.luminance() > 0.5f else appearance.darkText
+    val darkSystemIcons = if (fullScreen && !searching) MaterialTheme.colorScheme.surface.luminance() > 0.5f else appearance.darkText
     SideEffect {
         (context as? Activity)?.window?.let { window ->
             WindowInsetsControllerCompat(window, view).apply {
                 isAppearanceLightStatusBars = darkSystemIcons
                 isAppearanceLightNavigationBars = darkSystemIcons
                 systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                if (uiState.settings.hideStatusBar && !fullScreen) hide(WindowInsetsCompat.Type.statusBars())
+                if (uiState.settings.hideStatusBar && (!fullScreen || searching)) hide(WindowInsetsCompat.Type.statusBars())
                 else show(WindowInsetsCompat.Type.statusBars())
             }
         }
@@ -614,7 +622,11 @@ internal fun LauncherScreen(
     val drawerVisibility = if (drawerOpen) {
         drawerAlpha.value * if (overlay == null) (1f - backProgress.value) else 1f
     } else 0f
-    val wallpaperEffectVisibility = if (fullScreen) 0f else drawerVisibility
+    val wallpaperEffectVisibility = when {
+        searching -> searchAlpha * (1f - backProgress.value)
+        fullScreen -> 0f
+        else -> drawerVisibility
+    }
     WallpaperBlur(if (uiState.settings.blurWallpaper) uiState.settings.wallpaperBlurRadius.dp * wallpaperEffectVisibility else 0.dp)
     val dimAlpha = if (uiState.settings.dimWallpaper) {
         uiState.settings.wallpaperDimAmount.coerceIn(0, 100) / 100f * wallpaperEffectVisibility
@@ -631,6 +643,8 @@ internal fun LauncherScreen(
     }
     val widgetHost = rememberWidgetHost()
     CompositionLocalProvider(LocalLauncherAppearance provides appearance, LocalHapticFeedback provides haptics, LocalWidgetHost provides widgetHost) {
+      // One wallpaper treatment serves both transparent search and the alphabetical app list.
+      Box(Modifier.fillMaxSize().background(wallpaperTint.copy(alpha = dimAlpha)))
       CompositionLocalProvider(LocalLauncherInputEnabled provides (!fullScreen && !editingHome && backProgress.value == 0f)) {
       BoxWithConstraints(
         // Settings can reveal this retained page during a predictive root back.
@@ -638,14 +652,16 @@ internal fun LauncherScreen(
         modifier = Modifier.fillMaxSize()
             .retainedPage(visible = !fullScreen || isSettings || backProgress.value > 0f)
             .then(if (fullScreen || backProgress.value > 0f) Modifier.clearAndSetSemantics {} else Modifier)
-            .background(homeScrim).background(wallpaperTint.copy(alpha = dimAlpha))
-            // The lists extend behind the status bar. Insets belong to their
+            .graphicsLayer { alpha = if (searching) backProgress.value else 1f }
+            .background(homeScrim)
+            // The lists extend behind both system bars. Insets belong to their
             // scrollable content, not a parent that clips the whole viewport.
-            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Bottom))
+            .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
             .then(if (popupReveal?.dragging == false) Modifier.clearAndSetSemantics {} else Modifier),
     ) {
         val statusBarHeight = WindowInsets.safeDrawing.asPaddingValues().calculateTopPadding()
-        val safeHeight = (maxHeight - statusBarHeight).coerceAtLeast(0.dp)
+        val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
+        val safeHeight = (maxHeight - statusBarHeight - bottomInset).coerceAtLeast(0.dp)
         val regularHomeTop = (safeHeight * if (safeHeight < 600.dp) 0.12f else 0.32f).coerceIn(24.dp, 320.dp)
         // Make room above the favorites for the transparent now-playing row.
         val homeTop = statusBarHeight + (regularHomeTop - if (uiState.homeMedia != null) 128.dp else 0.dp).coerceAtLeast(24.dp)
@@ -738,7 +754,7 @@ internal fun LauncherScreen(
             val fabDescription = stringResource(if (editingHome) R.string.done else R.string.launcher_fab_description)
             val settingsLabel = stringResource(R.string.grace_settings)
             Surface(
-                modifier = Modifier.align(Alignment.BottomEnd).padding(end = LauncherLayout.End, bottom = 22.dp).size(54.dp)
+                modifier = Modifier.align(Alignment.BottomEnd).padding(end = LauncherLayout.End, bottom = 22.dp + bottomInset).size(54.dp)
                     .testTag("launcher_fab_surface"),
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer,
@@ -751,7 +767,12 @@ internal fun LauncherScreen(
                         enabled = !fullScreen,
                         interactionSource = remember { MutableInteractionSource() }, indication = ripple(),
                         role = Role.Button, onLongClickLabel = settingsLabel,
-                        onClick = { if (editingHome) editingHome = false else overlay = LauncherOverlay.Search },
+                        onClick = {
+                            if (editingHome) editingHome = false else {
+                                searchQuery.edit { replace(0, length, "") }
+                                overlay = LauncherOverlay.search(uiState.settings.search.enabled)
+                            }
+                        },
                         onLongClick = { if (editingHome) editingHome = false else overlay = LauncherOverlay.Settings },
                     ).semantics { contentDescription = fabDescription }, contentAlignment = Alignment.Center) {
                     // Use the app's real foreground path, without its adaptive background.
@@ -766,6 +787,7 @@ internal fun LauncherScreen(
           overlay = overlay, uiState = uiState, actions = screenActions, onChange = { overlay = it },
           onLaunchApp = onLaunchApp, onToggleFavorite = onToggleFavorite, onRequestCalendar = onDateClick,
           searchBackProgress = backProgress.value,
+          searchEnterAlpha = searchAlpha, searchQuery = searchQuery,
       )
     }
 }

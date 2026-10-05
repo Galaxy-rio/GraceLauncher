@@ -454,13 +454,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun launch(app: LauncherApp, bounds: Rect? = null, options: Bundle? = null): Boolean {
+    fun launch(app: LauncherApp, bounds: Rect? = null, options: Bundle? = null, fromSearch: Boolean = false): Boolean {
         if (app.folderId != null) return false
         if (app.isPrivateSpace && !privateSpaceController.prepareAppLaunch(app.user, app.key)) return false
         if (!app.isPrivateSpace && _uiState.value.privateSpace.accessible) privateSpaceController.lock()
         val launched = app.shortcut?.let { shortcutRepository.launch(it, bounds, options) } ?: appRepository.launch(app, bounds, options)
         if (app.isPrivateSpace) privateSpaceController.finishAppLaunch()
         if (app.isPrivateSpace && !launched) privateSpaceController.lock()
+        if (launched && fromSearch && !app.isPrivateSpace) {
+            updateSettings { it.copy(search = it.search.recordApp(app.key)) }
+        }
         return launched
     }
 

@@ -47,6 +47,7 @@ data class LauncherSettingsEntity(
     val appFontId: String? = null,
     @ColumnInfo(defaultValue = "1") val applyFontToSettings: Boolean = true,
     val privateSpaceJson: String? = null,
+    val searchJson: String? = null,
 )
 
 @Entity(tableName = "hidden_apps")
@@ -102,7 +103,7 @@ abstract class LauncherSettingsDao {
     entities = [LauncherSettingsEntity::class, HiddenAppEntity::class,
         LauncherFolderEntity::class, ItemIconEntity::class,
         SavedShortcutEntity::class, AppPopupEntity::class],
-    version = 14,
+    version = 15,
     exportSchema = true,
 )
 abstract class LauncherDatabase : RoomDatabase() {
@@ -213,12 +214,18 @@ abstract class LauncherDatabase : RoomDatabase() {
             }
         }
 
+        val Migration14To15 = object : Migration(14, 15) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN searchJson TEXT DEFAULT NULL")
+            }
+        }
+
         fun getInstance(context: Context): LauncherDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 LauncherDatabase::class.java,
                 "grace_launcher.db",
-            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7, Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12, Migration12To13, Migration13To14).build().also { instance = it }
+            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7, Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12, Migration12To13, Migration13To14, Migration14To15).build().also { instance = it }
         }
     }
 }

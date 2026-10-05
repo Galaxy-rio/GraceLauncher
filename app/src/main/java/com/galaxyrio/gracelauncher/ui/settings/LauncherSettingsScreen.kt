@@ -70,7 +70,7 @@ import kotlinx.coroutines.withContext
 
 internal enum class SettingsPage {
     Root, Productivity, Clock, ClockStyle, Calendar, Weather, Themes, Advanced, About, HiddenApps, Folders, FolderEditor,
-    Changelog, Licenses, AppLicense, IconPacks, IconDesigner, IconDesignerApp, PrivateSpace, PrivateSpaceEditor,
+    Changelog, Licenses, AppLicense, IconPacks, IconDesigner, IconDesignerApp, PrivateSpace, PrivateSpaceEditor, Search,
 }
 
 /** Navigation owns each page's saved state and seekable predictive-back transition. */
@@ -179,6 +179,7 @@ fun LauncherSettingsScreen(
                     SettingsPage.Root -> SettingsHome(uiState.isDefaultHome, actions.requestDefaultHome, back, navigate)
                     SettingsPage.Productivity -> ProductivitySettings(uiState, actions, back, navigate)
                     SettingsPage.Clock -> ClockSettings(uiState, actions, back)
+                    SettingsPage.Search -> SearchSettingsScreen(uiState, actions, back)
                     SettingsPage.Weather -> WeatherSettings(uiState, actions, back)
                     SettingsPage.Themes -> ThemeSettings(uiState, actions, back,
                         onClockStyle = { navigate(SettingsPage.ClockStyle) }, onIconPacks = { navigate(SettingsPage.IconPacks) })

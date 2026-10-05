@@ -37,6 +37,7 @@ data class LauncherSettings(
     val appFontId: String? = null,
     val applyFontToSettings: Boolean = true,
     val privateSpace: PrivateSpaceSettings = PrivateSpaceSettings(),
+    val search: SearchSettings = SearchSettings(),
 ) {
     /** Icon designer overrides precede this order; system icons always follow it. */
     val enabledIconPackPackages: List<String>

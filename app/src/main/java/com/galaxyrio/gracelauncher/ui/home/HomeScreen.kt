@@ -120,21 +120,23 @@ fun HomeScreen(
     var headerHeightPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
     val minimumTop = WindowInsets.safeDrawing.asPaddingValues().calculateTopPadding() + 8.dp
+    val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
     LaunchedEffect(editingLayout) { if (editingLayout) listState.scrollToItem(0) }
     // Larger text, notifications and artwork alter the real height. Never disable
     // scrolling based on estimated row heights and strand the last favorite.
     val canScroll by remember { derivedStateOf { listState.canScrollForward || listState.canScrollBackward } }
 
     BoxWithConstraints(modifier.fillMaxSize()) {
+    val availableHeight = (maxHeight - bottomInset).coerceAtLeast(0.dp)
     val headerHeight = with(density) { headerHeightPx.toDp() }
     val minWidgetHeight = hostedWidget?.minHeight ?: 0
     val maximumWidgetHeight = minOf(hostedWidget?.maxHeight ?: 0,
-        (maxHeight - minimumTop - headerHeight - 56.dp).value.toInt()).coerceAtLeast(minWidgetHeight)
+        (availableHeight - minimumTop - headerHeight - 56.dp).value.toInt()).coerceAtLeast(minWidgetHeight)
     val resolvedWidgetHeight = if (hostedWidget == null) 0 else
         (if (widgetHeight == 0f) hostedWidget.defaultHeight else widgetHeight.roundToInt()).coerceIn(minWidgetHeight, maximumWidgetHeight)
-    val maximumTop = (maxHeight - headerHeight - resolvedWidgetHeight.dp - 56.dp).coerceAtLeast(minimumTop)
+    val maximumTop = (availableHeight - headerHeight - resolvedWidgetHeight.dp - 56.dp).coerceAtLeast(minimumTop)
     val resolvedTop = (topSpace + topOffset.dp).coerceIn(minimumTop, maximumTop)
-    val resizeLimit = (maxHeight - resolvedTop - headerHeight - 56.dp).value.toInt()
+    val resizeLimit = (availableHeight - resolvedTop - headerHeight - 56.dp).value.toInt()
         .coerceIn(minWidgetHeight, maximumWidgetHeight)
     LazyColumn(
         state = listState,
@@ -142,7 +144,7 @@ fun HomeScreen(
             .testTag("home_content"),
         // The row's 8dp inset keeps icons aligned at 44dp while giving its
         // rounded touch surface breathing room around the icon.
-        contentPadding = PaddingValues(start = LauncherLayout.Start, end = LauncherLayout.End, top = resolvedTop, bottom = 72.dp),
+        contentPadding = PaddingValues(start = LauncherLayout.Start, end = LauncherLayout.End, top = resolvedTop, bottom = 72.dp + bottomInset),
         userScrollEnabled = canScroll && !editingLayout,
     ) {
         item(key = "date", contentType = "date") {

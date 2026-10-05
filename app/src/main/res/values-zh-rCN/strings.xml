@@ -421,6 +421,24 @@
     <string name="clock_reset_value">恢复%1$s的默认值</string>
 
     <!-- Search -->
+    <string name="settings_search">搜索</string>
+    <string name="search_settings_summary">应用、联系人与搜索建议</string>
+    <string name="search_enable">启用搜索</string>
+    <string name="search_open_settings">搜索设置</string>
+    <string name="search_suggestions">搜索建议</string>
+    <string name="search_suggestions_summary">显示最近通过搜索打开的 5 个应用</string>
+    <string name="search_contacts">联系人搜索</string>
+    <string name="search_contacts_summary">通过姓名或电话号码查找联系人</string>
+    <string name="search_contacts_permission">请在 Android 设置中允许读取联系人，以启用联系人搜索。</string>
+    <string name="search_unnamed_contact">未命名联系人</string>
+    <string name="search_files">文件搜索</string>
+    <string name="search_fuzzy">模糊搜索</string>
+    <string name="search_fuzzy_summary">支持拼写变体、拼音和首字母缩写</string>
+    <string name="search_internet_setting">网络搜索</string>
+    <string name="search_internet_summary">显示使用默认浏览器搜索的选项</string>
+    <string name="search_internet_result">搜索网络</string>
+    <string name="search_hidden_apps">搜索隐藏的应用</string>
+    <string name="search_hidden_apps_summary">包含从应用列表中隐藏的应用</string>
     <string name="search_clear_query">清空搜索</string>
     <string name="app_selection_fast_scroll">快速滚动应用列表</string>
 

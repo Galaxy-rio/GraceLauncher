@@ -11,6 +11,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -59,10 +61,15 @@ sealed interface LauncherOverlay {
     data object Agenda : LauncherOverlay
     data object Favorites : LauncherOverlay
     data object Settings : LauncherOverlay
-    data class SettingsDestination(val page: String) : LauncherOverlay
+    data class SettingsDestination(val page: String, val returnToSearch: Boolean = false) : LauncherOverlay
     data object HomeWidgetMenu : LauncherOverlay
     data object CustomWidgetMenu : LauncherOverlay
     data object Search : LauncherOverlay
+
+    companion object {
+        /** Every current/future search entry uses the same enable gate. */
+        fun search(enabled: Boolean): LauncherOverlay = if (enabled) Search else SettingsDestination("Search")
+    }
 }
 
 @Composable
@@ -85,6 +92,8 @@ fun LauncherOverlays(
     onToggleFavorite: (LauncherApp) -> Unit,
     onRequestCalendar: () -> Unit,
     searchBackProgress: Float = 0f,
+    searchEnterAlpha: Float = 1f,
+    searchQuery: TextFieldState = rememberTextFieldState(),
 ) {
     if (overlay == null) return
     val privateApp = when (overlay) {
@@ -119,7 +128,8 @@ fun LauncherOverlays(
         LauncherSettingsScreen(
             uiState = uiState, actions = actions, onBack = {
                 val folder = (overlay as? LauncherOverlay.FolderSettings)?.folderId?.let { uiState.findItem("folder:$it") }
-                onChange(folder?.let { LauncherOverlay.AppDetails(it) })
+                onChange(if ((overlay as? LauncherOverlay.SettingsDestination)?.returnToSearch == true && uiState.settings.search.enabled)
+                    LauncherOverlay.Search else folder?.let { LauncherOverlay.AppDetails(it) })
             },
             initialPage = when (overlay) {
                 is LauncherOverlay.FolderSettings -> "folders"
@@ -131,12 +141,18 @@ fun LauncherOverlays(
         return
     }
     if (overlay == LauncherOverlay.Search) {
+        if (!uiState.settings.search.enabled) {
+            LaunchedEffect(Unit) { onChange(LauncherOverlay.search(false)) }
+            return
+        }
         AppSearchScreen(
             uiState, actions,
             onLaunch = { onChange(null); onLaunchApp(it) },
             onDetails = { onChange(LauncherOverlay.AppDetails(it)) },
             onDismiss = { onChange(null) },
             backProgress = searchBackProgress,
+            enterAlpha = searchEnterAlpha, queryState = searchQuery,
+            onSettings = { onChange(LauncherOverlay.SettingsDestination("Search", returnToSearch = true)) },
         )
         return
     }

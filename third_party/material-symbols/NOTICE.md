@@ -55,6 +55,11 @@ em dash with the supplied accessible description.
 
 ### Other icons
 
+Search icons added 2026-10-05 (official SVG paths retained, same 24dp conversion):
+
+- `ms_travel_explore.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/travel_explore/materialsymbolsoutlined/travel_explore_24px.svg
+- `ms_more_vert.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/more_vert/materialsymbolsoutlined/more_vert_24px.svg
+
 Icon designer entry added 2026-10-03:
 
 - `ms_design_services.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/android/design_services/materialsymbolsoutlined/design_services_24px.xml

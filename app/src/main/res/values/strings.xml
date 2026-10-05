@@ -435,6 +435,24 @@
     <string name="clock_reset_value">Reset %1$s to default</string>
 
     <!-- Search -->
+    <string name="settings_search">Search</string>
+    <string name="search_settings_summary">Apps, contacts, and suggestions</string>
+    <string name="search_enable">Enable search</string>
+    <string name="search_open_settings">Search settings</string>
+    <string name="search_suggestions">Search suggestions</string>
+    <string name="search_suggestions_summary">Show the last 5 apps opened from search</string>
+    <string name="search_contacts">Contact search</string>
+    <string name="search_contacts_summary">Find contacts by name or phone number</string>
+    <string name="search_contacts_permission">Allow Contacts access in Android settings to search contacts.</string>
+    <string name="search_unnamed_contact">Unnamed contact</string>
+    <string name="search_files">File search</string>
+    <string name="search_fuzzy">Fuzzy search</string>
+    <string name="search_fuzzy_summary">Match spelling variations and initials</string>
+    <string name="search_internet_setting">Internet search</string>
+    <string name="search_internet_summary">Show an option to search in your default browser</string>
+    <string name="search_internet_result">Search Internet</string>
+    <string name="search_hidden_apps">Search hidden apps</string>
+    <string name="search_hidden_apps_summary">Include apps hidden from the app list</string>
     <string name="search_clear_query">Clear search</string>
     <string name="app_selection_fast_scroll">Quickly scroll through apps</string>
 

@@ -3,6 +3,8 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <!-- Requested only when the user explicitly enables local contact search. -->
+    <uses-permission android:name="android.permission.READ_CONTACTS" />
     <!-- Hidden profiles are accessible only while Grace holds the default HOME role. -->
     <uses-permission android:name="android.permission.ACCESS_HIDDEN_PROFILES" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />

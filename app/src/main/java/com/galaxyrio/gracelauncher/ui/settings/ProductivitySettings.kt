@@ -60,30 +60,34 @@ internal fun ProductivitySettings(
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_clock), clockAppSummary(uiState),
-                    0, 4, "settings_clock",
+                    0, 5, "settings_clock",
                 ) { navigate(SettingsPage.Clock) }
             }
             item {
                 SettingsToggleItem(
                     stringResource(R.string.settings_calendar_agenda), stringResource(R.string.settings_calendar_agenda_summary),
-                    settings.calendarAgenda, 1, 4, "calendar_agenda",
+                    settings.calendarAgenda, 1, 5, "calendar_agenda",
                 ) { value -> actions.updateSettings { current -> current.copy(calendarAgenda = value) } }
             }
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_weather),
                     stringResource(if (settings.weatherEnabled) R.string.weather_settings_enabled_summary else R.string.weather_settings_disabled_summary),
-                    2, 4, "settings_weather",
+                    2, 5, "settings_weather",
                 ) { navigate(SettingsPage.Weather) }
             }
             item {
                 SettingsToggleItem(
                     stringResource(R.string.settings_media_player), stringResource(R.string.media_player_summary),
-                    settings.mediaPlayer, 3, 4, "settings_media_player",
+                    settings.mediaPlayer, 3, 5, "settings_media_player",
                 ) { value ->
                     actions.updateSettings { it.copy(mediaPlayer = value) }
                     if (value && !uiState.media.hasAccess) showMediaAccessDialog = true
                 }
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.settings_search), stringResource(R.string.search_settings_summary),
+                    4, 5, "settings_open_search") { navigate(SettingsPage.Search) }
             }
             if (settings.mediaPlayer && !uiState.media.hasAccess) item {
                 Spacer(Modifier.height(12.dp))

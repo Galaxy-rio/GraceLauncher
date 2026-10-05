@@ -66,6 +66,7 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
             appFontId = settings.appFontId,
             applyFontToSettings = settings.applyFontToSettings,
             privateSpaceJson = settings.privateSpace.encode(),
+            searchJson = settings.search.encode(),
         ))
     }
 
@@ -144,6 +145,7 @@ private fun LauncherSettingsEntity.toSettings() = LauncherSettings(
     appFontId = appFontId,
     applyFontToSettings = applyFontToSettings,
     privateSpace = PrivateSpaceSettings.decode(privateSpaceJson),
+    search = SearchSettings.decode(searchJson),
 )
 
 private fun decodeIconPackOrder(json: String?): List<String> = runCatching {

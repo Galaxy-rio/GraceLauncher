@@ -78,6 +78,7 @@ fun AppDrawerScreen(
 ) {
     val appearance = LocalLauncherAppearance.current
     val density = LocalDensity.current
+    val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
     val safeTop = with(density) { (WindowInsets.safeDrawing.asPaddingValues().calculateTopPadding() + 12.dp)
         .coerceAtLeast(LauncherLayout.TopFadeHeight).roundToPx() }
     val currentModel by rememberUpdatedState(model)
@@ -98,7 +99,7 @@ fun AppDrawerScreen(
         val rowHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == expandedModel.items[index].key }?.size
             ?: with(density) { LauncherLayout.RowMinHeight.roundToPx() }
         val blockHeight = rowHeight * (expandedModel.items.size - index)
-        val desiredTop = (viewport - blockHeight - with(density) { 24.dp.roundToPx() }).coerceAtLeast(safeTop)
+        val desiredTop = (viewport - blockHeight - with(density) { (24.dp + bottomInset).roundToPx() }).coerceAtLeast(safeTop)
         // Short lists settle against the real bottom inset; tall lists start with
         // the Private row in view and continue below it in this same LazyColumn.
         listState.animateScrollToItem(index, with(density) { topSpace.roundToPx() } - desiredTop)
@@ -110,8 +111,9 @@ fun AppDrawerScreen(
             .testTag("app_drawer"),
         // Scrollable leading space, not padding on the viewport: earlier groups
         // may occupy this area after jumping to a later letter. The small, real
-        // bottom inset lets LazyColumn naturally clamp sections near the end.
-        contentPadding = PaddingValues(start = LauncherLayout.Start, end = LauncherLayout.End, top = topSpace, bottom = 24.dp),
+        // bottom inset lets LazyColumn naturally clamp sections near the end
+        // without clipping scrolling rows above the navigation bar.
+        contentPadding = PaddingValues(start = LauncherLayout.Start, end = LauncherLayout.End, top = topSpace, bottom = 24.dp + bottomInset),
         userScrollEnabled = selectedLetter == null,
     ) {
         items(

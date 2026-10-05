@@ -26,6 +26,7 @@ internal fun LauncherSearchBar(
     autoFocus: Boolean = false,
     onBack: (() -> Unit)? = null,
     onSearch: (() -> Unit)? = null,
+    trailingIcon: (@Composable () -> Unit)? = null,
 ) {
     // Keep the native input in its editable/results-visible state. There is no
     // expanding SearchBar or dialog; the collapsed SearchBar wrapper would
@@ -58,7 +59,8 @@ internal fun LauncherSearchBar(
                 } else Icon(painterResource(R.drawable.ms_search), null)
             },
             trailingIcon = {
-                if (textFieldState.text.isNotEmpty()) IconButton(onClick = { textFieldState.edit { replace(0, length, "") } }, enabled = enabled,
+                if (trailingIcon != null) trailingIcon()
+                else if (textFieldState.text.isNotEmpty()) IconButton(onClick = { textFieldState.edit { replace(0, length, "") } }, enabled = enabled,
                     modifier = Modifier.testTag("${tag}_clear")) {
                     Icon(painterResource(R.drawable.ms_close), stringResource(R.string.search_clear_query))
                 }

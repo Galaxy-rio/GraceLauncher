@@ -7,6 +7,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import com.galaxyrio.gracelauncher.data.FolderPlacement
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherDatabase
+import com.galaxyrio.gracelauncher.data.SearchSettings
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.LauncherSettings
 import com.galaxyrio.gracelauncher.data.LauncherSettingsRepository
@@ -51,7 +52,8 @@ class LauncherSettingsPersistenceTest {
                 LauncherDatabase.Migration3To4, LauncherDatabase.Migration4To5, LauncherDatabase.Migration5To6,
                 LauncherDatabase.Migration6To7, LauncherDatabase.Migration7To8, LauncherDatabase.Migration8To9,
                 LauncherDatabase.Migration9To10, LauncherDatabase.Migration10To11, LauncherDatabase.Migration11To12,
-                LauncherDatabase.Migration12To13).build()
+                LauncherDatabase.Migration12To13, LauncherDatabase.Migration13To14,
+                LauncherDatabase.Migration14To15).build()
         database = reopened
         return LauncherSettingsRepository(reopened)
     }
@@ -177,6 +179,8 @@ class LauncherSettingsPersistenceTest {
             wallpaperDimAmount = 35,
             blurWallpaper = false,
             wallpaperBlurRadius = 24,
+            search = SearchSettings(enabled = false, suggestions = false, contacts = true, fuzzy = false,
+                internet = true, hiddenApps = false, recentAppKeys = listOf("mail/MailActivity", "notes/NotesActivity")),
             clockStyle = ClockStyle(layout = ClockLayout.TwoLines,
                 singleLine = ClockStyle.defaults(ClockLayout.SingleLine).copy(weight = 700, showColon = true),
                 twoLines = ClockStyle.defaults(ClockLayout.TwoLines).copy(fontId = "test.ttf", size = 100, letterSpacing = 2)),
