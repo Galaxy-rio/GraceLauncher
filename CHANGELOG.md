@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1
+
+- Added Private Space support.
+- Fixed a bug where hiding apps from the app list also hide them elsewhere.
+- Added quick search to all app pickers.
+- Fixed minor UI issues.
+
 ## 1.1.0
 
 - Added icon pack support and Icon Designer.
