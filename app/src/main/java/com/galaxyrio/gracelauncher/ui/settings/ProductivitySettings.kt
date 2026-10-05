@@ -6,18 +6,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -30,7 +28,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.FolderPlacement
@@ -39,9 +36,9 @@ import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AppIcon
+import com.galaxyrio.gracelauncher.ui.components.AppSelectionList
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
-import com.galaxyrio.gracelauncher.ui.components.LauncherSearchBar
 import com.galaxyrio.gracelauncher.ui.overlays.PopupEditorScreen
 import com.galaxyrio.gracelauncher.ui.overlays.TextEntryDialog
 import com.galaxyrio.gracelauncher.ui.overlays.FolderPlacementDialog
@@ -159,8 +156,7 @@ internal fun ProductivitySettings(
 internal fun HiddenAppsSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit) {
     var selectedKeys by rememberSaveable { mutableStateOf<List<String>>(uiState.hiddenAppKeys.toList()) }
     val queryState = rememberTextFieldState()
-    val query = queryState.text.toString()
-    val filtered = filterApps(uiState.apps, query)
+    val enabled = LocalSettingsStorageState.current.canEdit
     SettingsScaffold(
         stringResource(R.string.settings_hide_apps), "settings_hidden_apps", onBack,
         actions = {
@@ -172,14 +168,19 @@ internal fun HiddenAppsSettings(uiState: LauncherUiState, actions: LauncherActio
             )
         },
     ) { padding ->
-        SettingsList(padding) {
+        AppSelectionList(
+            apps = uiState.apps, selectedKeys = selectedKeys.toSet(), query = queryState,
+            onSelect = { app -> selectedKeys = toggledKeys(selectedKeys, app.key) },
+            modifier = Modifier.padding(padding).consumeWindowInsets(padding).imePadding(),
+            enabled = enabled, itemTagPrefix = "hidden_app",
+        ) {
             item {
-                Text(stringResource(R.string.settings_hide_apps_description), Modifier.padding(horizontal = 4.dp, vertical = 20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.settings_hide_apps_description), Modifier.padding(horizontal = 8.dp, vertical = 20.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            item { AppSearchField(queryState) }
-            item { SettingsHeading(pluralStringResource(R.plurals.settings_select_count, selectedKeys.size, selectedKeys.size)) }
-            appSelectionItems(filtered, selectedKeys.toSet(), "hidden_app") { key ->
-                selectedKeys = toggledKeys(selectedKeys, key)
+            item {
+                Text(pluralStringResource(R.plurals.settings_select_count, selectedKeys.size, selectedKeys.size),
+                    Modifier.padding(horizontal = 8.dp, vertical = 16.dp),
+                    style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -270,42 +271,12 @@ internal fun FolderEditorSettings(folderId: String?, uiState: LauncherUiState, a
 }
 
 @Composable
-private fun AppSearchField(queryState: TextFieldState) {
-    val enabled = LocalSettingsStorageState.current.canEdit
-    LauncherSearchBar(queryState, stringResource(R.string.settings_search_apps), "settings_app_search", enabled = enabled)
-}
-
-private fun LazyListScope.appSelectionItems(apps: List<LauncherApp>, selectedKeys: Set<String>, tagPrefix: String, onToggle: (String) -> Unit) {
-    if (apps.isEmpty()) item {
-        Text(stringResource(R.string.settings_no_apps), Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-    }
-    itemsIndexed(apps, key = { _, app -> app.key }) { index, app ->
-        val checked = app.key in selectedKeys
-        SegmentedListItem(
-            checked = checked, onCheckedChange = { onToggle(app.key) },
-            enabled = LocalSettingsStorageState.current.canEdit,
-            shapes = ListItemDefaults.segmentedShapes(index, apps.size),
-            colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
-            modifier = Modifier.testTag("$tagPrefix:${app.key}"),
-            leadingContent = { AppIcon(app, size = 36.dp) },
-            content = { Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-            trailingContent = { Checkbox(checked = checked, onCheckedChange = null) },
-        )
-    }
-}
-
-@Composable
 private fun FolderPlacement.label(): String = stringResource(
     when (this) {
         FolderPlacement.Favorites -> R.string.settings_folder_favorites
         FolderPlacement.AppList -> R.string.settings_folder_app_list
     },
 )
-
-private fun filterApps(apps: List<LauncherApp>, query: String): List<LauncherApp> {
-    val search = query.trim()
-    return if (search.isEmpty()) apps else apps.filter { it.label.contains(search, true) || it.packageName.contains(search, true) }
-}
 
 private fun toggledKeys(keys: List<String>, key: String): List<String> =
     if (key in keys) keys.filterNot { it == key } else keys + key

@@ -9,10 +9,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -31,7 +29,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.*
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.galaxyrio.gracelauncher.R
@@ -39,8 +36,9 @@ import com.galaxyrio.gracelauncher.data.*
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AppIcon
+import com.galaxyrio.gracelauncher.ui.components.AppSelectionList
+import com.galaxyrio.gracelauncher.ui.components.AppSelectionRow
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
-import com.galaxyrio.gracelauncher.ui.components.LauncherSearchBar
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import com.galaxyrio.gracelauncher.ui.settings.SettingsScaffold
 import com.galaxyrio.gracelauncher.ui.widgets.WidgetPreview
@@ -119,9 +117,6 @@ private fun ItemSelectionScreen(
     val selectedEntries = selected.associateBy { it.key }
     val list = rememberLazyListState()
     val query = rememberTextFieldState()
-    val term = query.text.toString().trim()
-    val filtered = remember(apps, term) { apps.filter { term.isEmpty() || it.label.contains(term, true) ||
-        it.packageName.contains(term, true) || it.sortKey.contains(appSortKey(term), true) } }
     val commit by rememberUpdatedState(onReorder)
     val haptics by rememberUpdatedState(LocalHapticFeedback.current)
     val reorder = remember(list) { FavoritesReorderState(list, selectedKeys, { commit(it) }) {
@@ -144,9 +139,12 @@ private fun ItemSelectionScreen(
     SettingsScaffold(title, "${tag}_screen", onDone, fixedCollapsed = true, actions = {
         TextButton(onClick = onDone, modifier = Modifier.testTag("${tag}_done")) { Text(stringResource(R.string.done)) }
     }) { padding ->
-        LazyColumn(
-            Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding().padding(horizontal = 20.dp).testTag("${tag}_list"),
-            state = list, contentPadding = PaddingValues(bottom = 24.dp), userScrollEnabled = reorder.draggingKey == null,
+        AppSelectionList(
+            apps = apps, selectedKeys = selectedKeys.toSet(), query = query, onSelect = onToggle,
+            modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding(),
+            state = list, listTag = "${tag}_list", searchTag = "${tag}_search", itemTagPrefix = "favorite_all",
+            enabled = enabled && reorder.draggingKey == null, userScrollEnabled = reorder.draggingKey == null,
+            showApps = !reorderOnly,
         ) {
             if (header != null) item(key = "editor_header", contentType = "header") { header() }
             item(key = "selected_header", contentType = "header") { SelectionHeading(stringResource(R.string.favorites_selected), "${tag}_selected") }
@@ -232,18 +230,8 @@ private fun ItemSelectionScreen(
                     }
                 }
             }
-            if (!reorderOnly) {
-            item(key = "all_header", contentType = "header") { SelectionHeading(stringResource(R.string.favorites_all_apps), "${tag}_all_apps") }
-            item(key = "search") {
-                LauncherSearchBar(query, stringResource(R.string.search_apps), "${tag}_search", Modifier.padding(bottom = 12.dp))
-            }
-            if (filtered.isEmpty()) item(key = "no_results") {
-                Text(stringResource(R.string.search_no_results), Modifier.padding(12.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            items(filtered, key = { "all:${it.key}" }, contentType = { "app" }) { app ->
-                SelectionChoice(SelectionEntry(app.key, app.label, app), app.key in selectedKeys, "favorite_all:${app.key}",
-                    enabled && reorder.draggingKey == null, { onToggle(app) }, Modifier.animateItem())
-            }
+            if (!reorderOnly) item(key = "all_header", contentType = "header") {
+                SelectionHeading(stringResource(R.string.favorites_all_apps), "${tag}_all_apps")
             }
         }
     }
@@ -258,20 +246,11 @@ private fun SelectionHeading(text: String, tag: String) {
 @Composable
 private fun SelectionChoice(entry: SelectionEntry, checked: Boolean, tag: String, enabled: Boolean, onToggle: () -> Unit,
     modifier: Modifier = Modifier, selectable: Boolean = true, trailing: @Composable () -> Unit = {}) {
-    Row(modifier.fillMaxWidth().heightIn(min = 64.dp).testTag(tag).clip(RoundedCornerShape(16.dp))
-        .then(if (selectable) Modifier.toggleable(checked, enabled = enabled, role = Role.Checkbox, onValueChange = { onToggle() }) else Modifier)
-        .padding(horizontal = 8.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically) {
-        if (selectable) {
-            Checkbox(checked, null, Modifier.size(24.dp))
-            Spacer(Modifier.width(16.dp))
-        }
-        if (entry.app != null) AppIcon(entry.app, size = 36.dp)
-        else Box(Modifier.size(36.dp), contentAlignment = Alignment.Center) { LauncherIcon(LauncherSymbol.Apps) }
-        Spacer(Modifier.width(16.dp))
-        Text(entry.label, Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis)
-        trailing()
-    }
+    AppSelectionRow(entry.label, checked, onToggle, modifier.testTag(tag), enabled = enabled,
+        selectable = selectable, trailing = trailing, icon = {
+            if (entry.app != null) AppIcon(entry.app, size = 36.dp)
+            else LauncherIcon(LauncherSymbol.Apps)
+        })
 }
 
 @Composable

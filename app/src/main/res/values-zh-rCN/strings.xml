@@ -422,6 +422,7 @@
 
     <!-- Search -->
     <string name="search_clear_query">清空搜索</string>
+    <string name="app_selection_fast_scroll">快速滚动应用列表</string>
 
     <!-- Home widgets -->
     <string name="widget_home_menu">Grace 小组件</string>

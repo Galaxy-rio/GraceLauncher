@@ -436,6 +436,7 @@
 
     <!-- Search -->
     <string name="search_clear_query">Clear search</string>
+    <string name="app_selection_fast_scroll">Quickly scroll through apps</string>
 
     <!-- Home widgets -->
     <string name="widget_home_menu">Grace widget</string>
