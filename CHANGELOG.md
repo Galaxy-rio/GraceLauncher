@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.2
+
+- Updated Icon Designer with support for adjusting home screen icon sizes.
+- Added a new search component for apps and contacts, with fuzzy search support.
+- Fixed minor UI issues and bugs.
+
 ## 1.1.1
 
 - Added Private Space support.
