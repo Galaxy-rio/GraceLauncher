@@ -138,6 +138,10 @@ class PrivateSpaceController private constructor(private val context: Context) {
     }
 
     private fun authenticate(request: Request) {
+        if (Build.VERSION.SDK_INT < 35) {
+            fail(request, R.string.private_space_unsupported)
+            return
+        }
         if (!context.getSystemService(KeyguardManager::class.java).isDeviceSecure) {
             fail(request, R.string.private_space_security_required)
             return

@@ -257,7 +257,6 @@
 <string name="icon_pack_all">alle</string>
 <string name="icon_pack_search">Symbolpakete suchen</string>
 <string name="icon_designer_title">Symboldesigner</string>
-<string name="icon_designer_special">speziell</string>
 <string name="icon_designer_all">alle</string>
 <string name="icon_designer_data">Daten</string>
 <string name="icon_designer_data_empty">Keine gespeicherten Symboldesigns</string>
@@ -268,12 +267,9 @@
 <string name="icon_designer_discard">Verwerfen</string>
 <string name="icon_designer_add_tray">Hintergrundfläche hinzufügen</string>
 <string name="icon_designer_add_tray_summary">Hinter einzelnen Ebenen von Symbolen einen eigenen Hintergrund hinzufügen</string>
-<string name="icon_designer_added_tray_color">Farbe der hinzugefügten Hintergrundfläche</string>
 <string name="icon_designer_choose_app">App auswählen</string>
-<string name="icon_designer_system_apps">System-Apps</string>
 <string name="icon_designer_adaptive_apps">Adaptive Symbole</string>
 <string name="icon_designer_legacy_apps">Ältere Symbole</string>
-<string name="icon_designer_sample">Beispiel %1$d</string>
 <string name="icon_designer_save">Speichern</string>
 <string name="icon_designer_saved">Gespeichert</string>
 <string name="icon_designer_switch_app">App wechseln</string>
@@ -287,13 +283,8 @@
 <string name="icon_designer_shape_cookie">Keks mit n Seiten</string>
 <string name="icon_designer_cookie_sides">Keks · %1$d Seiten</string>
 <string name="icon_designer_color">Farbe</string>
-<string name="icon_designer_color_mixed">Symbole mit Ebenen verwenden die Farben der Hintergrundfläche und des Symbols. Andere Symbole verwenden einen zweifarbigen Graustufenverlauf.</string>
 <string name="icon_designer_tray_color">Farbe der Hintergrundfläche</string>
 <string name="icon_designer_symbol_color">Symbolfarbe</string>
-<string name="icon_designer_gradient_start">Verlaufsanfang</string>
-<string name="icon_designer_gradient_end">Verlaufsende</string>
-<string name="icon_designer_tray_gradient">Hintergrundfläche / Verlaufsanfang</string>
-<string name="icon_designer_symbol_gradient">Symbol / Verlaufsende</string>
 <string name="icon_designer_original_color">Originalfarbe</string>
 <string name="icon_designer_custom_color">Eigene Farbe</string>
 <string name="icon_designer_size_position">Größe und Position</string>
@@ -308,7 +299,6 @@
 <string name="icon_designer_hue">Farbton</string>
 <string name="icon_designer_hex">Hex-Farbwert</string>
 <string name="icon_designer_color_presets">Farbvorlagen</string>
-<string name="icon_designer_bulk_source_hint">Zugeordnete Symbole aus Paketen behalten ihr ursprüngliches Design. Sammeländerungen gelten nur für die übrigen Symbole.</string>
 <string name="icon_pack_description">Symbole werden der Reihe nach aus aktivierten Paketen verwendet, danach aus dem System. Individuelle Designs pro App haben Vorrang.</string>
 <string name="icon_pack_empty">Keine Symbolpakete installiert. Installiere eines und kehre dann hierher zurück.</string>
 <string name="icon_pack_unavailable">Symbolpaket nicht verfügbar · Systemsymbole werden verwendet</string>
