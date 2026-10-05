@@ -78,6 +78,11 @@ class IconDesignRenderingTest {
         assertEquals(0, Color.alpha(mono.getPixel(1, 0)))
         assertEquals(255, Color.alpha(mono.getPixel(3, 0)))
         assertTrue(Color.alpha(mono.getPixel(2, 0)) in 63..65)
+        val inverted = normalizedMonochrome(source, invert = true)
+        assertEquals(0, Color.alpha(inverted.getPixel(0, 0)))
+        assertEquals(255, Color.alpha(inverted.getPixel(1, 0)))
+        assertEquals(0, Color.alpha(inverted.getPixel(3, 0)))
+        assertTrue(Color.alpha(inverted.getPixel(2, 0)) in 63..65)
     }
 
     @Test fun allCropChoicesRenderAndCookieCountsProduceDistinctMasks() {
@@ -122,7 +127,7 @@ class IconDesignRenderingTest {
         assertEquals(ItemIcon("pack", "example.icons", "alternate"), ItemIcon.decode(desktop))
         val design = ItemIcon("image", "example.png", design = IconDesign(shape = IconShape.Cookie, cookieSides = 9,
             background = IconColor.Theme, foreground = IconColor(Color.BLUE), x = 12.5f, y = -10f, size = 175,
-            iconSize = 150, themeIcons = true, themeUnsupportedIcons = true))
+            iconSize = 150, themeIcons = true, themeUnsupportedIcons = true, invertBackgroundDetection = true))
         assertEquals(design, ItemIcon.decode(design.encode()))
     }
 }

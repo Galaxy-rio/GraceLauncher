@@ -44,7 +44,7 @@ internal fun LazyListScope.iconDesignerControls(
 ) {
     val cookie = design.shape == IconShape.Cookie
     val canAddTray = all || !layered
-    val count = (if (all) 7 else 8) + (if (cookie) 1 else 0) + (if (canAddTray) 1 else 0)
+    val count = (if (all) 8 else 9) + (if (cookie) 1 else 0) + (if (canAddTray) 1 else 0)
     var index = 0
     if (!all) {
         val position = index++
@@ -57,6 +57,7 @@ internal fun LazyListScope.iconDesignerControls(
         val sizeIndex = index++
         item("icon_size") {
             DesignerSegment(sizeIndex, count, "icon_designer_display_size") {
+                Text(stringResource(R.string.icon_designer_icon_size_title))
                 DesignerSlider(stringResource(R.string.icon_designer_icon_size), design.iconSize.toFloat(), 100f, 80f..150f,
                     enabled, "icon_designer_icon_size") { onChange(design.copy(iconSize = it.roundToInt())) }
             }
@@ -136,6 +137,14 @@ internal fun LazyListScope.iconDesignerControls(
             DesignerColorRow(stringResource(R.string.icon_designer_symbol_color), design.foreground,
                 defaults.foreground, dynamicColors.second, themeColors.second, enabled, "icon_designer_foreground",
                 colorModifier("foreground"), { onColor("foreground") }) { onChange(design.copy(foreground = defaults.foreground)) }
+        }
+    }
+    val invertIndex = index++
+    item("invert_background") {
+        SettingsToggleItem(stringResource(R.string.icon_designer_invert_background),
+            stringResource(R.string.icon_designer_invert_background_summary),
+            design.invertBackgroundDetection, invertIndex, count, "icon_designer_invert_background", enabled = enabled) {
+            onChange(design.copy(invertBackgroundDetection = it))
         }
     }
     val positionIndex = index++

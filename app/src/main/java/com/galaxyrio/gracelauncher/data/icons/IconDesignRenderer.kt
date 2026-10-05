@@ -35,20 +35,22 @@ internal class IconLayers(
     val originalMask: Path? = null,
 ) {
     val layered: Boolean get() = background != null
-    private var tintedKey: Pair<Int?, Boolean>? = null
+    private var tintedKey: Triple<Int, Boolean, Boolean>? = null
     private var tinted: Bitmap? = null
     private val normalizedMonochrome by lazy { normalizedMonochrome(foreground) }
+    private val invertedMonochrome by lazy { normalizedMonochrome(foreground, invert = true) }
 
     @Synchronized
-    fun symbol(foregroundColor: Int?, themeUnsupported: Boolean): Bitmap {
+    fun symbol(foregroundColor: Int?, themeUnsupported: Boolean, invertBackgroundDetection: Boolean = false): Bitmap {
         if (foregroundColor == null || (monochrome == null && !themeUnsupported)) return foreground
-        val key = foregroundColor to themeUnsupported
+        val key = Triple(foregroundColor, themeUnsupported, invertBackgroundDetection)
         if (tintedKey == key) tinted?.let { return it }
         val result = createBitmap(original.width, original.height).also {
             val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG).apply {
                 colorFilter = PorterDuffColorFilter(foregroundColor, PorterDuff.Mode.SRC_IN)
             }
-            Canvas(it).drawBitmap(monochrome ?: normalizedMonochrome, 0f, 0f, paint)
+            val mask = monochrome ?: if (invertBackgroundDetection) invertedMonochrome else normalizedMonochrome
+            Canvas(it).drawBitmap(mask, 0f, 0f, paint)
         }
         tintedKey = key
         tinted = result
@@ -106,7 +108,7 @@ internal fun renderDesignedIcon(layers: IconLayers, design: IconDesign, dynamicB
     val centerX = side * (0.5f + style.x / 100f)
     val centerY = side * (0.5f + style.y / 100f)
     val half = side * scale / 2f
-    canvas.drawBitmap(layers.symbol(foreground, style.themeUnsupportedIcons), null,
+    canvas.drawBitmap(layers.symbol(foreground, style.themeUnsupportedIcons, style.invertBackgroundDetection), null,
         RectF(centerX - half, centerY - half, centerX + half, centerY + half), paint)
     return output
 }
@@ -118,14 +120,15 @@ private fun hasVisibleSymbol(bitmap: Bitmap): Boolean {
 }
 
 /** A normalized grayscale surface becomes an alpha mask, tinted like a native monochrome layer. */
-internal fun normalizedMonochrome(bitmap: Bitmap): Bitmap {
+internal fun normalizedMonochrome(bitmap: Bitmap, invert: Boolean = false): Bitmap {
     val grayscale = recolorGrayscale(bitmap, Color.BLACK, Color.WHITE)
     val pixels = IntArray(bitmap.width * bitmap.height)
     grayscale.getPixels(pixels, 0, bitmap.width, 0, 0, bitmap.width, bitmap.height)
     grayscale.recycle()
     for (index in pixels.indices) {
         val pixel = pixels[index]
-        pixels[index] = Color.argb(Color.alpha(pixel) * Color.red(pixel) / 255, 255, 255, 255)
+        val foreground = if (invert) 255 - Color.red(pixel) else Color.red(pixel)
+        pixels[index] = Color.argb(Color.alpha(pixel) * foreground / 255, 255, 255, 255)
     }
     return Bitmap.createBitmap(pixels, bitmap.width, bitmap.height, Bitmap.Config.ARGB_8888)
 }

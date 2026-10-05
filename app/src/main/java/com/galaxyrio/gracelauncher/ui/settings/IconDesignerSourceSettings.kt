@@ -2,6 +2,7 @@
 
 package com.galaxyrio.gracelauncher.ui.settings
 
+import android.content.ComponentName
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -35,15 +36,17 @@ import kotlinx.coroutines.withContext
 /** Reuse desktop icon-pack browsing, but return a draft source without changing stored icons. */
 @Composable
 internal fun IconDesignerSourceSettings(uiState: LauncherUiState, repository: IconPackRepository,
-    store: ItemIconStore, onSelect: (ItemIcon) -> Unit, onImport: (ItemIcon) -> Unit, onBack: () -> Unit) {
+    store: ItemIconStore, component: ComponentName?, onSelect: (ItemIcon) -> Unit, onImport: (ItemIcon) -> Unit, onBack: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var pack by rememberSaveable { mutableStateOf<String?>(null) }
     var importing by remember { mutableStateOf(false) }
     val query = rememberTextFieldState()
-    val names by produceState<List<String>?>(null, pack) {
+    val icons by produceState<Pair<List<String>, String?>?>(null, pack, component) {
         value = null
-        pack?.let { value = repository.iconNames(it) }
+        pack?.let { packageName ->
+            value = repository.iconNames(packageName) to component?.let { repository.matchingIconName(packageName, it) }
+        }
     }
     val back = { if (!importing) { if (pack != null) { pack = null; query.edit { replace(0, length, "") } } else onBack() }; Unit }
     BackHandler(onBack = back)
@@ -87,9 +90,10 @@ internal fun IconDesignerSourceSettings(uiState: LauncherUiState, repository: Ic
             } else {
                 LauncherSearchBar(query, stringResource(R.string.icon_edit_search), "icon_designer_source_query",
                     Modifier.padding(horizontal = 16.dp, vertical = 8.dp))
-                val available = names
+                val available = icons
                 if (available == null) Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { CircularProgressIndicator() }
-                else IconPackGrid(pack!!, available, query.text.toString(), repository, !importing, onSelect, Modifier.weight(1f))
+                else IconPackGrid(pack!!, available.first, query.text.toString(), repository, !importing, onSelect,
+                    Modifier.weight(1f), matchedName = available.second)
             }
         }
     }

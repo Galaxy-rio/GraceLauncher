@@ -70,6 +70,12 @@ class IconPackRepository(private val context: Context) {
         if (choice.kind != "pack") null else load(choice.source)?.namedIcon(choice.name)
     }
 
+    internal suspend fun matchingIconName(packageName: String, component: ComponentName): String? = withContext(Dispatchers.IO) {
+        val pack = load(packageName) ?: return@withContext null
+        pack.definition.candidates(component.flattenToString(), LocalDate.now().dayOfMonth)
+            .firstOrNull { pack.namedIcon(it) != null }
+    }
+
     suspend fun installedPacks(): List<IconPackInfo> = withContext(Dispatchers.IO) {
         val packages = linkedSetOf<String>()
         discoveryIntents().forEach { intent ->

@@ -32,6 +32,7 @@ data class IconDesign(
     val iconSize: Int = 100,
     val themeIcons: Boolean = false,
     val themeUnsupportedIcons: Boolean = false,
+    val invertBackgroundDetection: Boolean = false,
     /** Old saved designs lack theming switches; resolve them against the current shared defaults. */
     val inheritThemeDefaults: Boolean = false,
 ) {
@@ -40,6 +41,7 @@ data class IconDesign(
         foreground = foreground ?: defaults.foreground,
         themeIcons = themeIcons || defaults.themeIcons,
         themeUnsupportedIcons = themeUnsupportedIcons || defaults.themeUnsupportedIcons,
+        invertBackgroundDetection = invertBackgroundDetection || defaults.invertBackgroundDetection,
         inheritThemeDefaults = false,
     )
 
@@ -55,6 +57,7 @@ data class IconDesign(
             .put("x", value.x).put("y", value.y).put("size", value.size).put("addTray", value.addTray)
             .put("iconSize", value.iconSize).put("themeIcons", value.themeIcons)
             .put("themeUnsupportedIcons", value.themeUnsupportedIcons)
+            .put("invertBackgroundDetection", value.invertBackgroundDetection)
             .put("inheritThemeDefaults", value.inheritThemeDefaults).apply {
                 value.background?.let { put("background", it.json()) }
                 value.foreground?.let { put("foreground", it.json()) }
@@ -79,6 +82,7 @@ data class IconDesign(
                 // Preserve colors from designs saved before the theming switches existed.
                 themeIcons = it.optBoolean("themeIcons", it.has("background") || it.has("foreground")),
                 themeUnsupportedIcons = it.optBoolean("themeUnsupportedIcons", it.has("background") || it.has("foreground")),
+                invertBackgroundDetection = it.optBoolean("invertBackgroundDetection"),
                 inheritThemeDefaults = it.optBoolean("inheritThemeDefaults", !it.has("themeIcons")),
             ).normalized()
         }

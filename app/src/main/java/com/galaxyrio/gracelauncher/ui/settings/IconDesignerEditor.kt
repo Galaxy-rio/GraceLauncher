@@ -170,7 +170,7 @@ internal fun IconDesignerSettings(
         }, modifier = Modifier.testTag("icon_designer_unsaved"),
     )
     if (sourcePicker) {
-        IconDesignerSourceSettings(uiState, repository, store,
+        IconDesignerSourceSettings(uiState, repository, store, app?.componentName,
             onSelect = { change(it.copy(design = design)); sourcePicker = false },
             onImport = { pendingImages = pendingImages + it.source }, onBack = { sourcePicker = false })
         return
