@@ -6,7 +6,15 @@
     <string name="private_space_password">Password protection</string>
     <string name="private_space_password_summary">Verify with fingerprint or a system password when opening. Android may also require the Private space password.</string>
     <string name="private_space_display">Display as</string>
-    <string name="private_space_display_list">List</string>
+    <string name="private_space_display_list">Additional list</string>
+    <string name="private_space_display_normal">Normal app</string>
+    <string name="private_space_display_heading">Display</string>
+    <string name="private_space_security_heading">Security</string>
+    <string name="private_space_indicator">Private app indicator</string>
+    <string name="private_space_indicator_summary">Show a badge on private app icons</string>
+    <string name="private_space_lock_immediately">Lock immediately</string>
+    <string name="private_space_lock_on_exit">Close automatically when leaving the list</string>
+    <string name="private_space_lock_on_screen">Keep unlocked until the screen locks</string>
     <string name="private_space_display_folder">Folder</string>
     <string name="private_space_edit">Edit</string>
     <string name="private_space_edit_summary">Change the name, icon and app order</string>

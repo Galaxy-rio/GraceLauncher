@@ -70,6 +70,7 @@ fun AppDrawerScreen(
     notifications: Map<String, List<AppNotification>> = emptyMap(),
     folderApps: Map<String, LauncherApp> = emptyMap(),
     privateExpanded: Boolean = false,
+    privateAppsPublic: Boolean = false,
     privateLoading: Boolean = false,
     privateFailed: Boolean = false,
     onLockPrivateSpace: () -> Unit = {},
@@ -89,7 +90,8 @@ fun AppDrawerScreen(
         // Position this opening once, after its initial contents have been laid
         // out. Later package/icon refreshes must leave the user's scroll alone.
         snapshotFlow {
-            !currentPrivateLoading && listState.layoutInfo.totalItemsCount == currentModel.items.size &&
+            (!currentPrivateLoading || currentModel.items.any { it is DrawerItem.PrivateApp }) &&
+                listState.layoutInfo.totalItemsCount == currentModel.items.size &&
                 listState.layoutInfo.viewportEndOffset > listState.layoutInfo.viewportStartOffset
         }.first { it }
         val expandedModel = currentModel
@@ -167,7 +169,8 @@ fun AppDrawerScreen(
                     )
                     is DrawerItem.PrivateApp -> LauncherAppRow(
                         app = item.app, onClick = { onLaunchApp(item.app) }, onLongClick = { onAppDetails(item.app) },
-                        gestures = AppRowGestures(onLaunchAt = rowGestures.onLaunchAt),
+                        onSwipeRight = { if (privateAppsPublic) onAppShortcuts(item.app, it) },
+                        gestures = if (privateAppsPublic) rowGestures else AppRowGestures(onLaunchAt = rowGestures.onLaunchAt),
                         highlighted = highlightedAppKey == item.app.key,
                         modifier = Modifier.animateItem(fadeOutSpec = null),
                     )

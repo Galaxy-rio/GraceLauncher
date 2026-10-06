@@ -43,6 +43,8 @@ import com.galaxyrio.gracelauncher.data.LauncherItemsSnapshot
 import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
 import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderKey
 import com.galaxyrio.gracelauncher.data.PrivateSpaceDefaultName
+import com.galaxyrio.gracelauncher.data.PrivateSpaceDisplay
+import com.galaxyrio.gracelauncher.data.PrivateAppCache
 import com.galaxyrio.gracelauncher.platform.PrivateSpaceController
 import com.galaxyrio.gracelauncher.platform.PrivateSpaceState
 import com.galaxyrio.gracelauncher.platform.DefaultHome
@@ -114,26 +116,38 @@ data class LauncherUiState(
     val privateAppsLoading: Boolean = false,
     val privateAppsFailed: Boolean = false,
     val privateFolderApp: LauncherApp? = null,
+    val shownShortcutKeys: Set<String> = emptySet(),
 ) {
     fun findItem(key: String): LauncherApp? = apps.firstOrNull { it.key == key }
-        ?: shortcutApps.firstOrNull { it.key == key }
+        ?: shortcutApps.firstOrNull { it.key == key && (!it.isPrivateSpace || privateContentVisible) }
+            ?.let { if (it.isPrivateSpace) it.copy(showPrivateIndicator = settings.privateSpace.showIndicator) else it }
         ?: privateSpaceApps.firstOrNull { it.key == key }
         ?: privateFolder.takeIf { it.key == key }?.let(::folderItem)
         ?: folders.firstOrNull { it.key == key }?.let(::folderItem)
 
     val privateFolder: LauncherFolder get() = settings.privateSpace.folder(privateSpaceApps)
-    val privateSpaceApps: List<LauncherApp> get() = if (privateSpace.accessible && !privateSpace.locked && settings.privateSpace.enabled)
-        settings.privateSpace.orderedApps(privateApps) else emptyList()
+    val privateContentVisible: Boolean get() = !isLoadingSettings && !settingsLoadFailed && settings.privateSpace.enabled &&
+        privateSpace.user != null && (settings.privateSpace.exposesApps || (privateSpace.accessible && !privateSpace.locked))
+    val privateSpaceApps: List<LauncherApp> get() = if (privateContentVisible)
+        settings.privateSpace.orderedApps(privateApps).map { it.copy(showPrivateIndicator = settings.privateSpace.showIndicator) } else emptyList()
+    private val publicPrivateShortcuts: List<LauncherApp> get() = if (settings.privateSpace.exposesApps && privateContentVisible)
+        shortcutApps.filter { it.isPrivateSpace && it.key in shownShortcutKeys }.map { it.copy(showPrivateIndicator = settings.privateSpace.showIndicator) } else emptyList()
+    /** Public surfaces include private apps only after the user opts out of launcher protection. */
+    val allApps: List<LauncherApp> get() = (apps + (if (settings.privateSpace.exposesApps) privateSpaceApps else emptyList()) + publicPrivateShortcuts)
+        .distinctBy(LauncherApp::key).sortedWith(LauncherAppOrder)
 
     fun folderItem(folder: LauncherFolder): LauncherApp = ((if (folder.id == PrivateSpaceFolderId) privateFolderApp
         else folderApps.firstOrNull { it.folderId == folder.id })
         ?: folder.asApp()).copy(label = folder.name, originalLabel = folder.name)
 
-    fun popupItems(owner: LauncherApp, defaults: List<LauncherApp>): List<PopupItem> = popups[owner.key]
-        .takeUnless { owner.folderId == PrivateSpaceFolderId }
-        ?: (if (owner.folderId == PrivateSpaceFolderId) privateSpaceApps.map { it.key }
-            else if (owner.folderId == null) defaults.map { it.key }
-            else folders.firstOrNull { it.id == owner.folderId }?.appKeys.orEmpty()).distinct().map { PopupItem(it) }
+    fun popupItems(owner: LauncherApp, defaults: List<LauncherApp>): List<PopupItem> {
+        val items = popups[owner.key].takeUnless { owner.folderId == PrivateSpaceFolderId }
+            ?: (if (owner.folderId == PrivateSpaceFolderId) privateSpaceApps.map { it.key }
+                else if (owner.folderId == null) defaults.map { it.key }
+                else folders.firstOrNull { it.id == owner.folderId }?.appKeys.orEmpty()).distinct().map { PopupItem(it) }
+        return if (owner.folderId != PrivateSpaceFolderId && !settings.privateSpace.exposesApps)
+            items.filterNot { it.key.startsWith("profile:") } else items
+    }
     val homeMedia: NowPlaying?
         get() = media.nowPlaying.takeIf {
             settings.mediaPlayer && media.hasAccess && !isLoadingSettings && !settingsLoadFailed
@@ -142,12 +156,13 @@ data class LauncherUiState(
     /** Hide Apps affects only the alphabetical app list, not other launcher surfaces. */
     val appListApps: List<LauncherApp>
         get() = if (isLoadingSettings || settingsLoadFailed) emptyList()
-        else apps.filterNot { it.key in hiddenAppKeys }
+        else (if (settings.privateSpace.display == PrivateSpaceDisplay.NormalApp) allApps else apps + publicPrivateShortcuts)
+            .filterNot { it.key in hiddenAppKeys }
 
     val favoriteApps: List<LauncherApp>
         get() {
             if (isLoadingSettings || settingsLoadFailed) return emptyList()
-            val favorites = apps.filter { it.key in favoriteKeys }.associateBy(LauncherApp::key)
+            val favorites = allApps.filter { it.key in favoriteKeys }.associateBy(LauncherApp::key)
             return (favoriteOrder + favorites.keys).distinct().mapNotNull(favorites::get)
         }
 }
@@ -155,6 +170,9 @@ data class LauncherUiState(
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
     private val iconPacks = IconPackRepository(application)
     private val appRepository = AppRepository(application, iconPacks)
+    private val privateAppCache = PrivateAppCache(application)
+    private var privateRawApps: List<LauncherApp> = emptyList()
+    private var privateRawSerial: Long = -1
     val privateSpaceController = PrivateSpaceController.get(application)
     private val calendarRepository = CalendarRepository(application)
     private val favoritesStore = FavoritesStore(application)
@@ -199,10 +217,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             privateSpaceController.state.collect { state ->
                 val previous = _uiState.value.privateSpace
+                val sameProfile = previous.user == state.user && previous.serial == state.serial
                 _uiState.update { it.copy(privateSpace = state,
-                    privateApps = if (state.accessible && !state.locked) it.privateApps else emptyList(),
-                    privateAppsLoading = if (state.accessible && !state.locked) it.privateAppsLoading else false) }
-                if (previous.user != state.user || previous.accessible != state.accessible ||
+                    privateApps = if (sameProfile) it.privateApps else emptyList(),
+                    shortcutApps = if (sameProfile) it.shortcutApps else it.shortcutApps.filterNot(LauncherApp::isPrivateSpace)) }
+                if (!sameProfile || previous.accessible != state.accessible ||
                     previous.locked != state.locked || previous.revision != state.revision) refreshPrivateApps()
             }
         }
@@ -215,7 +234,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 val reload = !itemsReady || snapshot.icons != itemsSnapshot.icons || snapshot.shortcuts != itemsSnapshot.shortcuts
                 itemsReady = true
                 itemsSnapshot = snapshot
-                _uiState.update { it.copy(popups = snapshot.popups, itemIcons = snapshot.icons, itemRevision = it.itemRevision + 1) }
+                _uiState.update { it.copy(popups = snapshot.popups, itemIcons = snapshot.icons,
+                    shownShortcutKeys = snapshot.shortcuts.filter { saved -> saved.showInAppList }.map { saved -> saved.itemKey }.toSet(),
+                    itemRevision = it.itemRevision + 1) }
                 if (reload) refreshApps()
             }
         }
@@ -257,6 +278,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 }
                 .collect { snapshot ->
                     val previous = _uiState.value
+                    privateSpaceController.configure(snapshot.settings.privateSpace)
                     _uiState.update {
                         it.copy(
                             settings = snapshot.settings,
@@ -279,9 +301,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         previous.settings.darkMode != snapshot.settings.darkMode ||
                         previous.settings.useDynamicColors != snapshot.settings.useDynamicColors ||
                         previous.settings.themeColor != snapshot.settings.themeColor) refreshApps()
-                    if (previous.settings.privateSpace.enabled && !snapshot.settings.privateSpace.enabled ||
-                        previous.settings.privateSpace.display != snapshot.settings.privateSpace.display) privateSpaceController.lock()
-                    if (previous.settings.privateSpace.enabled != snapshot.settings.privateSpace.enabled) refreshPrivateApps()
+                    if (previous.settings.privateSpace != snapshot.settings.privateSpace) refreshPrivateApps()
                     if (previous.isLoadingSettings || previous.settings.weatherEnabled != snapshot.settings.weatherEnabled ||
                         previous.settings.weatherLocationId != snapshot.settings.weatherLocationId
                     ) refreshWeather()
@@ -330,7 +350,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     val iconSettings = _uiState.value.settings
                     suspend fun decorate(app: LauncherApp): LauncherApp = itemIcons.applyDesign(app, snapshot.icons[app.key], iconSettings.iconDesign, iconSettings, preferences.themedIcons)
                         .copy(label = renames[app.key] ?: app.originalLabel)
-                    val shortcuts = snapshot.shortcuts.mapNotNull { saved ->
+                    val shortcuts = snapshot.shortcuts.filterNot { it.itemKey.startsWith("profile:") }.mapNotNull { saved ->
                         val owner = apps.firstOrNull { it.componentName.flattenToString() == saved.activity }
                             ?: apps.firstOrNull { it.packageName == saved.packageName } ?: return@mapNotNull null
                         val current = shortcutRepository.shortcutsFor(owner).shortcuts.firstOrNull { it.id == saved.shortcutId }
@@ -348,7 +368,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     _uiState.update {
                         it.copy(
                             apps = displayedApps,
-                            shortcutApps = shortcuts,
+                            shortcutApps = shortcuts + it.shortcutApps.filter(LauncherApp::isPrivateSpace),
                             folderApps = folderApps,
                             privateFolderApp = privateFolderApp,
                             favoriteKeys = favorites.toSet(),
@@ -378,26 +398,63 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val state = _uiState.value
         val profile = state.privateSpace
         val user = profile.user
-        if (!profile.accessible || profile.locked || user == null || !state.settings.privateSpace.enabled || !itemsReady) {
-            _uiState.update { it.copy(privateApps = emptyList(), privateAppsLoading = false, privateAppsFailed = false) }
+        if (user == null || !state.settings.privateSpace.enabled || !itemsReady || state.isLoadingSettings || state.settingsLoadFailed ||
+            (state.settings.privateSpace.protectsApps && (!profile.accessible || profile.locked))) {
+            _uiState.update { it.copy(privateAppsLoading = false, privateAppsFailed = false) }
             return
         }
         privateAppLoadJob = viewModelScope.launch {
             _uiState.update { it.copy(privateAppsLoading = true, privateAppsFailed = false) }
             try {
                 val settings = state.settings
-                val apps = appRepository.loadPrivateApps(user, profile.serial, settings.enabledIconPackPackages).map { app ->
+                if (privateRawSerial != profile.serial) {
+                    privateRawApps = privateAppCache.load(user, profile.serial)
+                    privateRawSerial = profile.serial
+                }
+                // This query never disables quiet mode or opens a credential UI.
+                // Some systems suppress locked profiles; retain the last known inventory then.
+                try {
+                    val queried = appRepository.loadPrivateApps(user, profile.serial, emptyList())
+                    if (queried.isNotEmpty() || !profile.locked) {
+                        val previous = privateRawApps.associateBy(LauncherApp::key)
+                        privateRawApps = queried.map { app ->
+                            if (app.icon != null) app else app.copy(icon = previous[app.key]?.icon, monochromeIcon = previous[app.key]?.monochromeIcon)
+                        }
+                        try { privateAppCache.save(profile.serial, privateRawApps) }
+                        catch (error: Exception) {
+                            if (error is CancellationException) throw error
+                            Log.w("LauncherViewModel", "Unable to cache private app inventory", error)
+                        }
+                    }
+                } catch (error: Exception) {
+                    if (error is CancellationException) throw error
+                    if (privateRawApps.isEmpty()) throw error
+                }
+                val packed = appRepository.applyPrivateIconPacks(privateRawApps, settings.enabledIconPackPackages)
+                val apps = packed.map { app ->
                     itemIcons.applyDesign(app, itemsSnapshot.icons[app.key], settings.iconDesign, settings, preferences.themedIcons)
                 }
+                val savedShortcuts = itemsSnapshot.shortcuts.filter { it.itemKey.startsWith("profile:${profile.serial}:shortcut:") }
+                    .mapNotNull { saved ->
+                        val owner = packed.firstOrNull { it.componentName.flattenToString() == saved.activity }
+                            ?: packed.firstOrNull { it.packageName == saved.packageName } ?: return@mapNotNull null
+                        val current = if (!profile.locked) shortcutRepository.shortcutsFor(owner).shortcuts.firstOrNull { it.id == saved.shortcutId } else null
+                        val shortcut = current ?: LauncherShortcut(saved.shortcutId, saved.packageName, saved.label, owner.icon,
+                            owner.componentName, user = user, userSerial = profile.serial, isPrivateSpace = true)
+                        val app = shortcut.asApp(owner)
+                        itemIcons.applyDesign(app, itemsSnapshot.icons[app.key], settings.iconDesign, settings, preferences.themedIcons)
+                    }
                 val renames = preferences.renames()
-                // A lock or profile change can race the binder/icon work. Never publish stale private contents.
-                if (privateSpaceController.state.value.accessible && privateSpaceController.state.value.user == user) {
+                // Cache visibility is determined by settings; never publish another profile's inventory.
+                if (privateSpaceController.state.value.user == user && privateSpaceController.state.value.serial == profile.serial &&
+                    _uiState.value.settings.privateSpace.enabled) {
                     _uiState.update { it.copy(privateApps = apps.map { app -> app.copy(label = renames[app.key] ?: app.originalLabel) },
+                        shortcutApps = it.shortcutApps.filterNot(LauncherApp::isPrivateSpace) + savedShortcuts.map { app -> app.copy(label = renames[app.key] ?: app.originalLabel) },
                         privateAppsLoading = false) }
                 }
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
-                _uiState.update { it.copy(privateApps = emptyList(), privateAppsLoading = false, privateAppsFailed = true) }
+                _uiState.update { it.copy(privateAppsLoading = false, privateAppsFailed = true) }
             }
         }
     }
@@ -463,11 +520,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun launch(app: LauncherApp, bounds: Rect? = null, options: Bundle? = null, fromSearch: Boolean = false): Boolean {
         if (app.folderId != null) return false
         if (app.isPrivateSpace && !privateSpaceController.prepareAppLaunch(app.user, app.key)) return false
-        if (!app.isPrivateSpace && _uiState.value.privateSpace.accessible) privateSpaceController.lock()
+        if (!app.isPrivateSpace) privateSpaceController.close()
         val launched = app.shortcut?.let { shortcutRepository.launch(it, bounds, options) } ?: appRepository.launch(app, bounds, options)
-        if (app.isPrivateSpace) privateSpaceController.finishAppLaunch()
-        if (app.isPrivateSpace && !launched) privateSpaceController.lock()
-        if (launched && fromSearch && !app.isPrivateSpace) {
+        if (app.isPrivateSpace) privateSpaceController.finishAppLaunch(launched)
+        if (launched && fromSearch && (!app.isPrivateSpace || _uiState.value.settings.privateSpace.exposesApps)) {
             updateSettings { it.copy(search = it.search.recordApp(app.key)) }
         }
         return launched
@@ -483,8 +539,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch { shortcutRepository.prefetch(listOf(app)) }
     }
 
-    fun launchShortcut(shortcut: LauncherShortcut, bounds: Rect? = null, options: Bundle? = null) =
-        shortcutRepository.launch(shortcut, bounds, options)
+    fun preparePrivateShortcutLaunch(shortcut: LauncherShortcut): Boolean =
+        privateSpaceController.prepareAppLaunch(shortcut.user, shortcut.key)
+
+    fun launchShortcut(shortcut: LauncherShortcut, bounds: Rect? = null, options: Bundle? = null): Boolean {
+        if (shortcut.isPrivateSpace && !preparePrivateShortcutLaunch(shortcut)) return false
+        if (!shortcut.isPrivateSpace) privateSpaceController.close()
+        val launched = shortcutRepository.launch(shortcut, bounds, options)
+        if (shortcut.isPrivateSpace) privateSpaceController.finishAppLaunch(launched)
+        return launched
+    }
 
     override fun onCleared() {
         getApplication<Application>().unregisterReceiver(packageReceiver)

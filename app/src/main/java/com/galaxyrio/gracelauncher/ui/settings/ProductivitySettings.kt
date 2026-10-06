@@ -173,7 +173,7 @@ internal fun HiddenAppsSettings(uiState: LauncherUiState, actions: LauncherActio
         },
     ) { padding ->
         AppSelectionList(
-            apps = uiState.apps, selectedKeys = selectedKeys.toSet(), query = queryState,
+            apps = uiState.allApps, selectedKeys = selectedKeys.toSet(), query = queryState,
             onSelect = { app -> selectedKeys = toggledKeys(selectedKeys, app.key) },
             modifier = Modifier.padding(padding).consumeWindowInsets(padding).imePadding(),
             enabled = enabled, itemTagPrefix = "hidden_app",

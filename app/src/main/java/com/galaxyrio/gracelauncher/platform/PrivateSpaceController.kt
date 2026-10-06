@@ -20,6 +20,8 @@ import android.provider.Settings
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.galaxyrio.gracelauncher.R
+import com.galaxyrio.gracelauncher.data.PrivateSpaceSettings
+import com.galaxyrio.gracelauncher.data.PrivateSpaceDisplay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
@@ -33,6 +35,7 @@ data class PrivateSpaceState(
     val accessible: Boolean = false,
     val authenticating: Boolean = false,
     val revision: Int = 0,
+    val lockVersion: Int = 0,
 )
 
 /** One ephemeral session shared by HOME and the standalone settings Activity. */
@@ -46,6 +49,17 @@ class PrivateSpaceController private constructor(private val context: Context) {
     private var generation = 0
     private var lockOnReturn = false
     private var preparedAppKey: String? = null
+    private var settings = PrivateSpaceSettings()
+    private var configured = false
+
+    fun configure(value: PrivateSpaceSettings) {
+        val previous = settings
+        settings = value
+        configured = true
+        if (!value.locksOnExit) lockOnReturn = false
+        if (!value.enabled || (!previous.protectsApps && value.protectsApps)) lock()
+        else refresh()
+    }
 
     private class Request(val activity: Activity, val user: UserHandle, val authenticate: Boolean, val ready: () -> Unit) {
         var systemChallenge = false
@@ -58,7 +72,9 @@ class PrivateSpaceController private constructor(private val context: Context) {
         if (Build.VERSION.SDK_INT >= 35) {
             ContextCompat.registerReceiver(context, object : BroadcastReceiver() {
                 override fun onReceive(context: Context?, intent: Intent?) {
-                    if (intent?.action == Intent.ACTION_SCREEN_OFF) lock() else refresh()
+                    if (intent?.action == Intent.ACTION_SCREEN_OFF) {
+                        if (settings.enabled && settings.display != PrivateSpaceDisplay.NormalApp) lock() else clearSession()
+                    } else refresh()
                 }
             }, IntentFilter().apply {
                 addAction(Intent.ACTION_PROFILE_AVAILABLE)
@@ -95,7 +111,8 @@ class PrivateSpaceController private constructor(private val context: Context) {
         val locked = user == null || runCatching { users.isQuietModeEnabled(user) || !users.isUserUnlocked(user) }.getOrDefault(true)
         val previous = _state.value
         _state.value = previous.copy(user = user, serial = user?.let(users::getSerialNumberForUser) ?: -1,
-            locked = locked, accessible = previous.accessible && !locked && previous.user == user)
+            locked = locked, accessible = !locked && (settings.exposesApps || (previous.accessible && previous.user == user)),
+            lockVersion = previous.lockVersion + if ((locked && !previous.locked) || previous.user != user) 1 else 0)
         val request = pending
         if (request != null) {
             if (request.user != user) cancelAuthentication(request.activity)
@@ -108,7 +125,7 @@ class PrivateSpaceController private constructor(private val context: Context) {
         }
     }
 
-    fun unlock(activity: Activity, authenticate: Boolean, ready: () -> Unit) {
+    fun unlock(activity: Activity, authenticate: Boolean, forceAuthentication: Boolean = false, ready: () -> Unit) {
         if (pending != null) return
         refresh()
         val user = _state.value.user
@@ -116,6 +133,7 @@ class PrivateSpaceController private constructor(private val context: Context) {
             Toast.makeText(context, if (DefaultHome.isDefault(context)) R.string.private_space_setup else R.string.shortcut_permission, Toast.LENGTH_LONG).show()
             return
         }
+        if (_state.value.accessible && !_state.value.locked && !forceAuthentication) { ready(); return }
         val request = Request(activity, user, authenticate, ready)
         pending = request
         generation++
@@ -126,7 +144,7 @@ class PrivateSpaceController private constructor(private val context: Context) {
                 request.systemChallenge = !immediate
                 if (immediate) awaitProfile(request, generation, 0)
             }.onFailure { fail(request, R.string.private_space_unavailable) }
-        } else if (authenticate) authenticate(request) else complete(request)
+        } else if (request.authenticate) authenticate(request) else complete(request)
     }
 
     private fun awaitProfile(request: Request, token: Int, attempt: Int) {
@@ -191,16 +209,21 @@ class PrivateSpaceController private constructor(private val context: Context) {
         generation++
         request.signal?.cancel()
         _state.update { it.copy(authenticating = false) }
-        lock()
+        if (settings.protectsApps) lock() else clearSession()
     }
 
-    fun lock() {
+    private fun clearSession() {
         preparedAppKey = null
+        lockOnReturn = false
         val request = pending
         pending = null
         generation++
         request?.signal?.cancel()
-        _state.update { it.copy(accessible = false, authenticating = false) }
+        _state.update { it.copy(accessible = false, authenticating = false, lockVersion = it.lockVersion + 1) }
+    }
+
+    fun lock() {
+        clearSession()
         val user = _state.value.user ?: return
         lockOnReturn = runCatching {
             if (!users.isQuietModeEnabled(user)) users.requestQuietModeEnabled(true, user) else true
@@ -211,29 +234,37 @@ class PrivateSpaceController private constructor(private val context: Context) {
     /** Locking a profile stops its apps. Defer that operation until HOME resumes. */
     fun prepareAppLaunch(user: UserHandle?, key: String): Boolean {
         if (preparedAppKey == key && user == _state.value.user && !_state.value.locked) return true
-        if (!_state.value.accessible || _state.value.locked || user != _state.value.user) return false
+        if (!settings.enabled || _state.value.locked || user != _state.value.user ||
+            (settings.protectsApps && !_state.value.accessible)) return false
         preparedAppKey = key
-        lockOnReturn = true
-        _state.update { it.copy(accessible = false) }
+        lockOnReturn = settings.locksOnExit
+        if (lockOnReturn) _state.update { it.copy(accessible = false) }
         return true
     }
 
-    fun finishAppLaunch() { preparedAppKey = null }
+    fun finishAppLaunch(launched: Boolean = true) {
+        preparedAppKey = null
+        if (!launched) {
+            lockOnReturn = false
+            if (settings.locksOnExit) lock()
+        }
+    }
 
     fun close() {
-        if (_state.value.accessible && !_state.value.authenticating) lock()
+        if (configured && settings.locksOnExit && _state.value.accessible && !_state.value.authenticating) lock()
     }
 
     fun onPause() {
         val request = pending
         if (request != null) request.paused = true
-        else if (_state.value.accessible) lock()
+        else if (!lockOnReturn) close()
     }
 
     fun onResume() {
         refresh()
         // A process restart must not inherit an unlocked session from the system.
-        if (pending == null && (lockOnReturn || (!_state.value.accessible && !_state.value.locked))) lock()
+        if (configured && settings.locksOnExit && pending == null &&
+            (lockOnReturn || (settings.protectsApps && !_state.value.accessible && !_state.value.locked))) lock()
         val request = pending ?: return
         if (request.paused && request.systemChallenge && request.waitingForProfile) {
             val token = generation
@@ -252,7 +283,7 @@ class PrivateSpaceController private constructor(private val context: Context) {
     }
 
     fun openSettings(activity: Activity) {
-        lock()
+        close()
         if (Build.VERSION.SDK_INT >= 36) {
             val sender = runCatching { launcherApps.privateSpaceSettingsIntent }.getOrNull()
             if (sender != null) {

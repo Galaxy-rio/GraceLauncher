@@ -25,7 +25,7 @@ import com.galaxyrio.gracelauncher.ui.components.AppSelectionRow
 @Composable
 internal fun clockAppSummary(uiState: LauncherUiState): String =
     if (uiState.settings.clockAppKey == null) stringResource(R.string.clock_default_app)
-    else uiState.apps.firstOrNull { it.key == uiState.settings.clockAppKey }?.label
+    else uiState.allApps.firstOrNull { it.key == uiState.settings.clockAppKey }?.label
         ?: stringResource(R.string.clock_selected_unavailable)
 
 /** Choosing a target persists a preference; it never launches the selected app. */
@@ -48,8 +48,8 @@ internal fun AppSelectionSettings(
 ) {
     val queryState = rememberTextFieldState()
     val ownPackage = LocalContext.current.packageName
-    // This preference stores an activity component, not a deep-shortcut identity.
-    val available = remember(uiState.apps, ownPackage) { uiState.apps.filter { it.packageName != ownPackage && it.shortcut == null } }
+    // A profile-qualified activity key keeps private and personal copies distinct.
+    val available = remember(uiState.allApps, ownPackage) { uiState.allApps.filter { it.packageName != ownPackage && it.shortcut == null } }
     val enabled = LocalSettingsStorageState.current.canEdit
     val ready = !uiState.isLoadingApps && !uiState.appLoadFailed
     SettingsScaffold(title, "settings_${tag}_page", onBack) { padding ->

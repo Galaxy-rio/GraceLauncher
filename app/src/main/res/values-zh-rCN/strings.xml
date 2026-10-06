@@ -7,7 +7,15 @@
     <string name="private_space_password">密码保护</string>
     <string name="private_space_password_summary">打开时使用指纹或系统密码验证。Android 也可能要求验证私密空间密码。</string>
     <string name="private_space_display">显示方式</string>
-    <string name="private_space_display_list">列表</string>
+    <string name="private_space_display_list">附加列表</string>
+    <string name="private_space_display_normal">普通应用</string>
+    <string name="private_space_display_heading">显示</string>
+    <string name="private_space_security_heading">安全</string>
+    <string name="private_space_indicator">私密应用指示器</string>
+    <string name="private_space_indicator_summary">在私密应用图标上显示标志</string>
+    <string name="private_space_lock_immediately">立即锁定</string>
+    <string name="private_space_lock_on_exit">离开列表时自动关闭</string>
+    <string name="private_space_lock_on_screen">保持解锁直到屏幕锁定</string>
     <string name="private_space_display_folder">文件夹</string>
     <string name="private_space_edit">编辑</string>
     <string name="private_space_edit_summary">修改名称、图标和应用排序</string>

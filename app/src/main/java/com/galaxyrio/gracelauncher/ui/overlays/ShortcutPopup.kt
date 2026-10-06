@@ -143,7 +143,7 @@ fun ShortcutPopup(
             } else if (onLock != null) {
                 Text(stringResource(if (uiState.privateAppsFailed) R.string.private_space_unavailable else R.string.private_space_empty),
                     Modifier.testTag("private_space_empty").padding(horizontal = 12.dp, vertical = 18.dp), style = MaterialTheme.typography.bodyMedium)
-                TextButton(onClick = if (uiState.privateAppsFailed) actions.refreshApps else actions.openPrivateSpaceSettings) {
+                TextButton(onClick = if (uiState.privateAppsFailed) ({ actions.requestPrivateSpace(true, actions.refreshApps) }) else actions.openPrivateSpaceSettings) {
                     Text(stringResource(if (uiState.privateAppsFailed) R.string.retry else R.string.private_space_setup))
                 }
             } else {

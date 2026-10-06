@@ -29,6 +29,7 @@ data class LauncherApp(
     val user: android.os.UserHandle? = null,
     val userSerial: Long? = null,
     val isPrivateSpace: Boolean = false,
+    val showPrivateIndicator: Boolean = true,
 ) {
     val key: String = folderId?.let { "folder:$it" } ?: shortcut?.key
         ?: userSerial?.let { "profile:$it:${componentName.flattenToString()}" } ?: componentName.flattenToString()

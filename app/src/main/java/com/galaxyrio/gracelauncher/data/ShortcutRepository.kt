@@ -26,11 +26,18 @@ data class LauncherShortcut(
     val label: String,
     val icon: ImageBitmap?,
     val activity: ComponentName? = null,
+    val user: UserHandle? = null,
+    val userSerial: Long? = null,
+    val isPrivateSpace: Boolean = false,
 ) {
-    val key: String get() = "shortcut:$packageName/${Uri.encode(id)}"
-    fun asApp(owner: LauncherApp) = LauncherApp(
-        componentName = activity ?: owner.componentName, label = label, icon = icon, shortcut = this,
-    )
+    val key: String get() = (userSerial?.let { "profile:$it:" } ?: "") + "shortcut:$packageName/${Uri.encode(id)}"
+    fun asApp(owner: LauncherApp): LauncherApp {
+        val identity = copy(user = user ?: owner.user, userSerial = userSerial ?: owner.userSerial,
+            isPrivateSpace = isPrivateSpace || owner.isPrivateSpace)
+        return LauncherApp(componentName = activity ?: owner.componentName, label = label, icon = icon, shortcut = identity,
+            user = identity.user, userSerial = identity.userSerial, isPrivateSpace = identity.isPrivateSpace,
+            showPrivateIndicator = owner.showPrivateIndicator)
+    }
 }
 
 enum class ShortcutStatus { Loading, Ready, DefaultLauncherRequired, Error }
@@ -41,7 +48,8 @@ data class ShortcutResult(
 )
 
 class ShortcutRepository(context: Context) : AutoCloseable {
-    private data class QueryKey(val packageName: String, val activity: String)
+    private data class QueryKey(val packageName: String, val activity: String, val user: UserHandle,
+        val userSerial: Long?, val isPrivateSpace: Boolean)
 
     private val launcherApps = context.getSystemService(LauncherApps::class.java)
     private val density = context.resources.displayMetrics.densityDpi
@@ -100,7 +108,8 @@ class ShortcutRepository(context: Context) : AutoCloseable {
         apps.distinctBy { it.key }.forEach { app -> launch { shortcutsFor(app) } }
     }
 
-    private fun LauncherApp.queryKey() = QueryKey(packageName, componentName.flattenToString())
+    private fun LauncherApp.queryKey() = QueryKey(packageName, componentName.flattenToString(),
+        user ?: this@ShortcutRepository.user, userSerial, isPrivateSpace)
 
     private fun invalidate(packageName: String) {
         cache.invalidate { it.packageName == packageName }
@@ -116,7 +125,7 @@ class ShortcutRepository(context: Context) : AutoCloseable {
                         LauncherApps.ShortcutQuery.FLAG_MATCH_DYNAMIC or
                         LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED,
                 )
-            val shortcuts = launcherApps.getShortcuts(query, user).orEmpty()
+            val shortcuts = launcherApps.getShortcuts(query, key.user).orEmpty()
                 .filter { it.isEnabled && (it.activity == null || it.activity?.flattenToString() == key.activity) }
                 .distinctBy { it.id }
                 .sortedWith(compareBy({ !it.isDeclaredInManifest }, { it.rank }))
@@ -130,32 +139,34 @@ class ShortcutRepository(context: Context) : AutoCloseable {
                                 ?.toBitmap(width = 120, height = 120)?.asImageBitmap()
                         }.getOrNull(),
                         activity = info.activity,
+                        user = key.user.takeIf { key.userSerial != null }, userSerial = key.userSerial, isPrivateSpace = key.isPrivateSpace,
                     )
                 }
             ShortcutResult(ShortcutStatus.Ready, shortcuts)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: SecurityException) {
-            ShortcutResult(ShortcutStatus.DefaultLauncherRequired)
+            ShortcutResult(if (hasAccess()) ShortcutStatus.Error else ShortcutStatus.DefaultLauncherRequired)
         } catch (_: Exception) {
             ShortcutResult(ShortcutStatus.Error)
         }
     }
 
     fun launch(shortcut: LauncherShortcut, sourceBounds: Rect? = null, options: Bundle? = null): Boolean = runCatching {
-        launcherApps.startShortcut(shortcut.packageName, shortcut.id, sourceBounds, options, user)
+        launcherApps.startShortcut(shortcut.packageName, shortcut.id, sourceBounds, options, shortcut.user ?: user)
     }.isSuccess
 
     /** Preserve dynamic shortcuts once the user adds them to a persistent surface. */
     suspend fun pin(shortcuts: List<LauncherShortcut>) = withContext(Dispatchers.IO) {
         if (!hasAccess()) return@withContext
-        shortcuts.groupBy { it.packageName }.forEach { (pkg, entries) ->
+        shortcuts.groupBy { it.packageName to (it.user ?: user) }.forEach { (target, entries) ->
+            val (pkg, targetUser) = target
             runCatching {
                 val existing = launcherApps.getShortcuts(LauncherApps.ShortcutQuery().setPackage(pkg)
-                    .setQueryFlags(LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED), user).orEmpty().map { it.id }
+                    .setQueryFlags(LauncherApps.ShortcutQuery.FLAG_MATCH_PINNED), targetUser).orEmpty().map { it.id }
                 val next = (existing + entries.map { it.id }).distinct()
                 if (next.toSet() != existing.toSet()) {
-                    launcherApps.pinShortcuts(pkg, next, user)
+                    launcherApps.pinShortcuts(pkg, next, targetUser)
                     invalidate(pkg)
                 }
             }

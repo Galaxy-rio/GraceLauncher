@@ -9,6 +9,7 @@ import android.content.pm.LauncherApps
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.UserHandle
 import android.provider.CalendarContract
 import android.provider.Settings
 import android.widget.Toast
@@ -90,6 +91,7 @@ import com.galaxyrio.gracelauncher.MainActivity
 import com.galaxyrio.gracelauncher.WidgetSetupActivity
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
+import com.galaxyrio.gracelauncher.data.LauncherShortcut
 import com.galaxyrio.gracelauncher.data.PrivateSpaceDisplay
 import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
@@ -201,15 +203,35 @@ fun LauncherRoute(
             Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
         }
     }
+    fun withPrivateProfile(user: UserHandle?, isPrivate: Boolean, ready: () -> Unit) {
+        if (!isPrivate) { ready(); return }
+        val controller = viewModel.privateSpaceController
+        controller.refresh()
+        val settings = viewModel.uiState.value.settings.privateSpace
+        val state = controller.state.value
+        if (!settings.enabled || user == null || user != state.user) return
+        if (!state.locked && (state.accessible || settings.exposesApps)) { ready(); return }
+        val activity = context as? androidx.activity.ComponentActivity ?: return
+        controller.unlock(activity, authenticate = settings.protectsApps) {
+            activity.lifecycleScope.launch {
+                yield()
+                activity.lifecycle.withResumed {
+                    if (controller.state.value.user == user && !controller.state.value.locked &&
+                        viewModel.uiState.value.settings.privateSpace.enabled) ready()
+                }
+            }
+        }
+    }
     val openPrivateAppAction: (LauncherApp, () -> Unit) -> Unit = { app, open ->
         // App info may itself run in the private profile. Hide our contents now
         // and defer Android's profile lock until returning, as for an app launch.
-        if (viewModel.preparePrivateAppLaunch(app)) {
-            runCatching(open).onFailure {
-                viewModel.privateSpaceController.lock()
-                Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
+        withPrivateProfile(app.user, app.isPrivateSpace) {
+            if (viewModel.preparePrivateAppLaunch(app)) {
+                val result = runCatching(open).onFailure {
+                    Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
+                }
+                viewModel.privateSpaceController.finishAppLaunch(result.isSuccess)
             }
-            viewModel.privateSpaceController.finishAppLaunch()
         }
     }
 
@@ -220,17 +242,37 @@ fun LauncherRoute(
             }
         }
         // Preserve the same icon launch animation and private-profile protection for every entry.
-        if (!app.isPrivateSpace || viewModel.preparePrivateAppLaunch(app)) {
-            if (bounds == null) start(null)
-            else if (appTransitions != null) appTransitions.launch(launchView, bounds.toAndroidRect(), start)
-            else start(AppLaunchTransition.fromIcon(launchView, bounds.toAndroidRect()))
+        withPrivateProfile(app.user, app.isPrivateSpace) {
+            if (!app.isPrivateSpace || viewModel.preparePrivateAppLaunch(app)) {
+                if (bounds == null) start(null)
+                else if (appTransitions != null) appTransitions.launch(launchView, bounds.toAndroidRect(), start)
+                else start(AppLaunchTransition.fromIcon(launchView, bounds.toAndroidRect()))
+            }
+        }
+    }
+
+    fun launchShortcut(shortcut: LauncherShortcut, bounds: Rect?) {
+        withPrivateProfile(shortcut.user, shortcut.isPrivateSpace) {
+            if (!shortcut.isPrivateSpace || viewModel.preparePrivateShortcutLaunch(shortcut)) {
+                val start: (AppLaunchTransition?) -> Unit = { transition ->
+                    if (!viewModel.launchShortcut(shortcut, transition?.sourceBounds, transition?.options)) {
+                        Toast.makeText(context, R.string.shortcut_error, Toast.LENGTH_SHORT).show()
+                    }
+                }
+                if (bounds == null) start(null)
+                else if (appTransitions != null) appTransitions.launch(launchView, bounds.toAndroidRect(), start)
+                else start(AppLaunchTransition.fromIcon(launchView, bounds.toAndroidRect()))
+            }
         }
     }
 
     val actions = LauncherActions(
         requestPrivateSpace = { forceAuthentication, ready ->
-            (context as? androidx.activity.ComponentActivity)?.let { activity ->
-                viewModel.privateSpaceController.unlock(activity, forceAuthentication || uiState.settings.privateSpace.passwordProtected) {
+            val settings = viewModel.uiState.value.settings.privateSpace
+            if (settings.exposesApps && !forceAuthentication) ready()
+            else (context as? androidx.activity.ComponentActivity)?.let { activity ->
+                viewModel.privateSpaceController.unlock(activity, authenticate = forceAuthentication || settings.protectsApps,
+                    forceAuthentication = forceAuthentication) {
                     activity.lifecycleScope.launch {
                         // Availability can arrive while Android's credential Activity is still
                         // closing. Let NavHost receive RESUME before its guarded navigation.
@@ -316,7 +358,10 @@ fun LauncherRoute(
         },
         screenTime = { app ->
             if (Build.VERSION.SDK_INT >= 29) {
-                openSystemApp(Intent(Settings.ACTION_APP_USAGE_SETTINGS).putExtra(Intent.EXTRA_PACKAGE_NAME, app.packageName))
+                val intent = Intent(Settings.ACTION_APP_USAGE_SETTINGS).putExtra(Intent.EXTRA_PACKAGE_NAME, app.packageName)
+                if (app.isPrivateSpace) openPrivateAppAction(app) {
+                    context.startActivity(intent.putExtra(Intent.EXTRA_USER, requireNotNull(app.user)))
+                } else openSystemApp(intent)
             } else Toast.makeText(context, R.string.action_unavailable, Toast.LENGTH_SHORT).show()
         },
         uninstall = { app ->
@@ -374,18 +419,8 @@ fun LauncherRoute(
         reorderFavorites = viewModel::reorderFavorites,
         launchAppAt = { app, bounds -> launchApp(app, bounds) },
         launchSearchApp = { app, bounds -> launchApp(app, bounds, fromSearch = true) },
-        launchShortcutAt = { shortcut, bounds ->
-            val start: (AppLaunchTransition?) -> Unit = { transition ->
-                if (!viewModel.launchShortcut(shortcut, transition?.sourceBounds, transition?.options)) {
-                    Toast.makeText(context, R.string.shortcut_error, Toast.LENGTH_SHORT).show()
-                }
-            }
-            if (appTransitions != null) appTransitions.launch(launchView, bounds.toAndroidRect(), start)
-            else start(AppLaunchTransition.fromIcon(launchView, bounds.toAndroidRect()))
-        },
-        launchShortcut = {
-            if (!viewModel.launchShortcut(it)) Toast.makeText(context, R.string.shortcut_error, Toast.LENGTH_SHORT).show()
-        },
+        launchShortcutAt = { shortcut, bounds -> launchShortcut(shortcut, bounds) },
+        launchShortcut = { launchShortcut(it, null) },
     )
     if (settingsOnly) {
         // Do not register a root back callback here: Android owns the predictive
@@ -407,19 +442,24 @@ fun LauncherRoute(
             returnHomeRequests = viewModel.returnHomeRequests,
             onDateClick = { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) },
             onClockClick = {
-                when (ClockLauncher.open(context, uiState.settings.clockAppKey)) {
-                    ClockLaunchResult.Opened -> Unit
-                    ClockLaunchResult.NoHandler -> {
-                        Toast.makeText(context,
-                            if (uiState.settings.clockAppKey == null) R.string.clock_default_unavailable else R.string.clock_app_unavailable,
-                            Toast.LENGTH_LONG).show()
+                val key = uiState.settings.clockAppKey
+                if (key?.startsWith("profile:") == true) {
+                    val app = uiState.allApps.firstOrNull { it.key == key }
+                    if (app != null) launchApp(app, null)
+                    else Toast.makeText(context, R.string.clock_app_unavailable, Toast.LENGTH_LONG).show()
+                } else {
+                    when (ClockLauncher.open(context, key)) {
+                        ClockLaunchResult.Opened -> Unit
+                        ClockLaunchResult.NoHandler -> {
+                            Toast.makeText(context,
+                                if (key == null) R.string.clock_default_unavailable else R.string.clock_app_unavailable,
+                                Toast.LENGTH_LONG).show()
+                        }
+                        ClockLaunchResult.Failed -> Toast.makeText(context, R.string.clock_app_unavailable, Toast.LENGTH_LONG).show()
                     }
-                    ClockLaunchResult.Failed -> Toast.makeText(context, R.string.clock_app_unavailable, Toast.LENGTH_LONG).show()
                 }
             },
-            onLaunchApp = { app ->
-                if (!viewModel.launch(app)) Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
-            },
+            onLaunchApp = { app -> launchApp(app, null) },
             onToggleFavorite = viewModel::toggleFavorite,
             actions = actions,
         )
@@ -447,10 +487,10 @@ internal fun LauncherScreen(
     var privateSwipeAnchor by remember { mutableStateOf<Rect?>(null) }
     var privateFolderWasOpen by remember { mutableStateOf(false) }
     val latestUiState by rememberUpdatedState(uiState)
-    val privateExpanded = privateListOpen && uiState.privateSpace.accessible && !uiState.privateSpace.locked &&
-        uiState.settings.privateSpace.enabled && uiState.settings.privateSpace.display == PrivateSpaceDisplay.List
+    val privateExpanded = privateListOpen && uiState.privateContentVisible && uiState.settings.privateSpace.display == PrivateSpaceDisplay.List
     val privateFolder = uiState.privateFolder.takeIf {
-        uiState.settings.privateSpace.enabled && uiState.privateSpace.supported && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
+        uiState.settings.privateSpace.enabled && uiState.settings.privateSpace.display != PrivateSpaceDisplay.NormalApp &&
+            uiState.privateSpace.supported && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
     }
     val appListApps = uiState.appListApps
     val privateApps = uiState.privateSpaceApps
@@ -471,24 +511,44 @@ internal fun LauncherScreen(
     val privateAppEditing = when (val current = overlay) {
         is LauncherOverlay.AppDetails -> current.app.isPrivateSpace
         is LauncherOverlay.IconDesigner -> current.app.isPrivateSpace
+        is LauncherOverlay.EditPopup -> current.app.isPrivateSpace
+        is LauncherOverlay.Shortcuts -> current.app.isPrivateSpace
+        is LauncherOverlay.Categories -> current.app.isPrivateSpace
         else -> false
     }
-    LaunchedEffect(uiState.privateSpace.accessible, uiState.privateSpace.locked, uiState.settings.privateSpace.enabled) {
-        if (!uiState.privateSpace.accessible || uiState.privateSpace.locked || !uiState.settings.privateSpace.enabled) {
+    LaunchedEffect(uiState.privateContentVisible) {
+        if (!uiState.privateContentVisible) {
             privateListOpen = false
             if ((overlay as? LauncherOverlay.Folder)?.folder?.id == PrivateSpaceFolderId || privateAppEditing) overlay = null
         }
     }
-    LaunchedEffect(drawerOpen, overlay, privateListOpen, uiState.settings.privateSpace.display) {
+    var observedLockVersion by remember { mutableStateOf(uiState.privateSpace.lockVersion) }
+    LaunchedEffect(uiState.privateSpace.lockVersion) {
+        if (observedLockVersion != uiState.privateSpace.lockVersion) {
+            privateListOpen = false
+            // Public metadata remains available after a native lock, but its
+            // folder/list must close and a details page must not reopen it.
+            overlay = when (val current = overlay) {
+                is LauncherOverlay.Folder -> current.takeUnless { it.folder.id == PrivateSpaceFolderId }
+                is LauncherOverlay.AppDetails -> if (current.app.isPrivateSpace) current.copy(returnTo = null) else current
+                is LauncherOverlay.IconDesigner -> if (current.app.isPrivateSpace) current.copy(returnTo = null) else current
+                else -> current
+            }
+        }
+        observedLockVersion = uiState.privateSpace.lockVersion
+    }
+    LaunchedEffect(drawerOpen, overlay, privateListOpen, uiState.settings.privateSpace.display, uiState.settings.privateSpace.locksOnExit) {
         val editingPrivate = (overlay as? LauncherOverlay.SettingsDestination)?.page == "PrivateSpaceEditor"
-        if (privateListOpen && (!drawerOpen || (overlay != null && !privateAppEditing) || uiState.settings.privateSpace.display != PrivateSpaceDisplay.List)) {
+        val leavingList = !drawerOpen || (overlay != null && !privateAppEditing)
+        if (privateListOpen && (uiState.settings.privateSpace.display != PrivateSpaceDisplay.List || editingPrivate ||
+                (leavingList && uiState.settings.privateSpace.locksOnExit))) {
             privateListOpen = false
             if (!editingPrivate) actions.closePrivateSpace()
         }
         val folderOpen = (overlay as? LauncherOverlay.Folder)?.folder?.id == PrivateSpaceFolderId
         if (privateFolderWasOpen && !folderOpen && !editingPrivate && !privateAppEditing) actions.closePrivateSpace()
         privateFolderWasOpen = folderOpen || (privateFolderWasOpen && privateAppEditing)
-        if (!drawerOpen && folderOpen) overlay = null
+        if (folderOpen && (!drawerOpen || uiState.settings.privateSpace.display != PrivateSpaceDisplay.Folder)) overlay = null
     }
     val screenActions = actions.copy(moveWidget = { drawerOpen = false; selectedLetter = null; overlay = null; editingHome = true })
     val backProgress = remember { Animatable(0f) }
@@ -581,7 +641,8 @@ internal fun LauncherScreen(
                 drawerOpen = true
                 selectedLetter = null
                 if (latestUiState.settings.privateSpace.display == PrivateSpaceDisplay.List) privateListOpen = true
-                else overlay = LauncherOverlay.Folder(latestUiState.privateFolder, bounds)
+                else if (latestUiState.settings.privateSpace.display == PrivateSpaceDisplay.Folder)
+                    overlay = LauncherOverlay.Folder(latestUiState.privateFolder, bounds)
             }
         }
     }
@@ -720,11 +781,12 @@ internal fun LauncherScreen(
             onFolderDrag = dragFolder,
             onFolderDragEnd = endFolderDrag,
             privateExpanded = privateExpanded,
+            privateAppsPublic = uiState.settings.privateSpace.exposesApps,
             privateLoading = uiState.privateAppsLoading,
             privateFailed = uiState.privateAppsFailed,
             onLockPrivateSpace = actions.lockPrivateSpace,
             onPrivateSpaceSettings = actions.openPrivateSpaceSettings,
-            onRetryPrivateSpace = actions.refreshApps,
+            onRetryPrivateSpace = { actions.requestPrivateSpace(true, actions.refreshApps) },
             modifier = Modifier.retainedPage(visible = drawerOpen)
                 .graphicsLayer { alpha = drawerVisibility }.statusBarContentFade(),
         )

@@ -2,6 +2,7 @@ package com.galaxyrio.gracelauncher.ui.components
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
@@ -74,36 +75,46 @@ internal val LocalLauncherInputEnabled = staticCompositionLocalOf { true }
 fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp, applyDisplaySize: Boolean = true) {
     val displaySize = size * if (applyDisplaySize) LocalLauncherAppearance.current.iconSize / 100f else 1f
     val iconModifier = if (app.folderId == null) modifier.launcherAnimationTarget(listOf(app.componentName)) else modifier
-    if (LocalLauncherAppearance.current.themedIcons && app.monochromeIcon != null) {
-        Box(iconModifier.size(displaySize).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
-            Image(
-                bitmap = app.monochromeIcon,
-                contentDescription = null,
-                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onPrimaryContainer),
-                // Adaptive monochrome drawables include the platform's safe-zone inset.
-                modifier = Modifier.size(displaySize).graphicsLayer { scaleX = app.monochromeScale; scaleY = app.monochromeScale },
+    Box(iconModifier.size(displaySize)) {
+        if (LocalLauncherAppearance.current.themedIcons && app.monochromeIcon != null) {
+            Box(Modifier.size(displaySize).clip(CircleShape).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                Image(
+                    bitmap = app.monochromeIcon,
+                    contentDescription = null,
+                    colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onPrimaryContainer),
+                    // Adaptive monochrome drawables include the platform's safe-zone inset.
+                    modifier = Modifier.size(displaySize).graphicsLayer { scaleX = app.monochromeScale; scaleY = app.monochromeScale },
+                )
+            }
+        } else if (app.icon != null) {
+            Image(bitmap = app.icon, contentDescription = null, modifier = Modifier.size(displaySize))
+        } else if (app.folderId != null) {
+            FolderIcon(Modifier, displaySize, if (app.folderId == PrivateSpaceFolderId) LauncherSymbol.Lock else LauncherSymbol.Folder)
+        } else {
+            val colors = listOf(
+                Color(0xFF65D5BE), Color(0xFFFFB3A7), Color(0xFFAEC6FF),
+                Color(0xFFFFD18A), Color(0xFFD4B7FF),
             )
+            val color = remember(app.key) { colors[(app.key.hashCode() and Int.MAX_VALUE) % colors.size] }
+            Box(
+                modifier = Modifier.size(displaySize).background(color, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    text = app.label.firstOrNull()?.uppercase().orEmpty(),
+                    color = Color(0xFF13201E),
+                    fontSize = (displaySize.value * 0.43f).sp,
+                    fontWeight = FontWeight.Medium,
+                )
+            }
         }
-    } else if (app.icon != null) {
-        Image(bitmap = app.icon, contentDescription = null, modifier = iconModifier.size(displaySize))
-    } else if (app.folderId != null) {
-        FolderIcon(iconModifier, displaySize, if (app.folderId == PrivateSpaceFolderId) LauncherSymbol.Lock else LauncherSymbol.Folder)
-    } else {
-        val colors = listOf(
-            Color(0xFF65D5BE), Color(0xFFFFB3A7), Color(0xFFAEC6FF),
-            Color(0xFFFFD18A), Color(0xFFD4B7FF),
-        )
-        val color = remember(app.key) { colors[(app.key.hashCode() and Int.MAX_VALUE) % colors.size] }
-        Box(
-            modifier = iconModifier.size(displaySize).background(color, CircleShape),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                text = app.label.firstOrNull()?.uppercase().orEmpty(),
-                color = Color(0xFF13201E),
-                fontSize = (displaySize.value * 0.43f).sp,
-                fontWeight = FontWeight.Medium,
-            )
+        if (app.isPrivateSpace && app.showPrivateIndicator) {
+            val badgeSize = displaySize * 0.42f
+            Box(Modifier.align(Alignment.BottomEnd).size(badgeSize).testTag("private_indicator:${app.key}")
+                .background(MaterialTheme.colorScheme.surface, CircleShape)
+                .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), CircleShape), contentAlignment = Alignment.Center) {
+                LauncherIcon(LauncherSymbol.Encrypted, Modifier.size(badgeSize * 0.68f), MaterialTheme.colorScheme.onSurfaceVariant)
+            }
         }
     }
 }
@@ -147,7 +158,7 @@ fun LauncherAppRow(
         detailsDescription = stringResource(R.string.app_actions),
         modifier = modifier,
         highlighted = highlighted,
-        notification = notification.takeIf { app.shortcut == null },
+        notification = notification.takeIf { app.shortcut == null && !app.isPrivateSpace },
         showLabel = showLabel,
     ) { iconModifier -> AppIcon(app, modifier = iconModifier, size = 40.dp) }
 }

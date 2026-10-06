@@ -63,7 +63,7 @@ internal fun FavoritesScreen(uiState: LauncherUiState, onToggle: (LauncherApp) -
     ItemSelectionScreen(
         title = stringResource(R.string.edit_favorites), tag = "favorites",
         selected = uiState.favoriteApps.map { SelectionEntry(it.key, it.label, it) },
-        apps = uiState.apps, enabled = !uiState.isLoadingSettings && !uiState.settingsLoadFailed,
+        apps = uiState.allApps, enabled = !uiState.isLoadingSettings && !uiState.settingsLoadFailed,
         onToggle = onToggle, onRemove = { key -> uiState.findItem(key)?.let(onToggle) }, onReorder = onReorder, onDone = onDone,
     )
 }
@@ -86,7 +86,7 @@ internal fun PopupEditorScreen(owner: LauncherApp, uiState: LauncherUiState, act
         (uiState.popups.containsKey(owner.key) || result.status == ShortcutStatus.Ready || result.status == ShortcutStatus.DefaultLauncherRequired)
     ItemSelectionScreen(
         title = stringResource(R.string.edit_app_popup, owner.label), tag = "popup_editor", selected = selected,
-        apps = uiState.apps.filterNot { it.key == owner.key }, enabled = ready,
+        apps = uiState.allApps.filterNot { it.key == owner.key }, enabled = ready,
         shortcuts = shortcuts.takeUnless { isFolder }, shortcutTitle = stringResource(R.string.popup_app_shortcuts, owner.label),
         header = header,
         shortcutStatus = result.status, onRetry = { retry++ }, onRequestAccess = actions.requestDefaultHome,

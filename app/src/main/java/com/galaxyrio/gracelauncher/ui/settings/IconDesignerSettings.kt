@@ -83,7 +83,7 @@ internal fun iconDesignerPreviewRows(apps: List<LauncherApp>): List<List<Launche
 
 @Composable
 private fun AllIconsPreview(uiState: LauncherUiState, choice: ItemIcon, store: ItemIconStore, dynamicColors: Pair<Int, Int>, themeColors: Pair<Int, Int>) {
-    val rows = remember(uiState.apps) { iconDesignerPreviewRows(uiState.apps) }
+    val rows = remember(uiState.allApps) { iconDesignerPreviewRows(uiState.allApps) }
     val categories = listOf(stringResource(R.string.icon_designer_pack_apps), stringResource(R.string.icon_designer_adaptive_apps),
         stringResource(R.string.icon_designer_legacy_apps))
     val iconSize = 40.dp * ((choice.design?.iconSize ?: 100) / 100f)

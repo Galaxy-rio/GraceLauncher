@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -32,10 +33,26 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun PrivateSpaceSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit, onEdit: () -> Unit) {
     val settings = uiState.settings.privateSpace
+    val normalApps = settings.display == PrivateSpaceDisplay.NormalApp
+    val enabled = settings.enabled && uiState.privateSpace.supported
+    val canEnable = uiState.privateSpace.supported && LocalSettingsStorageState.current.canEdit
     var displayDialog by rememberSaveable { mutableStateOf(false) }
     SettingsScaffold(stringResource(R.string.private_space_title), "settings_private_space", onBack) { padding ->
         SettingsList(padding) {
-            item { Spacer(Modifier.height(24.dp)) }
+            item {
+                Spacer(Modifier.height(24.dp))
+                Surface(onClick = { actions.updateSettings { it.copy(privateSpace = it.privateSpace.copy(enabled = !it.privateSpace.enabled)) } },
+                    enabled = canEnable,
+                    modifier = Modifier.fillMaxWidth().testTag("private_space_enabled"), shape = CircleShape,
+                    color = if (settings.enabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceBright,
+                    contentColor = if (settings.enabled) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface) {
+                    Row(Modifier.heightIn(min = 72.dp).padding(horizontal = 24.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.private_space_enable), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                        Spacer(Modifier.width(16.dp))
+                        Switch(settings.enabled, null, enabled = canEnable)
+                    }
+                }
+            }
             if (!uiState.privateSpace.supported) item {
                 Text(stringResource(R.string.private_space_unsupported), Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -44,30 +61,38 @@ internal fun PrivateSpaceSettings(uiState: LauncherUiState, actions: LauncherAct
                     0, 1, "private_space_default_home", leading = { LauncherIcon(LauncherSymbol.Home) }, onClick = actions.requestDefaultHome)
                 Spacer(Modifier.height(12.dp))
             }
+            item { SettingsHeading(stringResource(R.string.private_space_display_heading)) }
             item {
-                SettingsToggleItem(stringResource(R.string.private_space_enable), stringResource(R.string.private_space_enable_summary),
-                    settings.enabled, 0, 2, "private_space_enabled", enabled = uiState.privateSpace.supported) { enabled ->
-                    actions.updateSettings { it.copy(privateSpace = it.privateSpace.copy(enabled = enabled)) }
-                }
+                SettingsActionItem(stringResource(R.string.private_space_display), settings.display.label(), 0, 3, "private_space_display",
+                    enabled = enabled) { displayDialog = true }
             }
             item {
-                SettingsToggleItem(stringResource(R.string.private_space_password), stringResource(R.string.private_space_password_summary),
-                    settings.passwordProtected, 1, 2, "private_space_password", enabled = settings.enabled && uiState.privateSpace.supported) { enabled ->
-                    actions.updateSettings { it.copy(privateSpace = it.privateSpace.copy(passwordProtected = enabled)) }
+                SettingsToggleItem(stringResource(R.string.private_space_indicator), stringResource(R.string.private_space_indicator_summary),
+                    settings.showIndicator, 1, 3, "private_space_indicator", enabled = enabled) { value ->
+                    actions.updateSettings { it.copy(privateSpace = it.privateSpace.copy(showIndicator = value)) }
                 }
-            }
-            item { SettingsHeading(stringResource(R.string.private_space_display)) }
-            item {
-                SettingsActionItem(stringResource(R.string.private_space_display), settings.display.label(), 0, 2, "private_space_display",
-                    enabled = settings.enabled && uiState.privateSpace.supported) { displayDialog = true }
             }
             item {
                 SettingsActionItem(stringResource(R.string.private_space_edit), stringResource(R.string.private_space_edit_summary),
-                    1, 2, "private_space_edit", enabled = settings.enabled && uiState.privateSpace.user != null && !uiState.privateSpace.authenticating) {
+                    2, 3, "private_space_edit", enabled = enabled && uiState.privateSpace.user != null && !uiState.privateSpace.authenticating) {
                     actions.requestPrivateSpace(true, onEdit)
                 }
             }
-            if (uiState.privateSpace.supported && (uiState.privateSpace.user == null || uiState.privateApps.isEmpty())) item {
+            item { SettingsHeading(stringResource(R.string.private_space_security_heading)) }
+            item {
+                SettingsToggleItem(stringResource(R.string.private_space_password), stringResource(R.string.private_space_password_summary),
+                    settings.passwordProtected, 0, 2, "private_space_password", enabled = enabled && !normalApps) { value ->
+                    actions.updateSettings { it.copy(privateSpace = it.privateSpace.copy(passwordProtected = value)) }
+                }
+            }
+            item {
+                SettingsToggleItem(stringResource(R.string.private_space_lock_immediately),
+                    stringResource(if (settings.lockImmediately) R.string.private_space_lock_on_exit else R.string.private_space_lock_on_screen),
+                    settings.lockImmediately, 1, 2, "private_space_lock_immediately", enabled = enabled && !normalApps) { value ->
+                    actions.updateSettings { it.copy(privateSpace = it.privateSpace.copy(lockImmediately = value)) }
+                }
+            }
+            if (uiState.privateSpace.supported) item {
                 Spacer(Modifier.height(16.dp))
                 SettingsActionItem(stringResource(R.string.private_space_setup), stringResource(R.string.private_space_setup_summary),
                     0, 1, "private_space_system_settings", onClick = actions.openPrivateSpaceSettings)
@@ -79,7 +104,7 @@ internal fun PrivateSpaceSettings(uiState: LauncherUiState, actions: LauncherAct
         title = { Text(stringResource(R.string.private_space_display)) },
         text = {
             Column {
-                PrivateSpaceDisplay.entries.forEach { display ->
+                listOf(PrivateSpaceDisplay.Folder, PrivateSpaceDisplay.List, PrivateSpaceDisplay.NormalApp).forEach { display ->
                     Row(Modifier.fillMaxWidth().selectable(display == settings.display, role = Role.RadioButton, onClick = {
                         actions.updateSettings { it.copy(privateSpace = it.privateSpace.copy(display = display)) }
                         displayDialog = false
@@ -97,7 +122,7 @@ internal fun PrivateSpaceSettings(uiState: LauncherUiState, actions: LauncherAct
 @Composable
 internal fun PrivateSpaceEditorSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
     onEditIcon: (LauncherApp) -> Unit) {
-    if (!uiState.privateSpace.accessible || uiState.privateSpace.locked || !uiState.settings.privateSpace.enabled) {
+    if (!uiState.privateContentVisible) {
         SettingsScaffold(stringResource(R.string.private_space_edit), "private_space_editor_locked", onBack) { padding ->
             SettingsList(padding) {
                 item { Spacer(Modifier.height(24.dp)) }
@@ -140,5 +165,9 @@ internal fun PrivateSpaceEditorSettings(uiState: LauncherUiState, actions: Launc
 
 @Composable
 private fun PrivateSpaceDisplay.label(): String = stringResource(
-    if (this == PrivateSpaceDisplay.List) R.string.private_space_display_list else R.string.private_space_display_folder,
+    when (this) {
+        PrivateSpaceDisplay.List -> R.string.private_space_display_list
+        PrivateSpaceDisplay.Folder -> R.string.private_space_display_folder
+        PrivateSpaceDisplay.NormalApp -> R.string.private_space_display_normal
+    },
 )

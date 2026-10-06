@@ -99,9 +99,12 @@ fun LauncherOverlays(
     val privateApp = when (overlay) {
         is LauncherOverlay.AppDetails -> overlay.app.takeIf { it.isPrivateSpace }
         is LauncherOverlay.IconDesigner -> overlay.app.takeIf { it.isPrivateSpace }
+        is LauncherOverlay.EditPopup -> overlay.app.takeIf { it.isPrivateSpace }
+        is LauncherOverlay.Shortcuts -> overlay.app.takeIf { it.isPrivateSpace }
+        is LauncherOverlay.Categories -> overlay.app.takeIf { it.isPrivateSpace }
         else -> null
     }
-    if (privateApp != null && (!uiState.privateSpace.accessible || uiState.privateSpace.locked || !uiState.settings.privateSpace.enabled)) {
+    if (privateApp != null && !uiState.privateContentVisible) {
         // Overlay objects retain their app icon/label, so never render the
         // fallback object once Android or the launcher has locked the space.
         LaunchedEffect(overlay) { onChange(null) }
@@ -158,13 +161,13 @@ fun LauncherOverlays(
     }
     if (overlay is LauncherOverlay.Folder) {
         val isPrivate = overlay.folder.id == PrivateSpaceFolderId
-        val folder = if (isPrivate) uiState.privateFolder.takeIf { uiState.privateSpace.accessible && !uiState.privateSpace.locked }
+        val folder = if (isPrivate) uiState.privateFolder.takeIf { uiState.privateContentVisible }
             else uiState.folders.firstOrNull { it.id == overlay.folder.id }
         if (folder == null) {
             LaunchedEffect(overlay.folder.id) { onChange(null) }
             return
         }
-        val members = folder.appKeys.mapNotNull(uiState::findItem)
+        val members = folder.appKeys.mapNotNull(uiState::findItem).filter { !it.isPrivateSpace || isPrivate || uiState.settings.privateSpace.exposesApps }
         val edit: () -> Unit = {
             if (isPrivate) actions.requestPrivateSpace(true) { onChange(LauncherOverlay.SettingsDestination("PrivateSpaceEditor")) }
             else onChange(LauncherOverlay.FolderSettings(folder.id))
@@ -175,7 +178,7 @@ fun LauncherOverlays(
             onDetails = { member ->
                 if (isPrivate && member.folderId == PrivateSpaceFolderId) edit()
                 else onChange(LauncherOverlay.AppDetails(member,
-                    if (member.folderId == null) uiState.folderItem(folder) else null,
+                    if (member.folderId == null && !(isPrivate && uiState.settings.privateSpace.exposesApps)) uiState.folderItem(folder) else null,
                     returnTo = overlay.takeIf { isPrivate }))
             },
             onDismiss = { if (isPrivate) actions.closePrivateSpace(); onChange(null) },
@@ -192,7 +195,8 @@ fun LauncherOverlays(
         ShortcutPopup(
             app = overlay.app, anchor = overlay.anchor, hasAccess = uiState.hasShortcutAccess, actions = actions,
             reveal = overlay.reveal,
-            notifications = if (overlay.app.shortcut == null) uiState.notifications[overlay.app.packageName].orEmpty() else emptyList(),
+            notifications = if (overlay.app.shortcut == null && !overlay.app.isPrivateSpace)
+                uiState.notifications[overlay.app.packageName].orEmpty() else emptyList(),
             uiState = uiState,
             onEdit = { onChange(LauncherOverlay.EditPopup(overlay.app)) },
             onDetails = { onChange(LauncherOverlay.AppDetails(it, overlay.app)) },
@@ -283,18 +287,19 @@ private fun AppDetailsSheet(app: LauncherApp, actions: LauncherActions, onChange
         }
         val owner = popupOwner?.let { uiState.findItem(it.key) ?: it } ?: app
         if (app.shortcut != null) {
-            val shown = uiState.apps.any { it.key == app.key }
+            val shown = app.key in uiState.shownShortcutKeys
             PanelAction(LauncherSymbol.Apps, stringResource(R.string.popup_show_in_app_list), "show_in_app_list",
                 iconColumnWidth = DetailsIconColumnWidth, iconTextSpacing = DetailsIconTextSpacing,
                 trailing = { Switch(shown, onCheckedChange = null) }) { actions.showShortcutInAppList(app, !shown) }
         }
-        if (!app.isPrivateSpace) DetailsAction(LauncherSymbol.Star, stringResource(R.string.edit_favorites), "edit_favorites") { onChange(LauncherOverlay.Favorites) }
+        val privateRestricted = app.isPrivateSpace && !uiState.settings.privateSpace.exposesApps
+        if (!privateRestricted) DetailsAction(LauncherSymbol.Star, stringResource(R.string.edit_favorites), "edit_favorites") { onChange(LauncherOverlay.Favorites) }
         if (folder != null) {
             DetailsAction(LauncherSymbol.Folder, stringResource(R.string.settings_folder_placement)) { placement = true }
             DetailsAction(LauncherSymbol.Delete, stringResource(R.string.settings_folder_delete), "folder_delete") { confirmDelete = true }
         } else {
             DetailsAction(LauncherSymbol.Info, stringResource(R.string.app_info)) { onChange(null); actions.appInfo(app) }
-            if (!app.isPrivateSpace) {
+            if (!privateRestricted) {
                 DetailsAction(LauncherSymbol.Hourglass, stringResource(R.string.screen_time)) { onChange(null); actions.screenTime(app) }
                 DetailsAction(LauncherSymbol.Folder, stringResource(R.string.add_to_folder)) { onChange(LauncherOverlay.Categories(app)) }
             }
@@ -305,7 +310,7 @@ private fun AppDetailsSheet(app: LauncherApp, actions: LauncherActions, onChange
             Column {
                 DetailsAction(LauncherSymbol.Edit, renameTitle) { rename = true }
                 DetailsAction(LauncherSymbol.DesignServices, stringResource(R.string.icon_designer_title)) { onChange(LauncherOverlay.IconDesigner(app, popupOwner, returnTo)) }
-                if (!app.isPrivateSpace) DetailsAction(LauncherSymbol.Launch, stringResource(R.string.edit_app_popup, owner.label), "edit_popup") {
+                if (!privateRestricted) DetailsAction(LauncherSymbol.Launch, stringResource(R.string.edit_app_popup, owner.label), "edit_popup") {
                     onChange(owner.folderId?.let { LauncherOverlay.FolderSettings(it) } ?: LauncherOverlay.EditPopup(owner))
                 }
                 if (folder == null) {
@@ -401,7 +406,7 @@ private fun CategoryAppsSheet(name: String, uiState: LauncherUiState, onLaunch: 
     Column(Modifier.fillMaxWidth().padding(horizontal = 32.dp)) {
         PanelTitle(name)
         LazyColumn(Modifier.heightIn(max = panelWindowHeight() * 0.65f)) {
-            items(uiState.apps.filter { uiState.categories[it.key] == name }, key = LauncherApp::key) { app ->
+            items(uiState.allApps.filter { uiState.categories[it.key] == name }, key = LauncherApp::key) { app ->
                 Row(
                     Modifier.fillMaxWidth().heightIn(min = 56.dp)
                         .clip(RoundedCornerShape(16.dp))

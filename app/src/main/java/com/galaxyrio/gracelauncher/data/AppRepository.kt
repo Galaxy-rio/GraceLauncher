@@ -72,6 +72,16 @@ class AppRepository(private val context: Context, private val iconPacks: IconPac
         }.distinctBy(LauncherApp::key).sortedWith(LauncherAppOrder)
     }
 
+    suspend fun applyPrivateIconPacks(apps: List<LauncherApp>, iconPackPackages: List<String>): List<LauncherApp> = withContext(Dispatchers.IO) {
+        val packs = normalizeIconPackOrder(iconPackPackages).mapNotNull { iconPacks.load(it) }
+        apps.map { app ->
+            val match = firstMatchingPackIcon(packs) { it.iconFor(app.componentName, null) }
+            if (match == null) app else app.copy(icon = match.second.bitmap, monochromeIcon = match.second.monochrome,
+                monochromeScale = match.second.monochromeScale, iconPackPackage = match.first.packageName,
+                themeIconPackPackage = match.first.packageName)
+        }
+    }
+
     private fun makeApp(component: ComponentName, label: String, drawable: Drawable?,
         packs: List<com.galaxyrio.gracelauncher.data.icons.LoadedIconPack>, flags: Int): LauncherApp {
         // Generic masks/backgrounds do not intercept the remaining packs or the system fallback.

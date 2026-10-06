@@ -94,7 +94,7 @@ class LauncherItemsRepository(private val database: LauncherDatabase) {
     }
 
     private suspend fun requireExistingFolder(key: String) {
-        if (key.startsWith("folder:")) check(database.settingsDao().folder(key.removePrefix("folder:")) != null) {
+        if (key.startsWith("folder:") && key != PrivateSpaceFolderKey) check(database.settingsDao().folder(key.removePrefix("folder:")) != null) {
             "Folder no longer exists"
         }
     }
