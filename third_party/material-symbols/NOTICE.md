@@ -20,6 +20,11 @@ current content tint.
 
 ## Sources
 
+### Recently installed folder icon added 2026-10-06
+
+- `ms_history_2.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/android/history_2/materialsymbolsoutlined/history_2_24px.xml
+  (Official Android vector; path and 960px viewport retained, tint supplied by Compose. Same Apache-2.0 license.)
+
 ### Weather icons added 2026-09-27
 
 These resources use the official Android vectors at revision

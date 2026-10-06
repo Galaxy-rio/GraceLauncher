@@ -149,6 +149,7 @@ fun LauncherRoute(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val chooseAppStoreTitle = stringResource(R.string.choose_app_store)
     val launchView = LocalView.current
     val appTransitions = LocalAppTransitions.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -396,7 +397,7 @@ fun LauncherRoute(
             // Leave the target implicit and always show Android's chooser, even
             // when a default store has been set. No Play Store/web fallback.
             if (intent.resolveActivity(context.packageManager) != null) {
-                openSystemApp(Intent.createChooser(intent, context.getString(R.string.choose_app_store)))
+                openSystemApp(Intent.createChooser(intent, chooseAppStoreTitle))
             } else Toast.makeText(context, R.string.app_store_unavailable, Toast.LENGTH_SHORT).show()
         },
         newEvent = {
@@ -509,8 +510,10 @@ internal fun LauncherScreen(
     }
     val appListApps = uiState.appListApps
     val privateApps = uiState.privateSpaceApps
-    val model = remember(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps) {
-        AppListModel(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps)
+    val recentFolderName = stringResource(R.string.recently_installed)
+    val recentFolder = remember(uiState.apps, recentFolderName) { uiState.recentlyInstalledFolder(recentFolderName) }
+    val model = remember(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps, recentFolder) {
+        AppListModel(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps, recentFolder)
     }
     val drawerState = rememberLazyListState()
     val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons, uiState.settings.iconDesign?.design?.iconSize ?: 100)

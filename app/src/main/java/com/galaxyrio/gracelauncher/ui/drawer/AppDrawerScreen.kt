@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
+import com.galaxyrio.gracelauncher.data.RecentlyInstalledFolderId
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
@@ -100,7 +101,8 @@ fun AppDrawerScreen(
         val viewport = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
         val rowHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == expandedModel.items[index].key }?.size
             ?: with(density) { LauncherLayout.RowMinHeight.roundToPx() }
-        val blockHeight = rowHeight * (expandedModel.items.size - index)
+        val blockSize = expandedModel.items.drop(index).takeWhile { it.section == FolderSection }.size
+        val blockHeight = rowHeight * blockSize
         val desiredTop = (viewport - blockHeight - with(density) { (24.dp + bottomInset).roundToPx() }).coerceAtLeast(safeTop)
         // Short lists settle against the real bottom inset; tall lists start with
         // the Private row in view and continue below it in this same LazyColumn.
@@ -128,7 +130,11 @@ fun AppDrawerScreen(
             Box(Modifier.retainItemSpace(selectedLetter == null || item.section == selectedLetter)) {
                 when (item) {
                     is DrawerItem.Header -> Text(
-                        text = if (item.section == FolderSection) stringResource(R.string.drawer_folders) else item.section,
+                        text = when (item.section) {
+                            FolderSection -> stringResource(R.string.drawer_folders)
+                            GraceSection -> stringResource(R.string.app_name)
+                            else -> item.section
+                        },
                         modifier = Modifier
                             .height(44.dp)
                             .padding(start = LauncherLayout.ContentInset, end = LauncherLayout.ContentInset, top = 12.dp)
@@ -156,7 +162,7 @@ fun AppDrawerScreen(
                         app = folderApps[item.folder.id] ?: item.folder.asApp(),
                         highlighted = highlightedAppKey == item.folder.key,
                         onOpen = { onOpenFolder(item.folder, it) },
-                        onLongClick = { onEditFolder(item.folder) },
+                        onLongClick = if (item.folder.id == RecentlyInstalledFolderId) null else ({ onEditFolder(item.folder) }),
                         onDrag = { bounds, expanded -> onFolderDrag(item.folder, bounds, expanded) },
                         onDragEnd = onFolderDragEnd,
                         trailing = if (item.folder.id == PrivateSpaceFolderId && privateExpanded) ({

@@ -14,6 +14,7 @@ data class LauncherSettings(
     val useDynamicColors: Boolean = true,
     val themeColor: Int = 0xFF6750A4.toInt(),
     val darkMode: ThemeMode = ThemeMode.System,
+    val amoledMode: Boolean = false,
     /** Retained for installations that used the original single-pack setting. */
     val iconPackPackage: String? = null,
     val iconPackPackages: List<String> = emptyList(),
@@ -50,6 +51,8 @@ data class LauncherSettings(
 }
 
 enum class FolderPlacement { Favorites, AppList }
+
+const val RecentlyInstalledFolderId = "recently-installed"
 
 data class LauncherFolder(
     val id: String,

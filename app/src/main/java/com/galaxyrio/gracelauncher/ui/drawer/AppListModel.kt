@@ -7,6 +7,7 @@ import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.FolderPlacement
 
 const val FolderSection = "◇"
+const val GraceSection = "grace-launcher"
 
 sealed interface DrawerItem {
     val key: String
@@ -16,13 +17,11 @@ sealed interface DrawerItem {
         override val key = "header:$section"
     }
 
-    data class App(val app: LauncherApp) : DrawerItem {
+    data class App(val app: LauncherApp, override val section: String = app.section) : DrawerItem {
         override val key = app.key
-        override val section = app.section
     }
-    data class Folder(val folder: LauncherFolder) : DrawerItem {
+    data class Folder(val folder: LauncherFolder, override val section: String = FolderSection) : DrawerItem {
         override val key = "folder:${folder.id}"
-        override val section = FolderSection
     }
     data class PrivateApp(val app: LauncherApp) : DrawerItem {
         override val key = app.key
@@ -35,13 +34,14 @@ sealed interface DrawerItem {
 }
 
 class AppListModel(apps: List<LauncherApp>, folders: List<LauncherFolder> = emptyList(),
-    privateFolder: LauncherFolder? = null, privateExpanded: Boolean = false, privateApps: List<LauncherApp> = emptyList()) {
-    private val grouped = apps.sortedWith(LauncherAppOrder).groupBy(LauncherApp::section)
+    privateFolder: LauncherFolder? = null, privateExpanded: Boolean = false, privateApps: List<LauncherApp> = emptyList(),
+    recentlyInstalledFolder: LauncherFolder? = null) {
+    private val settingsApp = apps.firstOrNull(LauncherApp::isLauncherSettings)
+    private val grouped = apps.filterNot(LauncherApp::isLauncherSettings).sortedWith(LauncherAppOrder).groupBy(LauncherApp::section)
     private val appLetters = LauncherAlphabet.filter { it != "#" && it in grouped } +
         grouped.keys.filter { it !in LauncherAlphabet }.sorted() +
         if ("#" in grouped) listOf("#") else emptyList()
     private val drawerFolders = folders.filter { it.placement == FolderPlacement.AppList }
-    val letters: List<String> = appLetters + if (drawerFolders.isEmpty() && privateFolder == null) emptyList() else listOf(FolderSection)
     val items: List<DrawerItem> = buildList {
         appLetters.forEach { letter ->
             add(DrawerItem.Header(letter))
@@ -50,7 +50,7 @@ class AppListModel(apps: List<LauncherApp>, folders: List<LauncherFolder> = empt
         if (drawerFolders.isNotEmpty() || privateFolder != null) {
             add(DrawerItem.Header(FolderSection))
             drawerFolders.forEach { add(DrawerItem.Folder(it)) }
-            // This synthetic folder is always last and never enters the stored folder table.
+            // Private Space follows user folders and never enters the stored folder table.
             if (privateFolder != null) {
                 add(DrawerItem.Folder(privateFolder))
                 if (privateExpanded) {
@@ -59,7 +59,15 @@ class AppListModel(apps: List<LauncherApp>, folders: List<LauncherFolder> = empt
                 }
             }
         }
+        // Launcher utilities are a footer, not another alphabetical G section.
+        if (recentlyInstalledFolder != null || settingsApp != null) {
+            add(DrawerItem.Header(GraceSection))
+            recentlyInstalledFolder?.let { add(DrawerItem.Folder(it, GraceSection)) }
+            settingsApp?.let { add(DrawerItem.App(it, GraceSection)) }
+        }
     }
+    // Keep the rail in sync with every section, including launcher utilities.
+    val letters: List<String> = items.filterIsInstance<DrawerItem.Header>().map { it.section }
     private val sectionIndices = items.mapIndexedNotNull { index, item ->
         (item as? DrawerItem.Header)?.let { it.section to index }
     }.toMap()

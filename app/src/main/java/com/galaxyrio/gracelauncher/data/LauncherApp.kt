@@ -30,6 +30,9 @@ data class LauncherApp(
     val userSerial: Long? = null,
     val isPrivateSpace: Boolean = false,
     val showPrivateIndicator: Boolean = true,
+    /** First installation, not the last update; used by the built-in recent folder. */
+    val firstInstallTime: Long = 0L,
+    val isLauncherSettings: Boolean = false,
 ) {
     val key: String = folderId?.let { "folder:$it" } ?: shortcut?.key
         ?: userSerial?.let { "profile:$it:${componentName.flattenToString()}" } ?: componentName.flattenToString()

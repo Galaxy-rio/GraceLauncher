@@ -19,6 +19,7 @@ internal fun LauncherAppTheme(viewModel: LauncherViewModel, content: @Composable
     }
     GraceLauncherTheme(
         darkTheme = dark,
+        amoledMode = state.settings.amoledMode,
         dynamicColor = state.settings.useDynamicColors,
         seedColor = Color(state.settings.themeColor),
         fontId = state.settings.appFontId,

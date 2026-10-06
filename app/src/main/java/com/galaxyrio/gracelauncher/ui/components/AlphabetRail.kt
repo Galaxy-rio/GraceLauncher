@@ -55,6 +55,7 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.R
+import com.galaxyrio.gracelauncher.ui.drawer.GraceSection
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import kotlin.math.exp
 import kotlin.math.min
@@ -162,9 +163,11 @@ fun AlphabetRail(
     ) {
         entries.forEachIndexed { index, letter ->
             val isSelected = if (state.active) state.selectedIndex == index else selectedLetter == letter
-            val description = if (letter == null) homeDescription else stringResource(
-                if (includeHome) R.string.jump_to_letter else R.string.jump_to_section, letter,
-            )
+            val description = when (letter) {
+                null -> homeDescription
+                GraceSection -> stringResource(R.string.jump_to_section, stringResource(R.string.app_name))
+                else -> stringResource(if (includeHome) R.string.jump_to_letter else R.string.jump_to_section, letter)
+            }
             Box(
                 modifier = Modifier
                     .width(48.dp)
@@ -196,6 +199,8 @@ fun AlphabetRail(
                 val color = textColor.copy(alpha = if (isSelected) 1f else 0.85f)
                 if (letter == null) {
                     LauncherIcon(LauncherSymbol.Star, Modifier.size(18.dp), tint = color)
+                } else if (letter == GraceSection) {
+                    Box(Modifier.size(8.dp).background(color, CircleShape))
                 } else {
                     Text(
                         text = letter,
@@ -238,14 +243,17 @@ fun AlphabetRail(
                 Modifier.fillMaxSize().testTag("alphabet_indicator"),
                 contentAlignment = Alignment.Center,
             ) {
-                if (entries.getOrNull(state.selectedIndex) == null) {
+                val letter = entries.getOrNull(state.selectedIndex)
+                if (letter == null) {
                     LauncherIcon(
                         LauncherSymbol.Star,
                         Modifier.size(28.dp).testTag("alphabet_indicator_star"),
                         tint = MaterialTheme.colorScheme.onPrimary,
                     )
+                } else if (letter == GraceSection) {
+                    Box(Modifier.size(16.dp).background(MaterialTheme.colorScheme.onPrimary, CircleShape))
                 } else {
-                    CenteredIndicatorGlyph(entries.getOrNull(state.selectedIndex).orEmpty(), MaterialTheme.colorScheme.onPrimary)
+                    CenteredIndicatorGlyph(letter, MaterialTheme.colorScheme.onPrimary)
                 }
             }
         }

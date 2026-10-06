@@ -45,6 +45,7 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
             useDynamicColors = settings.useDynamicColors,
             themeColor = settings.themeColor,
             darkMode = settings.darkMode.name,
+            amoledMode = settings.amoledMode,
             iconPackPackage = settings.iconPackPackage,
             iconDesignJson = settings.iconDesign?.encode(),
             iconPackPackagesJson = normalizeIconPackOrder(settings.iconPackPackages).takeIf { it.isNotEmpty() }
@@ -125,6 +126,7 @@ private fun LauncherSettingsEntity.toSettings() = LauncherSettings(
     useDynamicColors = useDynamicColors,
     themeColor = themeColor,
     darkMode = ThemeMode.entries.firstOrNull { it.name == darkMode } ?: ThemeMode.System,
+    amoledMode = amoledMode,
     iconPackPackage = iconPackPackage,
     iconDesign = iconDesignJson?.let(ItemIcon::decode),
     iconPackPackages = decodeIconPackOrder(iconPackPackagesJson),

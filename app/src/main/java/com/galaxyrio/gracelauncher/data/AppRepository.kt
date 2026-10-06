@@ -41,6 +41,7 @@ class AppRepository(private val context: Context, private val iconPacks: IconPac
             packageManager.queryIntentActivities(launcherIntent, 0)
         }
 
+        val installTimes = mutableMapOf<String, Long>()
         resolved.asSequence()
             .mapNotNull { resolveInfo ->
                 coroutine.ensureActive()
@@ -54,7 +55,18 @@ class AppRepository(private val context: Context, private val iconPacks: IconPac
                     .trim()
                     .ifBlank { activityInfo.name.substringAfterLast('.') }
                 val drawable = runCatching { resolveInfo.loadIcon(packageManager) }.getOrNull()
+                val installedAt = installTimes.getOrPut(activityInfo.packageName) {
+                    runCatching {
+                        if (Build.VERSION.SDK_INT >= 33) {
+                            packageManager.getPackageInfo(activityInfo.packageName, PackageManager.PackageInfoFlags.of(0L)).firstInstallTime
+                        } else {
+                            @Suppress("DEPRECATION")
+                            packageManager.getPackageInfo(activityInfo.packageName, 0).firstInstallTime
+                        }
+                    }.getOrDefault(0L)
+                }
                 makeApp(component, label, drawable, packs, activityInfo.applicationInfo.flags)
+                    .copy(firstInstallTime = installedAt, isLauncherSettings = activityInfo.packageName == context.packageName)
             }
             .distinctBy(LauncherApp::key)
             .sortedWith(LauncherAppOrder)

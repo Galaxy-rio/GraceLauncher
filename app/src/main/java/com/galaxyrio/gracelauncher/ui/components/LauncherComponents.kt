@@ -64,6 +64,7 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
+import com.galaxyrio.gracelauncher.data.RecentlyInstalledFolderId
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 
@@ -89,7 +90,11 @@ fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp, a
         } else if (app.icon != null) {
             Image(bitmap = app.icon, contentDescription = null, modifier = Modifier.size(displaySize))
         } else if (app.folderId != null) {
-            FolderIcon(Modifier, displaySize, if (app.folderId == PrivateSpaceFolderId) LauncherSymbol.Lock else LauncherSymbol.Folder)
+            FolderIcon(Modifier, displaySize, when (app.folderId) {
+                PrivateSpaceFolderId -> LauncherSymbol.Lock
+                RecentlyInstalledFolderId -> LauncherSymbol.History2
+                else -> LauncherSymbol.Folder
+            })
         } else {
             val colors = listOf(
                 Color(0xFF65D5BE), Color(0xFFFFB3A7), Color(0xFFAEC6FF),
@@ -167,7 +172,7 @@ fun LauncherAppRow(
 fun FolderRow(
     folder: LauncherFolder,
     onOpen: (Rect) -> Unit,
-    onLongClick: () -> Unit,
+    onLongClick: (() -> Unit)?,
     modifier: Modifier = Modifier,
     onDrag: (Rect, Boolean) -> Unit = { _, _ -> },
     onDragEnd: (Boolean) -> Unit = {},
@@ -203,7 +208,7 @@ private fun LauncherRow(
     rowKey: String,
     label: String,
     onClick: (rowBounds: Rect, iconBounds: Rect) -> Unit,
-    onLongClick: () -> Unit,
+    onLongClick: (() -> Unit)?,
     onOpen: (Rect) -> Unit,
     onPrepare: () -> Unit,
     onDrag: (Rect, Boolean) -> Unit,
@@ -272,10 +277,10 @@ private fun LauncherRow(
                 // favorites and expose their existing launch/shortcut actions.
                 if (!showLabel) contentDescription = label
                 selected = pressed || highlighted
-                customActions = listOf(
-                    CustomAccessibilityAction(openDescription) { onOpen(iconBounds); true },
-                    CustomAccessibilityAction(detailsDescription) { onLongClick(); true },
-                )
+                customActions = buildList {
+                    add(CustomAccessibilityAction(openDescription) { onOpen(iconBounds); true })
+                    if (onLongClick != null) add(CustomAccessibilityAction(detailsDescription) { onLongClick(); true })
+                }
             }
             .combinedClickable(
                 enabled = inputEnabled,

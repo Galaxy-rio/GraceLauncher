@@ -27,6 +27,7 @@ data class LauncherSettingsEntity(
     val useDynamicColors: Boolean,
     val themeColor: Int,
     val darkMode: String,
+    @ColumnInfo(defaultValue = "0") val amoledMode: Boolean = false,
     val iconPackPackage: String? = null,
     val iconPackPackagesJson: String? = null,
     val iconDesignJson: String? = null,
@@ -103,7 +104,7 @@ abstract class LauncherSettingsDao {
     entities = [LauncherSettingsEntity::class, HiddenAppEntity::class,
         LauncherFolderEntity::class, ItemIconEntity::class,
         SavedShortcutEntity::class, AppPopupEntity::class],
-    version = 15,
+    version = 16,
     exportSchema = true,
 )
 abstract class LauncherDatabase : RoomDatabase() {
@@ -220,12 +221,18 @@ abstract class LauncherDatabase : RoomDatabase() {
             }
         }
 
+        val Migration15To16 = object : Migration(15, 16) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN amoledMode INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun getInstance(context: Context): LauncherDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 LauncherDatabase::class.java,
                 "grace_launcher.db",
-            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7, Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12, Migration12To13, Migration13To14, Migration14To15).build().also { instance = it }
+            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7, Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12, Migration12To13, Migration13To14, Migration14To15, Migration15To16).build().also { instance = it }
         }
     }
 }

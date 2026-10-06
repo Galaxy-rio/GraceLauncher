@@ -97,14 +97,20 @@ internal fun ThemeSettings(
             item {
                 SettingsToggleItem(
                     stringResource(R.string.settings_dynamic_colors), stringResource(R.string.settings_dynamic_colors_summary),
-                    settings.useDynamicColors, 1, 4, "settings_dynamic_colors",
+                    settings.useDynamicColors, 1, 5, "settings_dynamic_colors",
                 ) { value -> actions.updateSettings { current -> current.copy(useDynamicColors = value) } }
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_theme_mode), settings.darkMode.label(), 2, 4, "settings_theme_mode") { dialog = "theme" }
+                SettingsActionItem(stringResource(R.string.settings_theme_mode), settings.darkMode.label(), 2, 5, "settings_theme_mode") { dialog = "theme" }
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_wallpaper_text), uiState.textMode.label(), 3, 4, "settings_wallpaper_text") { dialog = "text" }
+                SettingsToggleItem(
+                    stringResource(R.string.settings_amoled_mode), stringResource(R.string.settings_amoled_mode_summary),
+                    settings.amoledMode, 3, 5, "settings_amoled_mode",
+                ) { value -> actions.updateSettings { it.copy(amoledMode = value) } }
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.settings_wallpaper_text), uiState.textMode.label(), 4, 5, "settings_wallpaper_text") { dialog = "text" }
             }
             item { SettingsHeading(stringResource(R.string.settings_personalization)) }
             item {
@@ -181,7 +187,7 @@ private fun AccentColorItem(isDynamic: Boolean, selectedColor: Int, onSelect: (C
     val initialPage = (AccentColors.indexOfFirst { it.toArgb() == selectedColor }.coerceAtLeast(0) / 5)
     val pager = rememberPagerState(initialPage = initialPage, pageCount = { pages.size })
     SegmentedListItem(
-        shapes = ListItemDefaults.segmentedShapes(0, 4),
+        shapes = ListItemDefaults.segmentedShapes(0, 5),
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
         modifier = Modifier.testTag("settings_accent_color"),
         content = {

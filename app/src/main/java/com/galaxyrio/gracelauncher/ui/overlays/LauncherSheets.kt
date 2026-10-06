@@ -38,6 +38,7 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
+import com.galaxyrio.gracelauncher.data.RecentlyInstalledFolderId
 import com.galaxyrio.gracelauncher.data.FolderPlacement
 import com.galaxyrio.gracelauncher.data.PopupItem
 import com.galaxyrio.gracelauncher.ui.LauncherActions
@@ -161,25 +162,29 @@ fun LauncherOverlays(
     }
     if (overlay is LauncherOverlay.Folder) {
         val isPrivate = overlay.folder.id == PrivateSpaceFolderId
-        val folder = if (isPrivate) uiState.privateFolder.takeIf { uiState.privateContentVisible }
-            else uiState.folders.firstOrNull { it.id == overlay.folder.id }
+        val isRecent = overlay.folder.id == RecentlyInstalledFolderId
+        val folder = when {
+            isPrivate -> uiState.privateFolder.takeIf { uiState.privateContentVisible }
+            isRecent -> uiState.recentlyInstalledFolder(stringResource(R.string.recently_installed))
+            else -> uiState.folders.firstOrNull { it.id == overlay.folder.id }
+        }
         if (folder == null) {
             LaunchedEffect(overlay.folder.id) { onChange(null) }
             return
         }
         val members = folder.appKeys.mapNotNull(uiState::findItem).filter { !it.isPrivateSpace || isPrivate || uiState.settings.privateSpace.exposesApps }
-        val edit: () -> Unit = {
+        val edit: (() -> Unit)? = if (isRecent) null else ({
             if (isPrivate) actions.requestPrivateSpace(true) { onChange(LauncherOverlay.SettingsDestination("PrivateSpaceEditor")) }
             else onChange(LauncherOverlay.FolderSettings(folder.id))
-        }
+        })
         FolderPopup(
             folder = folder, apps = members, anchor = overlay.anchor, reveal = overlay.reveal,
             uiState = uiState, actions = actions,
             onDetails = { member ->
-                if (isPrivate && member.folderId == PrivateSpaceFolderId) edit()
-                else onChange(LauncherOverlay.AppDetails(member,
-                    if (member.folderId == null && !(isPrivate && uiState.settings.privateSpace.exposesApps)) uiState.folderItem(folder) else null,
-                    returnTo = overlay.takeIf { isPrivate }))
+                if (isPrivate && member.folderId == PrivateSpaceFolderId) edit?.invoke()
+                else if (member.folderId != RecentlyInstalledFolderId) onChange(LauncherOverlay.AppDetails(member,
+                    if (member.folderId == null && !isRecent && !(isPrivate && uiState.settings.privateSpace.exposesApps)) uiState.folderItem(folder) else null,
+                    returnTo = overlay.takeIf { isPrivate || isRecent }))
             },
             onDismiss = { if (isPrivate) actions.closePrivateSpace(); onChange(null) },
             onLaunchApp = { app, bounds ->

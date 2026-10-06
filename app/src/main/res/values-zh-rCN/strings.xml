@@ -118,6 +118,7 @@
     <string name="search_no_results">没有匹配的应用</string>
     <string name="launcher_fab_description">搜索应用，长按打开设置。</string>
     <string name="drawer_folders">文件夹</string>
+    <string name="recently_installed">最近安装</string>
     <string name="add_to_folder">添加到文件夹</string>
     <string name="create_app_folder">在应用列表中新建文件夹</string>
 
@@ -220,6 +221,8 @@
     <string name="settings_dynamic_colors_summary">使用壁纸配色</string>
     <string name="settings_color_option">颜色 %1$s</string>
     <string name="settings_theme_mode">深色模式</string>
+    <string name="settings_amoled_mode">AMOLED 模式</string>
+    <string name="settings_amoled_mode_summary">在深色主题中使用纯黑背景</string>
     <string name="settings_follow_system">跟随系统</string>
     <string name="settings_light_mode">浅色</string>
     <string name="settings_dark_mode">深色</string>

@@ -3,6 +3,7 @@ package com.galaxyrio.gracelauncher.ui.theme
 import android.os.Build
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialExpressiveTheme
+import androidx.compose.material3.LocalTonalElevationEnabled
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -65,6 +66,7 @@ fun GraceLauncherTheme(
     dynamicColor: Boolean = true,
     seedColor: Color? = null,
     fontId: String? = null,
+    amoledMode: Boolean = false,
     content: @Composable () -> Unit,
 ) {
     val colorScheme = when {
@@ -82,11 +84,27 @@ fun GraceLauncherTheme(
         else -> LightColorScheme
     }
 
+    val trueBlack = darkTheme && amoledMode
+    // Keep raised cards and accent colors distinct while making page and sheet
+    // backgrounds truly black, for both wallpaper-derived and custom palettes.
+    val colors = if (trueBlack) colorScheme.copy(
+        background = Color.Black,
+        surface = Color.Black,
+        surfaceDim = Color.Black,
+        surfaceContainerLowest = Color.Black,
+        surfaceContainerLow = Color.Black,
+        surfaceContainer = Color.Black,
+    ) else colorScheme
+
     val family = rememberAppFontFamily(fontId)
     val typography = remember(family) { launcherTypography(family) }
-    CompositionLocalProvider(LocalLauncherTypography provides typography) {
+    CompositionLocalProvider(
+        LocalLauncherTypography provides typography,
+        // Elevation tint must not turn the black sheets back into tinted gray.
+        LocalTonalElevationEnabled provides (LocalTonalElevationEnabled.current && !trueBlack),
+    ) {
         MaterialExpressiveTheme(
-            colorScheme = colorScheme,
+            colorScheme = colors,
             typography = typography,
             content = content,
         )

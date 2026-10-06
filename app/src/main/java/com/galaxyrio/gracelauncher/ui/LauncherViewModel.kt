@@ -41,6 +41,7 @@ import com.galaxyrio.gracelauncher.data.PopupItem
 import com.galaxyrio.gracelauncher.data.LauncherItemsRepository
 import com.galaxyrio.gracelauncher.data.LauncherItemsSnapshot
 import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
+import com.galaxyrio.gracelauncher.data.RecentlyInstalledFolderId
 import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderKey
 import com.galaxyrio.gracelauncher.data.PrivateSpaceDefaultName
 import com.galaxyrio.gracelauncher.data.PrivateSpaceDisplay
@@ -136,11 +137,23 @@ data class LauncherUiState(
     val allApps: List<LauncherApp> get() = (apps + (if (settings.privateSpace.exposesApps) privateSpaceApps else emptyList()) + publicPrivateShortcuts)
         .distinctBy(LauncherApp::key).sortedWith(LauncherAppOrder)
 
+    // Hidden apps remain available in folders. Profile-protected apps and saved
+    // shortcuts are not installations in this personal-profile collection.
+    val recentlyInstalledApps: List<LauncherApp> get() = apps.asSequence()
+        .filter { it.shortcut == null && it.folderId == null && !it.isPrivateSpace && !it.isLauncherSettings }
+        .sortedWith(compareByDescending<LauncherApp> { it.firstInstallTime }.then(LauncherAppOrder))
+        .distinctBy(LauncherApp::packageName).take(8).toList()
+
+    fun recentlyInstalledFolder(name: String) = LauncherFolder(
+        RecentlyInstalledFolderId, name, recentlyInstalledApps.map(LauncherApp::key), FolderPlacement.AppList,
+    )
+
     fun folderItem(folder: LauncherFolder): LauncherApp = ((if (folder.id == PrivateSpaceFolderId) privateFolderApp
         else folderApps.firstOrNull { it.folderId == folder.id })
         ?: folder.asApp()).copy(label = folder.name, originalLabel = folder.name)
 
     fun popupItems(owner: LauncherApp, defaults: List<LauncherApp>): List<PopupItem> {
+        if (owner.folderId == RecentlyInstalledFolderId) return recentlyInstalledApps.map { PopupItem(it.key) }
         val items = popups[owner.key].takeUnless { owner.folderId == PrivateSpaceFolderId }
             ?: (if (owner.folderId == PrivateSpaceFolderId) privateSpaceApps.map { it.key }
                 else if (owner.folderId == null) defaults.map { it.key }

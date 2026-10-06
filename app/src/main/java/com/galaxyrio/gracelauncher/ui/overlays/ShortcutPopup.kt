@@ -59,7 +59,7 @@ class ShortcutRevealState(expanded: Boolean = true, dragging: Boolean = false) {
 @Composable
 fun FolderPopup(
     folder: LauncherFolder, apps: List<LauncherApp>, anchor: Rect, onDismiss: () -> Unit,
-    onLaunchApp: (LauncherApp, Rect) -> Unit, onEdit: () -> Unit,
+    onLaunchApp: (LauncherApp, Rect) -> Unit, onEdit: (() -> Unit)?,
     reveal: ShortcutRevealState = remember { ShortcutRevealState() },
     uiState: LauncherUiState = LauncherUiState(apps = apps, folders = listOf(folder)),
     actions: LauncherActions = LauncherActions(), onDetails: (LauncherApp) -> Unit = {},
@@ -82,7 +82,7 @@ fun ShortcutPopup(
     reveal: ShortcutRevealState = remember { ShortcutRevealState() },
     notifications: List<AppNotification> = emptyList(),
     uiState: LauncherUiState = LauncherUiState(),
-    onEdit: () -> Unit = {},
+    onEdit: (() -> Unit)? = {},
     onDetails: (LauncherApp) -> Unit = {},
     onLock: (() -> Unit)? = null,
     onLaunchItem: (LauncherApp, Rect) -> Unit = { item, bounds ->
@@ -114,7 +114,8 @@ fun ShortcutPopup(
                 .heightIn(min = 48.dp)
                 .testTag("shortcut_header")
                 .clip(RoundedCornerShape(16.dp))
-                .combinedClickable(onLongClick = { onDetails(app) }, onClick = { if (isFolder) onDetails(app) else onLaunchApp() })
+                .combinedClickable(enabled = !isFolder || onEdit != null,
+                    onLongClick = { onDetails(app) }, onClick = { if (isFolder) onDetails(app) else onLaunchApp() })
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -148,7 +149,7 @@ fun ShortcutPopup(
                 }
             } else {
                 Text(stringResource(R.string.folder_contents_empty), Modifier.testTag("folder_empty").padding(horizontal = 12.dp, vertical = 18.dp), style = MaterialTheme.typography.bodyMedium)
-                TextButton(onClick = onEdit, modifier = Modifier.testTag("folder_edit")) { Text(stringResource(R.string.settings_folder_edit)) }
+                if (onEdit != null) TextButton(onClick = onEdit, modifier = Modifier.testTag("folder_edit")) { Text(stringResource(R.string.settings_folder_edit)) }
             }
         }
         if (!isFolder && customItems == null) when (result.status) {
@@ -180,7 +181,7 @@ fun ShortcutPopup(
                     val hosted = rememberHostedWidget(widget)
                     Box(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
                         HomeWidget(widget, hosted, hosted.defaultHeight, editing = false,
-                            enabled = !reveal.dragging && reveal.expanded, hapticsEnabled = uiState.settings.allowHapticFeedback, onLongPress = onEdit)
+                            enabled = !reveal.dragging && reveal.expanded, hapticsEnabled = uiState.settings.allowHapticFeedback, onLongPress = { onEdit?.invoke() })
                     }
                 }
                 itemApp != null -> {
@@ -199,7 +200,7 @@ fun ShortcutPopup(
                             Text(itemApp.label, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                         }
                 }
-                else -> Text(stringResource(R.string.popup_item_unavailable), Modifier.fillMaxWidth().clickable(onClick = onEdit).padding(16.dp),
+                else -> Text(stringResource(R.string.popup_item_unavailable), Modifier.fillMaxWidth().clickable(enabled = onEdit != null, onClick = { onEdit?.invoke() }).padding(16.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }

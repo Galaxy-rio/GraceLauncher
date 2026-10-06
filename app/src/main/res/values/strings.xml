@@ -117,6 +117,7 @@
     <string name="search_no_results">No matching apps</string>
     <string name="launcher_fab_description">Search apps. Touch and hold for settings.</string>
     <string name="drawer_folders">Folders</string>
+    <string name="recently_installed">Recently Installed</string>
     <string name="add_to_folder">Add to folder</string>
     <string name="create_app_folder">New folder in app list</string>
 
@@ -223,6 +224,8 @@
     <string name="settings_dynamic_colors_summary">Use wallpaper colors</string>
     <string name="settings_color_option">Color %1$s</string>
     <string name="settings_theme_mode">Dark mode</string>
+    <string name="settings_amoled_mode">AMOLED mode</string>
+    <string name="settings_amoled_mode_summary">Use true black in the dark theme</string>
     <string name="settings_follow_system">Follow system</string>
     <string name="settings_light_mode">Light</string>
     <string name="settings_dark_mode">Dark</string>
