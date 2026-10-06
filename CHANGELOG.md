@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.3
+
+- Improved Private Space with support for more modes.
+- Added search engine selection to the search component.
+- Added a Launcher category at the bottom of the app list for recently installed apps and settings.
+- Added home screen app actions to copy package names and choose which store page to open.
+- Added German translations by @dev-inside and partial Greek translations by @iByteABit256.
+
 ## 1.1.2
 
 - Updated Icon Designer with support for adjusting home screen icon sizes.
