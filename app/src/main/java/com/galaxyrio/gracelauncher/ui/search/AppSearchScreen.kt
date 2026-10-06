@@ -128,7 +128,7 @@ internal fun AppSearchScreen(
             else -> {
                 val opened = when (result) {
                     is SearchResult.Contact -> SearchLauncher.contact(context, result.contact)
-                    SearchResult.Internet -> SearchLauncher.internet(context, query)
+                    SearchResult.Internet -> SearchLauncher.internet(context, query, settings)
                 }
                 if (opened) onDismiss() else Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
             }

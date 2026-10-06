@@ -437,7 +437,17 @@
     <string name="search_fuzzy">模糊搜索</string>
     <string name="search_fuzzy_summary">支持拼写变体、拼音和首字母缩写</string>
     <string name="search_internet_setting">网络搜索</string>
-    <string name="search_internet_summary">显示使用默认浏览器搜索的选项</string>
+    <string name="search_engine">搜索引擎</string>
+    <string name="search_engine_google">谷歌</string>
+    <string name="search_engine_bing">Bing</string>
+    <string name="search_engine_sogou">搜狗</string>
+    <string name="search_engine_duckduckgo">DuckDuckGo</string>
+    <string name="search_engine_custom">自定义</string>
+    <string name="search_engine_name">名称（可选）</string>
+    <string name="search_engine_url">搜索网址</string>
+    <string name="search_engine_url_example">https://example.com/search?q={query}</string>
+    <string name="search_engine_url_hint">在搜索词的位置填写 {query}。搜索将在默认浏览器中打开。</string>
+    <string name="search_engine_url_error">请输入有效的 http:// 或 https:// 网址，并在域名后加入 {query}。</string>
     <string name="search_internet_result">搜索网络</string>
     <string name="search_hidden_apps">搜索隐藏的应用</string>
     <string name="search_hidden_apps_summary">包含从应用列表中隐藏的应用</string>
