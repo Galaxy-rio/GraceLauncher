@@ -388,8 +388,7 @@ fun LauncherRoute(
         copyPackageName = { app ->
             context.getSystemService(ClipboardManager::class.java)
                 .setPrimaryClip(ClipData.newPlainText(app.label, app.packageName))
-            // Android 13+ supplies its own clipboard confirmation.
-            if (Build.VERSION.SDK_INT < 33) Toast.makeText(context, R.string.package_name_copied, Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, R.string.package_name_copied, Toast.LENGTH_SHORT).show()
         },
         storePage = { app ->
             val intent = Intent(Intent.ACTION_VIEW, Uri.Builder().scheme("market").authority("details")

@@ -88,7 +88,7 @@
     <string name="popup_item_unavailable">此项目不可用</string>
     <string name="store_page">打开商店页面</string>
     <string name="copy_package_name">复制包名</string>
-    <string name="package_name_copied">已复制包名</string>
+    <string name="package_name_copied">已复制</string>
     <string name="choose_app_store">选择应用商店</string>
     <string name="app_store_unavailable">没有可打开此应用详情的应用商店。</string>
     <string name="grace_settings">Grace 设置</string>

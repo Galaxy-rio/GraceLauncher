@@ -87,7 +87,7 @@
     <string name="popup_item_unavailable">Item unavailable</string>
     <string name="store_page">Open store page</string>
     <string name="copy_package_name">Copy package name</string>
-    <string name="package_name_copied">Package name copied</string>
+    <string name="package_name_copied">Copied</string>
     <string name="choose_app_store">Choose app store</string>
     <string name="app_store_unavailable">No app store can open this app’s page.</string>
     <string name="grace_settings">Grace settings</string>
