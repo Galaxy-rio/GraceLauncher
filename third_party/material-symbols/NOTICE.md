@@ -55,6 +55,10 @@ em dash with the supplied accessible description.
 
 ### Other icons
 
+App package row icon added 2026-10-06 (official Android vector retained, tint supplied by Compose):
+
+- `ms_android.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/android/android/materialsymbolsoutlined/android_24px.xml
+
 Search icons added 2026-10-05 (official SVG paths retained, same 24dp conversion):
 
 - `ms_travel_explore.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/travel_explore/materialsymbolsoutlined/travel_explore_24px.svg

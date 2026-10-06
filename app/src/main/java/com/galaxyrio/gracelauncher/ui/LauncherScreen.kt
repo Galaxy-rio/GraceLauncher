@@ -2,6 +2,8 @@ package com.galaxyrio.gracelauncher.ui
 
 import android.Manifest
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.ContentUris
 import android.content.ComponentName
 import android.content.Intent
@@ -383,7 +385,21 @@ fun LauncherRoute(
             }
         },
         categorize = viewModel::categorize,
-        storePage = { openSystemApp(Intent(Intent.ACTION_VIEW, "https://play.google.com/store/apps/details?id=${it.packageName}".toUri())) },
+        copyPackageName = { app ->
+            context.getSystemService(ClipboardManager::class.java)
+                .setPrimaryClip(ClipData.newPlainText(app.label, app.packageName))
+            // Android 13+ supplies its own clipboard confirmation.
+            if (Build.VERSION.SDK_INT < 33) Toast.makeText(context, R.string.package_name_copied, Toast.LENGTH_SHORT).show()
+        },
+        storePage = { app ->
+            val intent = Intent(Intent.ACTION_VIEW, Uri.Builder().scheme("market").authority("details")
+                .appendQueryParameter("id", app.packageName).build())
+            // Leave the target implicit and always show Android's chooser, even
+            // when a default store has been set. No Play Store/web fallback.
+            if (intent.resolveActivity(context.packageManager) != null) {
+                openSystemApp(Intent.createChooser(intent, context.getString(R.string.choose_app_store)))
+            } else Toast.makeText(context, R.string.app_store_unavailable, Toast.LENGTH_SHORT).show()
+        },
         newEvent = {
             openSystemApp(Intent(Intent.ACTION_INSERT, CalendarContract.Events.CONTENT_URI)
                 .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, System.currentTimeMillis())

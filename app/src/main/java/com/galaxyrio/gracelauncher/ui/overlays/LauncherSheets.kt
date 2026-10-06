@@ -314,8 +314,16 @@ private fun AppDetailsSheet(app: LauncherApp, actions: LauncherActions, onChange
                     onChange(owner.folderId?.let { LauncherOverlay.FolderSettings(it) } ?: LauncherOverlay.EditPopup(owner))
                 }
                 if (folder == null) {
-                    DetailsAction(LauncherSymbol.Launch, stringResource(R.string.store_page)) { onChange(null); actions.storePage(app) }
-                    Text(app.packageName, Modifier.padding(start = DetailsContentInset + DetailsIconColumnWidth + DetailsIconTextSpacing, end = DetailsContentInset, bottom = 14.dp).testTag("app_details_package"), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val storeDescription = stringResource(R.string.store_page)
+                    PanelAction(LauncherSymbol.Android, app.packageName, "app_details_package",
+                        iconColumnWidth = DetailsIconColumnWidth, iconTextSpacing = DetailsIconTextSpacing,
+                        onClickLabel = stringResource(R.string.copy_package_name),
+                        trailing = {
+                            IconButton(onClick = { onChange(null); actions.storePage(app) },
+                                modifier = Modifier.testTag("app_details_store").semantics { contentDescription = storeDescription }) {
+                                LauncherIcon(LauncherSymbol.Launch)
+                            }
+                        }) { actions.copyPackageName(app) }
                 }
             }
         }
@@ -351,12 +359,13 @@ internal fun PanelAction(
     summary: String? = null,
     trailing: (@Composable () -> Unit)? = null,
     iconRotation: Float = 0f,
+    onClickLabel: String? = null,
     onClick: () -> Unit,
 ) {
     Row(
         Modifier.fillMaxWidth().heightIn(min = 52.dp).testTag(tag)
             .clip(RoundedCornerShape(16.dp))
-            .clickable(role = Role.Button, onClick = onClick)
+            .clickable(role = Role.Button, onClickLabel = onClickLabel, onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

@@ -35,6 +35,7 @@ data class LauncherActions(
     val updatePopup: (LauncherApp, List<LauncherApp>, (List<PopupItem>) -> List<PopupItem>) -> Unit = { _, _, _ -> },
     val addPopupWidget: (LauncherApp, List<LauncherApp>) -> Unit = { _, _ -> },
     val categorize: (LauncherApp, String?) -> Unit = { _, _ -> },
+    val copyPackageName: (LauncherApp) -> Unit = {},
     val storePage: (LauncherApp) -> Unit = {},
     val newEvent: () -> Unit = {},
     val openEvent: (ScheduleEvent) -> Unit = {},

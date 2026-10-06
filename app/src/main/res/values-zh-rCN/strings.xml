@@ -87,6 +87,10 @@
     <string name="popup_empty">从下方选择快捷方式、应用或小组件。</string>
     <string name="popup_item_unavailable">此项目不可用</string>
     <string name="store_page">打开商店页面</string>
+    <string name="copy_package_name">复制包名</string>
+    <string name="package_name_copied">已复制包名</string>
+    <string name="choose_app_store">选择应用商店</string>
+    <string name="app_store_unavailable">没有可打开此应用详情的应用商店。</string>
     <string name="grace_settings">Grace 设置</string>
     <string name="done">完成</string>
     <string name="save">保存</string>
@@ -450,6 +454,8 @@
     <string name="search_engine_bing">Bing</string>
     <string name="search_engine_sogou">搜狗</string>
     <string name="search_engine_duckduckgo">DuckDuckGo</string>
+    <string name="search_engine_qwant">Qwant</string>
+    <string name="search_engine_startpage">Startpage</string>
     <string name="search_engine_custom">自定义</string>
     <string name="search_engine_name">名称（可选）</string>
     <string name="search_engine_url">搜索网址</string>

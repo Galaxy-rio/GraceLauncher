@@ -11,7 +11,7 @@ import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.R
 
 enum class LauncherSymbol {
-    Star, Info, Hourglass, Category, Delete, Chevron, Settings, Launch,
+    Star, Info, Hourglass, Category, Delete, Chevron, Settings, Launch, Android,
     Plus, Edit, Apps, Check, Palette, Home, Search, Folder, Clock, Calendar, Weather, Move, Resize, DesignServices, Lock, Encrypted
 }
 
@@ -33,6 +33,7 @@ fun LauncherIcon(
                 LauncherSymbol.Chevron -> R.drawable.ms_expand_more
                 LauncherSymbol.Settings -> R.drawable.ms_settings
                 LauncherSymbol.Launch -> R.drawable.ms_open_in_new
+                LauncherSymbol.Android -> R.drawable.ms_android
                 LauncherSymbol.Plus -> R.drawable.ms_add
                 LauncherSymbol.Edit -> R.drawable.ms_edit
                 LauncherSymbol.Apps -> R.drawable.ms_apps

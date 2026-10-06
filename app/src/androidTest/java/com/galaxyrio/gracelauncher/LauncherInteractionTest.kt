@@ -421,7 +421,7 @@ class LauncherInteractionTest {
 
         listOf(
             "edit_favorites", "App info", "Screen time", "Add to folder", "Uninstall",
-            "advanced", "Rename app", "Open store page", "grace_settings",
+            "advanced", "Rename app", "app_details_package", "grace_settings",
         ).forEach { tag ->
             // Keep the target visible on shorter screens; horizontal anchors do not scroll.
             compose.onNodeWithTag(tag).performScrollTo()
@@ -432,7 +432,7 @@ class LauncherInteractionTest {
             assertEquals("$tag icon should share the header icon's center", headerIcon.center.x, icon.center.x, 1f)
             assertEquals("$tag label should share the app name's left edge", headerTitle.left, label.left, 1f)
         }
-        val packageNode = compose.onNodeWithTag("app_details_package", useUnmergedTree = true)
+        val packageNode = compose.onNodeWithTag("app_details_package:label", useUnmergedTree = true)
         packageNode.performScrollTo()
         assertEquals(
             "The advanced package name should not introduce another text indent",
