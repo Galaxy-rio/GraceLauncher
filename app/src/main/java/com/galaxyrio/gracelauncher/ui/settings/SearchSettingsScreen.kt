@@ -157,6 +157,8 @@ private fun SearchEngine.label(): String = stringResource(when (this) {
     SearchEngine.Bing -> R.string.search_engine_bing
     SearchEngine.Sogou -> R.string.search_engine_sogou
     SearchEngine.DuckDuckGo -> R.string.search_engine_duckduckgo
+    SearchEngine.Qwant -> R.string.search_engine_qwant
+    SearchEngine.Startpage -> R.string.search_engine_startpage
     SearchEngine.Custom -> R.string.search_engine_custom
 })
 

@@ -8,6 +8,8 @@ enum class SearchEngine(val id: String, val urlTemplate: String? = null) {
     Bing("bing", "https://www.bing.com/search?q={query}"),
     Sogou("sogou", "https://www.sogou.com/web?query={query}"),
     DuckDuckGo("duckduckgo", "https://duckduckgo.com/?q={query}"),
+    Qwant("qwant", "https://www.qwant.com/?q={query}"),
+    Startpage("startpage", "https://www.startpage.com/sp/search?query={query}"),
     Custom("custom"),
 }
 
