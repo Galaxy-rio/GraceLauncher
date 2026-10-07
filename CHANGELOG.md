@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.4
+
+- Built-in default widgets can now be disabled, including the clock, agenda, music controls and Grace Button.
+- Made it easier to add folders and app shortcuts to favorites and reorder them.
+- Updated the display logic for all lists.
+- Fixed home screen layout shifts when showing or hiding the status bar.
+- Made minor UI adjustments.
+
 ## 1.1.3
 
 - Improved Private Space with support for more modes.
