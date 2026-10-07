@@ -31,6 +31,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.galaxyrio.gracelauncher.R
+import com.galaxyrio.gracelauncher.data.AppRepository
+import com.galaxyrio.gracelauncher.data.LauncherApp
+import com.galaxyrio.gracelauncher.data.icons.IconPackRepository
+import com.galaxyrio.gracelauncher.ui.LauncherUiState
+import com.galaxyrio.gracelauncher.ui.components.AppIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSearchBar
 import com.galaxyrio.gracelauncher.ui.settings.SettingsScaffold
 import kotlinx.coroutines.Dispatchers
@@ -43,18 +48,18 @@ private data class WidgetEntry(val info: AppWidgetProviderInfo, val label: Strin
 
 private data class WidgetAppGroup(
     val key: String, val packageName: String, val label: String,
-    val icon: ImageBitmap?, val widgets: List<WidgetEntry>,
+    val app: LauncherApp, val widgets: List<WidgetEntry>,
 )
 
 @Composable
-internal fun WidgetPicker(providers: List<AppWidgetProviderInfo>?, busy: Boolean, onBack: () -> Unit, onSelect: (AppWidgetProviderInfo) -> Unit) {
+internal fun WidgetPicker(providers: List<AppWidgetProviderInfo>?, busy: Boolean, uiState: LauncherUiState, onBack: () -> Unit, onSelect: (AppWidgetProviderInfo) -> Unit) {
     val context = LocalContext.current
     val configuration = LocalConfiguration.current
     val queryState = rememberTextFieldState()
     val query = queryState.text.toString()
     var expandedApps by rememberSaveable { mutableStateOf(listOf<String>()) }
-    val groups by produceState<List<WidgetAppGroup>?>(null, providers, configuration) {
-        value = providers?.let { withContext(Dispatchers.IO) { loadWidgetGroups(context, it) } }
+    val groups by produceState<List<WidgetAppGroup>?>(null, providers, configuration, uiState.allApps, uiState.settings.enabledIconPackPackages) {
+        value = providers?.let { withContext(Dispatchers.IO) { loadWidgetGroups(context, it, uiState) } }
     }
     val filtered = remember(groups, query) {
         val term = query.trim()
@@ -96,7 +101,7 @@ private fun WidgetGroups(
                 ListItem(
                     onClick = { onToggle(app.key) }, enabled = enabled,
                     modifier = Modifier.animateItem().testTag("widget_app:${app.key}").semantics { stateDescription = expansion },
-                    leadingContent = { WidgetAppIcon(app.icon) },
+                    leadingContent = { AppIcon(app.app, size = 44.dp) },
                     content = { Text(app.label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                     supportingContent = { Text(pluralStringResource(R.plurals.widget_count, app.widgets.size, app.widgets.size)) },
                     trailingContent = { Icon(painterResource(R.drawable.ms_expand_more), null, Modifier.rotate(angle)) },
@@ -110,7 +115,7 @@ private fun WidgetGroups(
                         .fillMaxWidth().testTag("widget_preview:${entry.key}"),
                 ) {
                     Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        WidgetPreview(entry.info, app.icon, Modifier.fillMaxWidth().height(184.dp))
+                        WidgetPreview(entry.info, app.app.icon, Modifier.fillMaxWidth().height(184.dp))
                         Text(entry.label, style = MaterialTheme.typography.titleMedium)
                     }
                 }
@@ -125,11 +130,12 @@ internal fun WidgetAppIcon(icon: ImageBitmap?, modifier: Modifier = Modifier.siz
     else Icon(painterResource(R.drawable.ms_apps), null, modifier, tint = MaterialTheme.colorScheme.onSurfaceVariant)
 }
 
-private fun loadWidgetGroups(context: Context, providers: List<AppWidgetProviderInfo>): List<WidgetAppGroup> {
+private suspend fun loadWidgetGroups(context: Context, providers: List<AppWidgetProviderInfo>, uiState: LauncherUiState): List<WidgetAppGroup> {
     val pm = context.packageManager
     val launcherApps = context.getSystemService(LauncherApps::class.java)
     val iconSize = (48 * context.resources.displayMetrics.density).toInt().coerceIn(48, 192)
     val collator = Collator.getInstance(context.resources.configuration.locales[0])
+    val repository = AppRepository(context, IconPackRepository(context))
     return providers.groupBy { it.provider.packageName to it.profile }.map { (identity, widgets) ->
         val (packageName, profile) = identity
         val appInfo = runCatching { launcherApps.getApplicationInfo(packageName, 0, profile) }.getOrNull()
@@ -141,6 +147,10 @@ private fun loadWidgetGroups(context: Context, providers: List<AppWidgetProvider
         }.getOrNull()
         val entries = widgets.map { WidgetEntry(it, runCatching { it.loadLabel(pm) }.getOrDefault(label)) }
             .sortedWith { a, b -> collator.compare(a.label, b.label) }
-        WidgetAppGroup("$packageName:$profile", packageName, badgedLabel, icon, entries)
+        val app = uiState.allApps.firstOrNull {
+            it.shortcut == null && it.packageName == packageName && (it.user ?: android.os.Process.myUserHandle()) == profile
+        } ?: repository.applyPrivateIconPacks(listOf(LauncherApp(widgets.first().provider, badgedLabel, icon)),
+            uiState.settings.enabledIconPackPackages).single()
+        WidgetAppGroup("$packageName:$profile", packageName, badgedLabel, app, entries)
     }.sortedWith { a, b -> collator.compare(a.label, b.label) }
 }

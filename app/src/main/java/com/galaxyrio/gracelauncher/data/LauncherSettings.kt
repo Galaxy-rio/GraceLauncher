@@ -8,7 +8,9 @@ enum class AppFont(val id: String?) {
 }
 
 data class LauncherSettings(
+    val clockEnabled: Boolean = true,
     val calendarAgenda: Boolean = true,
+    val calendarAboveClock: Boolean = false,
     val showBatteryPercentage: Boolean = true,
     val allowHapticFeedback: Boolean = true,
     val useDynamicColors: Boolean = true,
@@ -20,6 +22,8 @@ data class LauncherSettings(
     val iconPackPackages: List<String> = emptyList(),
     val iconDesign: ItemIcon? = null,
     val mediaPlayer: Boolean = true,
+    val mediaAlwaysVisible: Boolean = false,
+    val mediaAppKey: String? = null,
     val weatherEnabled: Boolean = false,
     val weatherForecastDays: Int = 7,
     val weatherLocationId: String? = null,
@@ -39,6 +43,7 @@ data class LauncherSettings(
     val applyFontToSettings: Boolean = true,
     val privateSpace: PrivateSpaceSettings = PrivateSpaceSettings(),
     val search: SearchSettings = SearchSettings(),
+    val graceButton: GraceButtonSettings = GraceButtonSettings(),
 ) {
     /** Icon designer overrides precede this order; system icons always follow it. */
     val enabledIconPackPackages: List<String>

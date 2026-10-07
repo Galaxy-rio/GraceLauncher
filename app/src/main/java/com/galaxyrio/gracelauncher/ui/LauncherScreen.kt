@@ -111,6 +111,9 @@ import com.galaxyrio.gracelauncher.platform.DefaultHome
 import com.galaxyrio.gracelauncher.platform.ClockLauncher
 import com.galaxyrio.gracelauncher.platform.ClockLaunchResult
 import com.galaxyrio.gracelauncher.data.media.MediaAccess
+import com.galaxyrio.gracelauncher.data.media.IdleMediaSessionId
+import com.galaxyrio.gracelauncher.data.GraceButtonAction
+import com.galaxyrio.gracelauncher.data.GraceButtonTarget
 import com.galaxyrio.gracelauncher.data.weather.BreezyWeatherRepository
 import com.galaxyrio.gracelauncher.ui.overlays.ShortcutRevealState
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
@@ -347,7 +350,9 @@ fun LauncherRoute(
         },
         controlMedia = { sessionId, command ->
             if (!viewModel.controlMedia(sessionId, command)) {
-                Toast.makeText(context, R.string.media_control_unavailable, Toast.LENGTH_SHORT).show()
+                val fallback = if (sessionId == IdleMediaSessionId) uiState.settings.mediaAppKey?.let(uiState::findItem) else null
+                if (fallback != null) launchApp(fallback, null)
+                else Toast.makeText(context, R.string.media_control_unavailable, Toast.LENGTH_SHORT).show()
             }
         },
         requestDefaultHome = {
@@ -378,6 +383,7 @@ fun LauncherRoute(
         setItemIcon = viewModel::setItemIcon,
         importItemIcon = viewModel::importItemIcon,
         showShortcutInAppList = viewModel::showShortcutInAppList,
+        rememberShortcut = viewModel::rememberShortcut,
         updatePopup = viewModel::updatePopup,
         addPopupWidget = { owner, defaults ->
             (context as? androidx.activity.ComponentActivity)?.lifecycleScope?.launch {
@@ -429,6 +435,7 @@ fun LauncherRoute(
         setHiddenApps = viewModel::setHiddenApps,
         saveFolder = viewModel::saveFolder,
         updateFolder = viewModel::updateFolder,
+        setFolderFavorites = viewModel::setFolderFavorites,
         deleteFolder = viewModel::deleteFolder,
         shortcuts = viewModel::loadShortcuts,
         cachedShortcuts = viewModel::cachedShortcuts,
@@ -829,9 +836,25 @@ internal fun LauncherScreen(
             onScrubFinished = finishScrubbing,
             autoHide = uiState.settings.hideAlphabet && !drawerOpen,
         )
-        if (!drawerOpen) {
-            val fabDescription = stringResource(if (editingHome) R.string.done else R.string.launcher_fab_description)
+        if (!drawerOpen && (editingHome || uiState.settings.graceButton.enabled)) {
+            val fabDescription = stringResource(if (editingHome) R.string.done else R.string.settings_grace_button)
             val settingsLabel = stringResource(R.string.grace_settings)
+            val buttonContext = LocalContext.current
+            fun performButtonAction(target: GraceButtonTarget) {
+                when (target.action) {
+                    GraceButtonAction.Search -> {
+                        searchQuery.edit { replace(0, length, "") }
+                        overlay = LauncherOverlay.search(uiState.settings.search.enabled)
+                    }
+                    GraceButtonAction.Settings -> overlay = LauncherOverlay.Settings
+                    GraceButtonAction.App, GraceButtonAction.Shortcut -> {
+                        val app = target.itemKey?.let(uiState::findItem)
+                        if (app != null) onLaunchApp(app)
+                        else Toast.makeText(buttonContext, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
+                    }
+                    GraceButtonAction.Disabled -> Unit
+                }
+            }
             Surface(
                 modifier = Modifier.align(Alignment.BottomEnd).padding(end = LauncherLayout.End, bottom = 22.dp + bottomInset).size(54.dp)
                     .testTag("launcher_fab_surface"),
@@ -845,14 +868,13 @@ internal fun LauncherScreen(
                 Box(Modifier.fillMaxSize().testTag("launcher_fab").clip(CircleShape).combinedClickable(
                         enabled = !fullScreen,
                         interactionSource = remember { MutableInteractionSource() }, indication = ripple(),
-                        role = Role.Button, onLongClickLabel = settingsLabel,
+                        role = Role.Button, onLongClickLabel = if (uiState.settings.graceButton.longPress.action == GraceButtonAction.Settings) settingsLabel else null,
                         onClick = {
-                            if (editingHome) editingHome = false else {
-                                searchQuery.edit { replace(0, length, "") }
-                                overlay = LauncherOverlay.search(uiState.settings.search.enabled)
-                            }
+                            if (editingHome) editingHome = false else performButtonAction(uiState.settings.graceButton.tap)
                         },
-                        onLongClick = { if (editingHome) editingHome = false else overlay = LauncherOverlay.Settings },
+                        onLongClick = if (!editingHome && uiState.settings.graceButton.longPress.action == GraceButtonAction.Disabled) null else ({
+                            if (editingHome) editingHome = false else performButtonAction(uiState.settings.graceButton.longPress)
+                        }),
                     ).semantics { contentDescription = fabDescription }, contentAlignment = Alignment.Center) {
                     // Use the app's real foreground path, without its adaptive background.
                     Icon(painterResource(if (editingHome) R.drawable.ms_check else R.drawable.ic_launcher_foreground), null,

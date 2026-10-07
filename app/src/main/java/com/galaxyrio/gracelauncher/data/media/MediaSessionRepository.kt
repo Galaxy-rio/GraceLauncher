@@ -6,6 +6,7 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.media.MediaMetadata
+import android.media.AudioManager
 import android.media.session.MediaController
 import android.media.session.MediaSession
 import android.media.session.MediaSessionManager
@@ -198,6 +199,7 @@ internal class MediaSessionRepository(
 
     /** The rendered session id guards against a stale tap controlling a different player. */
     fun command(sessionId: String, command: MediaCommand): Boolean {
+        if (sessionId == IdleMediaSessionId) return command == MediaCommand.TogglePlayback && resumeLastPlayer()
         val entry = selected?.takeIf { it.id == sessionId } ?: return false
         if (!enabled || !hasAccess() || !notifications.value.contains(entry.controller.packageName, entry.controller.sessionToken)) {
             refresh(); return false
@@ -229,6 +231,26 @@ internal class MediaSessionRepository(
                 }
             }
         }.isSuccess
+    }
+
+    /** Ask Android to resume its media-button target, never pick an arbitrary music app. */
+    private fun resumeLastPlayer(): Boolean {
+        if (!enabled || !hasAccess()) return false
+        return runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                // This includes the last session's registered receiver after the session ends.
+                if (manager.mediaKeyEventSessionPackageName.isNullOrBlank()) return false
+                val audio = context.getSystemService(AudioManager::class.java)
+                audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY))
+                audio.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY))
+            } else {
+                val player = manager.getActiveSessions(MediaAccess.component(context)).firstOrNull {
+                    (it.playbackState?.actions ?: 0L) and PlaybackState.ACTION_PLAY != 0L
+                } ?: return false
+                player.transportControls.play()
+            }
+            true
+        }.getOrDefault(false)
     }
 
     private fun detach() {

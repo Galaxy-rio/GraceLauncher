@@ -5,6 +5,12 @@ package com.galaxyrio.gracelauncher.ui.settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -29,6 +35,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
@@ -146,6 +153,26 @@ internal fun SettingsHeading(text: String) {
     )
 }
 
+/** Shared feature master switch; ordinary settings below remain segmented rows. */
+@Composable
+internal fun SettingsFeatureBanner(title: String, checked: Boolean, tag: String, onCheckedChange: (Boolean) -> Unit) {
+    Column(Modifier.padding(vertical = 24.dp)) {
+        Surface(
+            checked = checked, onCheckedChange = onCheckedChange,
+            enabled = LocalSettingsStorageState.current.canEdit,
+            modifier = Modifier.fillMaxWidth().testTag(tag), shape = CircleShape,
+            color = if (checked) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceBright,
+            contentColor = if (checked) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+        ) {
+            Row(Modifier.heightIn(min = 72.dp).padding(horizontal = 24.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(title, Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                Spacer(Modifier.width(16.dp))
+                Switch(checked, null, enabled = LocalSettingsStorageState.current.canEdit)
+            }
+        }
+    }
+}
+
 @Composable
 internal fun SettingsActionItem(
     title: String,
@@ -156,12 +183,13 @@ internal fun SettingsActionItem(
     enabled: Boolean = true,
     leading: @Composable (() -> Unit)? = null,
     trailing: @Composable (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     SegmentedListItem(
         onClick = onClick,
         enabled = enabled && LocalSettingsStorageState.current.canEdit,
-        modifier = Modifier.testTag(tag),
+        modifier = modifier.testTag(tag),
         shapes = ListItemDefaults.segmentedShapes(index = index, count = count),
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
         leadingContent = leading,
@@ -174,7 +202,7 @@ internal fun SettingsActionItem(
 @Composable
 internal fun SettingsToggleItem(
     title: String,
-    summary: String,
+    summary: String?,
     checked: Boolean,
     index: Int,
     count: Int,
@@ -204,7 +232,7 @@ internal fun SettingsToggleItem(
             selectedSupportingContentColor = colors.supportingContentColor,
         ),
         content = { Text(title) },
-        supportingContent = { Text(summary) },
+        supportingContent = if (summary == null) null else ({ Text(summary) }),
         // The whole segmented item is the sole toggle and accessibility target.
         trailingContent = {
             Switch(

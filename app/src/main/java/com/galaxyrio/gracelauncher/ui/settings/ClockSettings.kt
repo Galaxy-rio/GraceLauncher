@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -36,6 +37,11 @@ internal fun ClockSettings(uiState: LauncherUiState, actions: LauncherActions, o
         selectedKey = uiState.settings.clockAppKey, showDefault = true,
         description = stringResource(R.string.clock_choose_app_description),
         onSelect = { key -> actions.updateSettings { it.copy(clockAppKey = key) } },
+        header = {
+            item { SettingsFeatureBanner(stringResource(R.string.clock_enable), uiState.settings.clockEnabled, "clock_enabled") { enabled ->
+                actions.updateSettings { it.copy(clockEnabled = enabled) }
+            } }
+        },
     )
 }
 
@@ -45,11 +51,15 @@ internal fun AppSelectionSettings(
     uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
     title: String, tag: String, selectedKey: String?, onSelect: (String?) -> Unit,
     showDefault: Boolean = false, description: String? = null,
+    defaultLabel: String? = null,
+    apps: List<com.galaxyrio.gracelauncher.data.LauncherApp> = uiState.allApps,
+    excludeOwnApp: Boolean = true,
+    header: LazyListScope.() -> Unit = {},
 ) {
     val queryState = rememberTextFieldState()
     val ownPackage = LocalContext.current.packageName
     // A profile-qualified activity key keeps private and personal copies distinct.
-    val available = remember(uiState.allApps, ownPackage) { uiState.allApps.filter { it.packageName != ownPackage && it.shortcut == null } }
+    val available = remember(apps, ownPackage, excludeOwnApp) { apps.filter { (!excludeOwnApp || it.packageName != ownPackage) && it.shortcut == null } }
     val enabled = LocalSettingsStorageState.current.canEdit
     val ready = !uiState.isLoadingApps && !uiState.appLoadFailed
     SettingsScaffold(title, "settings_${tag}_page", onBack) { padding ->
@@ -69,6 +79,7 @@ internal fun AppSelectionSettings(
                 }
             },
         ) {
+            header()
             if (description != null) item {
                 Text(description,
                     Modifier.padding(horizontal = 8.dp, vertical = 20.dp),
@@ -76,7 +87,7 @@ internal fun AppSelectionSettings(
             }
             if (showDefault) item {
                 AppSelectionRow(
-                    label = stringResource(R.string.clock_default_app),
+                    label = defaultLabel ?: stringResource(R.string.clock_default_app),
                     selected = selectedKey == null,
                     onClick = { onSelect(null) },
                     enabled = enabled, singleChoice = true,

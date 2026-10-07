@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,9 +41,12 @@ import com.galaxyrio.gracelauncher.ui.components.AppSelectionList
 import com.galaxyrio.gracelauncher.ui.components.AppSelectionRow
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
+import com.galaxyrio.gracelauncher.ui.components.ShortcutPickerScreen
+import com.galaxyrio.gracelauncher.ui.settings.FavoriteFoldersScreen
 import com.galaxyrio.gracelauncher.ui.settings.SettingsScaffold
 import com.galaxyrio.gracelauncher.ui.widgets.WidgetPreview
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 
 private data class SelectionEntry(val key: String, val label: String, val app: LauncherApp? = null, val widget: HomeLayout? = null)
 
@@ -59,12 +63,24 @@ internal fun PrivateSpaceEditorScreen(owner: LauncherApp, uiState: LauncherUiSta
 }
 
 @Composable
-internal fun FavoritesScreen(uiState: LauncherUiState, onToggle: (LauncherApp) -> Unit, onReorder: (List<String>) -> Unit, onDone: () -> Unit) {
+internal fun FavoritesScreen(uiState: LauncherUiState, actions: LauncherActions, onToggle: (LauncherApp) -> Unit, onReorder: (List<String>) -> Unit, onDone: () -> Unit) {
+    var choosingShortcut by rememberSaveable { mutableStateOf(false) }
+    var choosingFolders by rememberSaveable { mutableStateOf(false) }
+    if (choosingFolders) {
+        FavoriteFoldersScreen(uiState, actions) { choosingFolders = false }
+        return
+    }
+    if (choosingShortcut) {
+        ShortcutPickerScreen(uiState, actions, uiState.favoriteKeys, { choosingShortcut = false }, onToggle)
+        return
+    }
     ItemSelectionScreen(
         title = stringResource(R.string.edit_favorites), tag = "favorites",
-        selected = uiState.favoriteApps.map { SelectionEntry(it.key, it.label, it) },
+        selected = uiState.favoriteItems.map { SelectionEntry(it.key, it.label, it) },
         apps = uiState.allApps, enabled = !uiState.isLoadingSettings && !uiState.settingsLoadFailed,
         onToggle = onToggle, onRemove = { key -> uiState.findItem(key)?.let(onToggle) }, onReorder = onReorder, onDone = onDone,
+        onAddShortcut = { choosingShortcut = true },
+        onAddFolder = { choosingFolders = true },
     )
 }
 
@@ -84,6 +100,22 @@ internal fun PopupEditorScreen(owner: LauncherApp, uiState: LauncherUiState, act
     }
     val ready = !uiState.isLoadingSettings && !uiState.settingsLoadFailed &&
         (uiState.popups.containsKey(owner.key) || result.status == ShortcutStatus.Ready || result.status == ShortcutStatus.DefaultLauncherRequired)
+    var choosingShortcut by rememberSaveable(owner.key) { mutableStateOf(false) }
+    var saving by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    if (choosingShortcut) {
+        ShortcutPickerScreen(uiState, actions, entries.map { it.key }.toSet(), { choosingShortcut = false }, busy = saving, onSelect = { app ->
+            saving = true
+            scope.launch {
+                try {
+                    if (actions.rememberShortcut(app)) actions.updatePopup(owner, shortcuts) { current ->
+                        if (current.any { it.key == app.key }) current.filterNot { it.key == app.key } else current + PopupItem(app.key)
+                    }
+                } finally { saving = false }
+            }
+        })
+        return
+    }
     ItemSelectionScreen(
         title = stringResource(R.string.edit_app_popup, owner.label), tag = "popup_editor", selected = selected,
         apps = uiState.allApps.filterNot { it.key == owner.key }, enabled = ready,
@@ -91,6 +123,7 @@ internal fun PopupEditorScreen(owner: LauncherApp, uiState: LauncherUiState, act
         header = header,
         shortcutStatus = result.status, onRetry = { retry++ }, onRequestAccess = actions.requestDefaultHome,
         onAddWidget = { actions.addPopupWidget(owner, shortcuts) },
+        onAddShortcut = { choosingShortcut = true },
         onToggle = { app -> actions.updatePopup(owner, shortcuts) { current ->
             if (current.any { it.key == app.key }) current.filterNot { it.key == app.key } else current + PopupItem(app.key)
         } },
@@ -109,6 +142,8 @@ private fun ItemSelectionScreen(
     onToggle: (LauncherApp) -> Unit, onRemove: (String) -> Unit, onReorder: (List<String>) -> Unit, onDone: () -> Unit,
     shortcuts: List<LauncherApp>? = null, shortcutTitle: String = "", shortcutStatus: ShortcutStatus = ShortcutStatus.Ready,
     onRetry: () -> Unit = {}, onRequestAccess: () -> Unit = {}, onAddWidget: (() -> Unit)? = null,
+    onAddShortcut: (() -> Unit)? = null,
+    onAddFolder: (() -> Unit)? = null,
     header: (@Composable () -> Unit)? = null,
     reorderOnly: Boolean = false,
     loading: Boolean = false,
@@ -140,7 +175,7 @@ private fun ItemSelectionScreen(
         TextButton(onClick = onDone, modifier = Modifier.testTag("${tag}_done")) { Text(stringResource(R.string.done)) }
     }) { padding ->
         AppSelectionList(
-            apps = apps, selectedKeys = selectedKeys.toSet(), query = query, onSelect = onToggle,
+            apps = apps.filter { it.shortcut == null }, selectedKeys = selectedKeys.toSet(), query = query, onSelect = onToggle,
             modifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding(),
             state = list, listTag = "${tag}_list", searchTag = "${tag}_search", itemTagPrefix = "favorite_all",
             enabled = enabled && reorder.draggingKey == null, userScrollEnabled = reorder.draggingKey == null,
@@ -217,23 +252,38 @@ private fun ItemSelectionScreen(
                     SelectionHeading(stringResource(R.string.popup_custom_widget), "popup_widgets")
                 }
                 item(key = "add_widget") {
-                    Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag("popup_add_widget")
-                        .clip(RoundedCornerShape(16.dp))
-                        .clickable(enabled = enabled, role = Role.Button, onClick = onAddWidget)
-                        .padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
-                            Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) { LauncherIcon(LauncherSymbol.Plus) }
-                        }
-                        Spacer(Modifier.width(16.dp))
-                        Text(stringResource(R.string.popup_add_new))
-                    }
+                    AddSelectionContent("popup_add_widget", enabled, onAddWidget)
                 }
+            }
+            if (onAddShortcut != null) {
+                item(key = "add_shortcuts_header", contentType = "header") {
+                    SelectionHeading(stringResource(R.string.shortcuts_title), "${tag}_shortcuts")
+                }
+                item(key = "add_shortcut") { AddSelectionContent("${tag}_add_shortcut", enabled, onAddShortcut) }
+            }
+            if (onAddFolder != null) {
+                item(key = "folders_header", contentType = "header") {
+                    SelectionHeading(stringResource(R.string.settings_folders), "${tag}_folders")
+                }
+                item(key = "add_folder") { AddSelectionContent("${tag}_add_folder", enabled, onAddFolder) }
             }
             if (!reorderOnly) item(key = "all_header", contentType = "header") {
                 SelectionHeading(stringResource(R.string.favorites_all_apps), "${tag}_all_apps")
             }
         }
+    }
+}
+
+@Composable
+private fun AddSelectionContent(tag: String, enabled: Boolean, onClick: () -> Unit) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag(tag).clip(RoundedCornerShape(16.dp))
+        .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
+        .padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
+            Box(Modifier.size(40.dp), contentAlignment = Alignment.Center) { LauncherIcon(LauncherSymbol.Plus) }
+        }
+        Spacer(Modifier.width(16.dp))
+        Text(stringResource(R.string.popup_add_new))
     }
 }
 

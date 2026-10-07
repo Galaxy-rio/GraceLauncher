@@ -10,7 +10,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -66,18 +65,9 @@ internal fun SearchSettingsScreen(uiState: LauncherUiState, actions: LauncherAct
     SettingsScaffold(stringResource(R.string.settings_search), "settings_search", onBack) { padding ->
         SettingsList(padding) {
             item {
-                Spacer(Modifier.height(24.dp))
-                Surface(onClick = { update { it.copy(enabled = !it.enabled) } },
-                    modifier = Modifier.fillMaxWidth().testTag("search_enabled"), shape = CircleShape,
-                    color = if (settings.enabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceBright,
-                    contentColor = if (settings.enabled) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface) {
-                    Row(Modifier.heightIn(min = 72.dp).padding(horizontal = 24.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(stringResource(R.string.search_enable), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
-                        Spacer(Modifier.width(16.dp))
-                        Switch(settings.enabled, null)
-                    }
+                SettingsFeatureBanner(stringResource(R.string.search_enable), settings.enabled, "search_enabled") { value ->
+                    update { it.copy(enabled = value) }
                 }
-                Spacer(Modifier.height(24.dp))
             }
             item {
                 SettingsToggleItem(stringResource(R.string.search_suggestions), stringResource(R.string.search_suggestions_summary),

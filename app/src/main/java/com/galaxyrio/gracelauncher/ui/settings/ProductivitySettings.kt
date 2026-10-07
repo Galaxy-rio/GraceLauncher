@@ -2,6 +2,9 @@
 
 package com.galaxyrio.gracelauncher.ui.settings
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -13,21 +16,31 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.FolderPlacement
@@ -43,7 +56,10 @@ import com.galaxyrio.gracelauncher.ui.overlays.PopupEditorScreen
 import com.galaxyrio.gracelauncher.ui.overlays.TextEntryDialog
 import com.galaxyrio.gracelauncher.ui.overlays.FolderPlacementDialog
 import com.galaxyrio.gracelauncher.ui.overlays.DeleteFolderDialog
+import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherTypography
+import com.galaxyrio.gracelauncher.ui.theme.SystemLauncherTypography
 import java.util.UUID
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun ProductivitySettings(
@@ -60,44 +76,42 @@ internal fun ProductivitySettings(
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_clock), clockAppSummary(uiState),
-                    0, 5, "settings_clock",
+                    0, 6, "settings_clock",
                 ) { navigate(SettingsPage.Clock) }
             }
             item {
-                SettingsToggleItem(
+                SettingsActionItem(
                     stringResource(R.string.settings_calendar_agenda), stringResource(R.string.settings_calendar_agenda_summary),
-                    settings.calendarAgenda, 1, 5, "calendar_agenda",
-                ) { value -> actions.updateSettings { current -> current.copy(calendarAgenda = value) } }
+                    1, 6, "calendar_agenda",
+                ) { navigate(SettingsPage.Calendar) }
             }
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_weather),
                     stringResource(if (settings.weatherEnabled) R.string.weather_settings_enabled_summary else R.string.weather_settings_disabled_summary),
-                    2, 5, "settings_weather",
+                    2, 6, "settings_weather",
                 ) { navigate(SettingsPage.Weather) }
             }
             item {
-                SettingsToggleItem(
+                SettingsActionItem(
                     stringResource(R.string.settings_media_player), stringResource(R.string.media_player_summary),
-                    settings.mediaPlayer, 3, 5, "settings_media_player",
-                ) { value ->
-                    actions.updateSettings { it.copy(mediaPlayer = value) }
-                    if (value && !uiState.media.hasAccess) showMediaAccessDialog = true
-                }
+                    3, 6, "settings_media_player",
+                ) { navigate(SettingsPage.MediaPlayer) }
             }
             item {
                 SettingsActionItem(stringResource(R.string.settings_search), stringResource(R.string.search_settings_summary),
-                    4, 5, "settings_open_search") { navigate(SettingsPage.Search) }
+                    4, 6, "settings_open_search") { navigate(SettingsPage.Search) }
             }
-            if (settings.mediaPlayer && !uiState.media.hasAccess) item {
+            item {
+                SettingsActionItem(stringResource(R.string.settings_grace_button), null,
+                    5, 6, "settings_grace_button") { navigate(SettingsPage.GraceButton) }
+            }
+            item {
                 Spacer(Modifier.height(12.dp))
-                SettingsActionItem(
-                    stringResource(R.string.media_allow_controls), stringResource(R.string.media_access_required),
-                    0, 1, "media_access",
-                ) { showMediaAccessDialog = true }
+                SettingsActionItem(stringResource(R.string.settings_move_widget), null, 0, 1, "settings_move_widget", onClick = actions.moveWidget)
             }
             item { SettingsHeading(stringResource(R.string.settings_app_organization)) }
-            if (!settings.mediaPlayer && !uiState.media.hasAccess) item {
+            if (!uiState.media.hasAccess) item {
                 SettingsActionItem(stringResource(R.string.notification_allow), stringResource(R.string.media_access_required),
                     0, 1, "notifications_access") { showMediaAccessDialog = true }
                 Spacer(Modifier.height(12.dp))
@@ -120,21 +134,12 @@ internal fun ProductivitySettings(
             }
             item { SettingsHeading(stringResource(R.string.settings_advanced)) }
             item {
-                SettingsActionItem(stringResource(R.string.widget_add), null, 0, 4, "settings_add_widget", onClick = actions.addWidget)
-            }
-            item {
-                SettingsActionItem(stringResource(R.string.settings_move_widget), null, 1, 4, "settings_move_widget", onClick = actions.moveWidget)
-            }
-            item {
-                SettingsToggleItem(
-                    stringResource(R.string.settings_show_battery), stringResource(R.string.settings_show_battery_summary),
-                    settings.showBatteryPercentage, 2, 4, "show_battery",
-                ) { value -> actions.updateSettings { current -> current.copy(showBatteryPercentage = value) } }
+                SettingsActionItem(stringResource(R.string.widget_add), null, 0, 2, "settings_add_widget", onClick = actions.addWidget)
             }
             item {
                 SettingsToggleItem(
                     stringResource(R.string.settings_allow_haptics), stringResource(R.string.settings_allow_haptics_summary),
-                    settings.allowHapticFeedback, 3, 4, "allow_haptics",
+                    settings.allowHapticFeedback, 1, 2, "allow_haptics",
                 ) { value -> actions.updateSettings { current -> current.copy(allowHapticFeedback = value) } }
             }
         }
@@ -191,7 +196,51 @@ internal fun HiddenAppsSettings(uiState: LauncherUiState, actions: LauncherActio
 }
 
 @Composable
-internal fun FolderSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit, onEdit: (String) -> Unit) {
+internal fun FavoriteFoldersScreen(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit) {
+    // Only keep pending changes here. Folder placement remains the source of truth,
+    // including folders created/edited through the normal settings page below.
+    var selection by rememberSaveable { mutableStateOf<Map<String, Boolean>>(emptyMap()) }
+    var editingId by rememberSaveable { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
+    if (editingId != null) {
+        LauncherSettingsScreen(uiState, actions, onBack = { editingId = null }, initialFolderId = editingId,
+            closePrivateSpaceOnDispose = false)
+        return
+    }
+    val selectedIds = uiState.folders.filter { selection[it.id] ?: (it.placement == FolderPlacement.Favorites) }
+        .map { it.id }.toSet()
+    val confirm: () -> Unit = {
+        if (!saving) {
+            if (selection.isEmpty()) onBack() else {
+                saving = true
+                val pending = selection.toMap()
+                scope.launch {
+                    try {
+                        if (actions.setFolderFavorites(pending)) onBack()
+                    } finally { saving = false }
+                }
+            }
+        }
+    }
+    BackHandler(onBack = confirm)
+    MaterialTheme(typography = if (uiState.settings.applyFontToSettings) LocalLauncherTypography.current else SystemLauncherTypography) {
+        CompositionLocalProvider(LocalSettingsStorageState provides SettingsStorageState(
+            uiState.isLoadingSettings, uiState.settingsLoadFailed, uiState.settingsSaveFailed,
+        )) {
+            FolderSettings(uiState, actions, confirm, selectedIds = selectedIds, enabled = !saving,
+                onToggle = { id -> selection = selection + (id to (id !in selectedIds)) },
+                onEdit = { editingId = it })
+        }
+    }
+}
+
+@Composable
+internal fun FolderSettings(
+    uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
+    selectedIds: Set<String>? = null, onToggle: (String) -> Unit = {}, enabled: Boolean = true,
+    onEdit: (String) -> Unit,
+) {
     var creating by rememberSaveable { mutableStateOf(false) }
     var openingId by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(openingId, uiState.folders, uiState.settingsSaveFailed) {
@@ -207,7 +256,7 @@ internal fun FolderSettings(uiState: LauncherUiState, actions: LauncherActions, 
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_folder_create), null, 0, 1, "folder_create",
-                    enabled = openingId == null,
+                    enabled = enabled && openingId == null,
                     leading = { LauncherIcon(LauncherSymbol.Plus) },
                 ) { creating = true }
             }
@@ -217,12 +266,31 @@ internal fun FolderSettings(uiState: LauncherUiState, actions: LauncherActions, 
                 item { SettingsHeading(stringResource(R.string.settings_folders)) }
                 itemsIndexed(uiState.folders, key = { _, folder -> folder.id }) { index, folder ->
                     val count = uiState.popups[folder.key]?.size ?: folder.appKeys.size
+                    val checked = selectedIds?.contains(folder.id)
+                    val placement = when (checked) {
+                        true -> FolderPlacement.Favorites
+                        false -> FolderPlacement.AppList
+                        null -> folder.placement
+                    }
                     SettingsActionItem(
                         folder.name,
-                        pluralStringResource(R.plurals.settings_folder_summary, count, count, folder.placement.label()),
+                        pluralStringResource(R.plurals.settings_folder_summary, count, count, placement.label()),
                         index, uiState.folders.size, "folder:${folder.id}",
-                        leading = { AppIcon(uiState.folderItem(folder), size = 32.dp) },
-                    ) { onEdit(folder.id) }
+                        enabled = enabled,
+                        modifier = Modifier.semantics {
+                            if (checked != null) {
+                                role = Role.Checkbox
+                                toggleableState = if (checked) ToggleableState.On else ToggleableState.Off
+                            }
+                        },
+                        leading = {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                                if (checked != null) Checkbox(checked, onCheckedChange = null,
+                                    enabled = enabled && LocalSettingsStorageState.current.canEdit)
+                                AppIcon(uiState.folderItem(folder), size = 32.dp)
+                            }
+                        },
+                    ) { if (selectedIds == null) onEdit(folder.id) else onToggle(folder.id) }
                 }
             }
         }

@@ -5,6 +5,8 @@ import androidx.compose.ui.graphics.ImageBitmap
 
 enum class MediaCommand { TogglePlayback, Previous, Next, OpenPlayer }
 
+const val IdleMediaSessionId = "launcher:idle"
+
 data class NowPlaying(
     val sessionId: String,
     val playerName: String,

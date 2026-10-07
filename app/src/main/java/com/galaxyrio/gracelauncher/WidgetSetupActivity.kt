@@ -13,6 +13,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
@@ -25,6 +27,8 @@ import com.galaxyrio.gracelauncher.platform.HomeWidgetHost
 import com.galaxyrio.gracelauncher.ui.LauncherAppTheme
 import com.galaxyrio.gracelauncher.ui.LauncherViewModel
 import com.galaxyrio.gracelauncher.ui.widgets.WidgetPicker
+import com.galaxyrio.gracelauncher.ui.theme.LauncherAppearance
+import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -54,8 +58,12 @@ class WidgetSetupActivity : ComponentActivity() {
         configuringExisting = savedInstanceState?.getBoolean("configuringExisting") ?: false
         setContent {
             LauncherAppTheme(viewModel) {
+                val state by viewModel.uiState.collectAsStateWithLifecycle()
                 BackHandler(enabled = saving) { }
-                WidgetPicker(providers, busy, onBack = { if (!saving) cancelSetup() }, onSelect = ::select)
+                CompositionLocalProvider(LocalLauncherAppearance provides LauncherAppearance(themedIcons = state.themedIcons,
+                    iconSize = state.settings.iconDesign?.design?.iconSize ?: 100)) {
+                    WidgetPicker(providers, busy, state, onBack = { if (!saving) cancelSetup() }, onSelect = ::select)
+                }
             }
         }
         lifecycleScope.launch {

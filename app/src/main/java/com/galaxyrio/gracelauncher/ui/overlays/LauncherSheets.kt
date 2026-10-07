@@ -112,7 +112,7 @@ fun LauncherOverlays(
         return
     }
     if (overlay == LauncherOverlay.Favorites) {
-        FavoritesScreen(uiState, onToggleFavorite, actions.reorderFavorites) { onChange(null) }
+        FavoritesScreen(uiState, actions, onToggleFavorite, actions.reorderFavorites) { onChange(null) }
         return
     }
     if (overlay is LauncherOverlay.IconDesigner) {

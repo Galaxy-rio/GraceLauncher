@@ -39,6 +39,11 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
 
     suspend fun updateSettings(settings: LauncherSettings) {
         dao.saveSettings(LauncherSettingsEntity(
+            clockEnabled = settings.clockEnabled,
+            calendarAboveClock = settings.calendarAboveClock,
+            mediaAlwaysVisible = settings.mediaAlwaysVisible,
+            mediaAppKey = settings.mediaAppKey,
+            graceButtonJson = settings.graceButton.encode(),
             calendarAgenda = settings.calendarAgenda,
             showBatteryPercentage = settings.showBatteryPercentage,
             allowHapticFeedback = settings.allowHapticFeedback,
@@ -108,6 +113,13 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
             placement = placement?.name ?: folder.placement))
     }
 
+    /** The favorites picker edits the same placement as the folder's settings. */
+    suspend fun setFolderFavorites(selection: Map<String, Boolean>) = database.withTransaction {
+        selection.forEach { (id, favorite) ->
+            updateFolder(id, placement = if (favorite) FolderPlacement.Favorites else FolderPlacement.AppList)
+        }
+    }
+
     suspend fun deleteFolder(id: String): List<Int> = database.withTransaction {
         val key = "folder:$id"
         val itemsDao = database.itemsDao()
@@ -120,6 +132,11 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
 }
 
 private fun LauncherSettingsEntity.toSettings() = LauncherSettings(
+    clockEnabled = clockEnabled,
+    calendarAboveClock = calendarAboveClock,
+    mediaAlwaysVisible = mediaAlwaysVisible,
+    mediaAppKey = mediaAppKey,
+    graceButton = GraceButtonSettings.decode(graceButtonJson),
     calendarAgenda = calendarAgenda,
     showBatteryPercentage = showBatteryPercentage,
     allowHapticFeedback = allowHapticFeedback,

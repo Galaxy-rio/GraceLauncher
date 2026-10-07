@@ -1,4 +1,25 @@
 <resources>
+    <!-- Instant access and shared shortcut picker -->
+    <string name="clock_enable">Enable clock</string>
+    <string name="calendar_enable">Enable calendar and agenda</string>
+    <string name="calendar_above_clock">Place above the clock</string>
+    <string name="media_enable">Enable media player</string>
+    <string name="media_always_visible">Always show</string>
+    <string name="media_always_visible_summary">Keep the player visible even when nothing is playing</string>
+    <string name="media_fallback_app">App to open when no media is available</string>
+    <string name="media_idle_title">Nothing playing</string>
+    <string name="media_idle_summary">Tap play to resume</string>
+    <string name="settings_none">None</string>
+    <string name="settings_grace_button">Grace button</string>
+    <string name="grace_button_enable">Enable Grace button</string>
+    <string name="grace_button_tap">Single tap</string>
+    <string name="grace_button_long_press">Long press</string>
+    <string name="grace_button_open_app">Open app</string>
+    <string name="grace_button_open_shortcut">Open shortcut</string>
+    <string name="grace_button_disabled">Disabled</string>
+    <string name="shortcuts_title">Shortcuts</string>
+    <string name="shortcuts_search">Search shortcuts</string>
+    <string name="shortcuts_load_partial">Some shortcuts could not be loaded</string>
     <string name="private_space_title">Private space</string>
     <string name="private_space_summary">A protected space for your private apps</string>
     <string name="private_space_enable">Enable Private space</string>
@@ -124,7 +145,7 @@
     <!-- Favorites -->
     <string name="favorites_selected">Selected</string>
     <string name="favorites_all_apps">All apps</string>
-    <string name="favorites_empty">Choose apps below to add them to your home screen.</string>
+    <string name="favorites_empty">Choose apps, shortcuts, or folders below to add them to your home screen.</string>
     <string name="favorites_reorder">Reorder %1$s</string>
     <string name="favorites_move_up">Move up</string>
     <string name="favorites_move_down">Move down</string>
@@ -354,7 +375,7 @@
     <string name="weather_settings_incompatible">Check for updates to Grace Launcher and Breezy Weather to use compatible versions of weather sharing.</string>
     <string name="weather_settings_unavailable">Breezy Weather could not share its data. Open it to check the forecast, then try again.</string>
     <string name="weather_settings_ready">Connected to Breezy Weather.</string>
-    <string name="weather_settings_update_notifier">For prompt updates, enable Grace Launcher in Breezy Weather → Settings → External modules → Location Update Notifier. Weather is still checked when you return to Grace Launcher.</string>
+    <string name="weather_settings_update_notifier">For automatic updates: Breezy Weather → Settings → External modules → Location Update Notifier → Grace Launcher.</string>
     <string name="weather_settings_install">Install Breezy Weather</string>
     <string name="weather_settings_allow">Allow weather access</string>
     <string name="weather_settings_open">Open Breezy Weather</string>

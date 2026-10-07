@@ -74,24 +74,15 @@ internal fun WeatherSettings(uiState: LauncherUiState, actions: LauncherActions,
     SettingsScaffold(stringResource(R.string.settings_weather), "settings_weather_page", onBack) { padding ->
         SettingsList(padding) {
             item {
-                Text(
-                    stringResource(R.string.weather_settings_about),
-                    Modifier.padding(horizontal = 4.dp, vertical = 20.dp),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            item {
-                SettingsToggleItem(
-                    stringResource(R.string.weather_settings_enable), stringResource(R.string.weather_settings_enable_summary),
-                    settings.weatherEnabled, 0, 1, "weather_enabled",
+                SettingsFeatureBanner(
+                    stringResource(R.string.weather_settings_enable), settings.weatherEnabled, "weather_enabled",
                 ) { enabled ->
                     actions.updateSettings { it.copy(weatherEnabled = enabled) }
                     if (enabled) actions.requestWeatherAccess()
                 }
             }
             item { SettingsHeading(stringResource(R.string.weather_settings_connection)) }
-            item {
+            if (status != WeatherStatus.Ready && status != WeatherStatus.Disabled) item {
                 Text(
                     stringResource(status.messageResource()),
                     Modifier.padding(horizontal = 4.dp, vertical = 12.dp).testTag("weather_connection_status"),
@@ -148,7 +139,7 @@ internal fun WeatherSettings(uiState: LauncherUiState, actions: LauncherActions,
             item {
                 SettingsActionItem(
                     stringResource(R.string.weather_settings_forecast_days),
-                    pluralStringResource(R.plurals.weather_settings_days_summary, settings.weatherForecastDays, settings.weatherForecastDays),
+                    pluralStringResource(R.plurals.weather_settings_days_value, settings.weatherForecastDays, settings.weatherForecastDays),
                     if (weather.locations.isEmpty()) 0 else 1, if (weather.locations.isEmpty()) 1 else 2,
                     "weather_forecast_days",
                 ) { dialog = "days" }

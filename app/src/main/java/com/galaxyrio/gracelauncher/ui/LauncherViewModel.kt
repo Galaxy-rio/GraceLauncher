@@ -175,8 +175,19 @@ data class LauncherUiState(
     val favoriteApps: List<LauncherApp>
         get() {
             if (isLoadingSettings || settingsLoadFailed) return emptyList()
-            val favorites = allApps.filter { it.key in favoriteKeys }.associateBy(LauncherApp::key)
+            val favorites = (allApps + shortcutApps.filter { !it.isPrivateSpace || (settings.privateSpace.exposesApps && privateContentVisible) })
+                .filter { it.key in favoriteKeys }.associateBy(LauncherApp::key)
             return (favoriteOrder + favorites.keys).distinct().mapNotNull(favorites::get)
+        }
+
+    /** Folder placement owns membership; the shared order only determines position. */
+    val favoriteItems: List<LauncherApp>
+        get() {
+            if (isLoadingSettings || settingsLoadFailed) return emptyList()
+            val items = (favoriteApps + folders.filter { it.placement == FolderPlacement.Favorites }.map(::folderItem))
+                .associateBy(LauncherApp::key)
+            // Existing folders keep their old position at the end until reordered.
+            return (favoriteOrder + items.keys).distinct().mapNotNull(items::get)
         }
 }
 
@@ -643,6 +654,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         shortcutRepository.pin(apps.mapNotNull { it.shortcut })
     }
 
+    suspend fun rememberShortcut(app: LauncherApp): Boolean = settingsWriteMutex.withLock {
+        try {
+            rememberPopupItems(listOf(app))
+            _uiState.update { state -> state.copy(shortcutApps = state.shortcutApps.filterNot { it.key == app.key } + app) }
+            true
+        } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            _uiState.update { it.copy(settingsSaveFailed = true) }
+            false
+        }
+    }
+
     fun updatePopup(owner: LauncherApp, defaults: List<LauncherApp>, transform: (List<PopupItem>) -> List<PopupItem>) = persistSettings {
         rememberPopupItems(defaults + listOf(owner))
         val removed = itemsRepository.updatePopup(owner.key, defaults.map { PopupItem(it.key) }, transform)
@@ -754,6 +777,19 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         settingsRepository.updateFolder(id, name, placement)
     }
 
+    suspend fun setFolderFavorites(selection: Map<String, Boolean>): Boolean = settingsWriteMutex.withLock {
+        try {
+            settingsRepository.setFolderFavorites(selection)
+            _uiState.update { it.copy(settingsSaveFailed = false) }
+            true
+        } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            Log.e("LauncherViewModel", "Unable to save favorite folders", error)
+            _uiState.update { it.copy(settingsSaveFailed = true) }
+            false
+        }
+    }
+
     fun deleteFolder(id: String) = persistSettings {
         val previous = itemsSnapshot.icons["folder:$id"]
         val removed = settingsRepository.deleteFolder(id)
@@ -779,15 +815,34 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun toggleFavorite(app: LauncherApp): Boolean {
-        val updated = favoritesStore.toggle(app.key, _uiState.value.favoriteOrder)
+        if (app.folderId != null) {
+            val folder = _uiState.value.folders.firstOrNull { it.id == app.folderId } ?: return false
+            val favorite = folder.placement != FolderPlacement.Favorites
+            updateFolder(folder.id, null, if (favorite) FolderPlacement.Favorites else FolderPlacement.AppList)
+            return favorite
+        }
+        if (app.shortcut != null && app.key !in _uiState.value.favoriteKeys) {
+            viewModelScope.launch {
+                if (rememberShortcut(app)) {
+                    val updated = favoritesStore.toggle(app.key, currentFavoriteOrder())
+                    _uiState.update { it.copy(favoriteKeys = updated.toSet(), favoriteOrder = updated) }
+                }
+            }
+            return true
+        }
+        val updated = favoritesStore.toggle(app.key, currentFavoriteOrder())
         _uiState.update { it.copy(favoriteKeys = updated.toSet(), favoriteOrder = updated) }
         if (app.key in updated) prepareShortcuts(app)
         return app.key in updated
     }
 
     fun reorderFavorites(keys: List<String>) {
-        val updated = favoritesStore.reorder(keys, _uiState.value.favoriteOrder)
+        val updated = favoritesStore.reorder(keys, currentFavoriteOrder())
         _uiState.update { it.copy(favoriteOrder = updated) }
+    }
+
+    private fun currentFavoriteOrder(): List<String> = _uiState.value.let { state ->
+        (state.favoriteOrder + state.favoriteItems.map(LauncherApp::key)).distinct()
     }
 
     fun requestReturnHome() {
