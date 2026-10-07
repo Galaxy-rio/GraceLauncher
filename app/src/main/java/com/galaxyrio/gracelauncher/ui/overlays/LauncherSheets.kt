@@ -11,6 +11,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.*
@@ -339,8 +340,8 @@ private fun AppDetailsSheet(app: LauncherApp, actions: LauncherActions, onChange
         onDismiss = { rename = false }, onSave = { actions.rename(app, it); rename = false },
         onReset = if (folder == null) ({ actions.rename(app, ""); rename = false }) else null,
     )
-    if (placement && folder != null) FolderPlacementDialog(folder.placement, { placement = false }) {
-        actions.updateFolder(folder.id, null, it); placement = false
+    if (placement && folder != null) FolderPlacementDialog(folder.placement, folder.appListAtBottom, { placement = false }) { selected, atBottom ->
+        actions.updateFolder(folder.id, null, selected, atBottom); placement = false
     }
     if (confirmDelete && folder != null) DeleteFolderDialog(folder.name, { confirmDelete = false }) {
         actions.deleteFolder(folder.id); onChange(null)
@@ -456,18 +457,35 @@ internal fun TextEntryDialog(title: String, initial: String, onDismiss: () -> Un
 }
 
 @Composable
-internal fun FolderPlacementDialog(selected: FolderPlacement, onDismiss: () -> Unit, onSelect: (FolderPlacement) -> Unit) {
+internal fun FolderPlacementDialog(selected: FolderPlacement, appListAtBottom: Boolean,
+    onDismiss: () -> Unit, onSelect: (FolderPlacement, Boolean) -> Unit) {
+    var placement by remember { mutableStateOf(selected) }
+    var atBottom by remember { mutableStateOf(appListAtBottom) }
     AlertDialog(onDismissRequest = onDismiss, shape = RoundedCornerShape(40.dp), title = { Text(stringResource(R.string.settings_folder_placement)) },
         text = { Column {
-            FolderPlacement.entries.forEach { option ->
-                Row(Modifier.fillMaxWidth().testTag("folder_placement:${option.name}").selectable(option == selected, role = Role.RadioButton, onClick = { onSelect(option) }).padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    RadioButton(option == selected, null)
-                    Spacer(Modifier.width(16.dp))
-                    Text(stringResource(if (option == FolderPlacement.Favorites) R.string.settings_folder_favorites else R.string.settings_folder_app_list))
-                }
+            FolderPlacementChoice(stringResource(R.string.settings_folder_favorites), placement.inFavorites,
+                Modifier.testTag("folder_placement:Favorites")) { placement = placement.withFavorites(it) }
+            FolderPlacementChoice(stringResource(R.string.settings_folder_app_list), placement.inAppList,
+                Modifier.testTag("folder_placement:AppList")) { placement = placement.withAppList(it) }
+            AnimatedVisibility(placement.inAppList) {
+                FolderPlacementChoice(stringResource(R.string.settings_folder_at_bottom), atBottom,
+                    Modifier.padding(start = 40.dp).testTag("folder_placement:at_bottom")) { atBottom = it }
             }
-        } }, confirmButton = {}, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
+        } },
+        confirmButton = { TextButton(onClick = { onSelect(placement, atBottom) }, modifier = Modifier.testTag("folder_placement_done")) {
+            Text(stringResource(R.string.done))
+        } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
+}
+
+@Composable
+private fun FolderPlacementChoice(title: String, checked: Boolean, modifier: Modifier, onChange: (Boolean) -> Unit) {
+    Row(modifier.fillMaxWidth().toggleable(checked, role = Role.Checkbox, onValueChange = onChange)
+        .heightIn(min = 48.dp).padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Checkbox(checked, onCheckedChange = null)
+        Spacer(Modifier.width(16.dp))
+        Text(title)
+    }
 }
 
 @Composable

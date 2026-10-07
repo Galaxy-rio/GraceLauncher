@@ -55,7 +55,20 @@ data class LauncherSettings(
     )
 }
 
-enum class FolderPlacement { Favorites, AppList }
+enum class FolderPlacement(val inFavorites: Boolean, val inAppList: Boolean) {
+    Favorites(true, false), AppList(false, true), Both(true, true), None(false, false);
+
+    fun withFavorites(enabled: Boolean): FolderPlacement = of(enabled, inAppList)
+    fun withAppList(enabled: Boolean): FolderPlacement = of(inFavorites, enabled)
+
+    companion object {
+        fun of(inFavorites: Boolean, inAppList: Boolean): FolderPlacement =
+            entries.first { it.inFavorites == inFavorites && it.inAppList == inAppList }
+
+        // Preserve the existing stored Favorites/AppList values on upgrade.
+        fun decode(value: String): FolderPlacement = entries.firstOrNull { it.name == value } ?: AppList
+    }
+}
 
 const val RecentlyInstalledFolderId = "recently-installed"
 
@@ -64,6 +77,8 @@ data class LauncherFolder(
     val name: String,
     val appKeys: List<String>,
     val placement: FolderPlacement,
+    /** Only affects the app list; favorites always use their shared manual order. */
+    val appListAtBottom: Boolean = true,
 ) {
     val key: String get() = "folder:$id"
 

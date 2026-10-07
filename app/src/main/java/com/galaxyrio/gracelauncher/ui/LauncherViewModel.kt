@@ -184,7 +184,7 @@ data class LauncherUiState(
     val favoriteItems: List<LauncherApp>
         get() {
             if (isLoadingSettings || settingsLoadFailed) return emptyList()
-            val items = (favoriteApps + folders.filter { it.placement == FolderPlacement.Favorites }.map(::folderItem))
+            val items = (favoriteApps + folders.filter { it.placement.inFavorites }.map(::folderItem))
                 .associateBy(LauncherApp::key)
             // Existing folders keep their old position at the end until reordered.
             return (favoriteOrder + items.keys).distinct().mapNotNull(items::get)
@@ -773,8 +773,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
     }
 
-    fun updateFolder(id: String, name: String?, placement: FolderPlacement?) = persistSettings {
-        settingsRepository.updateFolder(id, name, placement)
+    fun updateFolder(id: String, name: String?, placement: FolderPlacement?, appListAtBottom: Boolean? = null) = persistSettings {
+        settingsRepository.updateFolder(id, name, placement, appListAtBottom)
     }
 
     suspend fun setFolderFavorites(selection: Map<String, Boolean>): Boolean = settingsWriteMutex.withLock {
@@ -817,8 +817,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun toggleFavorite(app: LauncherApp): Boolean {
         if (app.folderId != null) {
             val folder = _uiState.value.folders.firstOrNull { it.id == app.folderId } ?: return false
-            val favorite = folder.placement != FolderPlacement.Favorites
-            updateFolder(folder.id, null, if (favorite) FolderPlacement.Favorites else FolderPlacement.AppList)
+            val favorite = !folder.placement.inFavorites
+            persistSettings { settingsRepository.setFolderFavorites(mapOf(folder.id to favorite)) }
             return favorite
         }
         if (app.shortcut != null && app.key !in _uiState.value.favoriteKeys) {

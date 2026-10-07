@@ -64,6 +64,7 @@ data class LauncherFolderEntity(
     @PrimaryKey val id: String,
     val name: String,
     val placement: String,
+    @ColumnInfo(defaultValue = "1") val appListAtBottom: Boolean = true,
 )
 
 @Dao
@@ -109,7 +110,7 @@ abstract class LauncherSettingsDao {
     entities = [LauncherSettingsEntity::class, HiddenAppEntity::class,
         LauncherFolderEntity::class, ItemIconEntity::class,
         SavedShortcutEntity::class, AppPopupEntity::class],
-    version = 17,
+    version = 18,
     exportSchema = true,
 )
 abstract class LauncherDatabase : RoomDatabase() {
@@ -242,12 +243,18 @@ abstract class LauncherDatabase : RoomDatabase() {
             }
         }
 
+        val Migration17To18 = object : Migration(17, 18) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE folders ADD COLUMN appListAtBottom INTEGER NOT NULL DEFAULT 1")
+            }
+        }
+
         fun getInstance(context: Context): LauncherDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 LauncherDatabase::class.java,
                 "grace_launcher.db",
-            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7, Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12, Migration12To13, Migration13To14, Migration14To15, Migration15To16, Migration16To17).build().also { instance = it }
+            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7, Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12, Migration12To13, Migration13To14, Migration14To15, Migration15To16, Migration16To17, Migration17To18).build().also { instance = it }
         }
     }
 }

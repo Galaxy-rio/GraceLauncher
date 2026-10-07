@@ -216,6 +216,9 @@
     <string name="settings_folder_placement">文件夹显示位置</string>
     <string name="settings_folder_favorites">收藏列表</string>
     <string name="settings_folder_app_list">应用列表</string>
+    <string name="settings_folder_both">收藏列表和应用列表</string>
+    <string name="settings_folder_nowhere">不显示</string>
+    <string name="settings_folder_at_bottom">置底</string>
     <plurals name="settings_folder_summary">
         <item quantity="other">%1$d 个项目 · %2$s</item>
     </plurals>

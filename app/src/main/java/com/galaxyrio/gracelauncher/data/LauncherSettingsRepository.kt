@@ -30,8 +30,8 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
                     id = entry.id,
                     name = entry.name,
                     appKeys = contents["folder:${entry.id}"].orEmpty().filter { it.widget == null }.map { it.key },
-                    placement = FolderPlacement.entries.firstOrNull { it.name == entry.placement }
-                        ?: FolderPlacement.AppList,
+                    placement = FolderPlacement.decode(entry.placement),
+                    appListAtBottom = entry.appListAtBottom,
                 )
             },
         )
@@ -95,7 +95,7 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
         require(name.isNotEmpty()) { "A folder name must not be blank" }
         val keys = folder.appKeys.filter(String::isNotBlank).distinct()
         database.withTransaction {
-            dao.upsertFolder(LauncherFolderEntity(folder.id, name, folder.placement.name))
+            dao.upsertFolder(LauncherFolderEntity(folder.id, name, folder.placement.name, folder.appListAtBottom))
             val itemsDao = database.itemsDao()
             val previous = itemsDao.popup(folder.key)?.let { PopupItem.decode(it.itemsJson) }.orEmpty()
             // Membership callers must not discard widgets or move them to the end.
@@ -107,16 +107,20 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
         }
     }
 
-    suspend fun updateFolder(id: String, name: String? = null, placement: FolderPlacement? = null) = database.withTransaction {
+    suspend fun updateFolder(id: String, name: String? = null, placement: FolderPlacement? = null,
+        appListAtBottom: Boolean? = null) = database.withTransaction {
         val folder = dao.folder(id) ?: return@withTransaction
         dao.upsertFolder(folder.copy(name = name?.trim()?.takeIf { it.isNotEmpty() } ?: folder.name,
-            placement = placement?.name ?: folder.placement))
+            placement = placement?.name ?: folder.placement, appListAtBottom = appListAtBottom ?: folder.appListAtBottom))
     }
 
     /** The favorites picker edits the same placement as the folder's settings. */
     suspend fun setFolderFavorites(selection: Map<String, Boolean>) = database.withTransaction {
         selection.forEach { (id, favorite) ->
-            updateFolder(id, placement = if (favorite) FolderPlacement.Favorites else FolderPlacement.AppList)
+            val folder = dao.folder(id) ?: return@forEach
+            // The favorites picker must not change app-list visibility or sorting.
+            val placement = FolderPlacement.decode(folder.placement).withFavorites(favorite)
+            dao.upsertFolder(folder.copy(placement = placement.name))
         }
     }
 

@@ -50,7 +50,7 @@ data class LauncherActions(
     val deleteIconDesigns: suspend (Set<String>) -> Boolean = { false },
     val setHiddenApps: (Set<String>) -> Unit = {},
     val saveFolder: (LauncherFolder) -> Unit = {},
-    val updateFolder: (String, String?, FolderPlacement?) -> Unit = { _, _, _ -> },
+    val updateFolder: (String, String?, FolderPlacement?, Boolean?) -> Unit = { _, _, _, _ -> },
     val setFolderFavorites: suspend (Map<String, Boolean>) -> Boolean = { false },
     val deleteFolder: (String) -> Unit = {},
     val shortcuts: suspend (LauncherApp) -> ShortcutResult = { ShortcutResult(ShortcutStatus.DefaultLauncherRequired) },

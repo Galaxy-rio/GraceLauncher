@@ -217,6 +217,9 @@
     <string name="settings_folder_placement">Show folder in</string>
     <string name="settings_folder_favorites">Favorites</string>
     <string name="settings_folder_app_list">App list</string>
+    <string name="settings_folder_both">Favorites and app list</string>
+    <string name="settings_folder_nowhere">Not shown</string>
+    <string name="settings_folder_at_bottom">Place at bottom</string>
     <plurals name="settings_folder_summary">
         <item quantity="one">%1$d item · %2$s</item>
         <item quantity="other">%1$d items · %2$s</item>

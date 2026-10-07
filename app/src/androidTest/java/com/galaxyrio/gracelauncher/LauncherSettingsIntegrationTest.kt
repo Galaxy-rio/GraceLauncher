@@ -96,8 +96,9 @@ class LauncherSettingsIntegrationTest {
                             updateSettings = { transform -> state.value = state.value.copy(settings = transform(state.value.settings)) },
                             setHiddenApps = { state.value = state.value.copy(hiddenAppKeys = it) },
                             saveFolder = { folder -> state.value = state.value.copy(folders = state.value.folders.filterNot { it.id == folder.id } + folder) },
-                            updateFolder = { id, name, placement -> state.value = state.value.copy(folders = state.value.folders.map {
-                                if (it.id == id) it.copy(name = name ?: it.name, placement = placement ?: it.placement) else it
+                            updateFolder = { id, name, placement, atBottom -> state.value = state.value.copy(folders = state.value.folders.map {
+                                if (it.id == id) it.copy(name = name ?: it.name, placement = placement ?: it.placement,
+                                    appListAtBottom = atBottom ?: it.appListAtBottom) else it
                             }) },
                             updatePopup = { owner, defaults, transform ->
                                 val contents = transform(state.value.popupItems(owner, defaults))
@@ -287,7 +288,9 @@ class LauncherSettingsIntegrationTest {
         compose.onNodeWithTag("advanced").performClick()
         compose.onNodeWithTag("edit_popup").performClick()
         compose.onNodeWithTag("folder_placement").performClick()
+        compose.onNodeWithTag("folder_placement:Favorites").performClick()
         compose.onNodeWithTag("folder_placement:AppList").performClick()
+        compose.onNodeWithTag("folder_placement_done").performClick()
         compose.onNodeWithTag("popup_editor_list").performScrollToNode(hasTestTag("favorite:${apps[1].key}"))
         compose.onNodeWithTag("favorite:${apps[1].key}").performClick()
         compose.onNodeWithTag("popup_editor_done").performClick()

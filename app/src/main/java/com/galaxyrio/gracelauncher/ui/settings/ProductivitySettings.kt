@@ -208,7 +208,7 @@ internal fun FavoriteFoldersScreen(uiState: LauncherUiState, actions: LauncherAc
             closePrivateSpaceOnDispose = false)
         return
     }
-    val selectedIds = uiState.folders.filter { selection[it.id] ?: (it.placement == FolderPlacement.Favorites) }
+    val selectedIds = uiState.folders.filter { selection[it.id] ?: it.placement.inFavorites }
         .map { it.id }.toSet()
     val confirm: () -> Unit = {
         if (!saving) {
@@ -267,11 +267,7 @@ internal fun FolderSettings(
                 itemsIndexed(uiState.folders, key = { _, folder -> folder.id }) { index, folder ->
                     val count = uiState.popups[folder.key]?.size ?: folder.appKeys.size
                     val checked = selectedIds?.contains(folder.id)
-                    val placement = when (checked) {
-                        true -> FolderPlacement.Favorites
-                        false -> FolderPlacement.AppList
-                        null -> folder.placement
-                    }
+                    val placement = if (checked == null) folder.placement else folder.placement.withFavorites(checked)
                     SettingsActionItem(
                         folder.name,
                         pluralStringResource(R.plurals.settings_folder_summary, count, count, placement.label()),
@@ -334,8 +330,8 @@ internal fun FolderEditorSettings(folderId: String?, uiState: LauncherUiState, a
     if (rename) TextEntryDialog(stringResource(R.string.rename_folder), folder.name, { rename = false }, {
         actions.rename(app, it); rename = false
     })
-    if (placement) FolderPlacementDialog(folder.placement, { placement = false }) {
-        actions.updateFolder(folder.id, null, it); placement = false
+    if (placement) FolderPlacementDialog(folder.placement, folder.appListAtBottom, { placement = false }) { selected, atBottom ->
+        actions.updateFolder(folder.id, null, selected, atBottom); placement = false
     }
     if (confirmDelete) DeleteFolderDialog(folder.name, { confirmDelete = false }) {
         actions.deleteFolder(folder.id); onBack()
@@ -347,6 +343,8 @@ private fun FolderPlacement.label(): String = stringResource(
     when (this) {
         FolderPlacement.Favorites -> R.string.settings_folder_favorites
         FolderPlacement.AppList -> R.string.settings_folder_app_list
+        FolderPlacement.Both -> R.string.settings_folder_both
+        FolderPlacement.None -> R.string.settings_folder_nowhere
     },
 )
 

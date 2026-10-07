@@ -4,7 +4,6 @@ import com.galaxyrio.gracelauncher.data.LauncherAlphabet
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherAppOrder
 import com.galaxyrio.gracelauncher.data.LauncherFolder
-import com.galaxyrio.gracelauncher.data.FolderPlacement
 
 const val FolderSection = "◇"
 const val GraceSection = "grace-launcher"
@@ -37,15 +36,21 @@ class AppListModel(apps: List<LauncherApp>, folders: List<LauncherFolder> = empt
     privateFolder: LauncherFolder? = null, privateExpanded: Boolean = false, privateApps: List<LauncherApp> = emptyList(),
     recentlyInstalledFolder: LauncherFolder? = null) {
     private val settingsApp = apps.firstOrNull(LauncherApp::isLauncherSettings)
-    private val grouped = apps.filterNot(LauncherApp::isLauncherSettings).sortedWith(LauncherAppOrder).groupBy(LauncherApp::section)
+    private val inlineFolders = folders.filter { it.placement.inAppList && !it.appListAtBottom }.associateBy(LauncherFolder::key)
+    // Use exactly the same name/pinyin ordering and alphabet sections as apps.
+    private val grouped = (apps.filterNot(LauncherApp::isLauncherSettings) + inlineFolders.values.map(LauncherFolder::asApp))
+        .sortedWith(LauncherAppOrder).groupBy(LauncherApp::section)
     private val appLetters = LauncherAlphabet.filter { it != "#" && it in grouped } +
         grouped.keys.filter { it !in LauncherAlphabet }.sorted() +
         if ("#" in grouped) listOf("#") else emptyList()
-    private val drawerFolders = folders.filter { it.placement == FolderPlacement.AppList }
+    private val drawerFolders = folders.filter { it.placement.inAppList && it.appListAtBottom }
     val items: List<DrawerItem> = buildList {
         appLetters.forEach { letter ->
             add(DrawerItem.Header(letter))
-            grouped.getValue(letter).forEach { add(DrawerItem.App(it)) }
+            grouped.getValue(letter).forEach { app ->
+                val folder = inlineFolders[app.key]
+                add(if (folder == null) DrawerItem.App(app) else DrawerItem.Folder(folder, letter))
+            }
         }
         if (drawerFolders.isNotEmpty() || privateFolder != null) {
             add(DrawerItem.Header(FolderSection))
