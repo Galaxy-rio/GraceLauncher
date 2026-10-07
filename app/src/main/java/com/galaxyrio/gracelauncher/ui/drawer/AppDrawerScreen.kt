@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.safeDrawing
@@ -15,7 +14,6 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -30,8 +28,6 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -47,8 +43,6 @@ import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
 import com.galaxyrio.gracelauncher.ui.components.FolderRow
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
-import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
-import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import kotlinx.coroutines.flow.first
 
@@ -74,7 +68,6 @@ fun AppDrawerScreen(
     privateAppsPublic: Boolean = false,
     privateLoading: Boolean = false,
     privateFailed: Boolean = false,
-    onLockPrivateSpace: () -> Unit = {},
     onPrivateSpaceSettings: () -> Unit = {},
     onRetryPrivateSpace: () -> Unit = {},
 ) {
@@ -165,13 +158,6 @@ fun AppDrawerScreen(
                         onLongClick = if (item.folder.id == RecentlyInstalledFolderId) null else ({ onEditFolder(item.folder) }),
                         onDrag = { bounds, expanded -> onFolderDrag(item.folder, bounds, expanded) },
                         onDragEnd = onFolderDragEnd,
-                        trailing = if (item.folder.id == PrivateSpaceFolderId && privateExpanded) ({
-                            val lockLabel = stringResource(R.string.private_space_lock)
-                            IconButton(onClick = onLockPrivateSpace,
-                                modifier = Modifier.size(40.dp).testTag("private_space_list_lock").semantics { contentDescription = lockLabel }) {
-                                LauncherIcon(LauncherSymbol.Lock, tint = appearance.text)
-                            }
-                        }) else null,
                     )
                     is DrawerItem.PrivateApp -> LauncherAppRow(
                         app = item.app, onClick = { onLaunchApp(item.app) }, onLongClick = { onAppDetails(item.app) },

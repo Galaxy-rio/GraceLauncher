@@ -192,7 +192,6 @@ fun LauncherOverlays(
                 actions.launchAppAt?.invoke(app, bounds) ?: onLaunchApp(app)
             },
             onEdit = edit,
-            onLock = if (isPrivate) ({ actions.lockPrivateSpace(); onChange(null) }) else null,
         )
         return
     }
@@ -315,7 +314,7 @@ private fun AppDetailsSheet(app: LauncherApp, actions: LauncherActions, onChange
             Column {
                 DetailsAction(LauncherSymbol.Edit, renameTitle) { rename = true }
                 DetailsAction(LauncherSymbol.DesignServices, stringResource(R.string.icon_designer_title)) { onChange(LauncherOverlay.IconDesigner(app, popupOwner, returnTo)) }
-                if (!privateRestricted) DetailsAction(LauncherSymbol.Launch, stringResource(R.string.edit_app_popup, owner.label), "edit_popup") {
+                if (!privateRestricted) DetailsAction(LauncherSymbol.Outbound, stringResource(R.string.edit_app_popup, owner.label), "edit_popup") {
                     onChange(owner.folderId?.let { LauncherOverlay.FolderSettings(it) } ?: LauncherOverlay.EditPopup(owner))
                 }
                 if (folder == null) {

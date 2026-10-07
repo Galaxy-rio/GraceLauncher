@@ -287,7 +287,6 @@ fun LauncherRoute(
                 }
             }
         },
-        lockPrivateSpace = viewModel.privateSpaceController::lock,
         closePrivateSpace = viewModel.privateSpaceController::close,
         openPrivateSpaceSettings = { (context as? Activity)?.let(viewModel.privateSpaceController::openSettings) },
         reorderPrivateApps = viewModel::reorderPrivateApps,
@@ -678,7 +677,12 @@ internal fun LauncherScreen(
         if (it.id == PrivateSpaceFolderId) editPrivateSpace() else overlay = LauncherOverlay.AppDetails(uiState.folderItem(it))
     }
     val dragFolder: (LauncherFolder, Rect, Boolean) -> Unit = { folder, bounds, expanded ->
-        if (folder.id == PrivateSpaceFolderId) privateSwipeAnchor = bounds
+        val canRevealPrivateFolder = uiState.settings.privateSpace.display == PrivateSpaceDisplay.Folder &&
+            uiState.privateContentVisible && uiState.isDefaultHome != false
+        // Once its contents are available, a private folder uses the same live
+        // reveal/reversal as ordinary folders. Defer only the credential UI or
+        // inline-list opening until the row's pointer gesture has finished.
+        if (folder.id == PrivateSpaceFolderId && !canRevealPrivateFolder) privateSwipeAnchor = bounds
         else {
             val current = overlay as? LauncherOverlay.Folder
             if (current?.folder?.id == folder.id) current.reveal.expanded = expanded
@@ -802,7 +806,6 @@ internal fun LauncherScreen(
             privateAppsPublic = uiState.settings.privateSpace.exposesApps,
             privateLoading = uiState.privateAppsLoading,
             privateFailed = uiState.privateAppsFailed,
-            onLockPrivateSpace = actions.lockPrivateSpace,
             onPrivateSpaceSettings = actions.openPrivateSpaceSettings,
             onRetryPrivateSpace = { actions.requestPrivateSpace(true, actions.refreshApps) },
             modifier = Modifier.retainedPage(visible = drawerOpen)

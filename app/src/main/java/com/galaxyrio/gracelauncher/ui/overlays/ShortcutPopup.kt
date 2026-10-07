@@ -36,6 +36,7 @@ import androidx.compose.ui.unit.*
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
+import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
 import com.galaxyrio.gracelauncher.data.ShortcutResult
 import com.galaxyrio.gracelauncher.data.ShortcutStatus
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
@@ -63,11 +64,10 @@ fun FolderPopup(
     reveal: ShortcutRevealState = remember { ShortcutRevealState() },
     uiState: LauncherUiState = LauncherUiState(apps = apps, folders = listOf(folder)),
     actions: LauncherActions = LauncherActions(), onDetails: (LauncherApp) -> Unit = {},
-    onLock: (() -> Unit)? = null,
 ) = ShortcutPopup(
     app = uiState.folderItem(folder), anchor = anchor, hasAccess = uiState.hasShortcutAccess,
     actions = actions, onLaunchApp = {}, onDismiss = onDismiss, reveal = reveal,
-    uiState = uiState, onEdit = onEdit, onDetails = onDetails, onLaunchItem = onLaunchApp, onLock = onLock,
+    uiState = uiState, onEdit = onEdit, onDetails = onDetails, onLaunchItem = onLaunchApp,
 )
 
 /** Same-window overlay: adding a popup window during DOWN would cancel the row's drag. */
@@ -84,12 +84,12 @@ fun ShortcutPopup(
     uiState: LauncherUiState = LauncherUiState(),
     onEdit: (() -> Unit)? = {},
     onDetails: (LauncherApp) -> Unit = {},
-    onLock: (() -> Unit)? = null,
     onLaunchItem: (LauncherApp, Rect) -> Unit = { item, bounds ->
         item.shortcut?.let { actions.launchShortcutAt?.invoke(it, bounds) ?: actions.launchShortcut(it) }
     },
 ) {
     val isFolder = app.folderId != null
+    val isPrivateFolder = app.folderId == PrivateSpaceFolderId
     var retry by remember { mutableIntStateOf(0) }
     val loadShortcuts by rememberUpdatedState(actions.shortcuts)
     val initialResult = remember(app.key, hasAccess) {
@@ -119,14 +119,9 @@ fun ShortcutPopup(
                 .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            if (isFolder) AppIcon(app, size = 24.dp) else LauncherIcon(LauncherSymbol.Launch, Modifier.size(19.dp))
+            LauncherIcon(LauncherSymbol.Outbound, Modifier.size(19.dp))
             Spacer(Modifier.width(10.dp))
             Text(app.label, Modifier.weight(1f), fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            if (onLock != null) {
-                IconButton(onClick = onLock, modifier = Modifier.size(40.dp).testTag("private_space_folder_lock")) {
-                    Icon(androidx.compose.ui.res.painterResource(R.drawable.ms_lock), stringResource(R.string.private_space_lock), Modifier.size(20.dp))
-                }
-            }
         }
         LazyColumn(Modifier.heightIn(max = maxListHeight).testTag(if (isFolder) "folder_members" else "shortcut_list")) {
             items(notifications, key = { "notification:${it.key}" }) { notification ->
@@ -139,9 +134,9 @@ fun ShortcutPopup(
                 )
             }
         if (isFolder && entries.isEmpty()) item {
-            if (onLock != null && uiState.privateAppsLoading) {
+            if (isPrivateFolder && uiState.privateAppsLoading) {
                 Text(stringResource(R.string.private_space_loading), Modifier.padding(12.dp), style = MaterialTheme.typography.bodyMedium)
-            } else if (onLock != null) {
+            } else if (isPrivateFolder) {
                 Text(stringResource(if (uiState.privateAppsFailed) R.string.private_space_unavailable else R.string.private_space_empty),
                     Modifier.testTag("private_space_empty").padding(horizontal = 12.dp, vertical = 18.dp), style = MaterialTheme.typography.bodyMedium)
                 TextButton(onClick = if (uiState.privateAppsFailed) ({ actions.requestPrivateSpace(true, actions.refreshApps) }) else actions.openPrivateSpaceSettings) {
@@ -191,7 +186,7 @@ fun ShortcutPopup(
                                 .clip(RoundedCornerShape(16.dp))
                                 .combinedClickable(enabled = !reveal.dragging && reveal.expanded, onLongClick = { onDetails(itemApp) }, onClick = {
                                     onLaunchItem(itemApp, iconBounds)
-                                    if (onLock == null) onDismiss()
+                                    if (!isPrivateFolder) onDismiss()
                                 }).padding(horizontal = 12.dp, vertical = 8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {

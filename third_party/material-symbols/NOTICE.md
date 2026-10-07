@@ -20,6 +20,11 @@ current content tint.
 
 ## Sources
 
+### Popup icon added 2026-10-07
+
+- `ms_outbound.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/android/outbound/materialsymbolsoutlined/outbound_24px.xml
+  (Official Android vector; path and 960px viewport retained, tint supplied by Compose. Same Apache-2.0 license.)
+
 ### Recently installed folder icon added 2026-10-06
 
 - `ms_history_2.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/android/history_2/materialsymbolsoutlined/history_2_24px.xml
