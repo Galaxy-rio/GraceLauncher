@@ -1,6 +1,11 @@
 package com.galaxyrio.gracelauncher.ui.components
 
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.displayCutout
+import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
+import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.geometry.Size
@@ -9,6 +14,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
@@ -22,6 +28,16 @@ internal object LauncherLayout {
     val RowShape = RoundedCornerShape(18.dp)
     // Roughly two status bars tall; keep the fade independent of inset variations.
     val TopFadeHeight = 56.dp
+}
+
+/** Reserve one stable top safe area, whether the status bar is currently shown or not. */
+@Composable
+@OptIn(ExperimentalLayoutApi::class)
+internal fun stableStatusBarInset(): Dp {
+    val density = LocalDensity.current
+    return with(density) {
+        maxOf(WindowInsets.statusBarsIgnoringVisibility.getTop(density), WindowInsets.displayCutout.getTop(density)).toDp()
+    }
 }
 
 /** Fade only foreground content, never paint a status-bar-colored strip over the wallpaper. */

@@ -2,6 +2,9 @@ package com.galaxyrio.gracelauncher.ui.home
 
 import android.text.format.DateFormat
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.overscroll
+import androidx.compose.foundation.rememberOverscrollEffect
+import androidx.compose.foundation.OverscrollEffect
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -29,14 +32,19 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -50,6 +58,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Velocity
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
@@ -64,6 +73,7 @@ import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
 import com.galaxyrio.gracelauncher.ui.components.FolderRow
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
+import com.galaxyrio.gracelauncher.ui.components.stableStatusBarInset
 import com.galaxyrio.gracelauncher.ui.components.eventRemainingText
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.rememberBatteryPercent
@@ -118,34 +128,43 @@ fun HomeScreen(
     var topOffset by remember(homeLayout.topOffsetDp) { mutableFloatStateOf(homeLayout.topOffsetDp) }
     var widgetHeight by remember(homeLayout.widgetId, homeLayout.widgetHeightDp) { mutableFloatStateOf(homeLayout.widgetHeightDp.toFloat()) }
     var headerHeightPx by remember { mutableIntStateOf(0) }
+    var anchorOffsetPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
-    val minimumTop = WindowInsets.safeDrawing.asPaddingValues().calculateTopPadding() + 8.dp
+    val minimumTop = stableStatusBarInset() + 8.dp
     val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
     LaunchedEffect(editingLayout) { if (editingLayout) listState.scrollToItem(0) }
-    // Larger text, notifications and artwork alter the real height. Never disable
-    // scrolling based on estimated row heights and strand the last favorite.
-    val canScroll by remember { derivedStateOf { listState.canScrollForward || listState.canScrollBackward } }
+    val overscroll = rememberOverscrollEffect()
+    val scrollConnection = remember(overscroll) { HomeOverscrollConnection(overscroll) }
 
     BoxWithConstraints(modifier.fillMaxSize()) {
     val availableHeight = (maxHeight - bottomInset).coerceAtLeast(0.dp)
     val headerHeight = with(density) { headerHeightPx.toDp() }
+    // Only content ABOVE the calendar anchor constrains its position. Agenda,
+    // media, widgets and favorites grow downwards without moving this anchor.
+    // Measure the boundary, not a hard-coded clock height, so it can be optional later.
+    val anchorOffset = with(density) { anchorOffsetPx.toDp() }
+    val maximumTop = (availableHeight - anchorOffset - 56.dp).coerceAtLeast(minimumTop)
+    val resolvedTop = (topSpace + topOffset.dp).coerceIn(minimumTop, maximumTop)
     val minWidgetHeight = hostedWidget?.minHeight ?: 0
     val maximumWidgetHeight = minOf(hostedWidget?.maxHeight ?: 0,
         (availableHeight - minimumTop - headerHeight - 56.dp).value.toInt()).coerceAtLeast(minWidgetHeight)
     val resolvedWidgetHeight = if (hostedWidget == null) 0 else
         (if (widgetHeight == 0f) hostedWidget.defaultHeight else widgetHeight.roundToInt()).coerceIn(minWidgetHeight, maximumWidgetHeight)
-    val maximumTop = (availableHeight - headerHeight - resolvedWidgetHeight.dp - 56.dp).coerceAtLeast(minimumTop)
-    val resolvedTop = (topSpace + topOffset.dp).coerceIn(minimumTop, maximumTop)
     val resizeLimit = (availableHeight - resolvedTop - headerHeight - 56.dp).value.toInt()
         .coerceIn(minWidgetHeight, maximumWidgetHeight)
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize()
+            .overscroll(overscroll)
+            .nestedScroll(scrollConnection)
             .testTag("home_content"),
         // The row's 8dp inset keeps icons aligned at 44dp while giving its
         // rounded touch surface breathing room around the icon.
         contentPadding = PaddingValues(start = LauncherLayout.Start, end = LauncherLayout.End, top = resolvedTop, bottom = 72.dp + bottomInset),
-        userScrollEnabled = canScroll && !editingLayout,
+        userScrollEnabled = !editingLayout,
+        // Feed the native effect at both boundaries even when every row fits.
+        // LazyColumn's own effect is disabled to avoid stretching twice.
+        overscrollEffect = null,
     ) {
         item(key = "date", contentType = "date") {
             HomeClockHeader(
@@ -155,6 +174,7 @@ fun HomeScreen(
                 onClockClick = onClockClick,
                 onLongClick = onWidgetMenu,
                 interactive = !editingLayout,
+                onAnchorOffsetChange = { anchorOffsetPx = it },
                 clockStyle = uiState.settings.clockStyle,
                 showBattery = uiState.settings.showBatteryPercentage,
                 weather = uiState.weather.snapshot?.current.takeIf {
@@ -199,6 +219,8 @@ fun HomeScreen(
             )
         }
     }
+    // The visual move handle stays BELOW the agenda, independently of the
+    // actual anchor above the calendar. Its position never drives the layout.
     // Overlay the handles in the viewport, not outside a lazy item's bounds:
     // both halves of each circular control must remain inside its hit-test area.
     if (editingLayout) {
@@ -226,6 +248,29 @@ fun HomeScreen(
     }
 }
 
+/** Route unconsumed motion to Android's native stretch/glow, including a short list. */
+private class HomeOverscrollConnection(private val effect: OverscrollEffect?) : NestedScrollConnection {
+    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
+        if (effect?.isInProgress != true) return Offset.Zero
+        // Relax an existing stretch first; leave ordinary scrolling to LazyColumn.
+        var forwarded = Offset.Zero
+        val consumed = effect.applyToScroll(Offset(0f, available.y), source) { delta ->
+            forwarded = delta
+            delta
+        }
+        return consumed - forwarded
+    }
+
+    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset =
+        effect?.applyToScroll(Offset(0f, available.y), source) { Offset.Zero } ?: Offset.Zero
+
+    override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
+        val overscroll = effect ?: return Velocity.Zero
+        overscroll.applyToFling(Velocity(0f, available.y)) { Velocity.Zero }
+        return Velocity(0f, available.y)
+    }
+}
+
 @Composable
 internal fun HomeClockHeader(
     now: Instant,
@@ -240,6 +285,7 @@ internal fun HomeClockHeader(
     clockTag: String = "home_clock",
     dateTag: String = "home_date",
     onLongClick: () -> Unit = {},
+    onAnchorOffsetChange: (Int) -> Unit = {},
 ) {
     val appearance = LocalLauncherAppearance.current
     val battery = if (showBattery) rememberBatteryPercent() else null
@@ -274,6 +320,7 @@ internal fun HomeClockHeader(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
+                .onGloballyPositioned { onAnchorOffsetChange(it.positionInParent().y.roundToInt()) }
                 .testTag(dateTag)
                 .semantics { contentDescription = dateDescription }
                 .clip(shape)

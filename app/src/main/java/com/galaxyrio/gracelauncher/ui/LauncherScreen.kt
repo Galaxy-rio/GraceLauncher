@@ -64,6 +64,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
@@ -85,7 +86,6 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.withResumed
 import androidx.core.view.WindowInsetsControllerCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.core.net.toUri
 import androidx.core.content.ContextCompat
 import com.galaxyrio.gracelauncher.R
@@ -103,6 +103,8 @@ import com.galaxyrio.gracelauncher.ui.components.LocalLauncherInputEnabled
 import com.galaxyrio.gracelauncher.ui.components.LocalAppTransitions
 import com.galaxyrio.gracelauncher.ui.components.LocalHomeAnimationTarget
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
+import com.galaxyrio.gracelauncher.ui.components.stableStatusBarInset
+import com.galaxyrio.gracelauncher.ui.components.rememberLauncherSystemBars
 import com.galaxyrio.gracelauncher.ui.components.statusBarContentFade
 import com.galaxyrio.gracelauncher.platform.AppLaunchTransition
 import com.galaxyrio.gracelauncher.platform.DefaultHome
@@ -516,7 +518,6 @@ internal fun LauncherScreen(
     }
     val drawerState = rememberLazyListState()
     val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons, uiState.settings.iconDesign?.design?.iconSize ?: 100)
-    val view = LocalView.current
     val context = LocalContext.current
     val haptics = rememberLauncherHaptics(uiState.settings.allowHapticFeedback)
     val searching = overlay == LauncherOverlay.Search
@@ -570,17 +571,11 @@ internal fun LauncherScreen(
     val screenActions = actions.copy(moveWidget = { drawerOpen = false; selectedLetter = null; overlay = null; editingHome = true })
     val backProgress = remember { Animatable(0f) }
     val darkSystemIcons = if (fullScreen && !searching) MaterialTheme.colorScheme.surface.luminance() > 0.5f else appearance.darkText
-    SideEffect {
-        (context as? Activity)?.window?.let { window ->
-            WindowInsetsControllerCompat(window, view).apply {
-                isAppearanceLightStatusBars = darkSystemIcons
-                isAppearanceLightNavigationBars = darkSystemIcons
-                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-                if (uiState.settings.hideStatusBar && (!fullScreen || searching)) hide(WindowInsetsCompat.Type.statusBars())
-                else show(WindowInsetsCompat.Type.statusBars())
-            }
-        }
-    }
+    val statusBarPull = rememberLauncherSystemBars(
+        autoHide = uiState.settings.hideStatusBar && (!fullScreen || searching),
+        darkIcons = darkSystemIcons,
+        allowPullDown = !fullScreen && !editingHome && overlay == null,
+    )
 
     LaunchedEffect(returnHomeRequests) {
         returnHomeRequests.collect { drawerOpen = false; selectedLetter = null; overlay = null; editingHome = false }
@@ -733,6 +728,7 @@ internal fun LauncherScreen(
         // Settings can reveal this retained page during a predictive root back.
         // It remains non-interactive and absent from accessibility while covered.
         modifier = Modifier.fillMaxSize()
+            .nestedScroll(statusBarPull)
             .retainedPage(visible = !fullScreen || isSettings || backProgress.value > 0f)
             .then(if (fullScreen || backProgress.value > 0f) Modifier.clearAndSetSemantics {} else Modifier)
             .graphicsLayer { alpha = if (searching) backProgress.value else 1f }
@@ -742,12 +738,12 @@ internal fun LauncherScreen(
             .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
             .then(if (popupReveal?.dragging == false) Modifier.clearAndSetSemantics {} else Modifier),
     ) {
-        val statusBarHeight = WindowInsets.safeDrawing.asPaddingValues().calculateTopPadding()
+        val statusBarHeight = stableStatusBarInset()
         val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
         val safeHeight = (maxHeight - statusBarHeight - bottomInset).coerceAtLeast(0.dp)
         val regularHomeTop = (safeHeight * if (safeHeight < 600.dp) 0.12f else 0.32f).coerceIn(24.dp, 320.dp)
-        // Make room above the favorites for the transparent now-playing row.
-        val homeTop = statusBarHeight + (regularHomeTop - if (uiState.homeMedia != null) 128.dp else 0.dp).coerceAtLeast(24.dp)
+        // Variable sections extend below the clock; they never reposition the home anchor.
+        val homeTop = statusBarHeight + regularHomeTop
         val drawerTop = statusBarHeight + safeHeight * 0.28f
         val railHeight = ((model.letters.size + 1) * 18).dp.coerceAtMost(safeHeight * 0.65f)
         val railTop = statusBarHeight + (safeHeight * 0.39f).coerceAtMost(safeHeight - railHeight - 72.dp).coerceAtLeast(0.dp)

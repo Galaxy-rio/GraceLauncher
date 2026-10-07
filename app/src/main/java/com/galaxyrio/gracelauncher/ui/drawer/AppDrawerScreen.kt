@@ -43,6 +43,7 @@ import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
 import com.galaxyrio.gracelauncher.ui.components.FolderRow
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
+import com.galaxyrio.gracelauncher.ui.components.stableStatusBarInset
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import kotlinx.coroutines.flow.first
 
@@ -74,7 +75,7 @@ fun AppDrawerScreen(
     val appearance = LocalLauncherAppearance.current
     val density = LocalDensity.current
     val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
-    val safeTop = with(density) { (WindowInsets.safeDrawing.asPaddingValues().calculateTopPadding() + 12.dp)
+    val safeTop = with(density) { (stableStatusBarInset() + 12.dp)
         .coerceAtLeast(LauncherLayout.TopFadeHeight).roundToPx() }
     val currentModel by rememberUpdatedState(model)
     val currentPrivateLoading by rememberUpdatedState(privateLoading)

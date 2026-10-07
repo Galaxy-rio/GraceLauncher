@@ -46,6 +46,7 @@ import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AppIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
+import com.galaxyrio.gracelauncher.ui.components.stableStatusBarInset
 import com.galaxyrio.gracelauncher.ui.components.LauncherSearchBar
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 
@@ -147,7 +148,8 @@ internal fun AppSearchScreen(
     Box(modifier.fillMaxSize().testTag("app_search").graphicsLayer {
         alpha = enterAlpha * (1f - backProgress)
         translationX = backDistance * backProgress
-    }.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal + WindowInsetsSides.Top))
+    }.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
+        .padding(top = stableStatusBarInset())
         .imePadding().padding(horizontal = 16.dp)) {
         // Clip at the field's widest part, where the overlaid pill conceals the
         // entire edge. Content padding preserves the first result's resting gap.
