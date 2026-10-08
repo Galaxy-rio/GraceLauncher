@@ -48,6 +48,19 @@
                 <action android:name="org.breezyweather.ACTION_UPDATE_NOTIFIER" />
             </intent-filter>
         </receiver>
+        <!-- Explicit, user-authorized lock-screen and system-panel actions only. -->
+        <service
+            android:name=".platform.GraceAccessibilityService"
+            android:label="@string/app_name"
+            android:exported="true"
+            android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+            <intent-filter>
+                <action android:name="android.accessibilityservice.AccessibilityService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.accessibilityservice"
+                android:resource="@xml/grace_accessibility_service" />
+        </service>
         <!-- System-managed binding for app notification previews and media sessions. -->
         <service
             android:name=".data.media.MediaNotificationListener"

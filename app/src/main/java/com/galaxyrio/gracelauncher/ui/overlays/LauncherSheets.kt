@@ -49,6 +49,7 @@ import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import com.galaxyrio.gracelauncher.ui.settings.LauncherSettingsScreen
 import com.galaxyrio.gracelauncher.ui.search.AppSearchScreen
+import com.galaxyrio.gracelauncher.ui.components.GraceButtonTransition
 import java.util.UUID
 
 sealed interface LauncherOverlay {
@@ -85,7 +86,7 @@ internal fun panelWindowHeight(): Dp = with(LocalDensity.current) { LocalWindowI
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LauncherOverlays(
+internal fun LauncherOverlays(
     overlay: LauncherOverlay?,
     uiState: LauncherUiState,
     actions: LauncherActions,
@@ -96,6 +97,7 @@ fun LauncherOverlays(
     searchBackProgress: Float = 0f,
     searchEnterAlpha: Float = 1f,
     searchQuery: TextFieldState = rememberTextFieldState(),
+    searchTransition: GraceButtonTransition? = null,
 ) {
     if (overlay == null) return
     val privateApp = when (overlay) {
@@ -157,6 +159,7 @@ fun LauncherOverlays(
             onDismiss = { onChange(null) },
             backProgress = searchBackProgress,
             enterAlpha = searchEnterAlpha, queryState = searchQuery,
+            transition = searchTransition,
             onSettings = { onChange(LauncherOverlay.SettingsDestination("Search", returnToSearch = true)) },
         )
         return

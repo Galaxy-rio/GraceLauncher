@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
@@ -31,6 +32,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -48,7 +50,9 @@ import com.galaxyrio.gracelauncher.ui.components.AppIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
 import com.galaxyrio.gracelauncher.ui.components.stableStatusBarInset
 import com.galaxyrio.gracelauncher.ui.components.LauncherSearchBar
+import com.galaxyrio.gracelauncher.ui.components.GraceButtonTransition
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
+import kotlinx.coroutines.delay
 
 private sealed interface SearchResult {
     val key: String
@@ -69,11 +73,19 @@ internal fun AppSearchScreen(
     enterAlpha: Float = 1f,
     onSettings: () -> Unit = {},
     queryState: TextFieldState = rememberTextFieldState(),
+    transition: GraceButtonTransition? = null,
 ) {
     val settings = uiState.settings.search
     val query = queryState.text.toString().trim()
     val context = LocalContext.current
     val keyboard = LocalSoftwareKeyboardController.current
+    var requestKeyboard by remember { mutableStateOf(transition == null) }
+    LaunchedEffect(transition) {
+        // Give the hero a short head start, then let the IME enter alongside it.
+        // Keep this true when the transition ends so focus is not requested twice.
+        if (transition != null) delay(100)
+        requestKeyboard = true
+    }
     val appearance = LocalLauncherAppearance.current
     val contactsSource = remember(context) { SearchContacts(context) }
     var hasContactsAccess by remember { mutableStateOf(contactsSource.hasAccess()) }
@@ -146,14 +158,16 @@ internal fun AppSearchScreen(
     val backDistance = with(density) { 30.dp.toPx() } * if (LocalLayoutDirection.current == LayoutDirection.Ltr) 1 else -1
     // Wallpaper tint and window blur are owned by LauncherScreen, exactly as for the app list.
     Box(modifier.fillMaxSize().testTag("app_search").graphicsLayer {
-        alpha = enterAlpha * (1f - backProgress)
+        alpha = (if (transition != null) 1f else enterAlpha) * (1f - backProgress)
         translationX = backDistance * backProgress
-    }.windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
+    }.then(if (transition != null) Modifier.clearAndSetSemantics {} else Modifier)
+        .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal))
         .padding(top = stableStatusBarInset())
         .imePadding().padding(horizontal = 16.dp)) {
         // Clip at the field's widest part, where the overlaid pill conceals the
         // entire edge. Content padding preserves the first result's resting gap.
-        LazyColumn(Modifier.fillMaxSize().padding(top = listTop), state = list,
+        LazyColumn(Modifier.fillMaxSize().padding(top = listTop)
+            .graphicsLayer { alpha = transition?.searchResultsAlpha ?: 1f }, state = list,
             contentPadding = PaddingValues(top = searchBarHeight / 2 + 16.dp, bottom = 24.dp + bottomInset)) {
             if (query.isNotEmpty() && results.isEmpty()) item {
                 Text(stringResource(R.string.search_no_results), Modifier.padding(20.dp), color = appearance.text)
@@ -179,8 +193,10 @@ internal fun AppSearchScreen(
         }
         LauncherSearchBar(
             queryState, stringResource(R.string.settings_search), "app_search_query",
-            modifier = Modifier.padding(top = 12.dp).onSizeChanged { searchBarHeight = with(density) { it.height.toDp() } },
-            autoFocus = true,
+            modifier = Modifier.padding(top = 12.dp).onSizeChanged { searchBarHeight = with(density) { it.height.toDp() } }
+                .onGloballyPositioned { transition?.searchBounds = it.boundsInRoot() }
+                .graphicsLayer { alpha = transition?.searchBarAlpha ?: 1f },
+            autoFocus = requestKeyboard,
             onSearch = { results.firstOrNull()?.let { open(it) } },
             trailingIcon = {
                 IconButton(onClick = { keyboard?.hide(); onSettings() }, modifier = Modifier.testTag("app_search_settings")) {
