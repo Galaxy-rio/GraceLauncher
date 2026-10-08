@@ -34,7 +34,7 @@ import com.galaxyrio.gracelauncher.ui.components.labelRes
 
 @Composable
 internal fun GraceButtonSettingsScreen(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
-    home: Boolean = false, onChooseGesture: (GraceButtonGesture) -> Unit) {
+    home: Boolean = false, onEditIcon: () -> Unit = {}, onChooseGesture: (GraceButtonGesture) -> Unit) {
     val settings = uiState.settings.gestureSettings(home)
     val gestures = if (home) listOf(GraceButtonGesture.SwipeUp, GraceButtonGesture.SwipeDown, GraceButtonGesture.DoubleTap) else GraceButtonGesture.entries
     SettingsScaffold(stringResource(if (home) R.string.settings_gestures else R.string.settings_grace_button),
@@ -43,6 +43,13 @@ internal fun GraceButtonSettingsScreen(uiState: LauncherUiState, actions: Launch
             item { SettingsFeatureBanner(stringResource(if (home) R.string.home_gestures_enable else R.string.grace_button_enable), settings.enabled, "gestures_enabled") { value ->
                 actions.updateSettings { it.withGestureSettings(home) { settings -> settings.copy(enabled = value) } }
             } }
+            if (!home) {
+                item {
+                    SettingsActionItem(stringResource(R.string.edit_icon), null, 0, 1,
+                        "grace_button_icon", onClick = onEditIcon)
+                    Spacer(Modifier.height(16.dp))
+                }
+            }
             gestures.forEachIndexed { index, gesture ->
                 item {
                     val target = settings.target(gesture)

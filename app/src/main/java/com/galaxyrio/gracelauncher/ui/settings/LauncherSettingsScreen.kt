@@ -57,6 +57,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
+import com.galaxyrio.gracelauncher.data.icons.GraceButtonIcon
 import com.galaxyrio.gracelauncher.data.GraceButtonAction
 import com.galaxyrio.gracelauncher.data.GraceButtonGesture
 import com.galaxyrio.gracelauncher.data.GraceButtonTarget
@@ -191,7 +192,13 @@ fun LauncherSettingsScreen(
                     SettingsPage.Clock -> ClockSettings(uiState, actions, back)
                     SettingsPage.Search -> SearchSettingsScreen(uiState, actions, back)
                     SettingsPage.MediaPlayer -> MediaPlayerSettings(uiState, actions, back)
-                    SettingsPage.GraceButton, SettingsPage.Gestures -> GraceButtonSettingsScreen(uiState, actions, back, home = page == SettingsPage.Gestures) { gesture ->
+                    SettingsPage.GraceButton, SettingsPage.Gestures -> GraceButtonSettingsScreen(uiState, actions, back,
+                        home = page == SettingsPage.Gestures, onEditIcon = {
+                            if (isCurrent()) {
+                                navController.navigate(SettingsPage.IconDesigner.name)
+                                navController.currentBackStackEntry?.savedStateHandle?.set("icon_designer_app", GraceButtonIcon.key)
+                            }
+                        }) { gesture ->
                         if (isCurrent()) navController.navigate("${SettingsPage.GraceAction.name}/${gesture.name}?home=${page == SettingsPage.Gestures}") { launchSingleTop = true }
                     }
                     SettingsPage.GraceAction -> {

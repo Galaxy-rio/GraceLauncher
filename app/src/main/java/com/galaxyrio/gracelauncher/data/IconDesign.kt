@@ -29,6 +29,8 @@ data class IconDesign(
     val y: Float = 0f,
     /** Foreground size relative to the tray; iconSize controls the launcher display size. */
     val size: Int = 100,
+    /** Clockwise symbol rotation in degrees, independent of the tray. */
+    val rotation: Float = 0f,
     val iconSize: Int = 100,
     val themeIcons: Boolean = false,
     val themeUnsupportedIcons: Boolean = false,
@@ -50,11 +52,13 @@ data class IconDesign(
         x = x.takeIf { it.isFinite() }?.coerceIn(-50f, 50f) ?: 0f,
         y = y.takeIf { it.isFinite() }?.coerceIn(-50f, 50f) ?: 0f,
         size = size.coerceIn(25, 200),
+        rotation = rotation.takeIf { it.isFinite() }?.coerceIn(-180f, 180f) ?: 0f,
         iconSize = iconSize.coerceIn(80, 150),
     )
     internal fun json(): JSONObject = normalized().let { value ->
         JSONObject().put("shape", value.shape.name).put("cookieSides", value.cookieSides)
             .put("x", value.x).put("y", value.y).put("size", value.size).put("addTray", value.addTray)
+            .put("rotation", value.rotation)
             .put("iconSize", value.iconSize).put("themeIcons", value.themeIcons)
             .put("themeUnsupportedIcons", value.themeUnsupportedIcons)
             .put("invertBackgroundDetection", value.invertBackgroundDetection)
@@ -78,6 +82,7 @@ data class IconDesign(
                 addTray = it.optBoolean("addTray"),
                 x = it.optDouble("x", 0.0).toFloat(), y = it.optDouble("y", 0.0).toFloat(),
                 size = it.optInt("size", 100),
+                rotation = it.optDouble("rotation", 0.0).toFloat(),
                 iconSize = it.optInt("iconSize", 100),
                 // Preserve colors from designs saved before the theming switches existed.
                 themeIcons = it.optBoolean("themeIcons", it.has("background") || it.has("foreground")),

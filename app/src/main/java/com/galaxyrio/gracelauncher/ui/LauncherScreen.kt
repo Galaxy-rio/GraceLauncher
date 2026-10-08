@@ -84,6 +84,7 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.MainActivity
 import com.galaxyrio.gracelauncher.WidgetSetupActivity
 import com.galaxyrio.gracelauncher.data.LauncherApp
+import com.galaxyrio.gracelauncher.data.icons.GraceButtonIcon
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.LauncherShortcut
 import com.galaxyrio.gracelauncher.data.PrivateSpaceDisplay
@@ -991,6 +992,8 @@ internal fun LauncherScreen(
         )
         if (!drawerOpen && (editingHome || uiState.settings.graceButton.enabled)) {
             GraceButton(settings = uiState.settings.graceButton, editing = editingHome,
+                artwork = uiState.graceButtonApp?.icon.takeIf { GraceButtonIcon.key in uiState.itemIcons },
+                design = GraceButtonIcon.choice(uiState.itemIcons[GraceButtonIcon.key]).design ?: GraceButtonIcon.defaults,
                 enabled = overlay == null && !systemActionAccess && buttonTransition == null,
                 hidden = searchTransition != null,
                 heldOrigin = buttonTransition?.takeIf { it.action == GraceButtonAction.LockScreen && it.originIsButton }?.origin,

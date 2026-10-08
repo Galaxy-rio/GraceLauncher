@@ -21,12 +21,14 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.painter.Painter
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInRoot
 import androidx.compose.ui.layout.onGloballyPositioned
@@ -41,7 +43,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.atan2
 
 /** Visual bounds, not the untransformed touch target. Velocity is in root px/s. */
-internal data class GraceButtonOrigin(val bounds: Rect, val velocity: Offset = Offset.Zero)
+internal data class GraceButtonOrigin(val bounds: Rect, val velocity: Offset = Offset.Zero, val artwork: ImageBitmap? = null)
 
 // Launcher-style fast-out/slow-in timing, with a longer travel phase than the
 // old spring. Keep geometry, timing and the wave's opacity independent.
@@ -144,6 +146,7 @@ internal fun GraceButtonTransitionOverlay(transition: GraceButtonTransition) {
     val buttonInk = MaterialTheme.colorScheme.primary
     val fieldColor = SearchBarDefaults.colors().containerColor
     val glyph = painterResource(R.drawable.ic_launcher_foreground)
+    val artwork = remember(transition.origin.artwork) { transition.origin.artwork?.let { BitmapPainter(it) } }
     Canvas(Modifier.fillMaxSize().onGloballyPositioned { transition.viewport = it.boundsInRoot() }
         .clearAndSetSemantics {}
         .pointerInput(transition) {
@@ -170,13 +173,15 @@ internal fun GraceButtonTransitionOverlay(transition: GraceButtonTransition) {
                 val angle = (atan2(tangent.y, tangent.x) * 180f / Math.PI.toFloat()) * departure *
                     (1f - smoothStep(0.44f, 0.66f, p))
                 val alpha = 1f - smoothStep(0.94f, 1f, p)
+                val appearanceFade = smoothStep(0f, 0.26f, p)
                 withTransform({ rotate(angle, center) }) {
-                    drawRoundRect(lerp(buttonColor, fieldColor, morph).copy(alpha = alpha),
+                    drawRoundRect(lerp(buttonColor, fieldColor, morph).copy(alpha = alpha * if (artwork == null) 1f else appearanceFade),
                         topLeft = center - Offset(width / 2f, height / 2f), size = Size(width, height),
                         // Elliptical corners in flight become the exact horizontal M3 pill.
                         cornerRadius = CornerRadius(mix(width / 2f, height / 2f, morph), height / 2f))
+                    if (artwork != null) drawGlyph(artwork, center, Size(width, height), null, 1f - appearanceFade)
                 }
-                drawGlyph(glyph, center, source.size * (48f / 54f), buttonInk, 1f - smoothStep(0.02f, 0.26f, p))
+                if (artwork == null) drawGlyph(glyph, center, source.size * (48f / 54f), buttonInk, 1f - smoothStep(0.02f, 0.26f, p))
             }
             GraceButtonAction.AppList -> {
                 val edge = transition.revealEdge(52.dp.toPx())
@@ -187,7 +192,8 @@ internal fun GraceButtonTransitionOverlay(transition: GraceButtonTransition) {
                 val remainingFill = (1f - p / 0.48f).coerceIn(0f, 1f)
                 drawRect(revealBrush(center, radius, edge, buttonColor),
                     alpha = remainingFill * remainingFill * remainingFill)
-                drawGlyph(glyph, center, transition.origin.bounds.size * (48f / 54f), buttonInk,
+                if (artwork != null) drawGlyph(artwork, center, transition.origin.bounds.size, null, 1f - smoothStep(0f, 0.14f, p))
+                else drawGlyph(glyph, center, transition.origin.bounds.size * (48f / 54f), buttonInk,
                     1f - smoothStep(0f, 0.14f, p))
             }
             GraceButtonAction.LockScreen -> {
@@ -211,10 +217,10 @@ private fun revealBrush(center: Offset, radius: Float, edge: Float, color: Color
     Brush.radialGradient(0f to color, (1f - edge / radius.coerceAtLeast(0.5f)).coerceIn(0f, 0.999f) to color,
         1f to color.copy(alpha = 0f), center = center, radius = radius.coerceAtLeast(0.5f))
 
-private fun DrawScope.drawGlyph(painter: Painter, center: Offset, size: Size, color: Color, alpha: Float) {
+private fun DrawScope.drawGlyph(painter: Painter, center: Offset, size: Size, color: Color?, alpha: Float) {
     if (alpha <= 0f) return
     withTransform({ translate(center.x - size.width / 2f, center.y - size.height / 2f) }) {
-        with(painter) { draw(size, alpha = alpha, colorFilter = ColorFilter.tint(color)) }
+        with(painter) { draw(size, alpha = alpha, colorFilter = color?.let { ColorFilter.tint(it) }) }
     }
 }
 

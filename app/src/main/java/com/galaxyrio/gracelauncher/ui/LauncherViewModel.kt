@@ -38,6 +38,7 @@ import com.galaxyrio.gracelauncher.data.icons.IconPackInfo
 import com.galaxyrio.gracelauncher.data.icons.IconPackRepository
 import com.galaxyrio.gracelauncher.data.icons.IconPackStatus
 import com.galaxyrio.gracelauncher.data.icons.ItemIconStore
+import com.galaxyrio.gracelauncher.data.icons.GraceButtonIcon
 import com.galaxyrio.gracelauncher.data.ItemIcon
 import com.galaxyrio.gracelauncher.data.IconDesign
 import com.galaxyrio.gracelauncher.data.PopupItem
@@ -116,6 +117,7 @@ data class LauncherUiState(
     val weather: WeatherState = WeatherState(),
     val shortcutApps: List<LauncherApp> = emptyList(),
     val folderApps: List<LauncherApp> = emptyList(),
+    val graceButtonApp: LauncherApp? = null,
     val popups: Map<String, List<PopupItem>> = emptyMap(),
     val itemIcons: Map<String, ItemIcon> = emptyMap(),
     val itemRevision: Int = 0,
@@ -135,6 +137,7 @@ data class LauncherUiState(
         ?: privateFolder.takeIf { it.key == key }?.let(::folderItem)
         ?: workFolder.takeIf { it.key == key }?.let(::folderItem)
         ?: folders.firstOrNull { it.key == key }?.let(::folderItem)
+        ?: graceButtonApp?.takeIf { it.key == key }
 
     val privateFolder: LauncherFolder get() = settings.privateSpace.folder(privateSpaceApps)
     val workProfileApps: List<LauncherApp> get() = settings.workProfile.orderedApps(apps.filter { it.isWorkProfile && it.shortcut == null })
@@ -231,6 +234,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         categories = preferences.categories(),
         textMode = preferences.textMode,
         themedIcons = preferences.themedIcons,
+        graceButtonApp = GraceButtonIcon.item(application),
         isLoadingSettings = true,
     ))
     val uiState = _uiState.asStateFlow()
@@ -426,6 +430,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     }
                     val privateFolderApp = itemIcons.apply(_uiState.value.privateFolder.asApp(), snapshot.icons[PrivateSpaceFolderKey], iconSettings)
                     val workFolderApp = itemIcons.apply(_uiState.value.workFolder.asApp(), snapshot.icons[WorkProfileFolderKey], iconSettings)
+                    val graceButtonApp = itemIcons.apply(GraceButtonIcon.item(getApplication()),
+                        GraceButtonIcon.choice(snapshot.icons[GraceButtonIcon.key]), iconSettings)
                     val favorites = favoritesStore.favoritesFor(displayedApps)
                     _uiState.update {
                         it.copy(
@@ -434,6 +440,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                             folderApps = folderApps,
                             privateFolderApp = privateFolderApp,
                             workFolderApp = workFolderApp,
+                            graceButtonApp = graceButtonApp,
                             workProfiles = workProfiles,
                             favoriteKeys = favorites.toSet(),
                             favoriteOrder = favorites,

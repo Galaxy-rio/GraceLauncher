@@ -3,6 +3,7 @@
 package com.galaxyrio.gracelauncher.ui.settings
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListScope
@@ -33,6 +34,7 @@ import com.galaxyrio.gracelauncher.data.IconColor
 import com.galaxyrio.gracelauncher.data.IconDesign
 import com.galaxyrio.gracelauncher.data.IconShape
 import com.galaxyrio.gracelauncher.data.icons.iconShapePath
+import com.galaxyrio.gracelauncher.data.icons.GraceButtonIcon
 import kotlin.math.roundToInt
 
 internal fun LazyListScope.iconDesignerControls(
@@ -40,11 +42,12 @@ internal fun LazyListScope.iconDesignerControls(
     layered: Boolean, dynamicColors: Pair<Int, Int>, themeColors: Pair<Int, Int>, defaults: IconDesign,
     onSwitch: () -> Unit, onSource: () -> Unit,
     onColor: (String) -> Unit, onChange: (IconDesign) -> Unit,
+    showSuggestions: Boolean = false, suggestion: String? = null, onSuggestion: (String) -> Unit = {},
     colorModifier: @Composable (String) -> Modifier = { Modifier },
 ) {
     val cookie = design.shape == IconShape.Cookie
     val canAddTray = all || !layered
-    val count = (if (all) 8 else 9) + (if (cookie) 1 else 0) + (if (canAddTray) 1 else 0)
+    val count = (if (all) 8 else 9) + (if (cookie) 1 else 0) + (if (canAddTray) 1 else 0) + (if (showSuggestions && !all) 1 else 0)
     var index = 0
     if (!all) {
         val position = index++
@@ -53,6 +56,30 @@ internal fun LazyListScope.iconDesignerControls(
         val sourceIndex = index++
         item("source") { SettingsActionItem(stringResource(R.string.icon_designer_source), sourceLabel,
             sourceIndex, count, "icon_designer_source", enabled = enabled, onClick = onSource) }
+        if (showSuggestions) {
+            val suggestionsIndex = index++
+            item("suggestions") {
+                SegmentedListItem(shapes = ListItemDefaults.segmentedShapes(suggestionsIndex, count),
+                    colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
+                    content = { Text(stringResource(R.string.icon_designer_suggestions)) },
+                    supportingContent = {
+                        LazyRow(Modifier.fillMaxWidth().selectableGroup().padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            items(GraceButtonIcon.Suggestion.entries, key = { it.id }) { icon ->
+                                val selected = suggestion == icon.id
+                                Box(Modifier.size(48.dp).clip(CircleShape)
+                                    .background(if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)
+                                    .selectable(selected, enabled = enabled, role = Role.RadioButton, onClick = { onSuggestion(icon.id) })
+                                    .testTag("icon_designer_suggestion:${icon.id}"), contentAlignment = Alignment.Center) {
+                                    Icon(painterResource(icon.drawable), stringResource(icon.label),
+                                        Modifier.size(if (icon == GraceButtonIcon.Suggestion.Default) 48.dp else 24.dp),
+                                        tint = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    })
+            }
+        }
     } else {
         val sizeIndex = index++
         item("icon_size") {
@@ -157,6 +184,8 @@ internal fun LazyListScope.iconDesignerControls(
                 enabled, "icon_designer_y") { onChange(design.copy(y = it)) }
             DesignerSlider(stringResource(R.string.icon_designer_size), design.size.toFloat(), defaults.size.toFloat(), 25f..200f,
                 enabled, "icon_designer_size") { onChange(design.copy(size = it.roundToInt())) }
+            DesignerSlider(stringResource(R.string.icon_designer_rotation), design.rotation, defaults.rotation, -180f..180f,
+                enabled, "icon_designer_rotation", suffix = "°") { onChange(design.copy(rotation = it)) }
         }
     }
     item("effects") {
@@ -177,10 +206,10 @@ private fun DesignerSegment(index: Int, count: Int, tag: String, content: @Compo
 
 @Composable
 private fun DesignerSlider(label: String, value: Float, default: Float, range: ClosedFloatingPointRange<Float>,
-    enabled: Boolean, tag: String, onChange: (Float) -> Unit) {
+    enabled: Boolean, tag: String, suffix: String = "%", onChange: (Float) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
-            Text("$label · ${value.roundToInt()}%", style = MaterialTheme.typography.labelLarge)
+            Text("$label · ${value.roundToInt()}$suffix", style = MaterialTheme.typography.labelLarge)
             Slider(value, { onChange(it.roundToInt().toFloat()) }, valueRange = range, enabled = enabled,
                 modifier = Modifier.testTag(tag).semantics { contentDescription = label })
         }

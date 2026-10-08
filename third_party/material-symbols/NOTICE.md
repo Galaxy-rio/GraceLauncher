@@ -20,6 +20,14 @@ current content tint.
 
 ## Sources
 
+### Grace button suggestions added 2026-10-09
+
+- `ms_format_list_bulleted.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/format_list_bulleted/materialsymbolsoutlined/format_list_bulleted_24px.svg
+- `ms_power_settings_new.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/power_settings_new/materialsymbolsoutlined/power_settings_new_24px.svg
+- `ms_bolt.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/bolt/materialsymbolsoutlined/bolt_24px.svg
+
+Official SVG paths retained using the conversion above. Same Apache-2.0 license.
+
 ### Productivity icons added 2026-10-08
 
 - `ms_widgets.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/android/widgets/materialsymbolsoutlined/widgets_24px.xml

@@ -6,6 +6,7 @@ import androidx.compose.animation.core.animateOffsetAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -26,6 +28,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
@@ -47,6 +53,10 @@ import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.GraceButtonGesture
 import com.galaxyrio.gracelauncher.data.GraceButtonSettings
+import com.galaxyrio.gracelauncher.data.IconDesign
+import com.galaxyrio.gracelauncher.data.IconShape
+import com.galaxyrio.gracelauncher.data.icons.GraceButtonIcon
+import com.galaxyrio.gracelauncher.data.icons.iconShapePath
 import com.galaxyrio.gracelauncher.platform.GraceSystemActions
 import kotlin.math.abs
 
@@ -55,7 +65,8 @@ import kotlin.math.abs
 @Composable
 internal fun GraceButton(settings: GraceButtonSettings, editing: Boolean, enabled: Boolean,
     onGesture: (GraceButtonGesture, GraceButtonOrigin) -> Unit, onFinishEditing: () -> Unit,
-    modifier: Modifier = Modifier, hidden: Boolean = false, heldOrigin: GraceButtonOrigin? = null) {
+    modifier: Modifier = Modifier, hidden: Boolean = false, heldOrigin: GraceButtonOrigin? = null,
+    artwork: ImageBitmap? = null, design: IconDesign = GraceButtonIcon.defaults) {
     val latestSettings by rememberUpdatedState(settings)
     val perform by rememberUpdatedState(onGesture)
     val haptics = LocalHapticFeedback.current
@@ -80,7 +91,12 @@ internal fun GraceButton(settings: GraceButtonSettings, editing: Boolean, enable
     // starts here, not back at the button's resting layout position.
     val visualCenter = bounds.center + movement
     val halfSize = Offset(bounds.width * scaleX / 2f, bounds.height * scaleY / 2f)
-    val origin by rememberUpdatedState(GraceButtonOrigin(Rect(visualCenter - halfSize, visualCenter + halfSize)))
+    val origin by rememberUpdatedState(GraceButtonOrigin(Rect(visualCenter - halfSize, visualCenter + halfSize), artwork = artwork))
+    val shape = remember(design.shape, design.cookieSides) {
+        if (design.shape == IconShape.None) RectangleShape else GenericShape { size, _ ->
+            addPath(iconShapePath(design.shape, design.cookieSides, size.minDimension).asComposePath())
+        }
+    }
     fun activate(gesture: GraceButtonGesture) { perform(gesture, origin.copy(velocity = releaseVelocity)) }
     val activateLatest by rememberUpdatedState(::activate)
     val description = stringResource(if (editing) R.string.done else R.string.settings_grace_button)
@@ -162,10 +178,12 @@ internal fun GraceButton(settings: GraceButtonSettings, editing: Boolean, enable
             translationY = heldOrigin?.let { it.bounds.center.y - bounds.center.y } ?: movement.y
             this.scaleX = heldOrigin?.let { it.bounds.width / bounds.width.coerceAtLeast(1f) } ?: scaleX
             this.scaleY = heldOrigin?.let { it.bounds.height / bounds.height.coerceAtLeast(1f) } ?: scaleY
-        }, shape = CircleShape, color = MaterialTheme.colorScheme.primaryContainer,
+        }, shape = if (editing) CircleShape else shape,
+            color = if (editing || artwork == null) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
             contentColor = MaterialTheme.colorScheme.primary, shadowElevation = 6.dp) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Icon(painterResource(if (editing) R.drawable.ms_check else R.drawable.ic_launcher_foreground), null,
+                if (!editing && artwork != null) Image(artwork, null, Modifier.fillMaxSize())
+                else Icon(painterResource(if (editing) R.drawable.ms_check else R.drawable.ic_launcher_foreground), null,
                     Modifier.size(if (editing) 26.dp else 48.dp))
             }
         }

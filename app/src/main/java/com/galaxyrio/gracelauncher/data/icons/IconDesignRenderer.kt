@@ -108,8 +108,11 @@ internal fun renderDesignedIcon(layers: IconLayers, design: IconDesign, dynamicB
     val centerX = side * (0.5f + style.x / 100f)
     val centerY = side * (0.5f + style.y / 100f)
     val half = side * scale / 2f
+    canvas.save()
+    canvas.rotate(style.rotation, centerX, centerY)
     canvas.drawBitmap(layers.symbol(foreground, style.themeUnsupportedIcons, style.invertBackgroundDetection), null,
         RectF(centerX - half, centerY - half, centerX + half, centerY + half), paint)
+    canvas.restore()
     return output
 }
 

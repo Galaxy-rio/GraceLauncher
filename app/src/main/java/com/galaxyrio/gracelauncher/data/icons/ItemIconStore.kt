@@ -40,7 +40,7 @@ import java.util.UUID
 class ItemIconStore(private val context: Context, private val packs: IconPackRepository) {
     private val directory get() = File(context.filesDir, "item_icons")
     private val images = LruCache<String, Bitmap>(12)
-    private val themePalettes = LruCache<Pair<Int, Boolean>, Pair<Int, Int>>(4)
+    private val themePalettes = LruCache<Triple<Int, Boolean, Boolean>, Pair<Int, Int>>(8)
 
     private fun imageBitmap(name: String, size: Int): Bitmap? = runCatching {
         val key = "$name:$size"
@@ -72,30 +72,33 @@ class ItemIconStore(private val context: Context, private val packs: IconPackRep
         ThemeMode.System -> context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK == Configuration.UI_MODE_NIGHT_YES
     }
 
-    internal fun themeColors(settings: LauncherSettings): Pair<Int, Int> {
-        if (settings.useDynamicColors && Build.VERSION.SDK_INT >= 31) return dynamicColors(settings)
-        return seedColors(settings)
+    internal fun themeColors(settings: LauncherSettings, button: Boolean = false): Pair<Int, Int> {
+        if (settings.useDynamicColors && Build.VERSION.SDK_INT >= 31) return dynamicColors(settings, button)
+        return seedColors(settings, button)
     }
 
-    private fun seedColors(settings: LauncherSettings): Pair<Int, Int> {
-        val key = settings.themeColor to isDark(settings)
+    private fun seedColors(settings: LauncherSettings, button: Boolean = false): Pair<Int, Int> {
+        val key = Triple(settings.themeColor, isDark(settings), button)
         return themePalettes[key] ?: dynamicColorScheme(seedColor = Color(key.first), isDark = key.second,
             style = PaletteStyle.TonalSpot, specVersion = ColorSpec.SpecVersion.SPEC_2025).let {
-            it.primaryContainer.toArgb() to it.onPrimaryContainer.toArgb()
+            it.primaryContainer.toArgb() to (if (button) it.primary else it.onPrimaryContainer).toArgb()
         }.also { themePalettes.put(key, it) }
     }
 
-    internal fun dynamicColors(settings: LauncherSettings): Pair<Int, Int> {
+    internal fun dynamicColors(settings: LauncherSettings, button: Boolean = false): Pair<Int, Int> {
         val dark = isDark(settings)
         if (Build.VERSION.SDK_INT >= 31) {
             val scheme = if (dark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-            return scheme.primaryContainer.toArgb() to scheme.onPrimaryContainer.toArgb()
+            return scheme.primaryContainer.toArgb() to (if (button) scheme.primary else scheme.onPrimaryContainer).toArgb()
         }
-        return seedColors(settings)
+        return seedColors(settings, button)
     }
 
     internal suspend fun layers(app: LauncherApp, choice: ItemIcon, settings: LauncherSettings, size: Int = 384): IconLayers? = safelyRender(app, null) {
         withContext(Dispatchers.IO) {
+            if (app.isGraceButton && choice.kind in setOf("system", "theme", "symbol")) {
+                return@withContext GraceButtonIcon.layers(context, choice, size, themeColors(settings, button = true))
+            }
             if (app.folderId != null && choice.kind in setOf("system", "theme")) {
                 val colors = themeColors(settings)
                 val glyph = ContextCompat.getDrawable(context, when (app.folderId) {
@@ -117,6 +120,9 @@ class ItemIconStore(private val context: Context, private val packs: IconPackRep
                 else -> null
             }
             if (packed != null) return@withContext packed
+            if (app.isGraceButton && choice.kind == "pack") {
+                return@withContext GraceButtonIcon.layers(context, ItemIcon.System, size, themeColors(settings, button = true))
+            }
             val drawable = if (app.shortcut == null && choice.kind in setOf("theme", "system", "pack")) systemDrawable(app) else null
             if (drawable != null) return@withContext iconLayers(drawable, size)
             val bitmap = if (choice.kind == "image") imageBitmap(choice.source, size) else null
@@ -128,9 +134,9 @@ class ItemIconStore(private val context: Context, private val packs: IconPackRep
         safelyRender(app, app) {
             if (choice == null) return@withContext app
             choice.design?.let { design ->
-                val original = layers(app, choice, settings, 144) ?: return@withContext app
-                val colors = dynamicColors(settings)
-                val theme = themeColors(settings)
+                val original = layers(app, choice, settings, if (app.isGraceButton) 256 else 144) ?: return@withContext app
+                val colors = dynamicColors(settings, button = app.isGraceButton)
+                val theme = themeColors(settings, button = app.isGraceButton)
                 return@withContext app.copy(icon = renderDesignedIcon(original, design, colors.first, colors.second, theme.first, theme.second).asImageBitmap(),
                     monochromeIcon = null, iconPackPackage = when (choice.kind) {
                         "theme" -> app.themeIconPackPackage
