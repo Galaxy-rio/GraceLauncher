@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.1.5
+
+- Redesigned Grace Button with more button gestures, actions and cute animations.
+- Added home screen gestures: swipe up, swipe down and double-tap.
+- Added icon rotation to Icon Designer.
+- Added Work Profile support.
+- Added Italian translations.
+
 ## 1.1.4
 
 - Built-in default widgets can now be disabled, including the clock, agenda, music controls and Grace Button.
