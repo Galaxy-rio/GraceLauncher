@@ -208,6 +208,7 @@ internal fun SettingsToggleItem(
     count: Int,
     tag: String,
     enabled: Boolean = true,
+    leading: @Composable (() -> Unit)? = null,
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val shapes = ListItemDefaults.segmentedShapes(index = index, count = count)
@@ -231,6 +232,7 @@ internal fun SettingsToggleItem(
             selectedOverlineContentColor = colors.overlineContentColor,
             selectedSupportingContentColor = colors.supportingContentColor,
         ),
+        leadingContent = leading,
         content = { Text(title) },
         supportingContent = if (summary == null) null else ({ Text(summary) }),
         // The whole segmented item is the sole toggle and accessibility target.

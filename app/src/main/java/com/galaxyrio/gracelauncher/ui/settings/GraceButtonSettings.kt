@@ -34,24 +34,26 @@ import com.galaxyrio.gracelauncher.ui.components.labelRes
 
 @Composable
 internal fun GraceButtonSettingsScreen(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
-    onChooseGesture: (GraceButtonGesture) -> Unit) {
-    val settings = uiState.settings.graceButton
-    SettingsScaffold(stringResource(R.string.settings_grace_button), "settings_grace_button_page", onBack) { padding ->
+    home: Boolean = false, onChooseGesture: (GraceButtonGesture) -> Unit) {
+    val settings = uiState.settings.gestureSettings(home)
+    val gestures = if (home) listOf(GraceButtonGesture.SwipeUp, GraceButtonGesture.SwipeDown, GraceButtonGesture.DoubleTap) else GraceButtonGesture.entries
+    SettingsScaffold(stringResource(if (home) R.string.settings_gestures else R.string.settings_grace_button),
+        if (home) "settings_home_gestures" else "settings_grace_button_page", onBack) { padding ->
         SettingsList(padding) {
-            item { SettingsFeatureBanner(stringResource(R.string.grace_button_enable), settings.enabled, "grace_button_enabled") { value ->
-                actions.updateSettings { it.copy(graceButton = it.graceButton.copy(enabled = value)) }
+            item { SettingsFeatureBanner(stringResource(if (home) R.string.home_gestures_enable else R.string.grace_button_enable), settings.enabled, "gestures_enabled") { value ->
+                actions.updateSettings { it.withGestureSettings(home) { settings -> settings.copy(enabled = value) } }
             } }
-            GraceButtonGesture.entries.forEachIndexed { index, gesture ->
+            gestures.forEachIndexed { index, gesture ->
                 item {
                     val target = settings.target(gesture)
-                    val title = stringResource(gesture.labelRes)
+                    val title = stringResource(if (home && gesture == GraceButtonGesture.DoubleTap) R.string.home_gesture_double_tap else gesture.labelRes)
                     SettingsActionItem(title, if (target.active) target.summary(uiState) else stringResource(R.string.grace_button_disabled),
-                        index, GraceButtonGesture.entries.size, "grace_gesture:${gesture.name}",
+                        index, gestures.size, "grace_gesture:${gesture.name}",
                         trailing = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 VerticalDivider(Modifier.height(32.dp))
                                 Switch(target.active, onCheckedChange = { enabled ->
-                                    actions.updateSettings { current -> current.copy(graceButton = current.graceButton.withEnabled(gesture, enabled)) }
+                                    actions.updateSettings { current -> current.withGestureSettings(home) { it.withEnabled(gesture, enabled) } }
                                 }, enabled = LocalSettingsStorageState.current.canEdit,
                                     modifier = Modifier.padding(start = 16.dp).testTag("grace_gesture_switch:${gesture.name}")
                                         .semantics { contentDescription = title })
@@ -65,16 +67,16 @@ internal fun GraceButtonSettingsScreen(uiState: LauncherUiState, actions: Launch
 
 @Composable
 internal fun GraceButtonActionSettings(gesture: GraceButtonGesture, uiState: LauncherUiState, actions: LauncherActions,
-    onBack: () -> Unit, onChooseTarget: (shortcut: Boolean) -> Unit) {
-    val target = uiState.settings.graceButton.target(gesture)
+    onBack: () -> Unit, home: Boolean = false, onChooseTarget: (shortcut: Boolean) -> Unit) {
+    val target = uiState.settings.gestureSettings(home).target(gesture)
     var websiteDialog by rememberSaveable { mutableStateOf(false) }
     var accessDialog by rememberSaveable { mutableStateOf(false) }
     val options = GraceButtonAction.entries.filterNot { it == GraceButtonAction.Disabled }
     fun select(choice: GraceButtonTarget) {
-        actions.updateSettings { it.copy(graceButton = it.graceButton.withTarget(gesture, choice)) }
+        actions.updateSettings { it.withGestureSettings(home) { settings -> settings.withTarget(gesture, choice) } }
         if (choice.action.requiresAccessibility && !GraceSystemActions.hasAccessibility) accessDialog = true
     }
-    SettingsScaffold(stringResource(gesture.labelRes), "grace_action_page", onBack) { padding ->
+    SettingsScaffold(stringResource(if (home && gesture == GraceButtonGesture.DoubleTap) R.string.home_gesture_double_tap else gesture.labelRes), "grace_action_page", onBack) { padding ->
         SettingsList(padding) {
             item { Spacer(Modifier.height(24.dp)) }
             options.forEachIndexed { index, action ->

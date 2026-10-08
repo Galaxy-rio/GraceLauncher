@@ -62,6 +62,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.testTag
@@ -87,6 +88,7 @@ import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.LauncherShortcut
 import com.galaxyrio.gracelauncher.data.PrivateSpaceDisplay
 import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
+import com.galaxyrio.gracelauncher.data.WorkProfileFolderId
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.ui.components.AlphabetRail
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
@@ -232,11 +234,11 @@ fun LauncherRoute(
         // App info may itself run in the private profile. Hide our contents now
         // and defer Android's profile lock until returning, as for an app launch.
         withPrivateProfile(app.user, app.isPrivateSpace) {
-            if (viewModel.preparePrivateAppLaunch(app)) {
+            if (!app.isPrivateSpace || viewModel.preparePrivateAppLaunch(app)) {
                 val result = runCatching(open).onFailure {
                     Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
                 }
-                viewModel.privateSpaceController.finishAppLaunch(result.isSuccess)
+                if (app.isPrivateSpace) viewModel.privateSpaceController.finishAppLaunch(result.isSuccess)
             }
         }
     }
@@ -294,6 +296,13 @@ fun LauncherRoute(
         openPrivateSpaceSettings = { (context as? Activity)?.let(viewModel.privateSpaceController::openSettings) },
         reorderPrivateApps = viewModel::reorderPrivateApps,
         resetPrivateSpaceAppearance = viewModel::resetPrivateSpaceAppearance,
+        reorderWorkApps = viewModel::reorderWorkApps,
+        resetWorkProfileAppearance = viewModel::resetWorkProfileAppearance,
+        openWorkProfileSettings = {
+            // Android exposes account/profile management through this public settings action.
+            runCatching { context.startActivity(Intent(Settings.ACTION_SYNC_SETTINGS)) }
+                .onFailure { openSystemApp(Intent(Settings.ACTION_SETTINGS)) }
+        },
         requestCalendarAccess = { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) },
         addWidget = {
             when {
@@ -358,7 +367,7 @@ fun LauncherRoute(
                 .onFailure { openSystemApp(Intent(Settings.ACTION_HOME_SETTINGS)) }
         },
         appInfo = { app ->
-            if (app.isPrivateSpace) openPrivateAppAction(app) {
+            if (app.user != null) openPrivateAppAction(app) {
                 context.getSystemService(LauncherApps::class.java).startAppDetailsActivity(
                     app.componentName, requireNotNull(app.user), null, null)
             } else openSystemApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.fromParts("package", app.packageName, null)))
@@ -366,14 +375,14 @@ fun LauncherRoute(
         screenTime = { app ->
             if (Build.VERSION.SDK_INT >= 29) {
                 val intent = Intent(Settings.ACTION_APP_USAGE_SETTINGS).putExtra(Intent.EXTRA_PACKAGE_NAME, app.packageName)
-                if (app.isPrivateSpace) openPrivateAppAction(app) {
+                if (app.user != null) openPrivateAppAction(app) {
                     context.startActivity(intent.putExtra(Intent.EXTRA_USER, requireNotNull(app.user)))
                 } else openSystemApp(intent)
             } else Toast.makeText(context, R.string.action_unavailable, Toast.LENGTH_SHORT).show()
         },
         uninstall = { app ->
             val intent = Intent(Intent.ACTION_DELETE, Uri.fromParts("package", app.packageName, null))
-            if (app.isPrivateSpace) openPrivateAppAction(app) {
+            if (app.user != null) openPrivateAppAction(app) {
                 context.startActivity(intent.putExtra(Intent.EXTRA_USER, requireNotNull(app.user)))
             } else openSystemApp(intent)
         },
@@ -511,6 +520,7 @@ internal fun LauncherScreen(
     val searchQuery = rememberTextFieldState()
     var editingHome by rememberSaveable { mutableStateOf(false) }
     var privateListOpen by remember { mutableStateOf(false) }
+    var workListOpen by remember { mutableStateOf(false) }
     var privateSwipeAnchor by remember { mutableStateOf<Rect?>(null) }
     var privateFolderWasOpen by remember { mutableStateOf(false) }
     val latestUiState by rememberUpdatedState(uiState)
@@ -520,11 +530,17 @@ internal fun LauncherScreen(
             uiState.privateSpace.supported && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
     }
     val appListApps = uiState.appListApps
+    val workFolder = uiState.workFolder.takeIf {
+        uiState.settings.workProfile.enabled && uiState.settings.workProfile.display != PrivateSpaceDisplay.NormalApp &&
+            uiState.workProfiles.isNotEmpty() && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
+    }
+    val workExpanded = workListOpen && workFolder != null && uiState.settings.workProfile.display == PrivateSpaceDisplay.List
+    val workApps = uiState.workProfileApps.filterNot { it.key in uiState.hiddenAppKeys }
     val privateApps = uiState.privateSpaceApps
     val recentFolderName = stringResource(R.string.recently_installed)
     val recentFolder = remember(uiState.apps, recentFolderName) { uiState.recentlyInstalledFolder(recentFolderName) }
-    val model = remember(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps, recentFolder) {
-        AppListModel(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps, recentFolder)
+    val model = remember(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps, recentFolder, workFolder, workExpanded, workApps) {
+        AppListModel(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps, recentFolder, workFolder, workExpanded, workApps)
     }
     val drawerState = rememberLazyListState()
     val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons, uiState.settings.iconDesign?.design?.iconSize ?: 100)
@@ -627,6 +643,9 @@ internal fun LauncherScreen(
         if (folderOpen && (!drawerOpen || uiState.settings.privateSpace.display != PrivateSpaceDisplay.Folder)) overlay = null
     }
     val screenActions = actions.copy(moveWidget = { drawerOpen = false; selectedLetter = null; overlay = null; editingHome = true })
+    LaunchedEffect(drawerOpen, workFolder, uiState.settings.workProfile.display) {
+        if (!drawerOpen || workFolder == null || uiState.settings.workProfile.display != PrivateSpaceDisplay.List) workListOpen = false
+    }
     val backProgress = remember { Animatable(0f) }
     val darkSystemIcons = if (fullScreen && !searching) MaterialTheme.colorScheme.surface.luminance() > 0.5f else appearance.darkText
     val statusBarPull = rememberLauncherSystemBars(
@@ -718,6 +737,7 @@ internal fun LauncherScreen(
             uiState.isDefaultHome == false -> actions.requestDefaultHome()
             uiState.privateSpace.user == null -> actions.openPrivateSpaceSettings()
             else -> actions.requestPrivateSpace(false) {
+                workListOpen = false
                 drawerOpen = true
                 selectedLetter = null
                 if (latestUiState.settings.privateSpace.display == PrivateSpaceDisplay.List) privateListOpen = true
@@ -734,10 +754,23 @@ internal fun LauncherScreen(
         }
     }
     val openFolder: (LauncherFolder, Rect) -> Unit = { folder, bounds ->
-        if (folder.id == PrivateSpaceFolderId) openPrivateSpace(bounds) else overlay = LauncherOverlay.Folder(folder, bounds)
+        when {
+            folder.id == PrivateSpaceFolderId -> openPrivateSpace(bounds)
+            folder.id == WorkProfileFolderId && uiState.settings.workProfile.display == PrivateSpaceDisplay.List -> {
+                privateListOpen = false
+                actions.closePrivateSpace()
+                workListOpen = !workListOpen
+                selectedLetter = null
+            }
+            else -> overlay = LauncherOverlay.Folder(folder, bounds)
+        }
     }
     val editFolder: (LauncherFolder) -> Unit = {
-        if (it.id == PrivateSpaceFolderId) editPrivateSpace() else overlay = LauncherOverlay.AppDetails(uiState.folderItem(it))
+        when (it.id) {
+            PrivateSpaceFolderId -> editPrivateSpace()
+            WorkProfileFolderId -> overlay = LauncherOverlay.SettingsDestination("WorkProfileEditor")
+            else -> overlay = LauncherOverlay.AppDetails(uiState.folderItem(it))
+        }
     }
     val dragFolder: (LauncherFolder, Rect, Boolean) -> Unit = { folder, bounds, expanded ->
         val canRevealPrivateFolder = uiState.settings.privateSpace.display == PrivateSpaceDisplay.Folder &&
@@ -789,6 +822,48 @@ internal fun LauncherScreen(
             Color.Black.copy(alpha = homeScrimOpacity),
         ))
     }
+    // Both gesture surfaces use this dispatcher and the same target model.
+    // Only a real button gesture morphs the button into search/the app list.
+    fun performGestureAction(target: GraceButtonTarget, origin: GraceButtonOrigin, fromButton: Boolean = true) {
+        if (!target.active || buttonTransition != null || systemActionAccess) return
+        when (target.action) {
+            GraceButtonAction.Search -> {
+                searchQuery.edit { replace(0, length, "") }
+                if (fromButton && uiState.settings.search.enabled) buttonTransition = GraceButtonTransition(target.action, origin)
+                overlay = LauncherOverlay.search(uiState.settings.search.enabled)
+            }
+            GraceButtonAction.Settings -> overlay = LauncherOverlay.Settings
+            GraceButtonAction.App, GraceButtonAction.Shortcut -> {
+                val app = target.itemKey?.let(uiState::findItem)
+                if (app != null) onLaunchApp(app)
+                else Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
+            }
+            GraceButtonAction.AppList -> {
+                if (fromButton) buttonTransition = GraceButtonTransition(target.action, origin)
+                selectedLetter = null
+                overlay = null
+                drawerState.requestScrollToItem(0)
+                drawerOpen = true
+            }
+            GraceButtonAction.Agenda -> {
+                actions.refreshWeather()
+                actions.refreshAgenda()
+                overlay = LauncherOverlay.Agenda
+            }
+            GraceButtonAction.LockScreen -> {
+                if (!GraceSystemActions.hasAccessibility) systemActionAccess = true
+                else buttonTransition = GraceButtonTransition(target.action, origin, originIsButton = fromButton)
+            }
+            GraceButtonAction.Website, GraceButtonAction.Assistant,
+            GraceButtonAction.Notifications, GraceButtonAction.QuickSettings -> {
+                if (target.action.requiresAccessibility && !GraceSystemActions.hasAccessibility) systemActionAccess = true
+                else if (!GraceSystemActions.perform(context, target))
+                    Toast.makeText(context, R.string.grace_action_unavailable, Toast.LENGTH_SHORT).show()
+            }
+            GraceButtonAction.Disabled -> Unit
+        }
+    }
+    val homeGestureRadius = with(LocalDensity.current) { 24.dp.toPx() }
     val widgetHost = rememberWidgetHost()
     CompositionLocalProvider(LocalLauncherAppearance provides appearance, LocalHapticFeedback provides haptics, LocalWidgetHost provides widgetHost) {
       // One wallpaper treatment serves both transparent search and the alphabetical app list.
@@ -836,7 +911,14 @@ internal fun LauncherScreen(
                 onWidgetMenu = { overlay = LauncherOverlay.HomeWidgetMenu },
                 onCustomWidgetMenu = { overlay = LauncherOverlay.CustomWidgetMenu },
                 editingLayout = editingHome,
-                widgetInputEnabled = !drawerOpen && overlay == null && buttonTransition == null,
+                widgetInputEnabled = !drawerOpen && overlay == null && buttonTransition == null && !systemActionAccess,
+                onHomeGesture = { gesture, position ->
+                    if (!drawerOpen && overlay == null && !editingHome) {
+                        val origin = GraceButtonOrigin(Rect(position.x - homeGestureRadius, position.y - homeGestureRadius,
+                            position.x + homeGestureRadius, position.y + homeGestureRadius))
+                        performGestureAction(uiState.settings.homeGestures.target(gesture), origin, fromButton = false)
+                    }
+                },
                 onTopOffsetChange = { offset -> actions.updateSettings { it.copy(homeLayout = it.homeLayout.copy(topOffsetDp = offset)) } },
                 onWidgetHeightChange = { height -> actions.updateSettings { it.copy(homeLayout = it.homeLayout.copy(widgetHeightDp = height)) } },
                 rowGestures = rowGestures,
@@ -858,7 +940,7 @@ internal fun LauncherScreen(
         // views. Content padding anchors headings without reserving a viewport.
         AppDrawerScreen(
             model = model,
-            folderApps = (uiState.folders + listOfNotNull(privateFolder)).associate { it.id to uiState.folderItem(it) },
+            folderApps = (uiState.folders + listOfNotNull(workFolder, privateFolder)).associate { it.id to uiState.folderItem(it) },
             notifications = uiState.notifications,
             listState = drawerState,
             selectedLetter = selectedLetter,
@@ -878,6 +960,8 @@ internal fun LauncherScreen(
             privateFailed = uiState.privateAppsFailed,
             onPrivateSpaceSettings = actions.openPrivateSpaceSettings,
             onRetryPrivateSpace = { actions.requestPrivateSpace(true, actions.refreshApps) },
+            workExpanded = workExpanded,
+            onWorkProfileSettings = actions.openWorkProfileSettings,
             modifier = Modifier.retainedPage(visible = drawerOpen)
                 .graphicsLayer { alpha = if (drawerTransition != null) 1f else drawerVisibility }
                 .graceReveal(drawerTransition, reveal = true).statusBarContentFade(),
@@ -906,50 +990,11 @@ internal fun LauncherScreen(
             autoHide = uiState.settings.hideAlphabet && !drawerOpen,
         )
         if (!drawerOpen && (editingHome || uiState.settings.graceButton.enabled)) {
-            fun performButtonAction(target: GraceButtonTarget, origin: GraceButtonOrigin) {
-                if (!target.active || buttonTransition != null) return
-                when (target.action) {
-                    GraceButtonAction.Search -> {
-                        searchQuery.edit { replace(0, length, "") }
-                        if (uiState.settings.search.enabled) buttonTransition = GraceButtonTransition(target.action, origin)
-                        overlay = LauncherOverlay.search(uiState.settings.search.enabled)
-                    }
-                    GraceButtonAction.Settings -> overlay = LauncherOverlay.Settings
-                    GraceButtonAction.App, GraceButtonAction.Shortcut -> {
-                        val app = target.itemKey?.let(uiState::findItem)
-                        if (app != null) onLaunchApp(app)
-                        else Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
-                    }
-                    GraceButtonAction.AppList -> {
-                        buttonTransition = GraceButtonTransition(target.action, origin)
-                        selectedLetter = null
-                        overlay = null
-                        drawerState.requestScrollToItem(0)
-                        drawerOpen = true
-                    }
-                    GraceButtonAction.Agenda -> {
-                        actions.refreshWeather()
-                        actions.refreshAgenda()
-                        overlay = LauncherOverlay.Agenda
-                    }
-                    GraceButtonAction.LockScreen -> {
-                        if (!GraceSystemActions.hasAccessibility) systemActionAccess = true
-                        else buttonTransition = GraceButtonTransition(target.action, origin)
-                    }
-                    GraceButtonAction.Website, GraceButtonAction.Assistant,
-                    GraceButtonAction.Notifications, GraceButtonAction.QuickSettings -> {
-                        if (target.action.requiresAccessibility && !GraceSystemActions.hasAccessibility) systemActionAccess = true
-                        else if (!GraceSystemActions.perform(context, target))
-                            Toast.makeText(context, R.string.grace_action_unavailable, Toast.LENGTH_SHORT).show()
-                    }
-                    GraceButtonAction.Disabled -> Unit
-                }
-            }
             GraceButton(settings = uiState.settings.graceButton, editing = editingHome,
                 enabled = overlay == null && !systemActionAccess && buttonTransition == null,
                 hidden = searchTransition != null,
-                heldOrigin = buttonTransition?.takeIf { it.action == GraceButtonAction.LockScreen }?.origin,
-                onGesture = { gesture, origin -> performButtonAction(uiState.settings.graceButton.target(gesture), origin) },
+                heldOrigin = buttonTransition?.takeIf { it.action == GraceButtonAction.LockScreen && it.originIsButton }?.origin,
+                onGesture = { gesture, origin -> performGestureAction(uiState.settings.graceButton.target(gesture), origin) },
                 onFinishEditing = { editingHome = false },
                 modifier = Modifier.align(Alignment.BottomEnd).padding(end = LauncherLayout.End, bottom = 22.dp + bottomInset))
         }

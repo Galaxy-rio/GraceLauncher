@@ -64,6 +64,7 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
+import com.galaxyrio.gracelauncher.data.WorkProfileFolderId
 import com.galaxyrio.gracelauncher.data.RecentlyInstalledFolderId
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
@@ -92,6 +93,7 @@ fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp, a
         } else if (app.folderId != null) {
             FolderIcon(Modifier, displaySize, when (app.folderId) {
                 PrivateSpaceFolderId -> LauncherSymbol.Lock
+                WorkProfileFolderId -> LauncherSymbol.Work
                 RecentlyInstalledFolderId -> LauncherSymbol.History2
                 else -> LauncherSymbol.Folder
             })
@@ -113,12 +115,13 @@ fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp, a
                 )
             }
         }
-        if (app.isPrivateSpace && app.showPrivateIndicator) {
+        if ((app.isPrivateSpace && app.showPrivateIndicator) || (app.isWorkProfile && app.showWorkIndicator)) {
             val badgeSize = displaySize * 0.42f
-            Box(Modifier.align(Alignment.BottomEnd).size(badgeSize).testTag("private_indicator:${app.key}")
+            Box(Modifier.align(Alignment.BottomEnd).size(badgeSize).testTag("${if (app.isWorkProfile) "work" else "private"}_indicator:${app.key}")
                 .background(MaterialTheme.colorScheme.surface, CircleShape)
                 .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), CircleShape), contentAlignment = Alignment.Center) {
-                LauncherIcon(LauncherSymbol.Encrypted, Modifier.size(badgeSize * 0.68f), MaterialTheme.colorScheme.onSurfaceVariant)
+                LauncherIcon(if (app.isWorkProfile) LauncherSymbol.Work else LauncherSymbol.Encrypted,
+                    Modifier.size(badgeSize * 0.68f), MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
     }
@@ -163,7 +166,7 @@ fun LauncherAppRow(
         detailsDescription = stringResource(R.string.app_actions),
         modifier = modifier,
         highlighted = highlighted,
-        notification = notification.takeIf { app.shortcut == null && !app.isPrivateSpace },
+        notification = notification.takeIf { app.shortcut == null && app.user == null },
         showLabel = showLabel,
     ) { iconModifier -> AppIcon(app, modifier = iconModifier, size = 40.dp) }
 }

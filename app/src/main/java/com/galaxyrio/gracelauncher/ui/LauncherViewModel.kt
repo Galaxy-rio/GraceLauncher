@@ -8,6 +8,9 @@ import android.net.Uri
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.content.pm.LauncherApps
+import android.os.UserHandle
+import android.os.Process
 import android.graphics.Rect
 import android.os.Bundle
 import android.os.SystemClock
@@ -45,6 +48,10 @@ import com.galaxyrio.gracelauncher.data.RecentlyInstalledFolderId
 import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderKey
 import com.galaxyrio.gracelauncher.data.PrivateSpaceDefaultName
 import com.galaxyrio.gracelauncher.data.PrivateSpaceDisplay
+import com.galaxyrio.gracelauncher.data.WorkProfile
+import com.galaxyrio.gracelauncher.data.WorkProfileFolderId
+import com.galaxyrio.gracelauncher.data.WorkProfileFolderKey
+import com.galaxyrio.gracelauncher.data.WorkProfileDefaultName
 import com.galaxyrio.gracelauncher.data.PrivateAppCache
 import com.galaxyrio.gracelauncher.platform.PrivateSpaceController
 import com.galaxyrio.gracelauncher.platform.PrivateSpaceState
@@ -117,6 +124,8 @@ data class LauncherUiState(
     val privateAppsLoading: Boolean = false,
     val privateAppsFailed: Boolean = false,
     val privateFolderApp: LauncherApp? = null,
+    val workProfiles: List<WorkProfile> = emptyList(),
+    val workFolderApp: LauncherApp? = null,
     val shownShortcutKeys: Set<String> = emptySet(),
 ) {
     fun findItem(key: String): LauncherApp? = apps.firstOrNull { it.key == key }
@@ -124,9 +133,12 @@ data class LauncherUiState(
             ?.let { if (it.isPrivateSpace) it.copy(showPrivateIndicator = settings.privateSpace.showIndicator) else it }
         ?: privateSpaceApps.firstOrNull { it.key == key }
         ?: privateFolder.takeIf { it.key == key }?.let(::folderItem)
+        ?: workFolder.takeIf { it.key == key }?.let(::folderItem)
         ?: folders.firstOrNull { it.key == key }?.let(::folderItem)
 
     val privateFolder: LauncherFolder get() = settings.privateSpace.folder(privateSpaceApps)
+    val workProfileApps: List<LauncherApp> get() = settings.workProfile.orderedApps(apps.filter { it.isWorkProfile && it.shortcut == null })
+    val workFolder: LauncherFolder get() = settings.workProfile.folder(workProfileApps, WorkProfileFolderId)
     val privateContentVisible: Boolean get() = !isLoadingSettings && !settingsLoadFailed && settings.privateSpace.enabled &&
         privateSpace.user != null && (settings.privateSpace.exposesApps || (privateSpace.accessible && !privateSpace.locked))
     val privateSpaceApps: List<LauncherApp> get() = if (privateContentVisible)
@@ -142,24 +154,26 @@ data class LauncherUiState(
     val recentlyInstalledApps: List<LauncherApp> get() = apps.asSequence()
         .filter { it.shortcut == null && it.folderId == null && !it.isPrivateSpace && !it.isLauncherSettings }
         .sortedWith(compareByDescending<LauncherApp> { it.firstInstallTime }.then(LauncherAppOrder))
-        .distinctBy(LauncherApp::packageName).take(8).toList()
+        .distinctBy { it.userSerial to it.packageName }.take(8).toList()
 
     fun recentlyInstalledFolder(name: String) = LauncherFolder(
         RecentlyInstalledFolderId, name, recentlyInstalledApps.map(LauncherApp::key), FolderPlacement.AppList,
     )
 
     fun folderItem(folder: LauncherFolder): LauncherApp = ((if (folder.id == PrivateSpaceFolderId) privateFolderApp
+        else if (folder.id == WorkProfileFolderId) workFolderApp
         else folderApps.firstOrNull { it.folderId == folder.id })
         ?: folder.asApp()).copy(label = folder.name, originalLabel = folder.name)
 
     fun popupItems(owner: LauncherApp, defaults: List<LauncherApp>): List<PopupItem> {
         if (owner.folderId == RecentlyInstalledFolderId) return recentlyInstalledApps.map { PopupItem(it.key) }
+        if (owner.folderId == WorkProfileFolderId) return workProfileApps.map { PopupItem(it.key) }
         val items = popups[owner.key].takeUnless { owner.folderId == PrivateSpaceFolderId }
             ?: (if (owner.folderId == PrivateSpaceFolderId) privateSpaceApps.map { it.key }
                 else if (owner.folderId == null) defaults.map { it.key }
                 else folders.firstOrNull { it.id == owner.folderId }?.appKeys.orEmpty()).distinct().map { PopupItem(it) }
         return if (owner.folderId != PrivateSpaceFolderId && !settings.privateSpace.exposesApps)
-            items.filterNot { it.key.startsWith("profile:") } else items
+            items.filterNot { it.key.startsWith("profile:") && findItem(it.key)?.isWorkProfile != true } else items
     }
     val homeMedia: NowPlaying?
         get() = media.nowPlaying.takeIf {
@@ -171,6 +185,8 @@ data class LauncherUiState(
         get() = if (isLoadingSettings || settingsLoadFailed) emptyList()
         else (if (settings.privateSpace.display == PrivateSpaceDisplay.NormalApp) allApps else apps + publicPrivateShortcuts)
             .filterNot { it.key in hiddenAppKeys }
+            .filterNot { it.isWorkProfile && it.shortcut == null && settings.workProfile.enabled &&
+                settings.workProfile.display != PrivateSpaceDisplay.NormalApp }
 
     val favoriteApps: List<LauncherApp>
         get() {
@@ -236,8 +252,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val dateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) { refreshApps() }
     }
+    private val launcherApps = application.getSystemService(LauncherApps::class.java)
+    private val profilePackages = object : LauncherApps.Callback() {
+        private fun refresh(user: UserHandle) { if (user != Process.myUserHandle()) refreshApps() }
+        override fun onPackageAdded(packageName: String, user: UserHandle) = refresh(user)
+        override fun onPackageRemoved(packageName: String, user: UserHandle) = refresh(user)
+        override fun onPackageChanged(packageName: String, user: UserHandle) = refresh(user)
+        override fun onPackagesAvailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) = refresh(user)
+        override fun onPackagesUnavailable(packageNames: Array<out String>, user: UserHandle, replacing: Boolean) = refresh(user)
+    }
 
     init {
+        launcherApps.registerCallback(profilePackages)
         viewModelScope.launch {
             privateSpaceController.state.collect { state ->
                 val previous = _uiState.value.privateSpace
@@ -290,6 +316,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             addAction(Intent.ACTION_TIME_CHANGED)
             addAction(Intent.ACTION_TIMEZONE_CHANGED)
             addAction(Intent.ACTION_WALLPAPER_CHANGED)
+            addAction(Intent.ACTION_MANAGED_PROFILE_ADDED)
+            addAction(Intent.ACTION_MANAGED_PROFILE_REMOVED)
+            addAction(Intent.ACTION_MANAGED_PROFILE_AVAILABLE)
+            addAction(Intent.ACTION_MANAGED_PROFILE_UNAVAILABLE)
+            addAction(Intent.ACTION_MANAGED_PROFILE_UNLOCKED)
         }, ContextCompat.RECEIVER_NOT_EXPORTED)
         viewModelScope.launch {
             settingsRepository.snapshots
@@ -306,6 +337,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     _uiState.update {
                         it.copy(
                             settings = snapshot.settings,
+                            apps = it.apps.map { app -> if (app.isWorkProfile) app.copy(showWorkIndicator = snapshot.settings.workProfile.showIndicator) else app },
+                            shortcutApps = it.shortcutApps.map { app -> if (app.isWorkProfile) app.copy(showWorkIndicator = snapshot.settings.workProfile.showIndicator) else app },
                             themedIcons = snapshot.settings.iconDesign?.design?.withThemeDefaults(IconDesign.defaults(preferences.themedIcons))?.themeIcons
                                 ?: preferences.themedIcons,
                             hiddenAppKeys = snapshot.hiddenAppKeys,
@@ -367,16 +400,20 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 availablePacks.isNotEmpty() -> IconPackStatus.Ready
                 else -> IconPackStatus.Unavailable
             }
-            runCatching { appRepository.loadApps(selectedPacks) }
+            val workProfiles = runCatching { appRepository.workProfiles() }.getOrDefault(emptyList())
+            runCatching { appRepository.loadApps(selectedPacks) + appRepository.loadWorkApps(workProfiles, selectedPacks) }
                 .onSuccess { apps ->
                     val renames = preferences.renames()
                     val snapshot = itemsSnapshot
                     val iconSettings = _uiState.value.settings
                     suspend fun decorate(app: LauncherApp): LauncherApp = itemIcons.applyDesign(app, snapshot.icons[app.key], iconSettings.iconDesign, iconSettings, preferences.themedIcons)
-                        .copy(label = renames[app.key] ?: app.originalLabel)
-                    val shortcuts = snapshot.shortcuts.filterNot { it.itemKey.startsWith("profile:") }.mapNotNull { saved ->
-                        val owner = apps.firstOrNull { it.componentName.flattenToString() == saved.activity }
-                            ?: apps.firstOrNull { it.packageName == saved.packageName } ?: return@mapNotNull null
+                        .copy(label = renames[app.key] ?: app.originalLabel, showWorkIndicator = iconSettings.workProfile.showIndicator)
+                    val shortcuts = snapshot.shortcuts.mapNotNull { saved ->
+                        // Package names alone cannot distinguish personal and work installations.
+                        val owners = apps.filter { app -> if (app.userSerial == null) !saved.itemKey.startsWith("profile:")
+                            else saved.itemKey.startsWith("profile:${app.userSerial}:shortcut:") }
+                        val owner = owners.firstOrNull { it.componentName.flattenToString() == saved.activity }
+                            ?: owners.firstOrNull { it.packageName == saved.packageName } ?: return@mapNotNull null
                         val current = shortcutRepository.shortcutsFor(owner).shortcuts.firstOrNull { it.id == saved.shortcutId }
                             ?: LauncherShortcut(saved.shortcutId, saved.packageName, saved.label, owner.icon, owner.componentName)
                         decorate(current.asApp(owner))
@@ -388,6 +425,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         itemIcons.apply(folder.asApp(), snapshot.icons[folder.key], iconSettings)
                     }
                     val privateFolderApp = itemIcons.apply(_uiState.value.privateFolder.asApp(), snapshot.icons[PrivateSpaceFolderKey], iconSettings)
+                    val workFolderApp = itemIcons.apply(_uiState.value.workFolder.asApp(), snapshot.icons[WorkProfileFolderKey], iconSettings)
                     val favorites = favoritesStore.favoritesFor(displayedApps)
                     _uiState.update {
                         it.copy(
@@ -395,6 +433,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                             shortcutApps = shortcuts + it.shortcutApps.filter(LauncherApp::isPrivateSpace),
                             folderApps = folderApps,
                             privateFolderApp = privateFolderApp,
+                            workFolderApp = workFolderApp,
+                            workProfiles = workProfiles,
                             favoriteKeys = favorites.toSet(),
                             favoriteOrder = favorites,
                             // Settings also has an independent Activity/ViewModel.
@@ -575,6 +615,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     override fun onCleared() {
+        launcherApps.unregisterCallback(profilePackages)
         getApplication<Application>().unregisterReceiver(packageReceiver)
         getApplication<Application>().unregisterReceiver(dateReceiver)
         shortcutRepository.close()
@@ -587,6 +628,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun openNotification(key: String, revision: Long): Boolean = appNotifications.open(getApplication(), key, revision)
 
     fun renameApp(app: LauncherApp, label: String) {
+        if (app.folderId == WorkProfileFolderId) {
+            updateSettings { it.copy(workProfile = it.workProfile.copy(name = label.trim().ifBlank { WorkProfileDefaultName })) }
+            return
+        }
         if (app.folderId == PrivateSpaceFolderId) {
             updateSettings { it.copy(privateSpace = it.privateSpace.copy(name = label.trim().ifBlank { PrivateSpaceDefaultName })) }
             return
@@ -610,6 +655,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun reorderPrivateApps(keys: List<String>) = updateSettings {
         it.copy(privateSpace = it.privateSpace.copy(appOrder = keys.distinct()))
+    }
+
+    fun reorderWorkApps(keys: List<String>) = updateSettings {
+        it.copy(workProfile = it.workProfile.copy(appOrder = keys.distinct()))
+    }
+
+    suspend fun resetWorkProfileAppearance(): Boolean {
+        if (!setItemIcon(_uiState.value.workFolder.asApp(), null)) return false
+        updateSettings { it.copy(workProfile = it.workProfile.copy(name = WorkProfileDefaultName)) }
+        return true
     }
 
     suspend fun resetPrivateSpaceAppearance(): Boolean {

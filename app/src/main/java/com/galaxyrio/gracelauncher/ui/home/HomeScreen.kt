@@ -4,7 +4,9 @@ import android.text.format.DateFormat
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.overscroll
 import androidx.compose.foundation.rememberOverscrollEffect
-import androidx.compose.foundation.OverscrollEffect
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -35,17 +37,19 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
-import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
@@ -60,12 +64,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.Velocity
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.data.ClockStyle
+import com.galaxyrio.gracelauncher.data.GraceButtonGesture
 import com.galaxyrio.gracelauncher.data.nextVisibleEvent
 import com.galaxyrio.gracelauncher.data.media.MediaCommand
 import com.galaxyrio.gracelauncher.data.media.NowPlaying
@@ -114,6 +118,7 @@ fun HomeScreen(
     widgetInputEnabled: Boolean = true,
     onTopOffsetChange: (Float) -> Unit = {},
     onWidgetHeightChange: (Int) -> Unit = {},
+    onHomeGesture: (GraceButtonGesture, Offset) -> Unit = { _, _ -> },
 ) {
     val now by produceState(initialValue = Instant.now()) {
         while (true) {
@@ -145,9 +150,43 @@ fun HomeScreen(
     val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
     LaunchedEffect(editingLayout) { if (editingLayout) listState.scrollToItem(0) }
     val overscroll = rememberOverscrollEffect()
-    val scrollConnection = remember(overscroll) { HomeOverscrollConnection(overscroll) }
+    val gesturesEnabled = widgetInputEnabled && !editingLayout && uiState.settings.homeGestures.enabled &&
+        !uiState.isLoadingSettings && !uiState.settingsLoadFailed
+    val latestGestures by rememberUpdatedState(uiState.settings.homeGestures)
+    val latestEnabled by rememberUpdatedState(gesturesEnabled)
+    val latestOnGesture by rememberUpdatedState(onHomeGesture)
+    var windowOffset by remember { mutableStateOf(Offset.Zero) }
+    var pointerPosition by remember { mutableStateOf(Offset.Zero) }
+    val scrollConnection = remember(overscroll, listState, density) {
+        HomeGestureConnection(overscroll, listState, with(density) { 64.dp.toPx() }, with(density) { 1800.dp.toPx() },
+            canTrigger = { latestEnabled && latestGestures.target(it).active },
+            onGesture = { latestOnGesture(it, windowOffset + pointerPosition) })
+    }
+    LaunchedEffect(gesturesEnabled) { if (!gesturesEnabled) scrollConnection.cancelGesture() }
 
-    BoxWithConstraints(modifier.fillMaxSize()) {
+    BoxWithConstraints(modifier.fillMaxSize()
+        .onGloballyPositioned { windowOffset = it.positionInWindow() }
+        .pointerInput(scrollConnection) {
+            // Observe without consuming: app/widget interactions and list scrolling
+            // continue to own their pointer stream.
+            awaitEachGesture {
+                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                pointerPosition = down.position
+                scrollConnection.beginGesture()
+                do {
+                    val event = awaitPointerEvent(PointerEventPass.Initial)
+                    if (event.changes.size > 1) scrollConnection.cancelGesture()
+                    event.changes.firstOrNull { it.id == down.id }?.let { pointerPosition = it.position }
+                } while (event.changes.any { it.pressed })
+            }
+        }
+        .then(if (gesturesEnabled && latestGestures.doubleTap.active) Modifier.pointerInput(Unit) {
+            // Main-pass unconsumed taps only: descendants' buttons, rows and
+            // hosted widgets get first refusal, so this means blank space.
+            detectTapGestures(onDoubleTap = { position ->
+                if (latestEnabled && latestGestures.doubleTap.active) latestOnGesture(GraceButtonGesture.DoubleTap, windowOffset + position)
+            })
+        } else Modifier)) {
     val availableHeight = (maxHeight - bottomInset).coerceAtLeast(0.dp)
     val headerHeight = with(density) { headerHeightPx.toDp() }
     // Only content ABOVE the calendar anchor constrains its position. Agenda,
@@ -229,7 +268,7 @@ fun HomeScreen(
                 onSwipeRight = { onAppShortcuts(app, it) },
                 gestures = rowGestures,
                 highlighted = highlightedAppKey == app.key,
-                notification = uiState.notifications[app.packageName]?.firstOrNull(),
+                notification = uiState.notifications[app.packageName]?.firstOrNull().takeUnless { app.user != null },
                 showLabel = !uiState.settings.hideFavoriteNames,
             )
         }
@@ -260,29 +299,6 @@ fun HomeScreen(
             modifier = handleModifier.offset(y = resolvedTop + headerHeight + 2.dp + resolvedWidgetHeight.dp - 20.dp),
         )
     }
-    }
-}
-
-/** Route unconsumed motion to Android's native stretch/glow, including a short list. */
-private class HomeOverscrollConnection(private val effect: OverscrollEffect?) : NestedScrollConnection {
-    override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
-        if (effect?.isInProgress != true) return Offset.Zero
-        // Relax an existing stretch first; leave ordinary scrolling to LazyColumn.
-        var forwarded = Offset.Zero
-        val consumed = effect.applyToScroll(Offset(0f, available.y), source) { delta ->
-            forwarded = delta
-            delta
-        }
-        return consumed - forwarded
-    }
-
-    override fun onPostScroll(consumed: Offset, available: Offset, source: NestedScrollSource): Offset =
-        effect?.applyToScroll(Offset(0f, available.y), source) { Offset.Zero } ?: Offset.Zero
-
-    override suspend fun onPostFling(consumed: Velocity, available: Velocity): Velocity {
-        val overscroll = effect ?: return Velocity.Zero
-        overscroll.applyToFling(Velocity(0f, available.y)) { Velocity.Zero }
-        return Velocity(0f, available.y)
     }
 }
 

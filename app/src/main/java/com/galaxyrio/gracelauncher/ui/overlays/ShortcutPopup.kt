@@ -142,6 +142,9 @@ fun ShortcutPopup(
                 TextButton(onClick = if (uiState.privateAppsFailed) ({ actions.requestPrivateSpace(true, actions.refreshApps) }) else actions.openPrivateSpaceSettings) {
                     Text(stringResource(if (uiState.privateAppsFailed) R.string.retry else R.string.private_space_setup))
                 }
+            } else if (app.folderId == com.galaxyrio.gracelauncher.data.WorkProfileFolderId) {
+                Text(stringResource(R.string.work_profile_no_apps), Modifier.padding(horizontal = 12.dp, vertical = 18.dp), style = MaterialTheme.typography.bodyMedium)
+                TextButton(onClick = actions.openWorkProfileSettings) { Text(stringResource(R.string.work_profile_setup)) }
             } else {
                 Text(stringResource(R.string.folder_contents_empty), Modifier.testTag("folder_empty").padding(horizontal = 12.dp, vertical = 18.dp), style = MaterialTheme.typography.bodyMedium)
                 if (onEdit != null) TextButton(onClick = onEdit, modifier = Modifier.testTag("folder_edit")) { Text(stringResource(R.string.settings_folder_edit)) }

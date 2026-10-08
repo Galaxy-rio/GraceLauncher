@@ -20,6 +20,21 @@ current content tint.
 
 ## Sources
 
+### Productivity icons added 2026-10-08
+
+- `ms_widgets.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/android/widgets/materialsymbolsoutlined/widgets_24px.xml
+- `ms_notifications.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/android/notifications/materialsymbolsoutlined/notifications_24px.xml
+- `ms_visibility_off.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/android/visibility_off/materialsymbolsoutlined/visibility_off_24px.xml
+- `ms_gesture.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/android/gesture/materialsymbolsoutlined/gesture_24px.xml
+- `ms_vibration.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/android/vibration/materialsymbolsoutlined/vibration_24px.xml
+
+Official Android vectors; paths and 960px viewports retained, tint supplied by Compose. Same Apache-2.0 license.
+
+### Work profile icon added 2026-10-08
+
+- `ms_work.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/android/work/materialsymbolsoutlined/work_24px.xml
+  (Official Android vector; path and 960px viewport retained, tint supplied by Compose. Same Apache-2.0 license.)
+
 ### Popup icon added 2026-10-07
 
 - `ms_outbound.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/android/outbound/materialsymbolsoutlined/outbound_24px.xml

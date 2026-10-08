@@ -72,6 +72,8 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
             appFontId = settings.appFontId,
             applyFontToSettings = settings.applyFontToSettings,
             privateSpaceJson = settings.privateSpace.encode(),
+            workProfileJson = settings.workProfile.encode(),
+            homeGesturesJson = settings.homeGestures.encode(),
             searchJson = settings.search.encode(),
         ))
     }
@@ -167,7 +169,9 @@ private fun LauncherSettingsEntity.toSettings() = LauncherSettings(
     wallpaperBlurRadius = wallpaperBlurRadius.coerceIn(0, 48),
     appFontId = appFontId,
     applyFontToSettings = applyFontToSettings,
-    privateSpace = PrivateSpaceSettings.decode(privateSpaceJson),
+    privateSpace = ProfileSettings.decode(privateSpaceJson),
+    workProfile = ProfileSettings.decode(workProfileJson, ProfileSettings.workDefaults()),
+    homeGestures = GraceButtonSettings.decode(homeGesturesJson, GraceButtonSettings.homeDefaults()),
     search = SearchSettings.decode(searchJson),
 )
 

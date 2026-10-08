@@ -98,7 +98,11 @@ class ItemIconStore(private val context: Context, private val packs: IconPackRep
         withContext(Dispatchers.IO) {
             if (app.folderId != null && choice.kind in setOf("system", "theme")) {
                 val colors = themeColors(settings)
-                val glyph = ContextCompat.getDrawable(context, if (app.folderId == PrivateSpaceFolderId) R.drawable.ms_lock else R.drawable.ms_folder)
+                val glyph = ContextCompat.getDrawable(context, when (app.folderId) {
+                    PrivateSpaceFolderId -> R.drawable.ms_lock
+                    com.galaxyrio.gracelauncher.data.WorkProfileFolderId -> R.drawable.ms_work
+                    else -> R.drawable.ms_folder
+                })
                     ?.mutate() ?: return@withContext null
                 glyph.setTint(colors.second)
                 return@withContext iconLayers(AdaptiveIconDrawable(ColorDrawable(colors.first), InsetDrawable(glyph, 0.22f)), size, themed = true)

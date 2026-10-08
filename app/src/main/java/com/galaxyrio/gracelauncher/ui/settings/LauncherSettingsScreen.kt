@@ -75,7 +75,7 @@ import kotlinx.coroutines.withContext
 internal enum class SettingsPage {
     Root, Productivity, Clock, ClockStyle, Calendar, Weather, Themes, Advanced, About, HiddenApps, Folders, FolderEditor,
     Changelog, Licenses, AppLicense, IconPacks, IconDesigner, IconDesignerApp, PrivateSpace, PrivateSpaceEditor, Search,
-    MediaPlayer, GraceButton, GraceAction, GraceApp, GraceShortcut,
+    MediaPlayer, GraceButton, GraceAction, GraceApp, GraceShortcut, Gestures, WorkProfile, WorkProfileEditor,
 }
 
 /** Navigation owns each page's saved state and seekable predictive-back transition. */
@@ -163,10 +163,10 @@ fun LauncherSettingsScreen(
             val isEditor = page == SettingsPage.FolderEditor
             val isGraceAction = page in listOf(SettingsPage.GraceAction, SettingsPage.GraceApp, SettingsPage.GraceShortcut)
             composable(
-                route = when { isEditor -> "FolderEditor/{folderId}"; isGraceAction -> "${page.name}/{gesture}"; else -> page.name },
+                route = when { isEditor -> "FolderEditor/{folderId}"; isGraceAction -> "${page.name}/{gesture}?home={home}"; else -> page.name },
                 arguments = when {
                     isEditor -> listOf(navArgument("folderId") { type = NavType.StringType })
-                    isGraceAction -> listOf(navArgument("gesture") { type = NavType.StringType })
+                    isGraceAction -> listOf(navArgument("gesture") { type = NavType.StringType }, navArgument("home") { type = NavType.BoolType; defaultValue = false })
                     else -> emptyList()
                 },
             ) { entry ->
@@ -191,29 +191,32 @@ fun LauncherSettingsScreen(
                     SettingsPage.Clock -> ClockSettings(uiState, actions, back)
                     SettingsPage.Search -> SearchSettingsScreen(uiState, actions, back)
                     SettingsPage.MediaPlayer -> MediaPlayerSettings(uiState, actions, back)
-                    SettingsPage.GraceButton -> GraceButtonSettingsScreen(uiState, actions, back) { gesture ->
-                        if (isCurrent()) navController.navigate("${SettingsPage.GraceAction.name}/${gesture.name}") { launchSingleTop = true }
+                    SettingsPage.GraceButton, SettingsPage.Gestures -> GraceButtonSettingsScreen(uiState, actions, back, home = page == SettingsPage.Gestures) { gesture ->
+                        if (isCurrent()) navController.navigate("${SettingsPage.GraceAction.name}/${gesture.name}?home=${page == SettingsPage.Gestures}") { launchSingleTop = true }
                     }
                     SettingsPage.GraceAction -> {
                         val gesture = GraceButtonGesture.entries.firstOrNull { it.name == entry.arguments?.getString("gesture") } ?: GraceButtonGesture.Tap
-                        GraceButtonActionSettings(gesture, uiState, actions, back) { shortcut ->
+                        val home = entry.arguments?.getBoolean("home") == true
+                        GraceButtonActionSettings(gesture, uiState, actions, back, home) { shortcut ->
                             val destination = if (shortcut) SettingsPage.GraceShortcut else SettingsPage.GraceApp
-                            if (isCurrent()) navController.navigate("${destination.name}/${gesture.name}") { launchSingleTop = true }
+                            if (isCurrent()) navController.navigate("${destination.name}/${gesture.name}?home=$home") { launchSingleTop = true }
                         }
                     }
                     SettingsPage.GraceApp -> {
                         val gesture = GraceButtonGesture.entries.firstOrNull { it.name == entry.arguments?.getString("gesture") } ?: GraceButtonGesture.Tap
-                        val target = uiState.settings.graceButton.target(gesture)
+                        val home = entry.arguments?.getBoolean("home") == true
+                        val target = uiState.settings.gestureSettings(home).target(gesture)
                         AppSelectionSettings(uiState, actions, back, title = stringResource(R.string.grace_button_open_app),
                             tag = "grace_button_app", selectedKey = target.itemKey.takeIf { target.action == GraceButtonAction.App }, excludeOwnApp = false,
                             onSelect = { key -> if (isCurrent() && key != null) {
-                                actions.updateSettings { it.copy(graceButton = it.graceButton.withTarget(gesture, GraceButtonTarget(GraceButtonAction.App, key))) }
+                                actions.updateSettings { it.withGestureSettings(home) { settings -> settings.withTarget(gesture, GraceButtonTarget(GraceButtonAction.App, key)) } }
                                 back()
                             } })
                     }
                     SettingsPage.GraceShortcut -> {
                         val gesture = GraceButtonGesture.entries.firstOrNull { it.name == entry.arguments?.getString("gesture") } ?: GraceButtonGesture.Tap
-                        val target = uiState.settings.graceButton.target(gesture)
+                        val home = entry.arguments?.getBoolean("home") == true
+                        val target = uiState.settings.gestureSettings(home).target(gesture)
                         val pickerScope = rememberCoroutineScope()
                         var saving by remember { mutableStateOf(false) }
                         ShortcutPickerScreen(uiState, actions, setOfNotNull(target.itemKey.takeIf { target.action == GraceButtonAction.Shortcut }),
@@ -222,8 +225,8 @@ fun LauncherSettingsScreen(
                                 pickerScope.launch {
                                     try {
                                         if (actions.rememberShortcut(app) && isCurrent()) {
-                                            actions.updateSettings { it.copy(graceButton = it.graceButton.withTarget(gesture,
-                                                GraceButtonTarget(GraceButtonAction.Shortcut, app.key))) }
+                                            actions.updateSettings { it.withGestureSettings(home) { settings -> settings.withTarget(gesture,
+                                                GraceButtonTarget(GraceButtonAction.Shortcut, app.key)) } }
                                             back()
                                         }
                                     } finally { saving = false }
@@ -268,8 +271,15 @@ fun LauncherSettingsScreen(
                     }
                     SettingsPage.About -> AboutSettings(back, navigate)
                     SettingsPage.HiddenApps -> HiddenAppsSettings(uiState, actions, back)
-                    SettingsPage.PrivateSpace -> PrivateSpaceSettings(uiState, actions, back) { navigate(SettingsPage.PrivateSpaceEditor) }
-                    SettingsPage.PrivateSpaceEditor -> PrivateSpaceEditorSettings(uiState, actions,
+                    SettingsPage.PrivateSpace -> ProfileSettingsScreen(uiState, actions, back) { navigate(SettingsPage.PrivateSpaceEditor) }
+                    SettingsPage.WorkProfile -> ProfileSettingsScreen(uiState, actions, back, work = true) { navigate(SettingsPage.WorkProfileEditor) }
+                    SettingsPage.WorkProfileEditor -> ProfileEditorSettings(uiState, actions, back, work = true, onEditIcon = { app ->
+                        if (isCurrent()) {
+                            navController.navigate(SettingsPage.IconDesigner.name)
+                            navController.currentBackStackEntry?.savedStateHandle?.set("icon_designer_app", app.key)
+                        }
+                    })
+                    SettingsPage.PrivateSpaceEditor -> ProfileEditorSettings(uiState, actions,
                         onBack = { actions.closePrivateSpace(); back() }, onEditIcon = { app ->
                             if (isCurrent()) {
                                 navController.navigate(SettingsPage.IconDesigner.name)

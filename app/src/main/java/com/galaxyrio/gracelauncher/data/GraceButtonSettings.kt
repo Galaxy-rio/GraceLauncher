@@ -69,9 +69,16 @@ data class GraceButtonSettings(
     }.toString()
 
     companion object {
-        fun decode(json: String?): GraceButtonSettings = runCatching {
+        fun homeDefaults() = GraceButtonSettings(
+            tap = GraceButtonTarget(GraceButtonAction.Disabled),
+            longPress = GraceButtonTarget(GraceButtonAction.Disabled),
+            swipeUp = GraceButtonTarget(GraceButtonAction.Search),
+            swipeDown = GraceButtonTarget(GraceButtonAction.Notifications),
+        )
+
+        fun decode(json: String?, defaults: GraceButtonSettings = GraceButtonSettings()): GraceButtonSettings = runCatching {
             val data = JSONObject(json ?: "{}")
-            var settings = GraceButtonSettings(enabled = data.optBoolean("enabled", true))
+            var settings = defaults.copy(enabled = data.optBoolean("enabled", defaults.enabled))
             GraceButtonGesture.entries.forEach { gesture ->
                 val saved = data.optJSONObject(gesture.storageKey) ?: return@forEach
                 val fallback = settings.target(gesture)
@@ -83,6 +90,6 @@ data class GraceButtonSettings(
                     saved.optString("url").takeIf { it.isNotBlank() && it != "null" }))
             }
             settings
-        }.getOrDefault(GraceButtonSettings())
+        }.getOrDefault(defaults)
     }
 }

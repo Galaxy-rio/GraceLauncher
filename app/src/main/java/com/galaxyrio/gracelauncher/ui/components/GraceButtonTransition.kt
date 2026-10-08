@@ -51,7 +51,7 @@ private val OpeningEasing = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)
 
 /** One handoff owns both pages until the destination has replaced the button. */
 @Stable
-internal class GraceButtonTransition(val action: GraceButtonAction, val origin: GraceButtonOrigin) {
+internal class GraceButtonTransition(val action: GraceButtonAction, val origin: GraceButtonOrigin, val originIsButton: Boolean = true) {
     val progress = Animatable(0f)
     var viewport by mutableStateOf(Rect.Zero)
     var searchBounds by mutableStateOf(Rect.Zero)

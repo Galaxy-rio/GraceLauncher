@@ -21,45 +21,55 @@ import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.PrivateSpaceDisplay
+import com.galaxyrio.gracelauncher.data.ProfileSettings
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AppIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
-import com.galaxyrio.gracelauncher.ui.overlays.PrivateSpaceEditorScreen
+import com.galaxyrio.gracelauncher.ui.overlays.ProfileEditorScreen
 import com.galaxyrio.gracelauncher.ui.overlays.TextEntryDialog
 import kotlinx.coroutines.launch
 
 @Composable
-internal fun PrivateSpaceSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit, onEdit: () -> Unit) {
-    val settings = uiState.settings.privateSpace
+internal fun ProfileSettingsScreen(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
+    work: Boolean = false, onEdit: () -> Unit) {
+    val settings = if (work) uiState.settings.workProfile else uiState.settings.privateSpace
+    fun update(transform: (ProfileSettings) -> ProfileSettings) = actions.updateSettings {
+        if (work) it.copy(workProfile = transform(it.workProfile)) else it.copy(privateSpace = transform(it.privateSpace))
+    }
+    val supported = work || uiState.privateSpace.supported
     val normalApps = settings.display == PrivateSpaceDisplay.NormalApp
-    val enabled = settings.enabled && uiState.privateSpace.supported
-    val canEnable = uiState.privateSpace.supported && LocalSettingsStorageState.current.canEdit
+    val enabled = settings.enabled && supported
+    val canEnable = supported && LocalSettingsStorageState.current.canEdit
     var displayDialog by rememberSaveable { mutableStateOf(false) }
-    SettingsScaffold(stringResource(R.string.private_space_title), "settings_private_space", onBack) { padding ->
+    SettingsScaffold(stringResource(if (work) R.string.work_profile_title else R.string.private_space_title),
+        if (work) "settings_work_profile" else "settings_private_space", onBack) { padding ->
         SettingsList(padding) {
             item {
                 Spacer(Modifier.height(24.dp))
-                Surface(onClick = { actions.updateSettings { it.copy(privateSpace = it.privateSpace.copy(enabled = !it.privateSpace.enabled)) } },
+                Surface(onClick = { update { it.copy(enabled = !it.enabled) } },
                     enabled = canEnable,
                     modifier = Modifier.fillMaxWidth().testTag("private_space_enabled"), shape = CircleShape,
                     color = if (settings.enabled) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceBright,
                     contentColor = if (settings.enabled) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface) {
                     Row(Modifier.heightIn(min = 72.dp).padding(horizontal = 24.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(stringResource(R.string.private_space_enable), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(if (work) R.string.work_profile_enable else R.string.private_space_enable), Modifier.weight(1f), style = MaterialTheme.typography.titleMedium)
                         Spacer(Modifier.width(16.dp))
                         Switch(settings.enabled, null, enabled = canEnable)
                     }
                 }
             }
-            if (!uiState.privateSpace.supported) item {
+            if (!supported) item {
                 Text(stringResource(R.string.private_space_unsupported), Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (uiState.privateSpace.supported && uiState.isDefaultHome == false) item {
-                SettingsActionItem(stringResource(R.string.set_default_launcher), stringResource(R.string.private_space_default_home),
+            if (supported && uiState.isDefaultHome == false) item {
+                SettingsActionItem(stringResource(R.string.set_default_launcher), stringResource(if (work) R.string.work_profile_default_home else R.string.private_space_default_home),
                     0, 1, "private_space_default_home", leading = { LauncherIcon(LauncherSymbol.Home) }, onClick = actions.requestDefaultHome)
                 Spacer(Modifier.height(12.dp))
+            }
+            if (work && uiState.workProfiles.isEmpty() && !uiState.isLoadingApps) item {
+                Text(stringResource(R.string.work_profile_empty), Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             item { SettingsHeading(stringResource(R.string.private_space_display_heading)) }
             item {
@@ -67,35 +77,37 @@ internal fun PrivateSpaceSettings(uiState: LauncherUiState, actions: LauncherAct
                     enabled = enabled) { displayDialog = true }
             }
             item {
-                SettingsToggleItem(stringResource(R.string.private_space_indicator), stringResource(R.string.private_space_indicator_summary),
+                SettingsToggleItem(stringResource(if (work) R.string.work_profile_indicator else R.string.private_space_indicator),
+                    stringResource(if (work) R.string.work_profile_indicator_summary else R.string.private_space_indicator_summary),
                     settings.showIndicator, 1, 3, "private_space_indicator", enabled = enabled) { value ->
-                    actions.updateSettings { it.copy(privateSpace = it.privateSpace.copy(showIndicator = value)) }
+                    update { it.copy(showIndicator = value) }
                 }
             }
             item {
-                SettingsActionItem(stringResource(R.string.private_space_edit), stringResource(R.string.private_space_edit_summary),
-                    2, 3, "private_space_edit", enabled = enabled && uiState.privateSpace.user != null && !uiState.privateSpace.authenticating) {
-                    actions.requestPrivateSpace(true, onEdit)
+                SettingsActionItem(stringResource(if (work) R.string.work_profile_edit else R.string.private_space_edit), stringResource(R.string.private_space_edit_summary),
+                    2, 3, "private_space_edit", enabled = enabled && (if (work) uiState.workProfiles.isNotEmpty() else uiState.privateSpace.user != null && !uiState.privateSpace.authenticating)) {
+                    if (work) onEdit() else actions.requestPrivateSpace(true, onEdit)
                 }
             }
-            item { SettingsHeading(stringResource(R.string.private_space_security_heading)) }
-            item {
+            if (!work) item { SettingsHeading(stringResource(R.string.private_space_security_heading)) }
+            if (!work) item {
                 SettingsToggleItem(stringResource(R.string.private_space_password), stringResource(R.string.private_space_password_summary),
                     settings.passwordProtected, 0, 2, "private_space_password", enabled = enabled && !normalApps) { value ->
                     actions.updateSettings { it.copy(privateSpace = it.privateSpace.copy(passwordProtected = value)) }
                 }
             }
-            item {
+            if (!work) item {
                 SettingsToggleItem(stringResource(R.string.private_space_lock_immediately),
                     stringResource(if (settings.lockImmediately) R.string.private_space_lock_on_exit else R.string.private_space_lock_on_screen),
                     settings.lockImmediately, 1, 2, "private_space_lock_immediately", enabled = enabled && !normalApps) { value ->
                     actions.updateSettings { it.copy(privateSpace = it.privateSpace.copy(lockImmediately = value)) }
                 }
             }
-            if (uiState.privateSpace.supported) item {
+            if (supported) item {
                 Spacer(Modifier.height(16.dp))
-                SettingsActionItem(stringResource(R.string.private_space_setup), stringResource(R.string.private_space_setup_summary),
-                    0, 1, "private_space_system_settings", onClick = actions.openPrivateSpaceSettings)
+                SettingsActionItem(stringResource(if (work) R.string.work_profile_setup else R.string.private_space_setup),
+                    stringResource(if (work) R.string.work_profile_setup_summary else R.string.private_space_setup_summary),
+                    0, 1, "profile_system_settings", onClick = if (work) actions.openWorkProfileSettings else actions.openPrivateSpaceSettings)
             }
         }
     }
@@ -106,7 +118,7 @@ internal fun PrivateSpaceSettings(uiState: LauncherUiState, actions: LauncherAct
             Column {
                 listOf(PrivateSpaceDisplay.Folder, PrivateSpaceDisplay.List, PrivateSpaceDisplay.NormalApp).forEach { display ->
                     Row(Modifier.fillMaxWidth().selectable(display == settings.display, role = Role.RadioButton, onClick = {
-                        actions.updateSettings { it.copy(privateSpace = it.privateSpace.copy(display = display)) }
+                        update { it.copy(display = display) }
                         displayDialog = false
                     }).padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(display == settings.display, null)
@@ -120,9 +132,9 @@ internal fun PrivateSpaceSettings(uiState: LauncherUiState, actions: LauncherAct
 }
 
 @Composable
-internal fun PrivateSpaceEditorSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
-    onEditIcon: (LauncherApp) -> Unit) {
-    if (!uiState.privateContentVisible) {
+internal fun ProfileEditorSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
+    work: Boolean = false, onEditIcon: (LauncherApp) -> Unit) {
+    if (!work && !uiState.privateContentVisible) {
         SettingsScaffold(stringResource(R.string.private_space_edit), "private_space_editor_locked", onBack) { padding ->
             SettingsList(padding) {
                 item { Spacer(Modifier.height(24.dp)) }
@@ -135,13 +147,13 @@ internal fun PrivateSpaceEditorSettings(uiState: LauncherUiState, actions: Launc
         }
         return
     }
-    val folder = uiState.privateFolder
+    val folder = if (work) uiState.workFolder else uiState.privateFolder
     val app = uiState.folderItem(folder)
     var rename by rememberSaveable { mutableStateOf(false) }
     var resetting by remember { mutableStateOf(false) }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    PrivateSpaceEditorScreen(app, uiState, actions, onBack) {
+    ProfileEditorScreen(app, uiState, actions, onBack, work) {
         Column(Modifier.padding(top = 16.dp)) {
             SettingsActionItem(folder.name, stringResource(R.string.settings_folder_name), 0, 1, "private_space_name",
                 leading = { AppIcon(app, Modifier.clickable(onClickLabel = stringResource(R.string.icon_designer_title)) { onEditIcon(app) }, size = 36.dp) },
@@ -149,12 +161,13 @@ internal fun PrivateSpaceEditorSettings(uiState: LauncherUiState, actions: Launc
                     TextButton(enabled = !resetting, onClick = {
                         resetting = true
                         scope.launch {
-                            if (!actions.resetPrivateSpaceAppearance()) Toast.makeText(context, R.string.settings_storage_save_error, Toast.LENGTH_SHORT).show()
+                            val success = if (work) actions.resetWorkProfileAppearance() else actions.resetPrivateSpaceAppearance()
+                            if (!success) Toast.makeText(context, R.string.settings_storage_save_error, Toast.LENGTH_SHORT).show()
                             resetting = false
                         }
                     }, modifier = Modifier.testTag("private_space_reset")) { Text(stringResource(R.string.reset)) }
                 }) { rename = true }
-            if (uiState.privateAppsFailed) TextButton(onClick = actions.refreshApps) { Text(stringResource(R.string.retry)) }
+            if (if (work) uiState.appLoadFailed else uiState.privateAppsFailed) TextButton(onClick = actions.refreshApps) { Text(stringResource(R.string.retry)) }
         }
     }
     if (rename) TextEntryDialog(stringResource(R.string.rename_folder), folder.name, { rename = false }, {

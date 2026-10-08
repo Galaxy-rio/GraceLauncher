@@ -30,11 +30,16 @@ sealed interface DrawerItem {
         override val key = "private-space-status"
         override val section = FolderSection
     }
+    data object WorkStatus : DrawerItem {
+        override val key = "work-profile-status"
+        override val section = FolderSection
+    }
 }
 
 class AppListModel(apps: List<LauncherApp>, folders: List<LauncherFolder> = emptyList(),
     privateFolder: LauncherFolder? = null, privateExpanded: Boolean = false, privateApps: List<LauncherApp> = emptyList(),
-    recentlyInstalledFolder: LauncherFolder? = null) {
+    recentlyInstalledFolder: LauncherFolder? = null,
+    workFolder: LauncherFolder? = null, workExpanded: Boolean = false, workApps: List<LauncherApp> = emptyList()) {
     private val settingsApp = apps.firstOrNull(LauncherApp::isLauncherSettings)
     private val inlineFolders = folders.filter { it.placement.inAppList && !it.appListAtBottom }.associateBy(LauncherFolder::key)
     // Use exactly the same name/pinyin ordering and alphabet sections as apps.
@@ -52,9 +57,16 @@ class AppListModel(apps: List<LauncherApp>, folders: List<LauncherFolder> = empt
                 add(if (folder == null) DrawerItem.App(app) else DrawerItem.Folder(folder, letter))
             }
         }
-        if (drawerFolders.isNotEmpty() || privateFolder != null) {
+        if (drawerFolders.isNotEmpty() || privateFolder != null || workFolder != null) {
             add(DrawerItem.Header(FolderSection))
             drawerFolders.forEach { add(DrawerItem.Folder(it)) }
+            if (workFolder != null) {
+                add(DrawerItem.Folder(workFolder))
+                if (workExpanded) {
+                    workApps.forEach { add(DrawerItem.App(it, FolderSection)) }
+                    if (workApps.isEmpty()) add(DrawerItem.WorkStatus)
+                }
+            }
             // Private Space follows user folders and never enters the stored folder table.
             if (privateFolder != null) {
                 add(DrawerItem.Folder(privateFolder))

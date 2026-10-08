@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Process
 import android.os.UserHandle
+import android.os.UserManager
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.AdaptiveIconDrawable
 import androidx.compose.ui.graphics.asImageBitmap
@@ -21,6 +22,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+
+data class WorkProfile(val user: UserHandle, val serial: Long)
 
 class AppRepository(private val context: Context, private val iconPacks: IconPackRepository = IconPackRepository(context)) {
     private val packageManager = context.packageManager
@@ -73,14 +76,35 @@ class AppRepository(private val context: Context, private val iconPacks: IconPac
             .toList()
     }
 
-    suspend fun loadPrivateApps(user: UserHandle, serial: Long, iconPackPackages: List<String>): List<LauncherApp> = withContext(Dispatchers.IO) {
+    fun workProfiles(): List<WorkProfile> {
+        val launcher = context.getSystemService(LauncherApps::class.java)
+        val users = context.getSystemService(UserManager::class.java)
+        return launcher.profiles.filter { user ->
+            user != Process.myUserHandle() && (Build.VERSION.SDK_INT < 35 ||
+                launcher.getLauncherUserInfo(user)?.userType == UserManager.USER_TYPE_PROFILE_MANAGED)
+        }.mapNotNull { user -> users.getSerialNumberForUser(user).takeIf { it >= 0 }?.let { WorkProfile(user, it) } }
+    }
+
+    suspend fun loadWorkApps(profiles: List<WorkProfile>, iconPackPackages: List<String>): List<LauncherApp> =
+        profiles.flatMap { profile ->
+            // Quiet/removed profiles must not prevent the personal app inventory from loading.
+            try { loadProfileApps(profile.user, profile.serial, iconPackPackages, work = true) }
+            catch (error: SecurityException) { emptyList() }
+            catch (error: IllegalStateException) { emptyList() }
+        }
+
+    suspend fun loadPrivateApps(user: UserHandle, serial: Long, iconPackPackages: List<String>): List<LauncherApp> =
+        loadProfileApps(user, serial, iconPackPackages, work = false)
+
+    private suspend fun loadProfileApps(user: UserHandle, serial: Long, iconPackPackages: List<String>, work: Boolean): List<LauncherApp> = withContext(Dispatchers.IO) {
         val packs = normalizeIconPackOrder(iconPackPackages).mapNotNull { iconPacks.load(it) }
         val coroutine = currentCoroutineContext()
         context.getSystemService(LauncherApps::class.java).getActivityList(null, user).map { activity ->
             coroutine.ensureActive()
             makeApp(activity.componentName, activity.label.toString().trim().ifBlank { activity.componentName.shortClassName },
                 runCatching { activity.getIcon(0) }.getOrNull(), packs, activity.applicationInfo.flags)
-                .copy(user = user, userSerial = serial, isPrivateSpace = true)
+                .copy(user = user, userSerial = serial, isPrivateSpace = !work, isWorkProfile = work,
+                    firstInstallTime = activity.firstInstallTime)
         }.distinctBy(LauncherApp::key).sortedWith(LauncherAppOrder)
     }
 

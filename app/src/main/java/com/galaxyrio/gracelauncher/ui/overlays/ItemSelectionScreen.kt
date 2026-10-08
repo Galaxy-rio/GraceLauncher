@@ -51,14 +51,16 @@ import kotlinx.coroutines.launch
 private data class SelectionEntry(val key: String, val label: String, val app: LauncherApp? = null, val widget: HomeLayout? = null)
 
 @Composable
-internal fun PrivateSpaceEditorScreen(owner: LauncherApp, uiState: LauncherUiState, actions: LauncherActions,
-    onBack: () -> Unit, header: @Composable () -> Unit) {
+internal fun ProfileEditorScreen(owner: LauncherApp, uiState: LauncherUiState, actions: LauncherActions,
+    onBack: () -> Unit, work: Boolean = false, header: @Composable () -> Unit) {
+    val loading = if (work) uiState.isLoadingApps else uiState.privateAppsLoading
+    val failed = if (work) uiState.appLoadFailed else uiState.privateAppsFailed
     ItemSelectionScreen(
         title = stringResource(R.string.edit_app_popup, owner.label), tag = "private_space_editor",
-        selected = uiState.privateSpaceApps.map { SelectionEntry(it.key, it.label, it) },
-        apps = emptyList(), enabled = !uiState.privateAppsLoading && !uiState.privateAppsFailed,
-        onToggle = {}, onRemove = {}, onReorder = actions.reorderPrivateApps, onDone = onBack,
-        header = header, reorderOnly = true, loading = uiState.privateAppsLoading,
+        selected = (if (work) uiState.workProfileApps else uiState.privateSpaceApps).map { SelectionEntry(it.key, it.label, it) },
+        apps = emptyList(), enabled = !loading && !failed,
+        onToggle = {}, onRemove = {}, onReorder = if (work) actions.reorderWorkApps else actions.reorderPrivateApps, onDone = onBack,
+        header = header, reorderOnly = true, loading = loading,
     )
 }
 

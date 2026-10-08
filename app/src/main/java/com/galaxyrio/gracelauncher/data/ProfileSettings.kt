@@ -6,11 +6,14 @@ import org.json.JSONObject
 const val PrivateSpaceFolderId = "private-space"
 const val PrivateSpaceFolderKey = "folder:$PrivateSpaceFolderId"
 const val PrivateSpaceDefaultName = "private"
+const val WorkProfileFolderId = "work-profile"
+const val WorkProfileFolderKey = "folder:$WorkProfileFolderId"
+const val WorkProfileDefaultName = "work"
 
 enum class PrivateSpaceDisplay { List, Folder, NormalApp }
 
-/** Presentation only. Credentials and the profile's lock are always owned by Android. */
-data class PrivateSpaceSettings(
+/** Shared presentation. Security fields are used only by Private Space, never Work Profile. */
+data class ProfileSettings(
     val enabled: Boolean = true,
     val passwordProtected: Boolean = true,
     val showIndicator: Boolean = true,
@@ -22,8 +25,8 @@ data class PrivateSpaceSettings(
     val protectsApps: Boolean get() = display != PrivateSpaceDisplay.NormalApp && passwordProtected
     val exposesApps: Boolean get() = enabled && !protectsApps
     val locksOnExit: Boolean get() = enabled && display != PrivateSpaceDisplay.NormalApp && lockImmediately
-    fun folder(apps: List<LauncherApp> = emptyList()) = LauncherFolder(
-        PrivateSpaceFolderId, name, orderedApps(apps).map { it.key }, FolderPlacement.AppList,
+    fun folder(apps: List<LauncherApp> = emptyList(), id: String = PrivateSpaceFolderId) = LauncherFolder(
+        id, name, orderedApps(apps).map { it.key }, FolderPlacement.AppList,
     )
 
     fun orderedApps(apps: List<LauncherApp>): List<LauncherApp> {
@@ -36,18 +39,20 @@ data class PrivateSpaceSettings(
         .put("display", display.name).put("name", name).put("appOrder", JSONArray(appOrder.distinct())).toString()
 
     companion object {
-        fun decode(json: String?): PrivateSpaceSettings = runCatching {
-            val value = JSONObject(json ?: return PrivateSpaceSettings())
+        fun workDefaults() = ProfileSettings(passwordProtected = false, lockImmediately = false, name = WorkProfileDefaultName)
+
+        fun decode(json: String?, defaults: ProfileSettings = ProfileSettings()): ProfileSettings = runCatching {
+            val value = JSONObject(json ?: return defaults)
             val order = value.optJSONArray("appOrder") ?: JSONArray()
-            PrivateSpaceSettings(
+            ProfileSettings(
                 enabled = value.optBoolean("enabled", true),
-                passwordProtected = value.optBoolean("passwordProtected", true),
+                passwordProtected = value.optBoolean("passwordProtected", defaults.passwordProtected),
                 showIndicator = value.optBoolean("showIndicator", true),
-                lockImmediately = value.optBoolean("lockImmediately", true),
+                lockImmediately = value.optBoolean("lockImmediately", defaults.lockImmediately),
                 display = PrivateSpaceDisplay.entries.firstOrNull { it.name == value.optString("display") } ?: PrivateSpaceDisplay.Folder,
-                name = value.optString("name", PrivateSpaceDefaultName).trim().ifBlank { PrivateSpaceDefaultName },
+                name = value.optString("name", defaults.name).trim().ifBlank { defaults.name },
                 appOrder = (0 until order.length()).mapNotNull { (order.opt(it) as? String)?.takeIf(String::isNotBlank) }.distinct(),
             )
-        }.getOrDefault(PrivateSpaceSettings())
+        }.getOrDefault(defaults)
     }
 }

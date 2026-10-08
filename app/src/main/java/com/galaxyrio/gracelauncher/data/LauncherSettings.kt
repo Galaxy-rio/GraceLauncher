@@ -41,9 +41,11 @@ data class LauncherSettings(
     /** null keeps the original Josefin Sans; imported fonts use their private file id. */
     val appFontId: String? = null,
     val applyFontToSettings: Boolean = true,
-    val privateSpace: PrivateSpaceSettings = PrivateSpaceSettings(),
+    val privateSpace: ProfileSettings = ProfileSettings(),
+    val workProfile: ProfileSettings = ProfileSettings.workDefaults(),
     val search: SearchSettings = SearchSettings(),
     val graceButton: GraceButtonSettings = GraceButtonSettings(),
+    val homeGestures: GraceButtonSettings = GraceButtonSettings.homeDefaults(),
 ) {
     /** Icon designer overrides precede this order; system icons always follow it. */
     val enabledIconPackPackages: List<String>
@@ -53,6 +55,10 @@ data class LauncherSettings(
         iconPackPackage = null,
         iconPackPackages = normalizeIconPackOrder(packages),
     )
+
+    fun gestureSettings(home: Boolean): GraceButtonSettings = if (home) homeGestures else graceButton
+    fun withGestureSettings(home: Boolean, transform: (GraceButtonSettings) -> GraceButtonSettings): LauncherSettings =
+        if (home) copy(homeGestures = transform(homeGestures)) else copy(graceButton = transform(graceButton))
 }
 
 enum class FolderPlacement(val inFavorites: Boolean, val inAppList: Boolean) {
