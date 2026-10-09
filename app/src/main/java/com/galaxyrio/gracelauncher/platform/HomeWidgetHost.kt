@@ -20,7 +20,15 @@ class HomeWidgetHost(context: Context) : AppWidgetHost(context, HOST_ID) {
     override fun onProvidersChanged() { onProvidersUpdated?.invoke() }
     override fun onAppWidgetRemoved(appWidgetId: Int) { super.onAppWidgetRemoved(appWidgetId); onProvidersUpdated?.invoke() }
 
-    companion object { const val HOST_ID = 0x47524143 }
+    /** Setup activities sharing this host must not reclaim each other's in-flight IDs. */
+    fun trackPendingId(id: Int) { pendingIds += id }
+    fun untrackPendingId(id: Int) { pendingIds -= id }
+    fun isPendingId(id: Int): Boolean = id in pendingIds
+
+    companion object {
+        const val HOST_ID = 0x47524143
+        private val pendingIds = java.util.concurrent.ConcurrentHashMap.newKeySet<Int>()
+    }
 }
 
 /** Observe the native widget's gestures without stealing its buttons or scrolling. */

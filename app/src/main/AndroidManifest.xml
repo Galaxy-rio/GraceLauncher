@@ -89,6 +89,17 @@
             </intent-filter>
         </activity>
         <activity
+            android:name=".PinItemActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:theme="@style/Theme.GraceLauncher.Settings">
+            <intent-filter>
+                <action android:name="android.content.pm.action.CONFIRM_PIN_SHORTCUT" />
+                <action android:name="android.content.pm.action.CONFIRM_PIN_APPWIDGET" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        <activity
             android:name=".WidgetSetupActivity"
             android:exported="false"
             android:theme="@style/Theme.GraceLauncher.Settings" />

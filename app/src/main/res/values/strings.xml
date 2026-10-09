@@ -584,4 +584,10 @@
         <item quantity="one">%d widget</item>
         <item quantity="other">%d widgets</item>
     </plurals>
+    <string name="pin_item_title">Add to home screen</string>
+    <string name="pin_item_add">Add</string>
+    <string name="pin_shortcut_message">Add “%1$s” to your home screen and app list?</string>
+    <string name="pin_widget_message">Add the “%1$s” widget to your home screen?</string>
+    <string name="pin_item_expired">This request is no longer available. Please try again from the app.</string>
+    <string name="pin_item_error">Couldn’t add this shortcut. Please try again.</string>
 </resources>

@@ -54,6 +54,7 @@ class WidgetSetupActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         pendingId = savedInstanceState?.getInt("pendingId", -1) ?: -1
+        if (pendingId >= 0) host.trackPendingId(pendingId)
         expectedProvider = savedInstanceState?.getString("expectedProvider")
         configuringExisting = savedInstanceState?.getBoolean("configuringExisting") ?: false
         setContent {
@@ -71,9 +72,9 @@ class WidgetSetupActivity : ComponentActivity() {
                 val current = repository.snapshots.first().settings.homeLayout
                 val popupWidgets = itemsRepository.snapshots.first().popups.values.flatten().mapNotNull { it.widget?.widgetId }.toSet()
                 // Only discard this host's abandoned setup IDs; never touch the saved widget.
-                host.appWidgetIds.filter { it != current.widgetId && it != pendingId && it !in popupWidgets }.forEach(host::deleteAppWidgetId)
+                host.appWidgetIds.filter { it != current.widgetId && it != pendingId && it !in popupWidgets && !host.isPendingId(it) }.forEach(host::deleteAppWidgetId)
                 if (pendingId >= 0) {
-                    if ((current.widgetId == pendingId || pendingId in popupWidgets) && !configuringExisting) { pendingId = -1; finish() }
+                    if ((current.widgetId == pendingId || pendingId in popupWidgets) && !configuringExisting) { host.untrackPendingId(pendingId); pendingId = -1; finish() }
                     else if (savedInstanceState?.getBoolean("saving", false) == true) finishAdding()
                     // Otherwise the restored platform activity will deliver its result.
                     return@launch
@@ -112,7 +113,7 @@ class WidgetSetupActivity : ComponentActivity() {
         if (busy) return
         busy = true
         try {
-            pendingId = host.allocateAppWidgetId()
+            pendingId = host.allocateAppWidgetId().also(host::trackPendingId)
             expectedProvider = info.provider.flattenToString()
             val options = Bundle().apply {
                 putInt(AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY, AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN)
@@ -149,7 +150,7 @@ class WidgetSetupActivity : ComponentActivity() {
         if (resultCode != Activity.RESULT_OK) { cancelSetup(); return }
         if (pendingId < 0) { fail(R.string.widget_setup_error); return }
         if (requestCode == REQUEST_BIND) configure()
-        else if (configuringExisting) { pendingId = -1; finish() }
+        else if (configuringExisting) { host.untrackPendingId(pendingId); pendingId = -1; finish() }
         else finishAdding()
     }
 
@@ -177,6 +178,7 @@ class WidgetSetupActivity : ComponentActivity() {
                         widgetLabel = runCatching { info.loadLabel(packageManager) }.getOrDefault(info.provider.className), widgetHeightDp = 0,
                     ))
                 }
+                host.untrackPendingId(pendingId)
                 pendingId = -1 // The database owns it now; cancellation must not delete it.
                 finish()
             } catch (error: Exception) {
@@ -193,6 +195,7 @@ class WidgetSetupActivity : ComponentActivity() {
 
     private fun cancelSetup() {
         if (!configuringExisting && pendingId >= 0) runCatching { host.deleteAppWidgetId(pendingId) }
+        host.untrackPendingId(pendingId)
         pendingId = -1
         finish()
     }
@@ -206,6 +209,7 @@ class WidgetSetupActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        if (isFinishing && !saving) host.untrackPendingId(pendingId)
         if (isFinishing && !configuringExisting && !saving && pendingId >= 0) runCatching { host.deleteAppWidgetId(pendingId) }
         super.onDestroy()
     }

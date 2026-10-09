@@ -569,4 +569,10 @@
     <plurals name="widget_count">
         <item quantity="other">%d 个小组件</item>
     </plurals>
+    <string name="pin_item_title">添加到桌面</string>
+    <string name="pin_item_add">添加</string>
+    <string name="pin_shortcut_message">将“%1$s”添加到桌面和应用列表？</string>
+    <string name="pin_widget_message">将“%1$s”小组件添加到桌面？</string>
+    <string name="pin_item_expired">此请求已失效，请从原应用重试。</string>
+    <string name="pin_item_error">无法添加此快捷方式，请重试。</string>
 </resources>
