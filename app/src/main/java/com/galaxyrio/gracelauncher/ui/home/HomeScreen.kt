@@ -156,10 +156,13 @@ fun HomeScreen(
     val latestGestures by rememberUpdatedState(uiState.settings.homeGestures)
     val latestEnabled by rememberUpdatedState(gesturesEnabled)
     val latestOnGesture by rememberUpdatedState(onHomeGesture)
+    val swipeSensitivity = uiState.settings.homeGestures.swipeSensitivity.coerceIn(50, 200) / 100f
     var windowOffset by remember { mutableStateOf(Offset.Zero) }
     var pointerPosition by remember { mutableStateOf(Offset.Zero) }
-    val scrollConnection = remember(overscroll, listState, density) {
-        HomeGestureConnection(overscroll, listState, with(density) { 64.dp.toPx() }, with(density) { 1800.dp.toPx() },
+    val scrollConnection = remember(overscroll, listState, density, swipeSensitivity) {
+        HomeGestureConnection(overscroll, listState,
+            pullThreshold = with(density) { 96.dp.toPx() } / swipeSensitivity,
+            flingThreshold = with(density) { 3000.dp.toPx() } / swipeSensitivity,
             canTrigger = { latestEnabled && latestGestures.target(it).active },
             onGesture = { latestOnGesture(it, windowOffset + pointerPosition) })
     }
@@ -181,8 +184,8 @@ fun HomeScreen(
                 } while (event.changes.any { it.pressed })
             }
         }
-        .then(if (gesturesEnabled && latestGestures.doubleTap.active) Modifier.pointerInput(doubleTapSlop) {
-            observeBlankDoubleTaps(doubleTapSlop) { position ->
+        .then(if (gesturesEnabled && latestGestures.doubleTap.active) Modifier.pointerInput(doubleTapSlop, latestGestures.doubleTapIntervalMs) {
+            observeBlankDoubleTaps(doubleTapSlop, latestGestures.doubleTapIntervalMs) { position ->
                 if (latestEnabled && latestGestures.doubleTap.active) latestOnGesture(GraceButtonGesture.DoubleTap, windowOffset + position)
             }
         } else Modifier)) {

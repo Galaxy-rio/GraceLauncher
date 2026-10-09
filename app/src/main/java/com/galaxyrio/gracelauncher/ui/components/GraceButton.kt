@@ -80,13 +80,14 @@ internal fun GraceButton(settings: GraceButtonSettings, editing: Boolean, enable
     var releaseVelocity by remember { mutableStateOf(Offset.Zero) }
     val distance = displacement.getDistance()
     val stretch = (distance / resistanceDistance).coerceIn(0f, 1f) * 0.08f
+    val animateTouch = settings.animationsEnabled && touching
     val movement by animateOffsetAsState(
-        if (touching) displacement * (0.42f / (1f + distance / resistanceDistance)) else Offset.Zero,
-        animationSpec = if (touching) snap() else spring(dampingRatio = 0.58f, stiffness = 420f), label = "graceButtonDrag")
-    val scaleX by animateFloatAsState(if (!touching) 1f else 0.92f + if (abs(displacement.x) > abs(displacement.y)) stretch else 0f,
-        spring(dampingRatio = 0.6f, stiffness = 650f), label = "graceButtonWidth")
-    val scaleY by animateFloatAsState(if (!touching) 1f else 0.92f + if (abs(displacement.y) >= abs(displacement.x)) stretch else 0f,
-        spring(dampingRatio = 0.6f, stiffness = 650f), label = "graceButtonHeight")
+        if (animateTouch) displacement * (0.42f / (1f + distance / resistanceDistance)) else Offset.Zero,
+        animationSpec = if (touching || !settings.animationsEnabled) snap() else spring(dampingRatio = 0.58f, stiffness = 420f), label = "graceButtonDrag")
+    val scaleX by animateFloatAsState(if (!animateTouch) 1f else 0.92f + if (abs(displacement.x) > abs(displacement.y)) stretch else 0f,
+        if (settings.animationsEnabled) spring(dampingRatio = 0.6f, stiffness = 650f) else snap(), label = "graceButtonWidth")
+    val scaleY by animateFloatAsState(if (!animateTouch) 1f else 0.92f + if (abs(displacement.y) >= abs(displacement.x)) stretch else 0f,
+        if (settings.animationsEnabled) spring(dampingRatio = 0.6f, stiffness = 650f) else snap(), label = "graceButtonHeight")
     // Snapshot the *displayed* pose before releasing the spring. The next page
     // starts here, not back at the button's resting layout position.
     val visualCenter = bounds.center + movement

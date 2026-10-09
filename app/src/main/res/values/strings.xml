@@ -222,6 +222,14 @@
     <string name="settings_themes">Themes</string>
     <string name="settings_themes_summary">Colors, appearance, and personalization</string>
     <string name="settings_advanced">Advanced</string>
+    <string name="settings_lab">Lab</string>
+    <string name="lab_animation">Animation</string>
+    <string name="lab_swipe_sensitivity">Swipe sensitivity</string>
+    <string name="lab_swipe_sensitivity_summary">Higher values make home-screen swipes easier to trigger. 100% keeps the default distance and speed thresholds.</string>
+    <string name="lab_double_tap_interval">Double-tap interval</string>
+    <string name="lab_double_tap_interval_summary">Maximum time between taps on empty home-screen space. A longer interval makes double-tapping easier.</string>
+    <string name="lab_milliseconds">%1$d ms</string>
+    <string name="lab_percentage">%1$d%%</string>
     <string name="settings_advanced_summary">More options for your launcher</string>
     <string name="settings_about">About</string>
     <string name="settings_about_summary">Grace Launcher, updates, and licenses</string>

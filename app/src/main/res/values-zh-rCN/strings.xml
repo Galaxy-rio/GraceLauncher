@@ -223,6 +223,14 @@
     <string name="settings_themes">主题</string>
     <string name="settings_themes_summary">颜色、外观与个性化</string>
     <string name="settings_advanced">高级</string>
+    <string name="settings_lab">实验室</string>
+    <string name="lab_animation">动画</string>
+    <string name="lab_swipe_sensitivity">滑动灵敏度</string>
+    <string name="lab_swipe_sensitivity_summary">数值越高，桌面上下划越容易触发。100% 使用默认的距离和速度阈值。</string>
+    <string name="lab_double_tap_interval">双击识别间隔</string>
+    <string name="lab_double_tap_interval_summary">桌面空白区域两次点击之间允许的最长时间。间隔越长，双击越容易识别。</string>
+    <string name="lab_milliseconds">%1$d 毫秒</string>
+    <string name="lab_percentage">%1$d%%</string>
     <string name="settings_advanced_summary">更多启动器选项</string>
     <string name="settings_about">关于</string>
     <string name="settings_about_summary">Grace Launcher、更新与许可证</string>

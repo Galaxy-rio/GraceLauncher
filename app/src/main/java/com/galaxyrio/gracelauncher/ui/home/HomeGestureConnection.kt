@@ -17,7 +17,8 @@ import kotlin.math.abs
 
 /** Observe after descendants handle each event. Unlike detectTapGestures, this
  * never consumes a down/up or cancels a row's horizontal swipe recognizer. */
-internal suspend fun PointerInputScope.observeBlankDoubleTaps(doubleTapSlop: Float, onDoubleTap: (Offset) -> Unit) {
+internal suspend fun PointerInputScope.observeBlankDoubleTaps(doubleTapSlop: Float, intervalMs: Int?, onDoubleTap: (Offset) -> Unit) {
+    val timeout = intervalMs?.coerceIn(150, 700)?.toLong() ?: viewConfiguration.doubleTapTimeoutMillis
     var firstUp: PointerInputChange? = null
     var firstPosition = Offset.Zero
     awaitEachGesture {
@@ -27,7 +28,7 @@ internal suspend fun PointerInputScope.observeBlankDoubleTaps(doubleTapSlop: Flo
         firstUp = null
         if (down.isConsumed || currentEvent.changes.size != 1) return@awaitEachGesture
         val secondTap = previousUp != null &&
-            down.uptimeMillis - previousUp.uptimeMillis in viewConfiguration.doubleTapMinTimeMillis..viewConfiguration.doubleTapTimeoutMillis &&
+            down.uptimeMillis - previousUp.uptimeMillis in viewConfiguration.doubleTapMinTimeMillis..timeout &&
             (down.position - firstPosition).getDistance() <= doubleTapSlop
         while (true) {
             val event = awaitPointerEvent(PointerEventPass.Final)

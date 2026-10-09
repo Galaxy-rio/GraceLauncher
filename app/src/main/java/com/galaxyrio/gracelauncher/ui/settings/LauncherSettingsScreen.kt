@@ -77,6 +77,7 @@ internal enum class SettingsPage {
     Root, Productivity, Clock, ClockStyle, Calendar, Weather, Themes, Advanced, About, HiddenApps, Folders, FolderEditor,
     Changelog, Licenses, AppLicense, IconPacks, IconDesigner, IconDesignerApp, PrivateSpace, PrivateSpaceEditor, Search,
     MediaPlayer, GraceButton, GraceAction, GraceApp, GraceShortcut, Gestures, WorkProfile, WorkProfileEditor,
+    LabGraceButton, LabGesture,
 }
 
 /** Navigation owns each page's saved state and seekable predictive-back transition. */
@@ -263,19 +264,9 @@ fun LauncherSettingsScreen(
                         },
                     )
                     SettingsPage.Calendar -> CalendarSettings(uiState, actions, back)
-                    SettingsPage.Advanced -> SettingsScaffold(stringResource(R.string.settings_advanced), "settings_advanced", back) { padding ->
-                        Box(
-                            Modifier.fillMaxSize().padding(padding).padding(24.dp),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                stringResource(R.string.settings_coming_soon),
-                                Modifier.testTag("settings_advanced_coming_soon"),
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
+                    SettingsPage.Advanced -> AdvancedSettings(back, navigate)
+                    SettingsPage.LabGraceButton -> LabGraceButtonSettings(uiState, actions, back)
+                    SettingsPage.LabGesture -> LabGestureSettings(uiState, actions, back)
                     SettingsPage.About -> AboutSettings(back, navigate)
                     SettingsPage.HiddenApps -> HiddenAppsSettings(uiState, actions, back)
                     SettingsPage.PrivateSpace -> ProfileSettingsScreen(uiState, actions, back) { navigate(SettingsPage.PrivateSpaceEditor) }

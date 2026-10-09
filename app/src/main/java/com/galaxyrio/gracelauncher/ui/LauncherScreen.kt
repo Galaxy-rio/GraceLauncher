@@ -515,6 +515,7 @@ internal fun LauncherScreen(
     var overlay by remember { mutableStateOf<LauncherOverlay?>(null) }
     var systemActionAccess by rememberSaveable { mutableStateOf(false) }
     var buttonTransition by remember { mutableStateOf<GraceButtonTransition?>(null) }
+    var instantButtonEntrance by remember { mutableStateOf(false) }
     val currentButtonTransition by rememberUpdatedState(buttonTransition)
     val searchTransition = buttonTransition?.takeIf { it.action == GraceButtonAction.Search }
     val drawerTransition = buttonTransition?.takeIf { it.action == GraceButtonAction.AppList }
@@ -596,7 +597,9 @@ internal fun LauncherScreen(
     }
     val haptics = rememberLauncherHaptics(uiState.settings.allowHapticFeedback)
     val searching = overlay == LauncherOverlay.Search
-    val searchAlpha by animateFloatAsState(if (searching) 1f else 0f, tween(210), label = "searchFade")
+    val searchAlpha by animateFloatAsState(if (searching) 1f else 0f,
+        if (instantButtonEntrance || searchTransition != null) androidx.compose.animation.core.snap() else tween(210), label = "searchFade")
+    LaunchedEffect(searching, drawerOpen) { if (!searching && !drawerOpen) instantButtonEntrance = false }
     val isSettings = overlay == LauncherOverlay.Settings || overlay is LauncherOverlay.FolderSettings ||
         overlay is LauncherOverlay.SettingsDestination || overlay is LauncherOverlay.IconDesigner
     val fullScreen = isSettings || overlay == LauncherOverlay.Search || overlay == LauncherOverlay.Favorites ||
@@ -698,7 +701,7 @@ internal fun LauncherScreen(
 
     val drawerAlpha = animateFloatAsState(
         targetValue = if (drawerOpen) 1f else 0f,
-        animationSpec = tween(110),
+        animationSpec = if (instantButtonEntrance || drawerTransition != null) androidx.compose.animation.core.snap() else tween(110),
         label = "appListFade",
     )
     val primary = MaterialTheme.colorScheme.primary
@@ -827,10 +830,14 @@ internal fun LauncherScreen(
     // Only a real button gesture morphs the button into search/the app list.
     fun performGestureAction(target: GraceButtonTarget, origin: GraceButtonOrigin, fromButton: Boolean = true) {
         if (!target.active || buttonTransition != null || systemActionAccess) return
+        val buttonSettings = uiState.settings.graceButton
+        instantButtonEntrance = fromButton && !buttonSettings.animationsEnabled &&
+            target.action in listOf(GraceButtonAction.Search, GraceButtonAction.AppList)
         when (target.action) {
             GraceButtonAction.Search -> {
                 searchQuery.edit { replace(0, length, "") }
-                if (fromButton && uiState.settings.search.enabled) buttonTransition = GraceButtonTransition(target.action, origin)
+                if (fromButton && buttonSettings.animationsEnabled && uiState.settings.search.enabled)
+                    buttonTransition = GraceButtonTransition(target.action, origin, durationMillis = buttonSettings.searchAnimationDurationMs)
                 overlay = LauncherOverlay.search(uiState.settings.search.enabled)
             }
             GraceButtonAction.Settings -> overlay = LauncherOverlay.Settings
@@ -840,7 +847,8 @@ internal fun LauncherScreen(
                 else Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
             }
             GraceButtonAction.AppList -> {
-                if (fromButton) buttonTransition = GraceButtonTransition(target.action, origin)
+                if (fromButton && buttonSettings.animationsEnabled)
+                    buttonTransition = GraceButtonTransition(target.action, origin, durationMillis = buttonSettings.appListAnimationDurationMs)
                 selectedLetter = null
                 overlay = null
                 drawerState.requestScrollToItem(0)
@@ -853,7 +861,8 @@ internal fun LauncherScreen(
             }
             GraceButtonAction.LockScreen -> {
                 if (!GraceSystemActions.hasAccessibility) systemActionAccess = true
-                else buttonTransition = GraceButtonTransition(target.action, origin, originIsButton = fromButton)
+                else buttonTransition = GraceButtonTransition(target.action, origin, originIsButton = fromButton,
+                    animationsEnabled = !fromButton || buttonSettings.animationsEnabled)
             }
             GraceButtonAction.Website, GraceButtonAction.Assistant,
             GraceButtonAction.Notifications, GraceButtonAction.QuickSettings -> {

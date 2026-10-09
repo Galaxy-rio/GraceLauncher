@@ -47,14 +47,13 @@ internal data class GraceButtonOrigin(val bounds: Rect, val velocity: Offset = O
 
 // Launcher-style fast-out/slow-in timing, with a longer travel phase than the
 // old spring. Keep geometry, timing and the wave's opacity independent.
-private const val SearchOpeningDuration = 500
-private const val AppListOpeningDuration = 500
 private val OpeningEasing = CubicBezierEasing(0.4f, 0f, 0.2f, 1f)
 
 /** One handoff owns both pages until the destination has replaced the button. */
 @Stable
-internal class GraceButtonTransition(val action: GraceButtonAction, val origin: GraceButtonOrigin, val originIsButton: Boolean = true) {
-    val progress = Animatable(0f)
+internal class GraceButtonTransition(val action: GraceButtonAction, val origin: GraceButtonOrigin, val originIsButton: Boolean = true,
+    private val durationMillis: Int = 500, private val animationsEnabled: Boolean = true) {
+    val progress = Animatable(if (animationsEnabled) 0f else 1f)
     var viewport by mutableStateOf(Rect.Zero)
     var searchBounds by mutableStateOf(Rect.Zero)
     var lockCommitted = false
@@ -66,6 +65,9 @@ internal class GraceButtonTransition(val action: GraceButtonAction, val origin: 
     val searchResultsAlpha: Float get() = smoothStep(0.58f, 0.98f, fraction)
 
     suspend fun animate() {
+        // A disabled lock animation still supplies the black endpoint used to
+        // prevent a bright frame before Android turns the display off.
+        if (!animationsEnabled) return
         // Measure the real M3 input (including font scale/insets), not an estimated endpoint.
         withTimeoutOrNull(350) {
             snapshotFlow { !viewport.isEmpty && (action != GraceButtonAction.Search || !searchBounds.isEmpty) }.first { it }
@@ -80,7 +82,7 @@ internal class GraceButtonTransition(val action: GraceButtonAction, val origin: 
         if (action == GraceButtonAction.LockScreen) {
             progress.animateTo(1f, tween(230, easing = CubicBezierEasing(0.3f, 0f, 0.7f, 1f)))
         } else {
-            val duration = if (action == GraceButtonAction.Search) SearchOpeningDuration else AppListOpeningDuration
+            val duration = durationMillis.coerceIn(100, 1500)
             val initialSlope = velocity * duration / 1_000f
             val easing = Easing { time ->
                 val remaining = 1f - time

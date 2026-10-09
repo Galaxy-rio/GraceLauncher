@@ -31,6 +31,13 @@ data class GraceButtonSettings(
     val swipeDown: GraceButtonTarget = GraceButtonTarget(GraceButtonAction.Search, enabled = false),
     val swipeLeft: GraceButtonTarget = GraceButtonTarget(GraceButtonAction.Search, enabled = false),
     val swipeRight: GraceButtonTarget = GraceButtonTarget(GraceButtonAction.Search, enabled = false),
+    val animationsEnabled: Boolean = true,
+    val searchAnimationDurationMs: Int = 500,
+    val appListAnimationDurationMs: Int = 500,
+    /** 100 keeps the normal distance and velocity thresholds. Higher is easier. */
+    val swipeSensitivity: Int = 100,
+    /** null follows the system double-tap timeout. */
+    val doubleTapIntervalMs: Int? = null,
 ) {
     fun target(gesture: GraceButtonGesture): GraceButtonTarget = when (gesture) {
         GraceButtonGesture.Tap -> tap
@@ -61,6 +68,11 @@ data class GraceButtonSettings(
 
     fun encode(): String = JSONObject().apply {
         put("enabled", enabled)
+        put("animationsEnabled", animationsEnabled)
+        put("searchAnimationDurationMs", searchAnimationDurationMs.coerceIn(100, 1500))
+        put("appListAnimationDurationMs", appListAnimationDurationMs.coerceIn(100, 1500))
+        put("swipeSensitivity", swipeSensitivity.coerceIn(50, 200))
+        put("doubleTapIntervalMs", doubleTapIntervalMs?.coerceIn(150, 700))
         GraceButtonGesture.entries.forEach { gesture ->
             val target = target(gesture)
             put(gesture.storageKey, JSONObject().put("action", target.action.name).put("key", target.itemKey)
@@ -78,7 +90,15 @@ data class GraceButtonSettings(
 
         fun decode(json: String?, defaults: GraceButtonSettings = GraceButtonSettings()): GraceButtonSettings = runCatching {
             val data = JSONObject(json ?: "{}")
-            var settings = defaults.copy(enabled = data.optBoolean("enabled", defaults.enabled))
+            var settings = defaults.copy(
+                enabled = data.optBoolean("enabled", defaults.enabled),
+                animationsEnabled = data.optBoolean("animationsEnabled", defaults.animationsEnabled),
+                searchAnimationDurationMs = data.optInt("searchAnimationDurationMs", defaults.searchAnimationDurationMs).coerceIn(100, 1500),
+                appListAnimationDurationMs = data.optInt("appListAnimationDurationMs", defaults.appListAnimationDurationMs).coerceIn(100, 1500),
+                swipeSensitivity = data.optInt("swipeSensitivity", defaults.swipeSensitivity).coerceIn(50, 200),
+                doubleTapIntervalMs = if (data.has("doubleTapIntervalMs") && !data.isNull("doubleTapIntervalMs"))
+                    data.optInt("doubleTapIntervalMs", 300).coerceIn(150, 700) else defaults.doubleTapIntervalMs,
+            )
             GraceButtonGesture.entries.forEach { gesture ->
                 val saved = data.optJSONObject(gesture.storageKey) ?: return@forEach
                 val fallback = settings.target(gesture)
