@@ -19,6 +19,14 @@ class ClockFontStore(context: Context) {
     private val context = context.applicationContext
     private val directory get() = File(context.filesDir, "clock_fonts")
 
+    internal fun file(id: String): File? = id.takeIf(::validId)?.let { File(directory, it) }?.takeIf { it.isFile }
+
+    /** Only private imported font IDs are deletable; bundled fonts never resolve here. */
+    suspend fun delete(ids: Set<String>) = withContext(Dispatchers.IO) {
+        ids.forEach { id -> file(id)?.let { target -> check(target.delete()) { "Unable to delete imported font" } } }
+        cache.evictAll()
+    }
+
     suspend fun list(): List<ClockFontFile> = withContext(Dispatchers.IO) {
         directory.listFiles().orEmpty().filter { it.isFile && validId(it.name) }
             .map { ClockFontFile(it.name, it.name.substringAfter('_').substringBeforeLast('.')) }

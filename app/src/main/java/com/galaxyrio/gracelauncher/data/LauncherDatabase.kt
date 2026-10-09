@@ -51,6 +51,8 @@ data class LauncherSettingsEntity(
     @ColumnInfo(defaultValue = "1") val blurWallpaper: Boolean = true,
     @ColumnInfo(defaultValue = "16") val wallpaperBlurRadius: Int = 16,
     val appFontId: String? = null,
+    val fontLibraryJson: String? = null,
+    val listAppearanceJson: String? = null,
     @ColumnInfo(defaultValue = "1") val applyFontToSettings: Boolean = true,
     val privateSpaceJson: String? = null,
     val workProfileJson: String? = null,
@@ -112,7 +114,7 @@ abstract class LauncherSettingsDao {
     entities = [LauncherSettingsEntity::class, HiddenAppEntity::class,
         LauncherFolderEntity::class, ItemIconEntity::class,
         SavedShortcutEntity::class, AppPopupEntity::class],
-    version = 19,
+    version = 20,
     exportSchema = true,
 )
 abstract class LauncherDatabase : RoomDatabase() {
@@ -258,12 +260,19 @@ abstract class LauncherDatabase : RoomDatabase() {
             }
         }
 
+        val Migration19To20 = object : Migration(19, 20) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN fontLibraryJson TEXT DEFAULT NULL")
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN listAppearanceJson TEXT DEFAULT NULL")
+            }
+        }
+
         fun getInstance(context: Context): LauncherDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 LauncherDatabase::class.java,
                 "grace_launcher.db",
-            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7, Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12, Migration12To13, Migration13To14, Migration14To15, Migration15To16, Migration16To17, Migration17To18, Migration18To19).build().also { instance = it }
+            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7, Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12, Migration12To13, Migration13To14, Migration14To15, Migration15To16, Migration16To17, Migration17To18, Migration18To19, Migration19To20).build().also { instance = it }
         }
     }
 }

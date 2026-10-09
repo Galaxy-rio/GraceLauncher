@@ -79,6 +79,8 @@ import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
 import com.galaxyrio.gracelauncher.ui.components.FolderRow
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
+import com.galaxyrio.gracelauncher.ui.components.startPadding
+import com.galaxyrio.gracelauncher.ui.components.endPadding
 import com.galaxyrio.gracelauncher.ui.components.stableStatusBarInset
 import com.galaxyrio.gracelauncher.ui.components.eventRemainingText
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
@@ -212,7 +214,7 @@ fun HomeScreen(
             .testTag("home_content"),
         // The row's 8dp inset keeps icons aligned at 44dp while giving its
         // rounded touch surface breathing room around the icon.
-        contentPadding = PaddingValues(start = LauncherLayout.Start, end = LauncherLayout.End, top = resolvedTop, bottom = 72.dp + bottomInset),
+        contentPadding = PaddingValues(start = uiState.settings.listAppearance.startPadding, end = uiState.settings.listAppearance.endPadding, top = resolvedTop, bottom = 72.dp + bottomInset),
         userScrollEnabled = !editingLayout,
         // Feed the native effect at both boundaries even when every row fits.
         // LazyColumn's own effect is disabled to avoid stretching twice.
@@ -262,7 +264,7 @@ fun HomeScreen(
                 onLongClick = { onEditFolder(folder) },
                 onDrag = { bounds, expanded -> onFolderDrag(folder, bounds, expanded) },
                 onDragEnd = onFolderDragEnd,
-                showLabel = !uiState.settings.hideFavoriteNames,
+                showLabel = uiState.settings.listAppearance.showNames(favorites = true),
             ) else LauncherAppRow(
                 app = app,
                 onClick = { onLaunchApp(app) },
@@ -271,7 +273,7 @@ fun HomeScreen(
                 gestures = rowGestures,
                 highlighted = highlightedAppKey == app.key,
                 notification = uiState.notifications[app.packageName]?.firstOrNull().takeUnless { app.user != null },
-                showLabel = !uiState.settings.hideFavoriteNames,
+                showLabel = uiState.settings.listAppearance.showNames(favorites = true),
             )
         }
     }
@@ -280,7 +282,7 @@ fun HomeScreen(
     // Overlay the handles in the viewport, not outside a lazy item's bounds:
     // both halves of each circular control must remain inside its hit-test area.
     if (editingLayout) {
-        val handleModifier = Modifier.padding(start = LauncherLayout.Start, end = LauncherLayout.End)
+        val handleModifier = Modifier.padding(start = uiState.settings.listAppearance.startPadding, end = uiState.settings.listAppearance.endPadding)
         HomeEditHandle(
             label = stringResource(R.string.widget_move_home), changed = topOffset != 0f, tag = "home_position_handle",
             onReset = { topOffset = 0f; onTopOffsetChange(0f) },

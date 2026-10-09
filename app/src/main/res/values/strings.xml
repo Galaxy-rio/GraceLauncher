@@ -219,7 +219,7 @@
     <string name="settings_back">Back</string>
     <string name="settings_productivity">Productivity</string>
     <string name="settings_productivity_summary">At a glance, apps, and folders</string>
-    <string name="settings_themes">Themes</string>
+    <string name="settings_themes">Appearance</string>
     <string name="settings_themes_summary">Colors, appearance, and personalization</string>
     <string name="settings_advanced">Advanced</string>
     <string name="settings_lab">Lab</string>
@@ -304,7 +304,7 @@
     <string name="font_noto_sans">Noto Sans</string>
     <string name="font_luckiest_guy">Luckiest Guy</string>
     <string name="font_apply_settings">Apply font to settings</string>
-    <string name="font_apply_settings_summary">Use the selected font in Grace settings</string>
+    <string name="font_apply_settings_summary">Use the combined fonts in Grace settings</string>
     <string name="font_import_error">Could not import this font. Choose a valid TTF, OTF or TTC file, up to 20 MB.</string>
     <string name="settings_wallpaper_text">Text color</string>
     <string name="settings_text_auto">Automatic</string>
@@ -590,4 +590,25 @@
     <string name="pin_widget_message">Add the “%1$s” widget to your home screen?</string>
     <string name="pin_item_expired">This request is no longer available. Please try again from the app.</string>
     <string name="pin_item_error">Couldn’t add this shortcut. Please try again.</string>
+    <!-- Font library and favorites/app-list appearance -->
+    <string name="font_josefin" translatable="false">Josefin Sans</string>
+    <string name="font_follow_manager">Default · Font manager</string>
+    <string name="font_add">Add font</string>
+    <string name="font_all">All fonts</string>
+    <string name="font_search">Search fonts</string>
+    <string name="font_delete">Delete</string>
+    <string name="font_delete_title">Delete fonts?</string>
+    <string name="font_delete_summary">Delete %1$d imported fonts? Components using them will return to the default font.</string>
+    <string name="settings_favorites_app_list">Favorites &amp; app list</string>
+    <string name="list_app_spacing">App spacing</string>
+    <string name="list_side_padding">List side margins</string>
+    <string name="list_icon_name_gap">Icon and name spacing</string>
+    <string name="list_font_color">Font color</string>
+    <string name="list_color_default">Follow wallpaper text color</string>
+    <string name="list_show_names">Show app names</string>
+    <string name="list_names_both">Favorites and app list</string>
+    <string name="list_names_favorites">Favorites only</string>
+    <string name="list_names_app_list">App list only</string>
+    <string name="list_left_alphabet">Use alphabet from the left</string>
+    <string name="list_left_alphabet_summary">Slide along the left edge to control the alphabet on the right</string>
 </resources>

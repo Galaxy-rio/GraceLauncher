@@ -97,6 +97,7 @@ import com.galaxyrio.gracelauncher.ui.components.LocalLauncherInputEnabled
 import com.galaxyrio.gracelauncher.ui.components.LocalAppTransitions
 import com.galaxyrio.gracelauncher.ui.components.LocalHomeAnimationTarget
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
+import com.galaxyrio.gracelauncher.ui.components.LocalListAppearance
 import com.galaxyrio.gracelauncher.ui.components.stableStatusBarInset
 import com.galaxyrio.gracelauncher.ui.components.rememberLauncherSystemBars
 import com.galaxyrio.gracelauncher.ui.components.statusBarContentFade
@@ -431,6 +432,7 @@ fun LauncherRoute(
         refreshIconPacks = viewModel::refreshApps,
         refreshApps = viewModel::refreshApps,
         applyClockStyle = viewModel::applyClockStyle,
+        deleteFonts = viewModel::deleteFonts,
         applyIconDesign = viewModel::applyIconDesign,
         deleteIconDesigns = viewModel::deleteIconDesigns,
         updateSettings = { change ->
@@ -875,7 +877,8 @@ internal fun LauncherScreen(
     }
     val homeGestureRadius = with(LocalDensity.current) { 24.dp.toPx() }
     val widgetHost = rememberWidgetHost()
-    CompositionLocalProvider(LocalLauncherAppearance provides appearance, LocalHapticFeedback provides haptics, LocalWidgetHost provides widgetHost) {
+    CompositionLocalProvider(LocalLauncherAppearance provides appearance, LocalListAppearance provides uiState.settings.listAppearance,
+        LocalHapticFeedback provides haptics, LocalWidgetHost provides widgetHost) {
       // One wallpaper treatment serves both transparent search and the alphabetical app list.
       val revealDimAlpha = if (drawerTransition != null && uiState.settings.dimWallpaper)
           uiState.settings.wallpaperDimAmount.coerceIn(0, 100) / 100f else dimAlpha
@@ -978,6 +981,7 @@ internal fun LauncherScreen(
         )
 
         if (!editingHome) AlphabetRail(
+            leftTouchEnabled = uiState.settings.listAppearance.leftAlphabet,
             letters = model.letters,
             selectedLetter = if (drawerOpen) selectedLetter else null,
             height = railHeight,
@@ -1013,6 +1017,7 @@ internal fun LauncherScreen(
       }
       }
       LauncherOverlays(
+          favoritesSurface = !drawerOpen,
           overlay = overlay, uiState = uiState, actions = screenActions, onChange = { overlay = it },
           onLaunchApp = onLaunchApp, onToggleFavorite = onToggleFavorite, onRequestCalendar = onDateClick,
           searchBackProgress = backProgress.value,

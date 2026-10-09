@@ -51,7 +51,6 @@ import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
-import com.galaxyrio.gracelauncher.ui.theme.rememberWallpaperBlurAvailable
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.ktx.toDynamicScheme
@@ -61,11 +60,10 @@ import kotlin.math.roundToInt
 @Composable
 internal fun ThemeSettings(
     uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
-    onClockStyle: () -> Unit, onIconPacks: () -> Unit,
+    onClockStyle: () -> Unit, onIconPacks: () -> Unit, onFonts: () -> Unit, onListAppearance: () -> Unit,
 ) {
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     val settings = uiState.settings
-    val blurAvailable = rememberWallpaperBlurAvailable()
     when (dialog) {
         "theme" -> SettingsSelectionDialog(
             title = stringResource(R.string.settings_theme_mode),
@@ -79,11 +77,6 @@ internal fun ThemeSettings(
             items = WallpaperTextMode.entries, selectedItem = uiState.textMode,
             tag = "wallpaper_text", itemKey = { it.name }, itemLabel = { it.label() },
             onSelect = { actions.textMode(it); dialog = null }, onDismiss = { dialog = null },
-        )
-        "font" -> AppFontDialog(
-            selected = settings.appFontId,
-            onSelect = { id -> actions.updateSettings { it.copy(appFontId = id) }; dialog = null },
-            onDismiss = { dialog = null },
         )
     }
     SettingsScaffold(stringResource(R.string.settings_themes), "settings_themes", onBack) { padding ->
@@ -130,52 +123,20 @@ internal fun ThemeSettings(
                 }
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_font), appFontLabel(settings.appFontId), 2, 4, "settings_font") { dialog = "font" }
+                SettingsActionItem(stringResource(R.string.settings_favorites_app_list), null, 2, 4, "settings_list_appearance", onClick = onListAppearance)
             }
             item {
-                SettingsToggleItem(
-                    stringResource(R.string.font_apply_settings), stringResource(R.string.font_apply_settings_summary),
-                    settings.applyFontToSettings, 3, 4, "settings_apply_font",
-                ) { value -> actions.updateSettings { it.copy(applyFontToSettings = value) } }
+                val fonts = settings.fontLibrary.selected.map { appFontLabel(it) }
+                val systemFont = appFontLabel("system")
+                SettingsActionItem(stringResource(R.string.settings_font), fonts.joinToString(" → ").ifEmpty { systemFont },
+                    3, 4, "settings_font", onClick = onFonts)
             }
             item { SettingsHeading(stringResource(R.string.settings_misc)) }
             item {
                 SettingsToggleItem(
                     stringResource(R.string.settings_hide_status_bar), stringResource(R.string.settings_hide_status_bar_summary),
-                    settings.hideStatusBar, 0, 5, "settings_hide_status_bar",
+                    settings.hideStatusBar, 0, 1, "settings_hide_status_bar",
                 ) { value -> actions.updateSettings { it.copy(hideStatusBar = value) } }
-            }
-            item {
-                SettingsToggleItem(
-                    stringResource(R.string.settings_hide_alphabet), stringResource(R.string.settings_hide_alphabet_summary),
-                    settings.hideAlphabet, 1, 5, "settings_hide_alphabet",
-                ) { value -> actions.updateSettings { it.copy(hideAlphabet = value) } }
-            }
-            item {
-                SettingsToggleItem(
-                    stringResource(R.string.settings_hide_favorite_names), stringResource(R.string.settings_hide_favorite_names_summary),
-                    settings.hideFavoriteNames, 2, 5, "settings_hide_favorite_names",
-                ) { value -> actions.updateSettings { it.copy(hideFavoriteNames = value) } }
-            }
-            item {
-                WallpaperEffectItem(
-                    title = stringResource(R.string.settings_dim_wallpaper), summary = stringResource(R.string.settings_dim_wallpaper_summary),
-                    checked = settings.dimWallpaper, amount = settings.wallpaperDimAmount, range = 0..100,
-                    sliderLabel = stringResource(R.string.settings_wallpaper_opacity), index = 3, tag = "settings_dim_wallpaper",
-                    onToggle = { value -> actions.updateSettings { it.copy(dimWallpaper = value) } },
-                    onAmount = { value -> actions.updateSettings { it.copy(wallpaperDimAmount = value) } },
-                )
-            }
-            item {
-                WallpaperEffectItem(
-                    title = stringResource(R.string.settings_blur_wallpaper),
-                    summary = stringResource(if (blurAvailable) R.string.settings_blur_wallpaper_summary else R.string.settings_blur_unavailable),
-                    checked = settings.blurWallpaper, amount = settings.wallpaperBlurRadius, range = 0..48,
-                    sliderLabel = stringResource(R.string.settings_wallpaper_blur_amount), index = 4, tag = "settings_blur_wallpaper",
-                    amountEnabled = blurAvailable,
-                    onToggle = { value -> actions.updateSettings { it.copy(blurWallpaper = value) } },
-                    onAmount = { value -> actions.updateSettings { it.copy(wallpaperBlurRadius = value) } },
-                )
             }
         }
     }
@@ -222,15 +183,15 @@ private fun AccentColorItem(isDynamic: Boolean, selectedColor: Int, onSelect: (C
 
 /** Keep the toggle and its expanding slider in one unchanged segmented outline. */
 @Composable
-private fun WallpaperEffectItem(
+internal fun WallpaperEffectItem(
     title: String, summary: String, checked: Boolean, amount: Int, range: IntRange,
-    sliderLabel: String, index: Int, tag: String, amountEnabled: Boolean = true,
+    sliderLabel: String, index: Int, tag: String, count: Int = 3, amountEnabled: Boolean = true,
     onToggle: (Boolean) -> Unit, onAmount: (Int) -> Unit,
 ) {
     val enabled = LocalSettingsStorageState.current.canEdit
     var draft by remember(amount) { mutableFloatStateOf(amount.coerceIn(range).toFloat()) }
     SegmentedListItem(
-        shapes = ListItemDefaults.segmentedShapes(index, 5),
+        shapes = ListItemDefaults.segmentedShapes(index, count),
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
         content = {
             Column(Modifier.fillMaxWidth()) {

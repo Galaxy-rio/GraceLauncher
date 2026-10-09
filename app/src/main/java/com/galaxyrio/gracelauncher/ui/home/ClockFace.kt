@@ -5,8 +5,6 @@ package com.galaxyrio.gracelauncher.ui.home
 import android.graphics.Typeface
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,7 +15,6 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.layout.FirstBaseline
 import androidx.compose.ui.layout.LastBaseline
 import androidx.compose.ui.layout.Layout
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.semantics.semantics
@@ -33,10 +30,10 @@ import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.galaxyrio.gracelauncher.data.ClockFontStore
 import com.galaxyrio.gracelauncher.data.ClockStyle
 import com.galaxyrio.gracelauncher.ui.theme.LauncherFontFamily
 import com.galaxyrio.gracelauncher.ui.theme.family
+import com.galaxyrio.gracelauncher.ui.theme.rememberAppFontFamily
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -56,12 +53,7 @@ internal fun ClockFace(
     textAlign: TextAlign = TextAlign.Start,
 ) {
     val face = style.face
-    val context = LocalContext.current
-    val fonts = remember(context) { ClockFontStore(context) }
-    val customFamily by produceState<FontFamily?>(null, fonts, face.fontId, face.weight) {
-        value = face.fontId?.let { fonts.typeface(it, face.weight) }?.let { FontFamily(it) }
-    }
-    val family = style.layout.presetFont?.family() ?: customFamily ?: LauncherFontFamily
+    val family = style.layout.presetFont?.family() ?: rememberAppFontFamily(face.fontId)
     val scale = fontScale.coerceIn(0.1f, 1f)
     ClockGlyphContent(
         value = time, semanticsText = clockFaceText(time, style), family = family, weight = FontWeight(face.weight),

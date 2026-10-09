@@ -767,12 +767,38 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     suspend fun applyClockStyle(style: ClockStyle): Boolean = settingsWriteMutex.withLock {
         try {
-            settingsRepository.mutateSettings { it.copy(clockStyle = style) }
+            // A manager opened from an unsaved clock editor can delete its draft font.
+            val available = com.galaxyrio.gracelauncher.data.ClockFontStore(getApplication()).list().map { it.id }.toSet()
+            val missing = (listOf(style.singleLine, style.twoLines) + style.presets.values).mapNotNull { it.fontId }
+                .filter { com.galaxyrio.gracelauncher.data.ClockFontStore.displayName(it) != null && it !in available }.toSet()
+            settingsRepository.mutateSettings { it.copy(clockStyle = style.withoutFonts(missing)) }
             _uiState.update { it.copy(settingsSaveFailed = false) }
             true
         } catch (error: Exception) {
             if (error is CancellationException) throw error
             Log.e("LauncherViewModel", "Unable to save clock style", error)
+            _uiState.update { it.copy(settingsSaveFailed = true) }
+            false
+        }
+    }
+
+    suspend fun deleteFonts(ids: Set<String>): Boolean = settingsWriteMutex.withLock {
+        try {
+            val store = com.galaxyrio.gracelauncher.data.ClockFontStore(getApplication())
+            val imported = store.list().map { it.id }.toSet().intersect(ids)
+            // Commit reference cleanup before removing private files, so failed saves are safe.
+            settingsRepository.mutateSettings { current -> current.copy(
+                fontLibrary = current.fontLibrary.without(imported),
+                appFontId = current.appFontId.takeUnless { it in imported },
+                listAppearance = current.listAppearance.copy(fontId = current.listAppearance.fontId.takeUnless { it in imported }),
+                clockStyle = current.clockStyle.withoutFonts(imported),
+            ) }
+            store.delete(imported)
+            _uiState.update { it.copy(settingsSaveFailed = false) }
+            true
+        } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            Log.e("LauncherViewModel", "Unable to delete fonts", error)
             _uiState.update { it.copy(settingsSaveFailed = true) }
             false
         }

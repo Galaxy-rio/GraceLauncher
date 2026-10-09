@@ -99,6 +99,7 @@ internal fun LauncherOverlays(
     searchEnterAlpha: Float = 1f,
     searchQuery: TextFieldState = rememberTextFieldState(),
     searchTransition: GraceButtonTransition? = null,
+    favoritesSurface: Boolean = true,
 ) {
     if (overlay == null) return
     val privateApp = when (overlay) {
@@ -186,6 +187,7 @@ internal fun LauncherOverlays(
             else onChange(LauncherOverlay.FolderSettings(folder.id))
         })
         FolderPopup(
+            showNames = uiState.settings.listAppearance.showNames(favoritesSurface),
             folder = folder, apps = members, anchor = overlay.anchor, reveal = overlay.reveal,
             uiState = uiState, actions = actions,
             onDetails = { member ->

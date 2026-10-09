@@ -67,6 +67,11 @@ data class ClockStyle(
         }
     }
 
+    fun withoutFonts(ids: Set<String>): ClockStyle {
+        fun ClockFaceStyle.clean() = if (fontId in ids) copy(fontId = null) else this
+        return copy(singleLine = singleLine.clean(), twoLines = twoLines.clean(), presets = presets.mapValues { it.value.clean() })
+    }
+
     fun encode(): String = JSONObject().apply {
         put("layout", layout.name)
         fun encodeFace(face: ClockFaceStyle, layout: ClockLayout) = JSONObject().apply {

@@ -33,13 +33,16 @@ data class LauncherSettings(
     val homeLayout: HomeLayout = HomeLayout(),
     val hideStatusBar: Boolean = true,
     val hideAlphabet: Boolean = false,
+    /** Legacy column; ListAppearance migrates this into names on first read. */
     val hideFavoriteNames: Boolean = false,
     val dimWallpaper: Boolean = false,
     val wallpaperDimAmount: Int = 20,
     val blurWallpaper: Boolean = true,
     val wallpaperBlurRadius: Int = 16,
-    /** null keeps the original Josefin Sans; imported fonts use their private file id. */
+    /** Legacy selection, used only when migrating to the ordered font library. */
     val appFontId: String? = null,
+    val fontLibrary: FontLibrary = FontLibrary(),
+    val listAppearance: ListAppearance = ListAppearance(),
     val applyFontToSettings: Boolean = true,
     val privateSpace: ProfileSettings = ProfileSettings(),
     val workProfile: ProfileSettings = ProfileSettings.workDefaults(),

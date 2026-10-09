@@ -220,7 +220,7 @@
     <string name="settings_back">返回</string>
     <string name="settings_productivity">效率</string>
     <string name="settings_productivity_summary">即时信息、应用与文件夹</string>
-    <string name="settings_themes">主题</string>
+    <string name="settings_themes">外观</string>
     <string name="settings_themes_summary">颜色、外观与个性化</string>
     <string name="settings_advanced">高级</string>
     <string name="settings_lab">实验室</string>
@@ -301,7 +301,7 @@
     <string name="font_noto_sans">Noto Sans</string>
     <string name="font_luckiest_guy">Luckiest Guy</string>
     <string name="font_apply_settings">将字体应用于设置</string>
-    <string name="font_apply_settings_summary">在 Grace 设置中使用所选字体</string>
+    <string name="font_apply_settings_summary">在 Grace 设置中使用组合后的字体</string>
     <string name="font_import_error">无法导入字体。请选择有效的 TTF、OTF 或 TTC 文件，大小不超过 20 MB。</string>
     <string name="settings_wallpaper_text">文字颜色</string>
     <string name="settings_text_auto">自动</string>
@@ -575,4 +575,24 @@
     <string name="pin_widget_message">将“%1$s”小组件添加到桌面？</string>
     <string name="pin_item_expired">此请求已失效，请从原应用重试。</string>
     <string name="pin_item_error">无法添加此快捷方式，请重试。</string>
+    <!-- 字体管理和收藏/应用列表外观 -->
+    <string name="font_follow_manager">默认 · 字体管理器</string>
+    <string name="font_add">添加字体</string>
+    <string name="font_all">所有字体</string>
+    <string name="font_search">搜索字体</string>
+    <string name="font_delete">删除</string>
+    <string name="font_delete_title">删除字体？</string>
+    <string name="font_delete_summary">删除 %1$d 个导入的字体？使用这些字体的组件将恢复为默认字体。</string>
+    <string name="settings_favorites_app_list">收藏与应用列表</string>
+    <string name="list_app_spacing">应用间距</string>
+    <string name="list_side_padding">列表两侧边距</string>
+    <string name="list_icon_name_gap">图标与名称间距</string>
+    <string name="list_font_color">字体颜色</string>
+    <string name="list_color_default">跟随壁纸文字颜色</string>
+    <string name="list_show_names">显示应用名称</string>
+    <string name="list_names_both">收藏与应用列表</string>
+    <string name="list_names_favorites">仅收藏</string>
+    <string name="list_names_app_list">仅应用列表</string>
+    <string name="list_left_alphabet">从左侧使用字母表</string>
+    <string name="list_left_alphabet_summary">沿左侧边缘滑动，操作右侧的字母表</string>
 </resources>

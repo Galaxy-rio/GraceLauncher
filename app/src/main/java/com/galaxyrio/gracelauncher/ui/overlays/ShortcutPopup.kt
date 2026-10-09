@@ -30,6 +30,7 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.dismiss
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
@@ -47,6 +48,8 @@ import com.galaxyrio.gracelauncher.ui.widgets.HomeWidget
 import com.galaxyrio.gracelauncher.ui.widgets.rememberHostedWidget
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
+import com.galaxyrio.gracelauncher.ui.components.LocalListAppearance
+import com.galaxyrio.gracelauncher.ui.components.listLabelStyle
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
@@ -64,10 +67,12 @@ fun FolderPopup(
     reveal: ShortcutRevealState = remember { ShortcutRevealState() },
     uiState: LauncherUiState = LauncherUiState(apps = apps, folders = listOf(folder)),
     actions: LauncherActions = LauncherActions(), onDetails: (LauncherApp) -> Unit = {},
+    showNames: Boolean = true,
 ) = ShortcutPopup(
     app = uiState.folderItem(folder), anchor = anchor, hasAccess = uiState.hasShortcutAccess,
     actions = actions, onLaunchApp = {}, onDismiss = onDismiss, reveal = reveal,
     uiState = uiState, onEdit = onEdit, onDetails = onDetails, onLaunchItem = onLaunchApp,
+    showNames = showNames,
 )
 
 /** Same-window overlay: adding a popup window during DOWN would cancel the row's drag. */
@@ -84,11 +89,14 @@ fun ShortcutPopup(
     uiState: LauncherUiState = LauncherUiState(),
     onEdit: (() -> Unit)? = {},
     onDetails: (LauncherApp) -> Unit = {},
+    showNames: Boolean = true,
     onLaunchItem: (LauncherApp, Rect) -> Unit = { item, bounds ->
         item.shortcut?.let { actions.launchShortcutAt?.invoke(it, bounds) ?: actions.launchShortcut(it) }
     },
 ) {
     val isFolder = app.folderId != null
+    val listAppearance = LocalListAppearance.current
+    val labelStyle = listLabelStyle(onWallpaper = false)
     val isPrivateFolder = app.folderId == PrivateSpaceFolderId
     var retry by remember { mutableIntStateOf(0) }
     val loadShortcuts by rememberUpdatedState(actions.shortcuts)
@@ -185,17 +193,20 @@ fun ShortcutPopup(
                 itemApp != null -> {
                         var iconBounds by remember { mutableStateOf(Rect.Zero) }
                         Row(
-                            Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag(if (isFolder) "folder_app:${itemApp.key}" else "shortcut:${itemApp.shortcut?.id ?: itemApp.key}")
+                            Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(if (isFolder) "folder_app:${itemApp.key}" else "shortcut:${itemApp.shortcut?.id ?: itemApp.key}")
+                                .semantics { if (!showNames) contentDescription = itemApp.label }
                                 .clip(RoundedCornerShape(16.dp))
                                 .combinedClickable(enabled = !reveal.dragging && reveal.expanded, onLongClick = { onDetails(itemApp) }, onClick = {
                                     onLaunchItem(itemApp, iconBounds)
                                     if (!isPrivateFolder) onDismiss()
-                                }).padding(horizontal = 12.dp, vertical = 8.dp),
+                                }).padding(horizontal = 12.dp, vertical = (listAppearance.appSpacing / 2f).dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             AppIcon(itemApp, Modifier.onGloballyPositioned { iconBounds = it.boundsInWindow() }, size = 36.dp)
-                            Spacer(Modifier.width(22.dp))
-                            Text(itemApp.label, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            if (showNames) {
+                                Spacer(Modifier.width(listAppearance.iconNameGap.dp))
+                                Text(itemApp.label, style = labelStyle, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            }
                         }
                 }
                 else -> Text(stringResource(R.string.popup_item_unavailable), Modifier.fillMaxWidth().clickable(enabled = onEdit != null, onClick = { onEdit?.invoke() }).padding(16.dp),

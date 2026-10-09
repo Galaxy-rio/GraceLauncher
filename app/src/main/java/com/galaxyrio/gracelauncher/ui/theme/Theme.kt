@@ -16,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.rememberDynamicColorScheme
+import com.galaxyrio.gracelauncher.data.FontLibrary
 
 val Ink = Color(0xFF071A19)
 val DeepTeal = Color(0xFF123B37)
@@ -65,7 +66,7 @@ fun GraceLauncherTheme(
     darkTheme: Boolean = true,
     dynamicColor: Boolean = true,
     seedColor: Color? = null,
-    fontId: String? = null,
+    fontLibrary: FontLibrary = FontLibrary(),
     amoledMode: Boolean = false,
     content: @Composable () -> Unit,
 ) {
@@ -96,9 +97,10 @@ fun GraceLauncherTheme(
         surfaceContainer = Color.Black,
     ) else colorScheme
 
-    val family = rememberAppFontFamily(fontId)
+    val family = rememberAppFontFamily(null, fontLibrary)
     val typography = remember(family) { launcherTypography(family) }
     CompositionLocalProvider(
+        LocalFontLibrary provides fontLibrary,
         LocalLauncherTypography provides typography,
         // Elevation tint must not turn the black sheets back into tinted gray.
         LocalTonalElevationEnabled provides (LocalTonalElevationEnabled.current && !trueBlack),

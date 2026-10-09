@@ -3,8 +3,6 @@
 package com.galaxyrio.gracelauncher.ui.settings
 
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.BoundsTransform
 import androidx.compose.animation.animateBounds
 import androidx.compose.animation.animateColorAsState
@@ -60,14 +58,13 @@ import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherTypography
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherAppearance
 import java.time.Instant
 import kotlin.math.roundToInt
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.launch
 
 @Composable
-internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit) {
+internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit, onManageFonts: () -> Unit) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     // A scalar saved-state draft survives recreation without changing the desktop.
@@ -77,35 +74,21 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
     fun changeFace(transform: (ClockFaceStyle) -> ClockFaceStyle) { encoded = draft.withFace(transform(face)).encode() }
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
-    var importing by remember { mutableStateOf(false) }
-    var fontRevision by remember { mutableIntStateOf(0) }
     val store = remember(context) { ClockFontStore(context) }
-    val fonts by produceState(emptyList<ClockFontFile>(), store, fontRevision) { value = store.list() }
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) scope.launch {
-            importing = true
-            try {
-                val font = store.import(uri)
-                // Read the current draft after IO; do not overwrite another style's edits.
-                val current = ClockStyle.decode(encoded)
-                encoded = current.withFace(current.face.copy(fontId = font.id)).encode()
-                fontRevision++
-            } catch (error: Exception) {
-                if (error is CancellationException) throw error
-                Toast.makeText(context, R.string.clock_font_import_error, Toast.LENGTH_LONG).show()
-            } finally { importing = false }
-        }
+    val fonts by produceState<List<ClockFontFile>?>(null, store) { value = store.list() }
+    LaunchedEffect(fonts) {
+        val available = fonts?.map { it.id }?.toSet() ?: return@LaunchedEffect
+        val current = ClockStyle.decode(encoded)
+        val missing = (listOf(current.singleLine, current.twoLines) + current.presets.values).mapNotNull { it.fontId }
+            .filter { ClockFontStore.displayName(it) != null && it !in available }.toSet()
+        if (missing.isNotEmpty()) encoded = current.withoutFonts(missing).encode()
     }
     if (dialog == "font" && draft.layout.allowsCustomFont) {
-        FontPickerDialog(fonts, face.fontId,
+        FontPickerDialog(uiState.settings.fontLibrary, face.fontId,
             onSelect = { id -> changeFace { it.copy(fontId = id) }; dialog = null },
-            onImport = { dialog = null; picker.launch(arrayOf("*/*")) }, onDismiss = { dialog = null })
+            onManage = { dialog = null; onManageFonts() }, onDismiss = { dialog = null }, tag = "clock_font")
     }
-    val fontLabel = when {
-        importing -> stringResource(R.string.clock_font_importing)
-        face.fontId == null -> stringResource(R.string.clock_font_default)
-        else -> fonts.firstOrNull { it.id == face.fontId }?.name ?: stringResource(R.string.clock_font_unavailable)
-    }
+    val fontLabel = appFontLabel(face.fontId)
     val allowsFont = draft.layout.allowsCustomFont
     val showsColon = !draft.layout.stacked
     val weightIndex = if (allowsFont) 2 else 1
@@ -118,7 +101,7 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
         fixedCollapsed = true,
         actions = {
             Button(
-                modifier = Modifier.padding(end = 8.dp).testTag("clock_style_apply"), enabled = !saving && !importing,
+                modifier = Modifier.padding(end = 8.dp).testTag("clock_style_apply"), enabled = !saving,
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.primary,
                     contentColor = MaterialTheme.colorScheme.onPrimary,
@@ -149,53 +132,53 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
                     userScrollEnabled = !saving,
                 ) {
                     clockSetting("layout") {
-                        ClockLayoutSelector(draft, count, enabled = !saving && !importing) {
+                        ClockLayoutSelector(draft, count, enabled = !saving) {
                             encoded = draft.copy(layout = it).encode()
                         }
                     }
                     if (allowsFont) clockSetting("font") {
                         SettingsActionItem(stringResource(R.string.settings_font), fontLabel, 1, count,
-                            "clock_font_selector", enabled = !saving && !importing) { dialog = "font" }
+                            "clock_font_selector", enabled = !saving) { dialog = "font" }
                     }
                     clockSetting("weight") {
                         ClockSlider(stringResource(R.string.clock_weight), face.weight, defaults.weight,
                             100..face.maxWeight(draft.layout), step = 100,
-                            index = weightIndex, count = count, tag = "clock_weight", enabled = !saving && !importing,
+                            index = weightIndex, count = count, tag = "clock_weight", enabled = !saving,
                             onChange = { value -> changeFace { it.copy(weight = value) } })
                     }
                     clockSetting("size") {
                         ClockSlider(stringResource(R.string.clock_size), face.size, defaults.size, 32..144, step = 1,
-                            index = weightIndex + 1, count = count, tag = "clock_size", enabled = !saving && !importing,
+                            index = weightIndex + 1, count = count, tag = "clock_size", enabled = !saving,
                             onChange = { value -> changeFace { it.copy(size = value) } })
                     }
                     clockSetting("spacing") {
                         ClockSlider(stringResource(if (draft.layout.week) R.string.clock_letter_spacing else R.string.clock_digit_spacing),
                             face.letterSpacing, defaults.letterSpacing, -16..16, step = 1,
-                            index = weightIndex + 2, count = count, tag = "clock_letter_spacing", enabled = !saving && !importing,
+                            index = weightIndex + 2, count = count, tag = "clock_letter_spacing", enabled = !saving,
                             onChange = { value -> changeFace { it.copy(letterSpacing = value) } })
                     }
                     clockSetting("hour_minute_spacing") {
                         ClockSlider(stringResource(R.string.clock_hour_minute_spacing), face.hourMinuteSpacing, defaults.hourMinuteSpacing,
                             -16..64, step = 1, index = weightIndex + 3, count = count,
-                            tag = "clock_hour_minute_spacing", enabled = !saving && !importing,
+                            tag = "clock_hour_minute_spacing", enabled = !saving,
                             onChange = { value -> changeFace { it.copy(hourMinuteSpacing = value) } })
                     }
                     clockSetting("font_shadow") {
                         ClockSlider(stringResource(R.string.clock_font_shadow), face.fontShadow, defaults.fontShadow,
                             0..24, step = 1, index = weightIndex + 4, count = count,
-                            tag = "clock_font_shadow", enabled = !saving && !importing,
+                            tag = "clock_font_shadow", enabled = !saving,
                             onChange = { value -> changeFace { it.copy(fontShadow = value) } })
                     }
                     clockSetting("separation") {
                         SettingsToggleItem(stringResource(R.string.clock_separate_digits), stringResource(R.string.clock_separate_digits_summary),
                             face.separateDigits, separationIndex, count, "clock_separate_digits") { value ->
-                            if (!saving && !importing) changeFace { it.copy(separateDigits = value) }
+                            if (!saving) changeFace { it.copy(separateDigits = value) }
                         }
                     }
                     if (showsColon) clockSetting("colon") {
                         SettingsToggleItem(stringResource(R.string.clock_show_colon), stringResource(R.string.clock_show_colon_summary),
                             face.showColon, separationIndex + 1, count, "clock_show_colon") { value ->
-                            if (!saving && !importing) changeFace { it.copy(showColon = value) }
+                            if (!saving) changeFace { it.copy(showColon = value) }
                         }
                     }
                 }

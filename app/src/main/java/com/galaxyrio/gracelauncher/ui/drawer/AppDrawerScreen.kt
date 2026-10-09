@@ -43,6 +43,10 @@ import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
 import com.galaxyrio.gracelauncher.ui.components.FolderRow
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
+import com.galaxyrio.gracelauncher.ui.components.LocalListAppearance
+import com.galaxyrio.gracelauncher.ui.components.startPadding
+import com.galaxyrio.gracelauncher.ui.components.endPadding
+import com.galaxyrio.gracelauncher.ui.components.listLabelStyle
 import com.galaxyrio.gracelauncher.ui.components.stableStatusBarInset
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import kotlinx.coroutines.flow.first
@@ -75,6 +79,8 @@ fun AppDrawerScreen(
     onWorkProfileSettings: () -> Unit = {},
 ) {
     val appearance = LocalLauncherAppearance.current
+    val listAppearance = LocalListAppearance.current
+    val labelStyle = listLabelStyle()
     val density = LocalDensity.current
     val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
     val safeTop = with(density) { (stableStatusBarInset() + 12.dp)
@@ -114,7 +120,7 @@ fun AppDrawerScreen(
         // may occupy this area after jumping to a later letter. The small, real
         // bottom inset lets LazyColumn naturally clamp sections near the end
         // without clipping scrolling rows above the navigation bar.
-        contentPadding = PaddingValues(start = LauncherLayout.Start, end = LauncherLayout.End, top = topSpace, bottom = 24.dp + bottomInset),
+        contentPadding = PaddingValues(start = listAppearance.startPadding, end = listAppearance.endPadding, top = topSpace, bottom = 24.dp + bottomInset),
         userScrollEnabled = selectedLetter == null,
     ) {
         items(
@@ -136,9 +142,9 @@ fun AppDrawerScreen(
                             .height(44.dp)
                             .padding(start = LauncherLayout.ContentInset, end = LauncherLayout.ContentInset, top = 12.dp)
                             .testTag("section:${item.section}"),
-                        color = appearance.text,
+                        color = labelStyle.color,
                         style = TextStyle(
-                            fontFamily = MaterialTheme.typography.bodyLarge.fontFamily,
+                            fontFamily = labelStyle.fontFamily,
                             fontSize = 18.sp,
                             lineHeight = 24.sp,
                             fontWeight = FontWeight.Normal,
@@ -146,6 +152,7 @@ fun AppDrawerScreen(
                         ),
                     )
                     is DrawerItem.App -> LauncherAppRow(
+                        showLabel = listAppearance.showNames(favorites = false),
                         app = item.app,
                         onClick = { onLaunchApp(item.app) },
                         onLongClick = { onAppDetails(item.app) },
@@ -155,6 +162,7 @@ fun AppDrawerScreen(
                         notification = notifications[item.app.packageName]?.firstOrNull().takeUnless { item.app.user != null },
                     )
                     is DrawerItem.Folder -> FolderRow(
+                        showLabel = listAppearance.showNames(favorites = false),
                         folder = item.folder,
                         app = folderApps[item.folder.id] ?: item.folder.asApp(),
                         highlighted = highlightedAppKey == item.folder.key,
@@ -164,6 +172,7 @@ fun AppDrawerScreen(
                         onDragEnd = onFolderDragEnd,
                     )
                     is DrawerItem.PrivateApp -> LauncherAppRow(
+                        showLabel = listAppearance.showNames(favorites = false),
                         app = item.app, onClick = { onLaunchApp(item.app) }, onLongClick = { onAppDetails(item.app) },
                         onSwipeRight = { if (privateAppsPublic) onAppShortcuts(item.app, it) },
                         gestures = if (privateAppsPublic) rowGestures else AppRowGestures(onLaunchAt = rowGestures.onLaunchAt),

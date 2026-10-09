@@ -198,22 +198,23 @@ internal fun LazyListScope.iconDesignerControls(
 }
 
 @Composable
-private fun DesignerSegment(index: Int, count: Int, tag: String, content: @Composable ColumnScope.() -> Unit) {
+internal fun DesignerSegment(index: Int, count: Int, tag: String, content: @Composable ColumnScope.() -> Unit) {
     SegmentedListItem(shapes = ListItemDefaults.segmentedShapes(index, count),
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
         modifier = Modifier.testTag(tag), content = { Column(Modifier.padding(vertical = 8.dp), content = content) })
 }
 
 @Composable
-private fun DesignerSlider(label: String, value: Float, default: Float, range: ClosedFloatingPointRange<Float>,
-    enabled: Boolean, tag: String, suffix: String = "%", onChange: (Float) -> Unit) {
+internal fun DesignerSlider(label: String, value: Float, default: Float, range: ClosedFloatingPointRange<Float>,
+    enabled: Boolean, tag: String, suffix: String = "%", onFinished: ((Float) -> Unit)? = null, onChange: (Float) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text("$label · ${value.roundToInt()}$suffix", style = MaterialTheme.typography.labelLarge)
             Slider(value, { onChange(it.roundToInt().toFloat()) }, valueRange = range, enabled = enabled,
+                onValueChangeFinished = { onFinished?.invoke(value) },
                 modifier = Modifier.testTag(tag).semantics { contentDescription = label })
         }
-        ResetIconButton(label, enabled && value != default, "${tag}_reset") { onChange(default) }
+        ResetIconButton(label, enabled && value != default, "${tag}_reset") { onChange(default); onFinished?.invoke(default) }
     }
 }
 

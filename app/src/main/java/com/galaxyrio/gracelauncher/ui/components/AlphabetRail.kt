@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
@@ -85,6 +86,7 @@ fun AlphabetRail(
     autoHide: Boolean = false,
     includeHome: Boolean = true,
     onWallpaper: Boolean = true,
+    leftTouchEnabled: Boolean = false,
 ) {
     if (letters.isEmpty()) return
     val appearance = LocalLauncherAppearance.current
@@ -118,142 +120,147 @@ fun AlphabetRail(
     val railDescription = stringResource(R.string.alphabet_scroller)
     val homeDescription = stringResource(R.string.back_home)
 
-    Box(
-        modifier = modifier
-            .width(48.dp)
-            .height(height)
-            .testTag("alphabet_rail")
-            .onSizeChanged { railHeightPx = it.height.coerceAtLeast(1) }
-            .semantics { contentDescription = railDescription }
-            .pointerInput(entries) {
-                awaitEachGesture {
-                    val down = awaitFirstDown()
-                    val pointerId = down.id
-                    var change = down
-                    var previousIndex = -1
-                    state.active = true
-                    try {
-                        while (true) {
-                            if (!change.pressed) {
-                                change.consume()
-                                break
-                            }
-                            state.fingerY = change.position.y.coerceIn(0f, railHeightPx.toFloat())
-                            state.fingerX = change.position.x
-                            val index = alphabetIndexAt(
-                                y = state.fingerY,
-                                height = railHeightPx.toFloat(),
-                                count = entries.size,
-                            )
-                            state.selectedIndex = index
-                            if (index != previousIndex) {
-                                previousIndex = index
-                                haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                                currentOnSelect(entries[index])
-                            }
-                            change.consume()
-                            change = awaitPointerEvent().changes.firstOrNull { it.id == pointerId } ?: break
-                        }
-                    } finally {
-                        state.active = false
-                        currentOnScrubFinished()
+    fun touchSurface(fromLeft: Boolean) = Modifier.pointerInput(entries, fromLeft) {
+        awaitEachGesture {
+            val down = awaitFirstDown()
+            val pointerId = down.id
+            var change = down
+            var previousIndex = -1
+            state.active = true
+            try {
+                while (true) {
+                    if (!change.pressed) {
+                        change.consume()
+                        break
                     }
-                }
-            },
-    ) {
-        entries.forEachIndexed { index, letter ->
-            val isSelected = if (state.active) state.selectedIndex == index else selectedLetter == letter
-            val description = when (letter) {
-                null -> homeDescription
-                GraceSection -> stringResource(R.string.jump_to_section, stringResource(R.string.app_name))
-                else -> stringResource(if (includeHome) R.string.jump_to_letter else R.string.jump_to_section, letter)
-            }
-            Box(
-                modifier = Modifier
-                    .width(48.dp)
-                    .height(cellHeight)
-                    .offset { IntOffset(0, (index * cellHeightPx).roundToInt()) }
-                    .testTag(if (letter == null) "alphabet_home" else "alphabet:$letter")
-                    .graphicsLayer {
-                        // Fade the glyphs only: keep the same touch surface alive
-                        // while hidden and when scrubbing switches between pages.
-                        alpha = visibility
-                        // Pointer coordinates are read in the draw phase, without relaying
-                        // every move through the launcher or the LazyColumn composition.
-                        val distance = (index + 0.5f) * cellHeightPx - state.fingerY
-                        val gaussian = exp(-(distance * distance) / (2f * waveRadius * waveRadius))
-                        val extraPull = ((railWidth - state.fingerX) * 0.35f).coerceIn(0f, basePull)
-                        translationX = -(basePull + extraPull) * gaussian * wave
-                    }
-                    .semantics {
-                        contentDescription = description
-                        role = Role.Button
-                        onClick {
-                            currentOnSelect(letter)
-                            currentOnScrubFinished()
-                            true
-                        }
-                    },
-                contentAlignment = Alignment.Center,
-            ) {
-                val color = textColor.copy(alpha = if (isSelected) 1f else 0.85f)
-                if (letter == null) {
-                    LauncherIcon(LauncherSymbol.Star, Modifier.size(18.dp), tint = color)
-                } else if (letter == GraceSection) {
-                    Box(Modifier.size(8.dp).background(color, CircleShape))
-                } else {
-                    Text(
-                        text = letter,
-                        color = color,
-                        style = TextStyle(
-                            fontFamily = MaterialTheme.typography.bodyLarge.fontFamily,
-                            fontSize = 14.sp,
-                            lineHeight = 16.sp,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                            shadow = if (onWallpaper) appearance.textShadow else null,
-                        ),
+                    state.fingerY = change.position.y.coerceIn(0f, railHeightPx.toFloat())
+                    state.fingerX = if (fromLeft) railWidth - change.position.x else change.position.x
+                    val index = alphabetIndexAt(
+                        y = state.fingerY,
+                        height = railHeightPx.toFloat(),
+                        count = entries.size,
                     )
+                    state.selectedIndex = index
+                    if (index != previousIndex) {
+                        previousIndex = index
+                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        currentOnSelect(entries[index])
+                    }
+                    change.consume()
+                    change = awaitPointerEvent().changes.firstOrNull { it.id == pointerId } ?: break
                 }
+            } finally {
+                state.active = false
+                currentOnScrubFinished()
             }
         }
+    }
 
-        // Niagara's transient thumb preview; section headings and rail letters
-        // themselves are always plain text without a surface or pill.
+    // Two touch regions, one visual rail and one scrub state. No second alphabet is drawn.
+    Box(modifier.then(if (leftTouchEnabled) Modifier.fillMaxWidth() else Modifier.width(48.dp)).height(height)) {
+        if (leftTouchEnabled) Box(Modifier.align(Alignment.TopStart).width(28.dp).height(height)
+            .testTag("alphabet_left_touch").then(touchSurface(true)).clearAndSetSemantics {})
         Box(
-            modifier = Modifier
-                .size(46.dp)
-                .graphicsLayer {
-                    val extraPull = ((railWidth - state.fingerX) * 0.35f).coerceIn(0f, basePull)
-                    // Use an edge-to-edge gap instead of a radius multiplier.
-                    // Only the shared wave pull animates, so the bubble never
-                    // crowds the rail while it appears or follows the finger.
-                    translationX = railWidth / 2f - indicatorSize - railGlyphHalfWidth - indicatorGap -
-                        (basePull + extraPull) * wave
-                    translationY = (state.fingerY - indicatorSize / 2f)
-                        .coerceIn(0f, (railHeightPx - indicatorSize).coerceAtLeast(0f))
-                    alpha = wave
-                    scaleX = 0.85f + wave * 0.15f
-                    scaleY = scaleX
-                }
-                .background(MaterialTheme.colorScheme.primary, CircleShape)
-                .clearAndSetSemantics {},
-            contentAlignment = Alignment.Center,
+            Modifier.align(Alignment.TopEnd).width(48.dp).height(height)
+                .testTag("alphabet_rail")
+                .onSizeChanged { railHeightPx = it.height.coerceAtLeast(1) }
+                .semantics { contentDescription = railDescription }
+                .then(touchSurface(false)),
         ) {
+            entries.forEachIndexed { index, letter ->
+                val isSelected = if (state.active) state.selectedIndex == index else selectedLetter == letter
+                val description = when (letter) {
+                    null -> homeDescription
+                    GraceSection -> stringResource(R.string.jump_to_section, stringResource(R.string.app_name))
+                    else -> stringResource(if (includeHome) R.string.jump_to_letter else R.string.jump_to_section, letter)
+                }
+                Box(
+                    modifier = Modifier
+                        .width(48.dp)
+                        .height(cellHeight)
+                        .offset { IntOffset(0, (index * cellHeightPx).roundToInt()) }
+                        .testTag(if (letter == null) "alphabet_home" else "alphabet:$letter")
+                        .graphicsLayer {
+                            // Fade the glyphs only: keep the same touch surface alive
+                            // while hidden and when scrubbing switches between pages.
+                            alpha = visibility
+                            // Pointer coordinates are read in the draw phase, without relaying
+                            // every move through the launcher or the LazyColumn composition.
+                            val distance = (index + 0.5f) * cellHeightPx - state.fingerY
+                            val gaussian = exp(-(distance * distance) / (2f * waveRadius * waveRadius))
+                            val extraPull = ((railWidth - state.fingerX) * 0.35f).coerceIn(0f, basePull)
+                            translationX = -(basePull + extraPull) * gaussian * wave
+                        }
+                        .semantics {
+                            contentDescription = description
+                            role = Role.Button
+                            onClick {
+                                currentOnSelect(letter)
+                                currentOnScrubFinished()
+                                true
+                            }
+                        },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val color = textColor.copy(alpha = if (isSelected) 1f else 0.85f)
+                    if (letter == null) {
+                        LauncherIcon(LauncherSymbol.Star, Modifier.size(18.dp), tint = color)
+                    } else if (letter == GraceSection) {
+                        Box(Modifier.size(8.dp).background(color, CircleShape))
+                    } else {
+                        Text(
+                            text = letter,
+                            color = color,
+                            style = TextStyle(
+                                fontFamily = MaterialTheme.typography.bodyLarge.fontFamily,
+                                fontSize = 14.sp,
+                                lineHeight = 16.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                shadow = if (onWallpaper) appearance.textShadow else null,
+                            ),
+                        )
+                    }
+                }
+            }
+
+            // Niagara's transient thumb preview; section headings and rail letters
+            // themselves are always plain text without a surface or pill.
             Box(
-                Modifier.fillMaxSize().testTag("alphabet_indicator"),
+                modifier = Modifier
+                    .size(46.dp)
+                    .graphicsLayer {
+                        val extraPull = ((railWidth - state.fingerX) * 0.35f).coerceIn(0f, basePull)
+                        // Use an edge-to-edge gap instead of a radius multiplier.
+                        // Only the shared wave pull animates, so the bubble never
+                        // crowds the rail while it appears or follows the finger.
+                        translationX = railWidth / 2f - indicatorSize - railGlyphHalfWidth - indicatorGap -
+                            (basePull + extraPull) * wave
+                        translationY = (state.fingerY - indicatorSize / 2f)
+                            .coerceIn(0f, (railHeightPx - indicatorSize).coerceAtLeast(0f))
+                        alpha = wave
+                        scaleX = 0.85f + wave * 0.15f
+                        scaleY = scaleX
+                    }
+                    .background(MaterialTheme.colorScheme.primary, CircleShape)
+                    .clearAndSetSemantics {},
                 contentAlignment = Alignment.Center,
             ) {
-                val letter = entries.getOrNull(state.selectedIndex)
-                if (letter == null) {
-                    LauncherIcon(
-                        LauncherSymbol.Star,
-                        Modifier.size(28.dp).testTag("alphabet_indicator_star"),
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                    )
-                } else if (letter == GraceSection) {
-                    Box(Modifier.size(16.dp).background(MaterialTheme.colorScheme.onPrimary, CircleShape))
-                } else {
-                    CenteredIndicatorGlyph(letter, MaterialTheme.colorScheme.onPrimary)
+                Box(
+                    Modifier.fillMaxSize().testTag("alphabet_indicator"),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    val letter = entries.getOrNull(state.selectedIndex)
+                    if (letter == null) {
+                        LauncherIcon(
+                            LauncherSymbol.Star,
+                            Modifier.size(28.dp).testTag("alphabet_indicator_star"),
+                            tint = MaterialTheme.colorScheme.onPrimary,
+                        )
+                    } else if (letter == GraceSection) {
+                        Box(Modifier.size(16.dp).background(MaterialTheme.colorScheme.onPrimary, CircleShape))
+                    } else {
+                        CenteredIndicatorGlyph(letter, MaterialTheme.colorScheme.onPrimary)
+                    }
                 }
             }
         }

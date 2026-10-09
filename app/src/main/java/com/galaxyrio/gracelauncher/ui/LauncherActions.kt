@@ -49,6 +49,7 @@ data class LauncherActions(
     val refreshApps: () -> Unit = {},
     val updateSettings: ((LauncherSettings) -> LauncherSettings) -> Unit = {},
     val applyClockStyle: suspend (ClockStyle) -> Boolean = { false },
+    val deleteFonts: suspend (Set<String>) -> Boolean = { false },
     val applyIconDesign: suspend (ItemIcon) -> Boolean = { false },
     val deleteIconDesigns: suspend (Set<String>) -> Boolean = { false },
     val setHiddenApps: (Set<String>) -> Unit = {},

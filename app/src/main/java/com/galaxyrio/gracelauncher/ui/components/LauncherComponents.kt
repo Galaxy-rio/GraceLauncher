@@ -48,7 +48,6 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -227,6 +226,8 @@ private fun LauncherRow(
 ) {
     val appearance = LocalLauncherAppearance.current
     val inputEnabled = LocalLauncherInputEnabled.current
+    val list = LocalListAppearance.current
+    val labelStyle = listLabelStyle()
     val currentPrepare by rememberUpdatedState(onPrepare)
     val currentDrag by rememberUpdatedState(onDrag)
     val currentDragEnd by rememberUpdatedState(onDragEnd)
@@ -243,7 +244,7 @@ private fun LauncherRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = LauncherLayout.RowMinHeight)
+            .heightIn(min = 48.dp)
             .testTag(rowKey)
             .onGloballyPositioned { bounds = it.boundsInWindow() }
             .clip(LauncherLayout.RowShape)
@@ -291,27 +292,24 @@ private fun LauncherRow(
                 onClick = { onClick(bounds, iconBounds) },
                 onLongClick = onLongClick,
             )
-            .padding(LauncherLayout.ContentInset),
+            .padding(horizontal = LauncherLayout.ContentInset, vertical = (list.appSpacing / 2f).dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         icon(Modifier.testTag("$rowKey:icon").onGloballyPositioned { iconBounds = it.boundsInWindow() })
-        Spacer(Modifier.width(LauncherLayout.IconLabelGap))
+        Spacer(Modifier.width(list.iconNameGap.dp))
         Column(Modifier.weight(1f)) {
             if (showLabel) Text(
                 text = label + (notification?.let { " · ${notificationAge(it.postedAt)}" } ?: ""),
                 modifier = Modifier.testTag("$rowKey:label"),
-                style = MaterialTheme.typography.bodyLarge.merge(
-                    TextStyle(fontWeight = FontWeight.Normal, letterSpacing = 0.2.sp, shadow = appearance.textShadow),
-                ),
-                color = appearance.text,
+                style = labelStyle,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
             if (notification != null) {
                 if (showLabel) Spacer(Modifier.height(2.dp))
                 listOf(notification.title, notification.text.replace('\n', ' ')).filter { it.isNotBlank() }.forEach { line ->
-                    Text(line, color = appearance.text.copy(alpha = 0.88f),
-                        style = MaterialTheme.typography.bodyMedium.copy(shadow = appearance.textShadow),
+                    Text(line, color = labelStyle.color.copy(alpha = 0.88f),
+                        style = labelStyle.copy(fontSize = (list.fontSize - 2).sp),
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }

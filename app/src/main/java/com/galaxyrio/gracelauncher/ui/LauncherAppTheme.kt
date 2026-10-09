@@ -22,7 +22,7 @@ internal fun LauncherAppTheme(viewModel: LauncherViewModel, content: @Composable
         amoledMode = state.settings.amoledMode,
         dynamicColor = state.settings.useDynamicColors,
         seedColor = Color(state.settings.themeColor),
-        fontId = state.settings.appFontId,
+        fontLibrary = state.settings.fontLibrary,
         content = content,
     )
 }

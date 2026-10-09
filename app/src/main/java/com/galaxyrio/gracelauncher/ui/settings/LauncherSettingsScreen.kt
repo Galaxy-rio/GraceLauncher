@@ -77,7 +77,7 @@ internal enum class SettingsPage {
     Root, Productivity, Clock, ClockStyle, Calendar, Weather, Themes, Advanced, About, HiddenApps, Folders, FolderEditor,
     Changelog, Licenses, AppLicense, IconPacks, IconDesigner, IconDesignerApp, PrivateSpace, PrivateSpaceEditor, Search,
     MediaPlayer, GraceButton, GraceAction, GraceApp, GraceShortcut, Gestures, WorkProfile, WorkProfileEditor,
-    LabGraceButton, LabGesture,
+    LabGraceButton, LabGesture, Fonts, ListAppearance,
 }
 
 /** Navigation owns each page's saved state and seekable predictive-back transition. */
@@ -154,7 +154,7 @@ fun LauncherSettingsScreen(
         modifier = modifier.fillMaxSize().testTag("settings_navigation").graphicsLayer {
             alpha = 1f - rootExit.value
             translationX = distance * direction * rootExit.value
-        }.background(if (currentEntry?.destination?.route in listOf(SettingsPage.ClockStyle.name, SettingsPage.IconDesigner.name))
+        }.background(if (currentEntry?.destination?.route in listOf(SettingsPage.ClockStyle.name, SettingsPage.IconDesigner.name, SettingsPage.ListAppearance.name))
             Color.Transparent else MaterialTheme.colorScheme.surfaceContainer),
         enterTransition = { settingsEnter(distance) },
         exitTransition = { settingsExit(distance) },
@@ -243,8 +243,11 @@ fun LauncherSettingsScreen(
                     }
                     SettingsPage.Weather -> WeatherSettings(uiState, actions, back)
                     SettingsPage.Themes -> ThemeSettings(uiState, actions, back,
-                        onClockStyle = { navigate(SettingsPage.ClockStyle) }, onIconPacks = { navigate(SettingsPage.IconPacks) })
-                    SettingsPage.ClockStyle -> ClockStyleSettings(uiState, actions, back)
+                        onClockStyle = { navigate(SettingsPage.ClockStyle) }, onIconPacks = { navigate(SettingsPage.IconPacks) },
+                        onFonts = { navigate(SettingsPage.Fonts) }, onListAppearance = { navigate(SettingsPage.ListAppearance) })
+                    SettingsPage.ClockStyle -> ClockStyleSettings(uiState, actions, back) { navigate(SettingsPage.Fonts) }
+                    SettingsPage.Fonts -> FontSettings(uiState, actions, back)
+                    SettingsPage.ListAppearance -> ListAppearanceSettings(uiState, actions, back) { navigate(SettingsPage.Fonts) }
                     SettingsPage.IconPacks -> IconPackSettings(uiState, actions, back) { navigate(SettingsPage.IconDesigner) }
                     SettingsPage.IconDesigner -> {
                         val selectedKey by entry.savedStateHandle.getStateFlow<String?>("icon_designer_app", initialIconDesignerApp?.key).collectAsState()
