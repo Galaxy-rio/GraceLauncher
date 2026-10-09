@@ -15,8 +15,8 @@ android {
         applicationId = "com.galaxyrio.gracelauncher"
         minSdk = 28
         targetSdk = 37
-        versionCode = 7
-        versionName = "1.1.5"
+        versionCode = 8
+        versionName = "1.1.6"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
