@@ -6,7 +6,6 @@ import androidx.compose.foundation.overscroll
 import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -146,6 +145,8 @@ fun HomeScreen(
     var headerHeightPx by remember { mutableIntStateOf(0) }
     var anchorOffsetPx by remember { mutableIntStateOf(0) }
     val density = LocalDensity.current
+    val context = LocalContext.current
+    val doubleTapSlop = remember(context, density) { android.view.ViewConfiguration.get(context).scaledDoubleTapSlop.toFloat() }
     val minimumTop = stableStatusBarInset() + 8.dp
     val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
     LaunchedEffect(editingLayout) { if (editingLayout) listState.scrollToItem(0) }
@@ -180,12 +181,10 @@ fun HomeScreen(
                 } while (event.changes.any { it.pressed })
             }
         }
-        .then(if (gesturesEnabled && latestGestures.doubleTap.active) Modifier.pointerInput(Unit) {
-            // Main-pass unconsumed taps only: descendants' buttons, rows and
-            // hosted widgets get first refusal, so this means blank space.
-            detectTapGestures(onDoubleTap = { position ->
+        .then(if (gesturesEnabled && latestGestures.doubleTap.active) Modifier.pointerInput(doubleTapSlop) {
+            observeBlankDoubleTaps(doubleTapSlop) { position ->
                 if (latestEnabled && latestGestures.doubleTap.active) latestOnGesture(GraceButtonGesture.DoubleTap, windowOffset + position)
-            })
+            }
         } else Modifier)) {
     val availableHeight = (maxHeight - bottomInset).coerceAtLeast(0.dp)
     val headerHeight = with(density) { headerHeightPx.toDp() }

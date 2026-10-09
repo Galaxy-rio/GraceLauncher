@@ -1,13 +1,52 @@
 package com.galaxyrio.gracelauncher.ui.home
 
 import androidx.compose.foundation.OverscrollEffect
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.PointerInputChange
+import androidx.compose.ui.input.pointer.PointerInputScope
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.unit.Velocity
 import com.galaxyrio.gracelauncher.data.GraceButtonGesture
 import kotlin.math.abs
+
+/** Observe after descendants handle each event. Unlike detectTapGestures, this
+ * never consumes a down/up or cancels a row's horizontal swipe recognizer. */
+internal suspend fun PointerInputScope.observeBlankDoubleTaps(doubleTapSlop: Float, onDoubleTap: (Offset) -> Unit) {
+    var firstUp: PointerInputChange? = null
+    var firstPosition = Offset.Zero
+    awaitEachGesture {
+        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Final)
+        val previousUp = firstUp
+        // Any intervening app/widget interaction, drag or multi-touch breaks the pair.
+        firstUp = null
+        if (down.isConsumed || currentEvent.changes.size != 1) return@awaitEachGesture
+        val secondTap = previousUp != null &&
+            down.uptimeMillis - previousUp.uptimeMillis in viewConfiguration.doubleTapMinTimeMillis..viewConfiguration.doubleTapTimeoutMillis &&
+            (down.position - firstPosition).getDistance() <= doubleTapSlop
+        while (true) {
+            val event = awaitPointerEvent(PointerEventPass.Final)
+            val change = event.changes.singleOrNull() ?: return@awaitEachGesture
+            if (change.id != down.id || change.isConsumed ||
+                (change.position - down.position).getDistance() > viewConfiguration.touchSlop ||
+                change.uptimeMillis - down.uptimeMillis >= viewConfiguration.longPressTimeoutMillis ||
+                change.position.x !in 0f..size.width.toFloat() || change.position.y !in 0f..size.height.toFloat()
+            ) return@awaitEachGesture
+            if (change.changedToUpIgnoreConsumed()) {
+                if (secondTap) onDoubleTap(change.position) else {
+                    firstUp = change
+                    firstPosition = down.position
+                }
+                return@awaitEachGesture
+            }
+        }
+    }
+}
 
 /** Observe only motion left over at a list boundary; keep Android's native stretch. */
 internal class HomeGestureConnection(
