@@ -1,9 +1,14 @@
-package com.galaxyrio.gracelauncher.ui.home
+package com.galaxyrio.gracelauncher.ui.components
 
 import androidx.compose.foundation.OverscrollEffect
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
@@ -11,7 +16,10 @@ import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.PointerInputChange
 import androidx.compose.ui.input.pointer.PointerInputScope
 import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Velocity
+import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.data.GraceButtonGesture
 import kotlin.math.abs
 
@@ -49,8 +57,55 @@ internal suspend fun PointerInputScope.observeBlankDoubleTaps(doubleTapSlop: Flo
     }
 }
 
+/** Home and search share the Lab sensitivity, distance and release-velocity thresholds. */
+@Composable
+internal fun rememberLauncherListGestureConnection(
+    effect: OverscrollEffect?,
+    list: LazyListState,
+    swipeSensitivity: Int,
+    canTrigger: (GraceButtonGesture) -> Boolean,
+    onGesture: (GraceButtonGesture) -> Unit,
+): LauncherListGestureConnection {
+    val density = LocalDensity.current
+    val sensitivity = swipeSensitivity.coerceIn(50, 200) / 100f
+    val latestCanTrigger by rememberUpdatedState(canTrigger)
+    val latestOnGesture by rememberUpdatedState(onGesture)
+    return remember(effect, list, density, sensitivity) {
+        LauncherListGestureConnection(effect, list,
+            pullThreshold = with(density) { 96.dp.toPx() } / sensitivity,
+            flingThreshold = with(density) { 3000.dp.toPx() } / sensitivity,
+            canTrigger = { latestCanTrigger(it) },
+            onGesture = { latestOnGesture(it) })
+    }
+}
+
+/** Observe without consuming so rows, widgets and scrolling retain their pointer stream. */
+internal fun Modifier.observeListGestures(
+    connection: LauncherListGestureConnection,
+    onPosition: (Offset) -> Unit = {},
+): Modifier = pointerInput(connection) {
+    try {
+        awaitEachGesture {
+            val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+            onPosition(down.position)
+            connection.beginGesture()
+            do {
+                val event = awaitPointerEvent(PointerEventPass.Initial)
+                // Compose represents ACTION_CANCEL as an already-consumed UP.
+                // Disarm before the scrollable emits its zero-velocity fling.
+                if (event.changes.size > 1 || event.changes.any { it.changedToUpIgnoreConsumed() && it.isConsumed }) {
+                    connection.cancelGesture()
+                }
+                event.changes.firstOrNull { it.id == down.id }?.let { onPosition(it.position) }
+            } while (event.changes.any { it.pressed })
+        }
+    } finally {
+        connection.cancelGesture()
+    }
+}
+
 /** Observe only motion left over at a list boundary; keep Android's native stretch. */
-internal class HomeGestureConnection(
+internal class LauncherListGestureConnection(
     private val effect: OverscrollEffect?,
     private val list: LazyListState,
     private val pullThreshold: Float,
@@ -110,7 +165,7 @@ internal class HomeGestureConnection(
         val direction = when {
             abs(edgePull) >= pullThreshold -> edgePull
             // A nested widget gets to consume its own fling first unless the
-            // pointer has already pulled past the HOME list's boundary.
+            // pointer has already pulled past the list's boundary.
             abs(edgePull) > 0.5f && edgePull * available.y > 0f && abs(available.y) >= flingThreshold -> available.y
             else -> 0f
         }

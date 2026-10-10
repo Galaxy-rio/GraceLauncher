@@ -226,7 +226,7 @@
     <string name="settings_lab">实验室</string>
     <string name="lab_animation">动画</string>
     <string name="lab_swipe_sensitivity">滑动灵敏度</string>
-    <string name="lab_swipe_sensitivity_summary">数值越高，桌面上下划越容易触发。100% 使用默认的距离和速度阈值。</string>
+    <string name="lab_swipe_sensitivity_summary">数值越高，桌面上下划和下划关闭搜索越容易触发。100% 使用默认的距离和速度阈值。</string>
     <string name="lab_double_tap_interval">双击识别间隔</string>
     <string name="lab_double_tap_interval_summary">桌面空白区域两次点击之间允许的最长时间。间隔越长，双击越容易识别。</string>
     <string name="lab_milliseconds">%1$d 毫秒</string>

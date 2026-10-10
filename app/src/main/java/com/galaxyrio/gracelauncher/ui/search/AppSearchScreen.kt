@@ -4,6 +4,8 @@ import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.overscroll
+import androidx.compose.foundation.rememberOverscrollEffect
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -19,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.boundsInRoot
@@ -51,6 +54,8 @@ import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
 import com.galaxyrio.gracelauncher.ui.components.stableStatusBarInset
 import com.galaxyrio.gracelauncher.ui.components.LauncherSearchBar
 import com.galaxyrio.gracelauncher.ui.components.GraceButtonTransition
+import com.galaxyrio.gracelauncher.ui.components.observeListGestures
+import com.galaxyrio.gracelauncher.ui.components.rememberLauncherListGestureConnection
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import kotlinx.coroutines.delay
 
@@ -148,6 +153,12 @@ internal fun AppSearchScreen(
         }
     }
     val list = rememberLazyListState()
+    val overscroll = rememberOverscrollEffect()
+    val scrollConnection = rememberLauncherListGestureConnection(
+        overscroll, list, uiState.settings.homeGestures.swipeSensitivity,
+        canTrigger = { it == GraceButtonGesture.SwipeDown && transition == null && backProgress == 0f },
+        onGesture = { keyboard?.hide(); onDismiss() },
+    )
     LaunchedEffect(query) { list.requestScrollToItem(0) }
     val density = LocalDensity.current
     var searchBarHeight by remember { mutableStateOf(56.dp) }
@@ -167,7 +178,13 @@ internal fun AppSearchScreen(
         // Clip at the field's widest part, where the overlaid pill conceals the
         // entire edge. Content padding preserves the first result's resting gap.
         LazyColumn(Modifier.fillMaxSize().padding(top = listTop)
+            .testTag("app_search_results")
+            .observeListGestures(scrollConnection)
+            .overscroll(overscroll)
+            .nestedScroll(scrollConnection)
             .graphicsLayer { alpha = transition?.searchResultsAlpha ?: 1f }, state = list,
+            // The shared connection feeds both edges even when all results fit.
+            overscrollEffect = null,
             contentPadding = PaddingValues(top = searchBarHeight / 2 + 16.dp, bottom = 24.dp + bottomInset)) {
             if (query.isNotEmpty() && results.isEmpty()) item {
                 Text(stringResource(R.string.search_no_results), Modifier.padding(20.dp), color = appearance.text)

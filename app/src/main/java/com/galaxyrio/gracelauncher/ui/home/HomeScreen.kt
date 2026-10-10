@@ -4,8 +4,6 @@ import android.text.format.DateFormat
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.overscroll
 import androidx.compose.foundation.rememberOverscrollEffect
-import androidx.compose.foundation.gestures.awaitEachGesture
-import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -48,7 +46,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
@@ -75,6 +72,9 @@ import com.galaxyrio.gracelauncher.data.media.NowPlaying
 import com.galaxyrio.gracelauncher.data.media.IdleMediaSessionId
 import com.galaxyrio.gracelauncher.data.weather.WeatherCurrent
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
+import com.galaxyrio.gracelauncher.ui.components.observeBlankDoubleTaps
+import com.galaxyrio.gracelauncher.ui.components.observeListGestures
+import com.galaxyrio.gracelauncher.ui.components.rememberLauncherListGestureConnection
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
 import com.galaxyrio.gracelauncher.ui.components.FolderRow
@@ -155,42 +155,32 @@ fun HomeScreen(
     val overscroll = rememberOverscrollEffect()
     val gesturesEnabled = widgetInputEnabled && !editingLayout && uiState.settings.homeGestures.enabled &&
         !uiState.isLoadingSettings && !uiState.settingsLoadFailed
+    val doubleTapEnabled = gesturesEnabled && uiState.settings.homeGestures.doubleTap.active
     val latestGestures by rememberUpdatedState(uiState.settings.homeGestures)
     val latestEnabled by rememberUpdatedState(gesturesEnabled)
     val latestOnGesture by rememberUpdatedState(onHomeGesture)
-    val swipeSensitivity = uiState.settings.homeGestures.swipeSensitivity.coerceIn(50, 200) / 100f
     var windowOffset by remember { mutableStateOf(Offset.Zero) }
     var pointerPosition by remember { mutableStateOf(Offset.Zero) }
-    val scrollConnection = remember(overscroll, listState, density, swipeSensitivity) {
-        HomeGestureConnection(overscroll, listState,
-            pullThreshold = with(density) { 96.dp.toPx() } / swipeSensitivity,
-            flingThreshold = with(density) { 3000.dp.toPx() } / swipeSensitivity,
-            canTrigger = { latestEnabled && latestGestures.target(it).active },
-            onGesture = { latestOnGesture(it, windowOffset + pointerPosition) })
-    }
+    val scrollConnection = rememberLauncherListGestureConnection(
+        overscroll, listState, uiState.settings.homeGestures.swipeSensitivity,
+        canTrigger = { latestEnabled && latestGestures.target(it).active },
+        onGesture = { latestOnGesture(it, windowOffset + pointerPosition) },
+    )
     LaunchedEffect(gesturesEnabled) { if (!gesturesEnabled) scrollConnection.cancelGesture() }
 
     BoxWithConstraints(modifier.fillMaxSize()
         .onGloballyPositioned { windowOffset = it.positionInWindow() }
-        .pointerInput(scrollConnection) {
-            // Observe without consuming: app/widget interactions and list scrolling
-            // continue to own their pointer stream.
-            awaitEachGesture {
-                val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                pointerPosition = down.position
-                scrollConnection.beginGesture()
-                do {
-                    val event = awaitPointerEvent(PointerEventPass.Initial)
-                    if (event.changes.size > 1) scrollConnection.cancelGesture()
-                    event.changes.firstOrNull { it.id == down.id }?.let { pointerPosition = it.position }
-                } while (event.changes.any { it.pressed })
-            }
-        }
-        .then(if (gesturesEnabled && latestGestures.doubleTap.active) Modifier.pointerInput(doubleTapSlop, latestGestures.doubleTapIntervalMs) {
+        .observeListGestures(scrollConnection) { pointerPosition = it }
+        // Keep the node attached when a popup disables HOME gestures mid-swipe.
+        // Removing a pointer-input ancestor cancels its descendants too, causing
+        // the app/folder row to cancel the very popup it has just started opening.
+        // Restart only this observer so disabled gestures also clear any pending tap.
+        .pointerInput(doubleTapEnabled, doubleTapSlop, latestGestures.doubleTapIntervalMs) {
+            if (!doubleTapEnabled) return@pointerInput
             observeBlankDoubleTaps(doubleTapSlop, latestGestures.doubleTapIntervalMs) { position ->
                 if (latestEnabled && latestGestures.doubleTap.active) latestOnGesture(GraceButtonGesture.DoubleTap, windowOffset + position)
             }
-        } else Modifier)) {
+        }) {
     val availableHeight = (maxHeight - bottomInset).coerceAtLeast(0.dp)
     val headerHeight = with(density) { headerHeightPx.toDp() }
     // Only content ABOVE the calendar anchor constrains its position. Agenda,

@@ -225,7 +225,7 @@
     <string name="settings_lab">Lab</string>
     <string name="lab_animation">Animation</string>
     <string name="lab_swipe_sensitivity">Swipe sensitivity</string>
-    <string name="lab_swipe_sensitivity_summary">Higher values make home-screen swipes easier to trigger. 100% keeps the default distance and speed thresholds.</string>
+    <string name="lab_swipe_sensitivity_summary">Higher values make home-screen swipes and swiping down to close search easier to trigger. 100% keeps the default distance and speed thresholds.</string>
     <string name="lab_double_tap_interval">Double-tap interval</string>
     <string name="lab_double_tap_interval_summary">Maximum time between taps on empty home-screen space. A longer interval makes double-tapping easier.</string>
     <string name="lab_milliseconds">%1$d ms</string>
