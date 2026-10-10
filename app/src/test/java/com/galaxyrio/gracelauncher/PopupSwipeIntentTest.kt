@@ -1,10 +1,47 @@
 package com.galaxyrio.gracelauncher
 
 import com.galaxyrio.gracelauncher.ui.components.PopupSwipeIntent
+import com.galaxyrio.gracelauncher.ui.components.resistedPopupPull
 import org.junit.Assert.*
 import org.junit.Test
 
 class PopupSwipeIntentTest {
+    @Test fun livePullStartsBeforeCommitAndTracksReversalAndReset() {
+        val swipe = PopupSwipeIntent(8f, 40f)
+        swipe.drag(-15f)
+        assertEquals(15f, swipe.firstItemPullDistance, 0f)
+        assertFalse(swipe.opensFirst)
+        swipe.drag(-50f)
+        assertEquals(65f, swipe.firstItemPullDistance, 0f)
+        swipe.drag(60f)
+        assertEquals(5f, swipe.firstItemPullDistance, 0f)
+        assertFalse(swipe.opensFirst)
+        swipe.reset()
+        assertEquals(0f, swipe.firstItemPullDistance, 0f)
+    }
+
+    @Test fun disabledLeftActionAndPopupReversalHaveNoRowPull() {
+        val disabled = PopupSwipeIntent(8f)
+        disabled.drag(-120f)
+        assertEquals(0f, disabled.firstItemPullDistance, 0f)
+        val popup = PopupSwipeIntent(8f, 40f)
+        popup.drag(20f)
+        popup.drag(-120f)
+        assertEquals(0f, popup.firstItemPullDistance, 0f)
+        assertFalse(popup.opensFirst)
+    }
+
+    @Test fun rubberBandHasIncreasingResistanceAndScalesWithDensity() {
+        assertEquals(0f, resistedPopupPull(0f, 72f), 0f)
+        assertEquals(0f, resistedPopupPull(-10f, 72f), 0f)
+        val short = -resistedPopupPull(40f, 72f)
+        val long = -resistedPopupPull(80f, 72f)
+        assertTrue(short > 0f && short < 40f)
+        assertTrue(long > short && long - short < short)
+        assertTrue(-resistedPopupPull(10_000f, 72f) < 72f * .42f)
+        assertEquals(resistedPopupPull(40f, 72f) * 2, resistedPopupPull(80f, 144f), .001f)
+    }
+
     @Test fun leftGestureCommitsOnlyBeyondItsThresholdAndNeverRevealsAPopup() {
         val swipe = PopupSwipeIntent(8f, 40f)
         assertNull(swipe.drag(-39f))

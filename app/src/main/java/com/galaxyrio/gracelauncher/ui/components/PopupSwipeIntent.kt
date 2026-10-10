@@ -10,6 +10,8 @@ internal class PopupSwipeIntent(private val reversalSlop: Float, private val fir
     private var openingFirst = false
     private var firstTravel = 0f
     val opensFirst: Boolean get() = openingFirst && firstTravel >= firstItemSlop
+    /** Live leftward travel, including before the action's commit threshold. */
+    val firstItemPullDistance: Float get() = if (openingFirst) firstTravel else 0f
 
     // The row recognizer has already crossed Android's horizontal touch slop.
     fun drag(amount: Float): Boolean? {
@@ -41,4 +43,10 @@ internal class PopupSwipeIntent(private val reversalSlop: Float, private val fir
         openingFirst = false
         firstTravel = 0f
     }
+}
+
+/** Same rubber-band curve as Grace button: it follows the finger with increasing resistance. */
+internal fun resistedPopupPull(distance: Float, resistanceDistance: Float): Float {
+    val pull = distance.coerceAtLeast(0f)
+    return -pull * (0.42f / (1f + pull / resistanceDistance.coerceAtLeast(1f)))
 }

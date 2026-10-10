@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.indication
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -19,6 +20,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -30,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
@@ -44,9 +49,11 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.layout.boundsInWindow
+import androidx.compose.ui.layout.LayoutCoordinates
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -240,23 +247,31 @@ private fun LauncherRow(
     val currentDragEnd by rememberUpdatedState(onDragEnd)
     val currentSwipeLeft by rememberUpdatedState(onSwipeLeft)
     var bounds by remember { mutableStateOf(Rect.Zero) }
-    var iconBounds by remember { mutableStateOf(Rect.Zero) }
+    var iconCoordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    // Query at activation time: a graphics-layer translation need not trigger layout.
+    fun iconBounds(): Rect = iconCoordinates?.takeIf { it.isAttached }?.boundsInWindow() ?: Rect.Zero
+    var dragging by remember(rowKey) { mutableStateOf(false) }
+    var leftPull by remember(rowKey) { mutableFloatStateOf(0f) }
+    val resistanceDistance = with(LocalDensity.current) { 72.dp.toPx() }
+    val pullOffset by animateFloatAsState(
+        targetValue = resistedPopupPull(leftPull, resistanceDistance),
+        animationSpec = if (dragging) snap() else spring(dampingRatio = 0.58f, stiffness = 420f),
+        label = "launcherRowPull",
+    )
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val highlight by animateColorAsState(
-        // Press feedback comes from Material ripple. Only a selected details
-        // row retains a subtle state layer after the pointer has been released.
-        if (highlighted) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f) else Color.Transparent,
+        // Keep the long-press state layer while a left action is being pulled.
+        if (highlighted || leftPull > 0f) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.12f) else Color.Transparent,
         animationSpec = tween(100), label = "launcherRowPressSurface",
     )
-    Row(
+    // The hit area stays still; only the surface below follows the finger.
+    Box(
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
             .testTag(rowKey)
             .onGloballyPositioned { bounds = it.boundsInWindow() }
-            .clip(LauncherLayout.RowShape)
-            .background(highlight)
             .pointerInput(rowKey, inputEnabled, popupsEnabled) {
                 if (!inputEnabled || !popupsEnabled) return@pointerInput
                 awaitEachGesture {
@@ -268,22 +283,31 @@ private fun LauncherRow(
                 if (!inputEnabled || !popupsEnabled) return@pointerInput
                 val swipe = PopupSwipeIntent(reversalSlop = 8.dp.toPx(),
                     firstItemSlop = if (currentSwipeLeft != null) 40.dp.toPx() else Float.POSITIVE_INFINITY)
-                detectHorizontalDragGestures(
-                    onDragStart = { swipe.reset() },
-                    onDragCancel = {
-                        if (swipe.revealed) currentDragEnd(false)
-                        swipe.reset()
-                    },
-                    onDragEnd = {
-                        if (swipe.revealed) currentDragEnd(swipe.expanded)
-                        else if (swipe.opensFirst) currentSwipeLeft?.invoke(iconBounds)
-                        swipe.reset()
-                    },
-                ) { change, amount ->
-                    change.consume()
-                    swipe.drag(amount)?.let { expanded ->
-                        currentDrag(iconBounds, expanded)
+                fun resetPull() { dragging = false; leftPull = 0f }
+                try {
+                    detectHorizontalDragGestures(
+                        onDragStart = { swipe.reset(); leftPull = 0f; dragging = true },
+                        onDragCancel = {
+                            if (swipe.revealed) currentDragEnd(false)
+                            swipe.reset()
+                            resetPull()
+                        },
+                        onDragEnd = {
+                            if (swipe.revealed) currentDragEnd(swipe.expanded)
+                            else if (swipe.opensFirst) currentSwipeLeft?.invoke(iconBounds())
+                            swipe.reset()
+                            resetPull()
+                        },
+                    ) { change, amount ->
+                        change.consume()
+                        swipe.drag(amount)?.let { expanded ->
+                            currentDrag(iconBounds(), expanded)
+                        }
+                        leftPull = swipe.firstItemPullDistance
                     }
+                } finally {
+                    // Covering the page or disabling the gesture must never leave a row displaced.
+                    resetPull()
                 }
             }
             .semantics {
@@ -292,50 +316,59 @@ private fun LauncherRow(
                 if (!showLabel) contentDescription = label
                 selected = pressed || highlighted
                 customActions = buildList {
-                    if (popupsEnabled) add(CustomAccessibilityAction(openDescription) { onOpen(iconBounds); true })
-                    if (popupsEnabled && onSwipeLeft != null) add(CustomAccessibilityAction(openFirstDescription) { onSwipeLeft(iconBounds); true })
+                    if (popupsEnabled) add(CustomAccessibilityAction(openDescription) { onOpen(iconBounds()); true })
+                    if (popupsEnabled && onSwipeLeft != null) add(CustomAccessibilityAction(openFirstDescription) { onSwipeLeft(iconBounds()); true })
                     if (onLongClick != null) add(CustomAccessibilityAction(detailsDescription) { onLongClick(); true })
                 }
             }
             .combinedClickable(
                 enabled = inputEnabled,
-                interactionSource = interactionSource, indication = ripple(bounded = true, color = appearance.text),
-                onClick = { onClick(bounds, iconBounds) },
+                interactionSource = interactionSource, indication = null,
+                onClick = { onClick(bounds, iconBounds()) },
                 onLongClick = onLongClick,
-            )
-            .padding(horizontal = LauncherLayout.ContentInset, vertical = (list.appSpacing / 2f).dp),
-        verticalAlignment = Alignment.CenterVertically,
+            ),
     ) {
-        icon(Modifier.testTag("$rowKey:icon").onGloballyPositioned { iconBounds = it.boundsInWindow() })
-        Spacer(Modifier.width(list.iconNameGap.dp))
-        Column(Modifier.weight(1f)) {
-            if (showLabel) Text(
-                text = label + (notification?.let { " · ${notificationAge(it.postedAt)}" } ?: ""),
-                modifier = Modifier.testTag("$rowKey:label"),
-                style = labelStyle,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            if (notification != null) {
-                if (showLabel) Spacer(Modifier.height(2.dp))
-                listOf(notification.title, notification.text.replace('\n', ' ')).filter { it.isNotBlank() }.forEach { line ->
-                    Text(line, color = labelStyle.color.copy(alpha = 0.88f),
-                        style = labelStyle.copy(fontSize = (list.fontSize - 2).sp),
-                        maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Row(
+            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                .graphicsLayer { translationX = pullOffset }
+                .testTag("$rowKey:surface")
+                .clip(LauncherLayout.RowShape)
+                .background(highlight)
+                .indication(interactionSource, ripple(bounded = true, color = appearance.text))
+                .padding(horizontal = LauncherLayout.ContentInset, vertical = (list.appSpacing / 2f).dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            icon(Modifier.testTag("$rowKey:icon").onGloballyPositioned { iconCoordinates = it })
+            Spacer(Modifier.width(list.iconNameGap.dp))
+            Column(Modifier.weight(1f)) {
+                if (showLabel) Text(
+                    text = label + (notification?.let { " · ${notificationAge(it.postedAt)}" } ?: ""),
+                    modifier = Modifier.testTag("$rowKey:label"),
+                    style = labelStyle,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                if (notification != null) {
+                    if (showLabel) Spacer(Modifier.height(2.dp))
+                    listOf(notification.title, notification.text.replace('\n', ' ')).filter { it.isNotBlank() }.forEach { line ->
+                        Text(line, color = labelStyle.color.copy(alpha = 0.88f),
+                            style = labelStyle.copy(fontSize = (list.fontSize - 2).sp),
+                            maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
                 }
             }
-        }
-        trailing?.invoke()
-        if (notification != null) {
-            IconButton(
-                onClick = { onPrepare(); onOpen(iconBounds) },
-                enabled = inputEnabled,
-                modifier = Modifier.size(48.dp).testTag("notification_arrow:$rowKey")
-                    .semantics { contentDescription = openDescription },
-            ) {
-                LauncherIcon(LauncherSymbol.Chevron,
-                    Modifier.rotate(if (LocalLayoutDirection.current == LayoutDirection.Ltr) -90f else 90f),
-                    tint = appearance.text)
+            trailing?.invoke()
+            if (notification != null) {
+                IconButton(
+                    onClick = { onPrepare(); onOpen(iconBounds()) },
+                    enabled = inputEnabled,
+                    modifier = Modifier.size(48.dp).testTag("notification_arrow:$rowKey")
+                        .semantics { contentDescription = openDescription },
+                ) {
+                    LauncherIcon(LauncherSymbol.Chevron,
+                        Modifier.rotate(if (LocalLayoutDirection.current == LayoutDirection.Ltr) -90f else 90f),
+                        tint = appearance.text)
+                }
             }
         }
     }
