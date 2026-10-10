@@ -271,6 +271,8 @@
     <string name="settings_dim_wallpaper">Scurisci sfondo</string>
     <string name="settings_dim_wallpaper_summary">Aggiungi uno strato semitrasparente dietro la lista app</string>
     <string name="settings_wallpaper_opacity">Opacità</string>
+    <string name="settings_wallpaper_dim_color">Colore della sovrapposizione</string>
+    <string name="settings_wallpaper_dim_color_auto">Tonalità primaria automatica</string>
     <string name="settings_blur_wallpaper">Sfoca lo sfondo</string>
     <string name="settings_blur_wallpaper_summary">Sfoca lo sfondo dietro la lista app</string>
     <string name="settings_wallpaper_blur_amount">Intensità sfocamento</string>

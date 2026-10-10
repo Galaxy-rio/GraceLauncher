@@ -19,7 +19,6 @@ import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedListItem
-import androidx.compose.material3.Slider
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -181,12 +180,14 @@ private fun AccentColorItem(isDynamic: Boolean, selectedColor: Int, onSelect: (C
     )
 }
 
-/** Keep the toggle and its expanding slider in one unchanged segmented outline. */
+/** Keep the toggle and its expanding controls in one unchanged segmented outline. */
 @Composable
 internal fun WallpaperEffectItem(
     title: String, summary: String, checked: Boolean, amount: Int, range: IntRange,
-    sliderLabel: String, index: Int, tag: String, count: Int = 3, amountEnabled: Boolean = true,
+    sliderLabel: String, index: Int, tag: String, defaultAmount: Int,
+    count: Int = 3, amountEnabled: Boolean = true, suffix: String = "%",
     onToggle: (Boolean) -> Unit, onAmount: (Int) -> Unit,
+    extraContent: @Composable ColumnScope.() -> Unit = {},
 ) {
     val enabled = LocalSettingsStorageState.current.canEdit
     var draft by remember(amount) { mutableFloatStateOf(amount.coerceIn(range).toFloat()) }
@@ -210,15 +211,17 @@ internal fun WallpaperEffectItem(
                         modifier = Modifier.testTag("${tag}_switch"))
                 }
                 AnimatedVisibility(visible = checked) {
-                    Slider(
-                        value = draft, onValueChange = { draft = it },
-                        // Do not enqueue a Room transaction for every drag frame.
-                        onValueChangeFinished = { onAmount(draft.roundToInt().coerceIn(range)) },
-                        valueRange = range.first.toFloat()..range.last.toFloat(),
-                        enabled = enabled && amountEnabled,
-                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp).testTag("${tag}_amount")
-                            .semantics { contentDescription = sliderLabel },
-                    )
+                    Column {
+                        DesignerSlider(
+                            label = sliderLabel, value = draft, default = defaultAmount.coerceIn(range).toFloat(),
+                            // Do not enqueue a Room transaction for every drag frame.
+                            onFinished = { onAmount(it.roundToInt().coerceIn(range)) },
+                            range = range.first.toFloat()..range.last.toFloat(),
+                            enabled = enabled && amountEnabled, tag = "${tag}_amount", suffix = suffix,
+                            onChange = { draft = it },
+                        )
+                        extraContent()
+                    }
                 }
             }
         },

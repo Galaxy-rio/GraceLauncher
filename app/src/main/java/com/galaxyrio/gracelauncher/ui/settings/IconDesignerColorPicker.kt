@@ -41,8 +41,8 @@ import java.util.Locale
 /** Confined to the controls pane: never covers the live icon preview. */
 @Composable
 internal fun IconDesignerColorPicker(title: String, choice: IconColor?, dynamic: Int, theme: Int, default: IconColor?,
-    onChange: (IconColor?) -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier) {
-    val initial = choice?.resolve(dynamic, theme) ?: theme
+    onChange: (IconColor?) -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier, fallback: Int = theme) {
+    val initial = choice?.resolve(dynamic, theme) ?: fallback
     val initialHsv = remember { FloatArray(3).also { AndroidColor.colorToHSV(initial, it) } }
     var hue by rememberSaveable { mutableFloatStateOf(initialHsv[0]) }
     var saturation by rememberSaveable { mutableFloatStateOf(initialHsv[1]) }

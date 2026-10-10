@@ -319,6 +319,8 @@
     <string name="settings_dim_wallpaper">壁纸遮罩</string>
     <string name="settings_dim_wallpaper_summary">在应用列表的壁纸上叠加主题色遮罩</string>
     <string name="settings_wallpaper_opacity">遮罩不透明度</string>
+    <string name="settings_wallpaper_dim_color">遮罩颜色</string>
+    <string name="settings_wallpaper_dim_color_auto">自动使用主题色调</string>
     <string name="settings_blur_wallpaper">模糊壁纸</string>
     <string name="settings_blur_wallpaper_summary">柔化应用列表后方的壁纸</string>
     <string name="settings_wallpaper_blur_amount">模糊强度</string>

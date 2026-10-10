@@ -49,6 +49,8 @@ data class ListAppearance(
     val fontColor: IconColor? = null,
     val names: AppNameVisibility = AppNameVisibility.Both,
     val leftAlphabet: Boolean = true,
+    /** null keeps the automatic, contrast-aware primary tint. */
+    val wallpaperDimColor: IconColor? = null,
 ) {
     fun showNames(favorites: Boolean) = names == AppNameVisibility.Both ||
         names == if (favorites) AppNameVisibility.Favorites else AppNameVisibility.AppList
@@ -59,7 +61,8 @@ data class ListAppearance(
     fun encode(): String = normalized().let { safe -> JSONObject().apply {
         put("appSpacing", safe.appSpacing); put("sidePadding", safe.sidePadding); put("iconNameGap", safe.iconNameGap)
         put("fontId", safe.fontId ?: JSONObject.NULL); put("fontSize", safe.fontSize)
-        put("fontColor", safe.fontColor?.let { JSONObject().put("argb", it.argb).put("dynamic", it.dynamic).put("theme", it.theme) })
+        put("fontColor", safe.fontColor?.json())
+        put("wallpaperDimColor", safe.wallpaperDimColor?.json())
         put("names", safe.names.name); put("leftAlphabet", safe.leftAlphabet)
     }.toString() }
 
@@ -70,7 +73,8 @@ data class ListAppearance(
                 appSpacing = value.optInt("appSpacing", 16), sidePadding = value.optInt("sidePadding", 44),
                 iconNameGap = value.optInt("iconNameGap", 20), fontSize = value.optInt("fontSize", 16),
                 fontId = value.optString("fontId").takeIf { it.isNotBlank() && it != "null" },
-                fontColor = value.optJSONObject("fontColor")?.let { IconColor(it.optInt("argb"), it.optBoolean("dynamic"), it.optBoolean("theme")) },
+                fontColor = IconColor.decode(value.optJSONObject("fontColor")),
+                wallpaperDimColor = IconColor.decode(value.optJSONObject("wallpaperDimColor")),
                 names = AppNameVisibility.entries.firstOrNull { it.name == value.optString("names") }
                     ?: if (hideFavoriteNames) AppNameVisibility.AppList else AppNameVisibility.Both,
                 leftAlphabet = value.optBoolean("leftAlphabet", true),

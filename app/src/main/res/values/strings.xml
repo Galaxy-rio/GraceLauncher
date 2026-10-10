@@ -322,6 +322,8 @@
     <string name="settings_dim_wallpaper">Dim wallpaper</string>
     <string name="settings_dim_wallpaper_summary">Add a theme-colored overlay behind the app list</string>
     <string name="settings_wallpaper_opacity">Overlay opacity</string>
+    <string name="settings_wallpaper_dim_color">Overlay color</string>
+    <string name="settings_wallpaper_dim_color_auto">Automatic primary tint</string>
     <string name="settings_blur_wallpaper">Blur wallpaper</string>
     <string name="settings_blur_wallpaper_summary">Soften the wallpaper behind the app list</string>
     <string name="settings_wallpaper_blur_amount">Blur strength</string>

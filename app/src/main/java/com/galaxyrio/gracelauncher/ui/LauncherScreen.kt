@@ -134,9 +134,7 @@ import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherHaptics
 import com.galaxyrio.gracelauncher.ui.theme.WallpaperBlur
 import com.galaxyrio.gracelauncher.ui.widgets.LocalWidgetHost
 import com.galaxyrio.gracelauncher.ui.widgets.rememberWidgetHost
-import com.materialkolor.PaletteStyle
-import com.materialkolor.ktx.toDynamicScheme
-import com.materialkolor.ktx.toneColor
+import com.galaxyrio.gracelauncher.ui.theme.wallpaperTint
 import java.time.Duration
 import java.time.Instant
 import kotlinx.coroutines.delay
@@ -714,11 +712,8 @@ internal fun LauncherScreen(
         label = "appListFade",
     )
     val primary = MaterialTheme.colorScheme.primary
-    val wallpaperTint = remember(primary, appearance.darkText) {
-        // Adjust primary's tone, not a black scrim. Dark text gets the matching
-        // light tint so either text mode gains contrast against the wallpaper.
-        primary.toDynamicScheme(isDark = !appearance.darkText, style = PaletteStyle.TonalSpot)
-            .primaryPalette.toneColor(if (appearance.darkText) 95 else 10)
+    val wallpaperTint = remember(primary, appearance.darkText, uiState.settings.listAppearance.wallpaperDimColor) {
+        appearance.wallpaperTint(primary, uiState.settings.listAppearance.wallpaperDimColor)
     }
 
     val finishScrubbing: () -> Unit = {

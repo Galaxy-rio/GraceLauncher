@@ -22,12 +22,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.Dp
 import androidx.core.content.ContextCompat
 import com.galaxyrio.gracelauncher.data.WallpaperTextMode
+import com.galaxyrio.gracelauncher.data.IconColor
+import com.materialkolor.PaletteStyle
+import com.materialkolor.ktx.toDynamicScheme
+import com.materialkolor.ktx.toneColor
 import java.util.function.Consumer
 
 data class LauncherAppearance(val darkText: Boolean = false, val themedIcons: Boolean = false, val iconSize: Int = 100) {
@@ -36,6 +41,14 @@ data class LauncherAppearance(val darkText: Boolean = false, val themedIcons: Bo
 }
 
 val LocalLauncherAppearance = staticCompositionLocalOf { LauncherAppearance() }
+
+/** The settings preview, app list and search resolve the same saved overlay color. */
+internal fun LauncherAppearance.wallpaperTint(primary: Color, choice: IconColor? = null): Color {
+    // Adjust primary's tone, not a black scrim. Dark text gets a matching light tint.
+    val automatic = primary.toDynamicScheme(isDark = !darkText, style = PaletteStyle.TonalSpot)
+        .primaryPalette.toneColor(if (darkText) 95 else 10)
+    return choice?.resolve(automatic.toArgb(), primary.toArgb())?.let(::Color) ?: automatic
+}
 
 @Composable
 fun rememberLauncherAppearance(mode: WallpaperTextMode, themedIcons: Boolean, iconSize: Int = 100): LauncherAppearance {
