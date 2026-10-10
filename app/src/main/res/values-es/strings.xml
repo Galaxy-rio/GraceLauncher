@@ -212,7 +212,7 @@
     <string name="settings_lab">Lab</string>
     <string name="lab_animation">Animación</string>
     <string name="lab_swipe_sensitivity">Sensibilidad de deslizamiento</string>
-    <string name="lab_swipe_sensitivity_summary">Los valores más altos facilitan la activación de los deslizamientos en la pantalla de inicio. El 100% mantiene los umbrales predeterminados de distancia y velocidad.</string>
+    <string name="lab_swipe_sensitivity_summary">Los valores más altos facilitan la activación de los deslizamientos en la pantalla de inicio y del gesto de deslizar hacia abajo para cerrar la búsqueda. El 100 % mantiene los umbrales predeterminados de distancia y velocidad.</string>
     <string name="lab_double_tap_interval">Intervalo del doble toque</string>
     <string name="lab_double_tap_interval_summary">Tiempo máximo entre toques en un espacio vacío de la pantalla de inicio. Un intervalo más largo facilita el doble toque.</string>
     <string name="lab_milliseconds">%1$d ms</string>
