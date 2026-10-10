@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.1.7
+
+- Swipe down to close the search box.
+- Further fixes for double-tap conflicts with Pop-ups.
+- Added immersive navigation bar support.
+- Improved Icon Designer support for non-standard icons.
+- Improved folder settings; swipe left to open the first item.
+- Grace Button can now open folders.
+- Dim Wallpaper now supports custom overlay colors.
+- Added more A-Z list customization options.
+- Added Spanish and Galician translations. Thanks @liliuminterspinas22!
+
 ## 1.1.6
 
 - Fixed a conflict between double-tap actions and expanding app shortcuts.
