@@ -73,7 +73,7 @@ internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherA
         { if (dialog == "color") closeColor() else onBack() }, fixedCollapsed = true) { padding ->
         BoxWithConstraints(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
             val previewHeight by animateDpAsState(((40.dp * iconSize / 100f + draft.appSpacing.dp) * 3 + 32.dp)
-                .coerceIn(176.dp, (maxHeight * .45f).coerceAtLeast(176.dp)), label = "listPreviewHeight")
+                .coerceIn(176.dp, ((maxHeight - LocalSettingsBottomInset.current) * .45f).coerceAtLeast(176.dp)), label = "listPreviewHeight")
             Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
                 ListAppearancePreview(uiState, draft, iconSize, Modifier.padding(top = 8.dp, bottom = 16.dp).height(previewHeight))
                 if (dialog == "color") {
@@ -82,7 +82,7 @@ internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherA
                         onChange = { draft = draft.copy(fontColor = it) }, onClose = { closeColor() },
                         modifier = Modifier.weight(1f).padding(bottom = 16.dp))
                 } else LazyColumn(Modifier.weight(1f).testTag("list_appearance_controls"),
-                    contentPadding = PaddingValues(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+                    contentPadding = PaddingValues(bottom = 24.dp + LocalSettingsBottomInset.current), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
                     item("icon_size") {
                         DesignerSegment(0, 9, "list_icon_size") {
                             Text(stringResource(R.string.icon_designer_icon_size_title))

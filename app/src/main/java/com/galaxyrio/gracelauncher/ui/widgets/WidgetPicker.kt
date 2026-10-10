@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.galaxyrio.gracelauncher.R
+import com.galaxyrio.gracelauncher.ui.settings.LocalSettingsBottomInset
 import com.galaxyrio.gracelauncher.data.AppRepository
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.icons.IconPackRepository
@@ -70,7 +71,7 @@ internal fun WidgetPicker(providers: List<AppWidgetProviderInfo>?, busy: Boolean
     }
     val toggle: (String) -> Unit = { key -> expandedApps = if (key in expandedApps) expandedApps - key else expandedApps + key }
     SettingsScaffold(stringResource(R.string.widget_choose), "widget_picker", onBack) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding)) {
+        Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding)) {
             LauncherSearchBar(
                 queryState, stringResource(R.string.widget_search), "widget_search_query",
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp), enabled = !busy && groups != null,
@@ -89,7 +90,7 @@ private fun WidgetGroups(
     groups: List<WidgetAppGroup>, expandedApps: List<String>, enabled: Boolean,
     onToggle: (String) -> Unit, onSelect: (AppWidgetProviderInfo) -> Unit, modifier: Modifier = Modifier,
 ) {
-    LazyColumn(modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(bottom = 24.dp)) {
+    LazyColumn(modifier.fillMaxSize().imePadding(), contentPadding = PaddingValues(bottom = 24.dp + LocalSettingsBottomInset.current)) {
         if (groups.isEmpty()) item {
             Text(stringResource(R.string.widget_none), Modifier.padding(24.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
         }

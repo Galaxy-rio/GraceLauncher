@@ -218,7 +218,7 @@ internal fun IconDesignerSettings(
                 modifier = Modifier.padding(end = 8.dp).testTag("icon_designer_save")) { Text(stringResource(R.string.icon_designer_save)) }
         }) { padding ->
         BoxWithConstraints(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
-            val previewHeight = (maxHeight * .40f).coerceIn(if (page == DesignerPage.All)
+            val previewHeight = ((maxHeight - LocalSettingsBottomInset.current) * .40f).coerceIn(if (page == DesignerPage.All)
                 (40.dp * (shared.iconSize / 100f) + 16.dp) * 3 + 24.dp
                 else 160.dp * (if (button) 1f else shared.iconSize / 100f) + 24.dp, 264.dp)
             AnimatedContent(page, modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp).clipToBounds(),
@@ -259,7 +259,7 @@ internal fun IconDesignerSettings(
             if (colorPicker == null) HorizontalFloatingToolbar(expanded = true,
                 colors = FloatingToolbarDefaults.standardFloatingToolbarColors(toolbarContainerColor = MaterialTheme.colorScheme.surfaceBright),
                 expandedShadowElevation = 3.dp,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = FloatingToolbarDefaults.ScreenOffset)
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = FloatingToolbarDefaults.ScreenOffset + LocalSettingsBottomInset.current)
                     .testTag("icon_designer_toolbar").selectableGroup()) {
                 val indicator by animateDpAsState(88.dp * page.ordinal, MaterialTheme.motionScheme.defaultSpatialSpec(), label = "designerToolbarIndicator")
                 Box {
@@ -296,7 +296,7 @@ private fun DesignerControlsPane(all: Boolean, choice: ItemIcon, layered: Boolea
             transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(150)) }, label = "iconDesignerColorHero") { activeColor ->
             val visibility = this
             if (activeColor == null) LazyColumn(Modifier.fillMaxSize().testTag("icon_designer_controls"), state = list,
-                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap), contentPadding = PaddingValues(bottom = 88.dp)) {
+                verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap), contentPadding = PaddingValues(bottom = 88.dp + LocalSettingsBottomInset.current)) {
                 iconDesignerControls(all, enabled, appLabel, sourceLabel, design, layered, dynamicColors, themeColors, defaults,
                     onSwitch, onSource, onColor, onChange,
                     showSuggestions = showSuggestions, suggestion = when (choice.kind) {

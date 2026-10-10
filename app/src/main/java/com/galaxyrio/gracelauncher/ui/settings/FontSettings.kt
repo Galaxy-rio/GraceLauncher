@@ -178,7 +178,7 @@ internal fun FontSettings(uiState: LauncherUiState, actions: LauncherActions, on
         }) { padding ->
         Box(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
             LazyColumn(Modifier.fillMaxSize().testTag("font_manager_list"), state = list,
-                contentPadding = PaddingValues(start = 16.dp, end = 24.dp, bottom = 24.dp),
+                contentPadding = PaddingValues(start = 16.dp, end = 24.dp, bottom = 24.dp + LocalSettingsBottomInset.current),
                 userScrollEnabled = reorder.draggingKey == null) {
                 item("settings") {
                     SettingsToggleItem(stringResource(R.string.font_apply_settings), stringResource(R.string.font_apply_settings_summary),
@@ -240,7 +240,7 @@ internal fun FontSettings(uiState: LauncherUiState, actions: LauncherActions, on
                 }
             }
             SelectionScrollbar(list, filtered.map { labels[it].orEmpty().take(1).uppercase() }, enabled && reorder.draggingKey == null,
-                Modifier.align(Alignment.CenterEnd), "font_scrollbar", keyPrefix = "selected:")
+                Modifier.align(Alignment.CenterEnd).padding(bottom = LocalSettingsBottomInset.current), "font_scrollbar", keyPrefix = "selected:")
         }
     }
 }

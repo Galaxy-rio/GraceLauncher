@@ -34,11 +34,11 @@ internal fun IconDesignerData(uiState: LauncherUiState, selectedKeys: Set<String
             .sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { uiState.findItem(it)?.label ?: it })
     }
     val selecting = selectedKeys.isNotEmpty()
-    if (entries.isEmpty()) Box(modifier.fillMaxSize().padding(bottom = 88.dp), contentAlignment = Alignment.Center) {
+    if (entries.isEmpty()) Box(modifier.fillMaxSize().padding(bottom = 88.dp + LocalSettingsBottomInset.current), contentAlignment = Alignment.Center) {
         Text(stringResource(R.string.icon_designer_data_empty), style = MaterialTheme.typography.bodyLarge,
             color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.testTag("icon_designer_data_empty"))
     } else LazyColumn(modifier.fillMaxSize().testTag("icon_designer_data_list"),
-        contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp),
+        contentPadding = PaddingValues(top = 8.dp, bottom = 88.dp + LocalSettingsBottomInset.current),
         verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
         itemsIndexed(entries, key = { _, key -> key }) { index, key ->
             val app = uiState.findItem(key)

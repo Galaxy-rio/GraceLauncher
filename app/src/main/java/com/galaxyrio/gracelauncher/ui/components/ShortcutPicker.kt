@@ -21,6 +21,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.R
+import com.galaxyrio.gracelauncher.ui.settings.LocalSettingsBottomInset
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.ShortcutStatus
 import com.galaxyrio.gracelauncher.ui.LauncherActions
@@ -64,7 +65,7 @@ internal fun ShortcutPickerScreen(uiState: LauncherUiState, actions: LauncherAct
         Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
             LauncherSearchBar(query, stringResource(R.string.shortcuts_search), "shortcut_query",
                 Modifier.padding(horizontal = 16.dp, vertical = 8.dp), enabled = !busy)
-            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)) {
+            LazyColumn(Modifier.fillMaxSize(), contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 8.dp, bottom = 8.dp + LocalSettingsBottomInset.current)) {
                 when {
                     !uiState.hasShortcutAccess -> item {
                         Text(stringResource(R.string.shortcut_permission), Modifier.padding(8.dp))

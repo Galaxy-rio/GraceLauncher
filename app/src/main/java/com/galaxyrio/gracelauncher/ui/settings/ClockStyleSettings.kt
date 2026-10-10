@@ -121,14 +121,14 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
         // Both siblings use the same lookahead targets and spring, so the preview's
         // bottom edge and the controls move together throughout the container transform.
         LookaheadScope {
-            Column(Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)) {
+            Column(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding().padding(horizontal = 16.dp)) {
                 ClockStylePreview(draft, uiState, this@LookaheadScope, heroBounds,
                     Modifier.padding(top = 8.dp, bottom = 16.dp))
                 LazyColumn(
                     Modifier.weight(1f).animateBounds(this@LookaheadScope, boundsTransform = heroBounds)
                         .testTag("clock_style_controls"),
                     verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
-                    contentPadding = PaddingValues(bottom = 24.dp),
+                    contentPadding = PaddingValues(bottom = 24.dp + LocalSettingsBottomInset.current),
                     userScrollEnabled = !saving,
                 ) {
                     clockSetting("layout") {

@@ -22,6 +22,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.R
+import com.galaxyrio.gracelauncher.ui.settings.LocalSettingsBottomInset
 import com.galaxyrio.gracelauncher.data.ItemIcon
 import com.galaxyrio.gracelauncher.data.sectionForLabel
 import com.galaxyrio.gracelauncher.data.icons.IconPackRepository
@@ -69,7 +70,7 @@ internal fun IconPackGrid(
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(88.dp), state = grid,
                 modifier = Modifier.fillMaxSize().padding(end = 48.dp).testTag("icon_pack_grid"),
-                contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 24.dp),
+                contentPadding = PaddingValues(start = 16.dp, top = 8.dp, bottom = 24.dp + LocalSettingsBottomInset.current),
                 horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (matchedIcon != null) item(key = "matched:$matchedIcon", contentType = "icon") {
@@ -88,9 +89,9 @@ internal fun IconPackGrid(
             }
             AlphabetRail(
                 letters = letters, selectedLetter = selectedLetter,
-                height = minOf(maxHeight, 20.dp * letters.size),
+                height = minOf((maxHeight - LocalSettingsBottomInset.current).coerceAtLeast(0.dp), 20.dp * letters.size),
                 onLetterSelected = { letter -> sectionIndices[letter]?.let { grid.requestScrollToItem(it) } },
-                modifier = Modifier.align(Alignment.CenterEnd), includeHome = false, onWallpaper = false,
+                modifier = Modifier.align(Alignment.CenterEnd).padding(bottom = LocalSettingsBottomInset.current), includeHome = false, onWallpaper = false,
             )
         }
     }
