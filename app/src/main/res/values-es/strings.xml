@@ -231,12 +231,14 @@
     <plurals name="settings_hidden_count">
         <item quantity="one">%1$d aplicación oculta</item>
         <item quantity="many">%1$d aplicaciones ocultas</item>
+        <item quantity="other">%1$d aplicaciones ocultas</item>
     </plurals>
     <string name="settings_hide_apps_description">Oculta aplicaciones únicamente de la lista de aplicaciones. Permanecen disponibles en favoritos, carpetas, ventanas emergentes y búsquedas.</string>
     <string name="settings_folders">Carpetas</string>
     <plurals name="settings_folder_count">
         <item quantity="one">%1$d carpeta</item>
         <item quantity="many">%1$d carpetas</item>
+        <item quantity="other">%1$d carpetas</item>
     </plurals>
     <string name="settings_folder_empty">Mantén juntas las aplicaciones relacionadas. Crea tu primera carpeta.</string>
     <string name="settings_folder_create">Crear carpeta</string>
@@ -252,12 +254,14 @@
     <plurals name="settings_folder_summary">
         <item quantity="one">%1$d artículo · %2$s</item>
         <item quantity="many">%1$d artículos · %2$s</item>
+        <item quantity="other">%1$d artículos · %2$s</item>
     </plurals>
     <string name="settings_folder_delete">Eliminar carpeta</string>
     <string name="settings_folder_delete_confirmation">¿Eliminar \"%1$s\" y sus widgets? Las aplicaciones contenidas permanecerán instaladas.</string>
     <plurals name="settings_select_count">
         <item quantity="one">%1$d seleccionada</item>
         <item quantity="many">%1$d seleccionadas</item>
+        <item quantity="other">%1$d seleccionadas</item>
     </plurals>
     <string name="settings_search_apps">Buscar aplicaciones</string>
     <string name="settings_no_apps">No hay aplicaciones que coincidan</string>
@@ -428,6 +432,7 @@
     <plurals name="weather_settings_days_summary">
         <item quantity="one">Mostrar hasta %1$d día. Los pronósticos disponibles dependen de la ubicación y la fuente de Breezy Weather seleccionadas.</item>
         <item quantity="many">Mostrar hasta %1$d días. Los pronósticos disponibles dependen de la ubicación y la fuente de Breezy Weather seleccionadas.</item>
+        <item quantity="other">Mostrar hasta %1$d días. Los pronósticos disponibles dependen de la ubicación y la fuente de Breezy Weather seleccionadas.</item>
     </plurals>
     <string name="weather_current_description">%1$s, %2$s</string>
     <string name="weather_daily_description">%1$s, máximo %2$s, mínimo %3$s</string>
@@ -456,6 +461,7 @@
     <plurals name="licenses_count">
         <item quantity="one">%1$d biblioteca</item>
         <item quantity="many">%1$d bibliotecas</item>
+        <item quantity="other">%1$d bibliotecas</item>
     </plurals>
     <string name="licenses_search">Buscar bibliotecas</string>
     <string name="licenses_clear_search">Borrar búsqueda</string>
@@ -548,6 +554,7 @@
     <plurals name="widget_count">
         <item quantity="one">%d widget</item>
         <item quantity="many">%d widgets</item>
+        <item quantity="other">%d widgets</item>
     </plurals>
     <string name="pin_item_title">Añadir a la pantalla de inicio</string>
     <string name="pin_item_add">Añadir</string>

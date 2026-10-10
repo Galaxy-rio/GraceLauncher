@@ -182,7 +182,9 @@ internal fun GraceButton(settings: GraceButtonSettings, editing: Boolean, enable
             this.scaleY = heldOrigin?.let { it.bounds.height / bounds.height.coerceAtLeast(1f) } ?: scaleY
         }, shape = if (editing) CircleShape else shape,
             color = if (editing || artwork == null) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-            contentColor = MaterialTheme.colorScheme.primary, shadowElevation = 6.dp) {
+            contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+            // With no imposed shape, a rectangular shadow would expose the artwork's transparent bounds.
+            shadowElevation = if (!editing && design.shape == IconShape.None) 0.dp else 6.dp) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 if (!editing && artwork != null) Image(artwork, null, Modifier.fillMaxSize())
                 else Icon(painterResource(if (editing) R.drawable.ms_check else R.drawable.ic_launcher_foreground), null,

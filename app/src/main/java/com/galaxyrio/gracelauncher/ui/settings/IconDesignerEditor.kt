@@ -188,8 +188,6 @@ internal fun IconDesignerSettings(
     val layered = layers?.layered ?: (specialChoice.kind != "image" && app?.isAdaptiveIcon == true)
     val dynamicColors = store.dynamicColors(uiState.settings)
     val themeColors = store.themeColors(uiState.settings)
-    val singleDynamicColors = if (button) store.dynamicColors(uiState.settings, button = true) else dynamicColors
-    val singleThemeColors = if (button) store.themeColors(uiState.settings, button = true) else themeColors
     val shared = bulkChoice.design ?: sharedDesignerDefaults(uiState)
     LaunchedEffect(uiState.itemIcons.keys) { selection = selection.filter { it in uiState.itemIcons } }
     SettingsScaffold(stringResource(R.string.icon_designer_title), "icon_designer", back, fixedCollapsed = true,
@@ -233,8 +231,6 @@ internal fun IconDesignerSettings(
                     val isAll = displayed == DesignerPage.All
                     val shownChoice = if (isAll) bulkChoice else specialChoice
                     val shownDesign = (shownChoice.design ?: shared).copy(iconSize = if (!isAll && button) 100 else shared.iconSize)
-                    val shownDynamicColors = if (isAll) dynamicColors else singleDynamicColors
-                    val shownThemeColors = if (isAll) themeColors else singleThemeColors
                     val sourceLabel = when (shownChoice.kind) {
                         "pack" -> uiState.iconPacks.firstOrNull { it.packageName == shownChoice.source }?.label ?: shownChoice.source
                         "image" -> stringResource(R.string.icon_edit_image)
@@ -243,11 +239,11 @@ internal fun IconDesignerSettings(
                         else -> stringResource(R.string.icon_edit_follow_theme)
                     }
                     Column(Modifier.fillMaxSize()) {
-                        IconDesignerPreview(uiState, app, shownChoice, shownDesign, layers, store, shownDynamicColors, shownThemeColors, isAll,
+                        IconDesignerPreview(uiState, app, shownChoice, shownDesign, layers, store, dynamicColors, themeColors, isAll,
                             !saving && page == displayed, { request("choose") }, ::changeDesign,
                             Modifier.padding(top = 8.dp, bottom = 16.dp).height(previewHeight))
                         DesignerControlsPane(isAll, shownChoice, layered, !saving && page == displayed && (isAll || app != null),
-                            app?.label, sourceLabel, shownDynamicColors, shownThemeColors,
+                            app?.label, sourceLabel, dynamicColors, themeColors,
                             if (isAll) IconDesign.defaults() else if (button) GraceButtonIcon.defaults else shared, colorPicker,
                             onSwitch = { request("choose") }, onSource = { sourcePicker = true }, onColor = { colorPicker = it },
                             onCloseColor = { colorPicker = null }, onChange = ::changeDesign,

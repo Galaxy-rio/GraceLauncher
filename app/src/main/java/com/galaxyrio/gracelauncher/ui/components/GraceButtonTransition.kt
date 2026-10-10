@@ -145,7 +145,7 @@ internal fun Modifier.graceReveal(transition: GraceButtonTransition?, reveal: Bo
 @Composable
 internal fun GraceButtonTransitionOverlay(transition: GraceButtonTransition) {
     val buttonColor = MaterialTheme.colorScheme.primaryContainer
-    val buttonInk = MaterialTheme.colorScheme.primary
+    val buttonInk = MaterialTheme.colorScheme.onPrimaryContainer
     val fieldColor = SearchBarDefaults.colors().containerColor
     val glyph = painterResource(R.drawable.ic_launcher_foreground)
     val artwork = remember(transition.origin.artwork) { transition.origin.artwork?.let { BitmapPainter(it) } }
