@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.8
+
+- Urgent fix: Fixed a crash when scrolling to Hide Apps in Settings while using Spanish (and possibly other languages besides English and Chinese).
+- Urgent fix: Fixed display errors with the default A-Z list settings.
+- Fixed Grace Button color and shadow issues on some devices.
+
 ## 1.1.7
 
 - Swipe down to close the search box.
