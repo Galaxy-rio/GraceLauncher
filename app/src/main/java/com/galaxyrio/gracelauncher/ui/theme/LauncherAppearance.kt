@@ -30,7 +30,7 @@ import androidx.core.content.ContextCompat
 import com.galaxyrio.gracelauncher.data.WallpaperTextMode
 import java.util.function.Consumer
 
-data class LauncherAppearance(val darkText: Boolean = false, val themedIcons: Boolean = true, val iconSize: Int = 100) {
+data class LauncherAppearance(val darkText: Boolean = false, val themedIcons: Boolean = false, val iconSize: Int = 100) {
     val text: Color get() = if (darkText) Color(0xFF202025) else Color(0xFFFAF9FE)
     val textShadow: Shadow get() = if (darkText) Shadow.None else Shadow(Color.Black.copy(alpha = 0.32f), blurRadius = 4f)
 }

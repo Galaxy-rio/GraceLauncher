@@ -177,7 +177,7 @@ class ItemIconStore(private val context: Context, private val packs: IconPackRep
 
     /** Sources come from the enabled packs; single designs override the shared parameters. */
     suspend fun applyDesign(app: LauncherApp, special: ItemIcon?, bulk: ItemIcon?, settings: LauncherSettings,
-        themedIcons: Boolean = true): LauncherApp {
+        themedIcons: Boolean = false): LauncherApp {
         val defaults = IconDesign.defaults(themedIcons)
         val shared = bulk?.design?.withThemeDefaults(defaults) ?: defaults
         val choice = (special ?: ItemIcon.Theme).let {

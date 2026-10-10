@@ -93,9 +93,10 @@ internal fun GraceButton(settings: GraceButtonSettings, editing: Boolean, enable
     val visualCenter = bounds.center + movement
     val halfSize = Offset(bounds.width * scaleX / 2f, bounds.height * scaleY / 2f)
     val origin by rememberUpdatedState(GraceButtonOrigin(Rect(visualCenter - halfSize, visualCenter + halfSize), artwork = artwork))
-    val shape = remember(design.shape, design.cookieSides) {
+    val shape = remember(design.shape, design.cookieSides, design.pebbleRoundness, design.squareCornerRadius) {
         if (design.shape == IconShape.None) RectangleShape else GenericShape { size, _ ->
-            addPath(iconShapePath(design.shape, design.cookieSides, size.minDimension).asComposePath())
+            addPath(iconShapePath(design.shape, design.cookieSides, size.minDimension,
+                design.pebbleRoundness, design.squareCornerRadius).asComposePath())
         }
     }
     fun activate(gesture: GraceButtonGesture) { perform(gesture, origin.copy(velocity = releaseVelocity)) }

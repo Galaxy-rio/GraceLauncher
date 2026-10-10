@@ -129,6 +129,28 @@ class IconDesignerTest {
         }
     }
 
+    @Test fun shapeSlidersOnlyAppearForTheirShapeAndSaveIndependentValues() {
+        show()
+        compose.onNodeWithTag("icon_designer_shapes").performScrollToIndex(2)
+        compose.onNodeWithTag("icon_designer_shape:Pebble").performClick()
+        compose.onNodeWithTag("icon_designer_square_corner_radius").assertDoesNotExist()
+        compose.onNodeWithTag("icon_designer_pebble_roundness").performScrollTo()
+            .performSemanticsAction(SemanticsActions.SetProgress) { it(33f) }
+        compose.onNodeWithTag("icon_designer_shape").performScrollTo()
+        compose.onNodeWithTag("icon_designer_shapes").performScrollToIndex(3)
+        compose.onNodeWithTag("icon_designer_shape:Square").performClick()
+        compose.onNodeWithTag("icon_designer_pebble_roundness").assertDoesNotExist()
+        compose.onNodeWithTag("icon_designer_square_corner_radius").performScrollTo()
+            .performSemanticsAction(SemanticsActions.SetProgress) { it(58f) }
+        compose.onNodeWithTag("icon_designer_save").performClick()
+        compose.runOnIdle {
+            assertEquals(IconShape.Square, bulkSaved?.design?.shape)
+            assertEquals(33, bulkSaved?.design?.pebbleRoundness)
+            assertEquals(58, bulkSaved?.design?.squareCornerRadius)
+            assertEquals(false, bulkSaved?.design?.themeIcons)
+        }
+    }
+
     @Test fun allSavesSeparatelyAndSwitchAppUsesTheExistingPicker() {
         show(); chooseApp()
         compose.onNodeWithTag("icon_designer_switch").performScrollTo().performClick()

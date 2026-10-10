@@ -98,7 +98,7 @@ data class LauncherUiState(
     val hasShortcutAccess: Boolean = false,
     val categories: Map<String, String> = emptyMap(),
     val textMode: WallpaperTextMode = WallpaperTextMode.Auto,
-    val themedIcons: Boolean = true,
+    val themedIcons: Boolean = false,
     val settings: LauncherSettings = LauncherSettings(),
     val hiddenAppKeys: Set<String> = emptySet(),
     val folders: List<LauncherFolder> = emptyList(),
