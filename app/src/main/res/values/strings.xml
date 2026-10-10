@@ -624,4 +624,11 @@
     <string name="popup_notification_normal">Show normally</string>
     <string name="popup_notification_expanded">Expanded only</string>
     <string name="popup_notification_hidden">Hide</string>
+    <string name="settings_alphabet">A-Z list</string>
+    <string name="alphabet_letter_color">Letter color</string>
+    <string name="alphabet_indicator_shape">Indicator shape</string>
+    <string name="alphabet_top">Upper position</string>
+    <string name="alphabet_bottom">Lower position</string>
+    <string name="alphabet_free_movement">Free movement</string>
+    <string name="alphabet_free_movement_summary">Drag beyond either end to move the alphabet. Release to return.</string>
 </resources>

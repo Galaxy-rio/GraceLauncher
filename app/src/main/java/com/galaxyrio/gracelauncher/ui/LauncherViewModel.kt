@@ -807,7 +807,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             settingsRepository.mutateSettings { current -> current.copy(
                 fontLibrary = current.fontLibrary.without(imported),
                 appFontId = current.appFontId.takeUnless { it in imported },
-                listAppearance = current.listAppearance.copy(fontId = current.listAppearance.fontId.takeUnless { it in imported }),
+                listAppearance = current.listAppearance.copy(fontId = current.listAppearance.fontId.takeUnless { it in imported },
+                    alphabet = current.listAppearance.alphabet.let { it.copy(fontId = it.fontId.takeUnless { id -> id in imported }) }),
                 clockStyle = current.clockStyle.withoutFonts(imported),
             ) }
             store.delete(imported)

@@ -949,8 +949,9 @@ internal fun LauncherScreen(
         // Variable sections extend below the clock; they never reposition the home anchor.
         val homeTop = statusBarHeight + regularHomeTop
         val drawerTop = statusBarHeight + safeHeight * 0.28f
-        val railHeight = ((model.letters.size + 1) * 18).dp.coerceAtMost(safeHeight * 0.65f)
-        val railTop = statusBarHeight + (safeHeight * 0.39f).coerceAtMost(safeHeight - railHeight - 72.dp).coerceAtLeast(0.dp)
+        val alphabet = uiState.settings.listAppearance.alphabet.normalized()
+        val railTop = maxHeight * (alphabet.topPercent / 100f)
+        val railHeight = maxHeight * ((alphabet.bottomPercent - alphabet.topPercent) / 100f)
 
         CompositionLocalProvider(LocalHomeAnimationTarget provides true) {
             HomeScreen(
@@ -1026,6 +1027,7 @@ internal fun LauncherScreen(
         )
 
         if (!editingHome) AlphabetRail(
+            alphabet = alphabet,
             leftTouchEnabled = uiState.settings.listAppearance.leftAlphabet,
             letters = model.letters,
             selectedLetter = if (drawerOpen) selectedLetter else null,

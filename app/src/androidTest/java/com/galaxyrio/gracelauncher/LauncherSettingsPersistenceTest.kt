@@ -5,6 +5,10 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.galaxyrio.gracelauncher.data.FolderPlacement
+import com.galaxyrio.gracelauncher.data.AlphabetAppearance
+import com.galaxyrio.gracelauncher.data.IconColor
+import com.galaxyrio.gracelauncher.data.IconShape
+import com.galaxyrio.gracelauncher.data.ListAppearance
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherDatabase
 import com.galaxyrio.gracelauncher.data.SearchSettings
@@ -185,6 +189,9 @@ class LauncherSettingsPersistenceTest {
             wallpaperDimAmount = 35,
             blurWallpaper = false,
             wallpaperBlurRadius = 24,
+            listAppearance = ListAppearance(alphabet = AlphabetAppearance(fontId = "system", fontSize = 20,
+                fontColor = IconColor(0xFFABCDEF.toInt()), indicatorShape = IconShape.Pebble, pebbleRoundness = 60,
+                topPercent = 25, bottomPercent = 75, freeMovement = true)),
             search = SearchSettings(enabled = false, suggestions = false, contacts = true, fuzzy = false,
                 internet = true, hiddenApps = false, recentAppKeys = listOf("mail/MailActivity", "notes/NotesActivity")),
             clockStyle = ClockStyle(layout = ClockLayout.TwoLines,

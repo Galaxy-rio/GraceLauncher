@@ -51,18 +51,20 @@ data class ListAppearance(
     val leftAlphabet: Boolean = true,
     /** null keeps the automatic, contrast-aware primary tint. */
     val wallpaperDimColor: IconColor? = null,
+    val alphabet: AlphabetAppearance = AlphabetAppearance(),
 ) {
     fun showNames(favorites: Boolean) = names == AppNameVisibility.Both ||
         names == if (favorites) AppNameVisibility.Favorites else AppNameVisibility.AppList
 
     fun normalized() = copy(appSpacing = appSpacing.coerceIn(0, 64), sidePadding = sidePadding.coerceIn(8, 80),
-        iconNameGap = iconNameGap.coerceIn(0, 64), fontSize = fontSize.coerceIn(10, 32))
+        iconNameGap = iconNameGap.coerceIn(0, 64), fontSize = fontSize.coerceIn(10, 32), alphabet = alphabet.normalized())
 
     fun encode(): String = normalized().let { safe -> JSONObject().apply {
         put("appSpacing", safe.appSpacing); put("sidePadding", safe.sidePadding); put("iconNameGap", safe.iconNameGap)
         put("fontId", safe.fontId ?: JSONObject.NULL); put("fontSize", safe.fontSize)
         put("fontColor", safe.fontColor?.json())
         put("wallpaperDimColor", safe.wallpaperDimColor?.json())
+        put("alphabet", safe.alphabet.json())
         put("names", safe.names.name); put("leftAlphabet", safe.leftAlphabet)
     }.toString() }
 
@@ -75,6 +77,7 @@ data class ListAppearance(
                 fontId = value.optString("fontId").takeIf { it.isNotBlank() && it != "null" },
                 fontColor = IconColor.decode(value.optJSONObject("fontColor")),
                 wallpaperDimColor = IconColor.decode(value.optJSONObject("wallpaperDimColor")),
+                alphabet = AlphabetAppearance.decode(value.optJSONObject("alphabet")),
                 names = AppNameVisibility.entries.firstOrNull { it.name == value.optString("names") }
                     ?: if (hideFavoriteNames) AppNameVisibility.AppList else AppNameVisibility.Both,
                 leftAlphabet = value.optBoolean("leftAlphabet", true),

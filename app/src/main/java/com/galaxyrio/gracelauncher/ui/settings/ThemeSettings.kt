@@ -59,7 +59,7 @@ import kotlin.math.roundToInt
 @Composable
 internal fun ThemeSettings(
     uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
-    onClockStyle: () -> Unit, onIconPacks: () -> Unit, onFonts: () -> Unit, onListAppearance: () -> Unit,
+    onClockStyle: () -> Unit, onIconPacks: () -> Unit, onFonts: () -> Unit, onListAppearance: () -> Unit, onAlphabet: () -> Unit,
 ) {
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     val settings = uiState.settings
@@ -106,7 +106,7 @@ internal fun ThemeSettings(
             }
             item { SettingsHeading(stringResource(R.string.settings_personalization)) }
             item {
-                SettingsActionItem(stringResource(R.string.settings_clock_style), uiState.settings.clockStyle.layout.label(), 0, 4, "settings_clock_style", onClick = onClockStyle)
+                SettingsActionItem(stringResource(R.string.settings_clock_style), uiState.settings.clockStyle.layout.label(), 0, 5, "settings_clock_style", onClick = onClockStyle)
             }
             item {
                 val packs = settings.enabledIconPackPackages
@@ -116,19 +116,22 @@ internal fun ThemeSettings(
                     uiState.iconPackStatus == IconPackStatus.Unavailable -> stringResource(R.string.icon_pack_unavailable)
                     else -> packNames.joinToString(" → ")
                 }
-                SettingsActionItem(stringResource(R.string.settings_icons), summary, 1, 4, "settings_icon_pack") {
+                SettingsActionItem(stringResource(R.string.settings_icons), summary, 1, 5, "settings_icon_pack") {
                     onIconPacks()
                     actions.refreshIconPacks()
                 }
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_favorites_app_list), null, 2, 4, "settings_list_appearance", onClick = onListAppearance)
+                SettingsActionItem(stringResource(R.string.settings_favorites_app_list), null, 2, 5, "settings_list_appearance", onClick = onListAppearance)
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.settings_alphabet), null, 3, 5, "settings_alphabet", onClick = onAlphabet)
             }
             item {
                 val fonts = settings.fontLibrary.selected.map { appFontLabel(it) }
                 val systemFont = appFontLabel("system")
                 SettingsActionItem(stringResource(R.string.settings_font), fonts.joinToString(" → ").ifEmpty { systemFont },
-                    3, 4, "settings_font", onClick = onFonts)
+                    4, 5, "settings_font", onClick = onFonts)
             }
             item { SettingsHeading(stringResource(R.string.settings_misc)) }
             item {

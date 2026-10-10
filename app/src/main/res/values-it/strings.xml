@@ -559,4 +559,11 @@
     <string name="popup_notification_normal">Mostra</string>
     <string name="popup_notification_expanded">Solo nel pop-up</string>
     <string name="popup_notification_hidden">Nascondi</string>
+    <string name="settings_alphabet">Elenco A-Z</string>
+    <string name="alphabet_letter_color">Colore delle lettere</string>
+    <string name="alphabet_indicator_shape">Forma dell’indicatore</string>
+    <string name="alphabet_top">Posizione superiore</string>
+    <string name="alphabet_bottom">Posizione inferiore</string>
+    <string name="alphabet_free_movement">Movimento libero</string>
+    <string name="alphabet_free_movement_summary">Trascina oltre un’estremità per spostare l’alfabeto. Rilascia per tornare alla posizione iniziale.</string>
 </resources>

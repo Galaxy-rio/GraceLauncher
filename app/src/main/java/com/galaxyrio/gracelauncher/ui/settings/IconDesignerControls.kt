@@ -96,28 +96,7 @@ internal fun LazyListScope.iconDesignerControls(
     item("shape") {
         DesignerSegment(shapeIndex, count, "icon_designer_shape") {
             Text(stringResource(R.string.icon_designer_shape))
-            LazyRow(Modifier.fillMaxWidth().selectableGroup().testTag("icon_designer_shapes").padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(IconShape.entries, key = { it.name }) { shape ->
-                    val label = shape.label()
-                    val selected = shape == design.shape
-                    val color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
-                    Column(Modifier.width(if (shape == IconShape.Cookie) 104.dp else 76.dp).clip(MaterialTheme.shapes.large)
-                        .selectable(selected, enabled = enabled, role = Role.RadioButton, onClick = { onChange(design.copy(shape = shape)) })
-                        .testTag("icon_designer_shape:${shape.name}").semantics { contentDescription = label }.padding(8.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Surface(shape = CircleShape, color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent) {
-                            Canvas(Modifier.size(48.dp).padding(6.dp)) {
-                                val path = iconShapePath(shape, design.cookieSides, size.minDimension,
-                                    design.pebbleRoundness, design.squareCornerRadius).asComposePath()
-                                if (shape == IconShape.None) drawPath(path, color,
-                                    style = Stroke(2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx()))))
-                                else drawPath(path, color)
-                            }
-                        }
-                        Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
-                    }
-                }
-            }
+            DesignerShapeChoices(design, enabled, "icon_designer", onChange)
         }
     }
     if (adjustableCorners) {
@@ -126,13 +105,7 @@ internal fun LazyListScope.iconDesignerControls(
         val tag = if (pebble) "icon_designer_pebble_roundness" else "icon_designer_square_corner_radius"
         item("shape_roundness") {
             DesignerSegment(roundnessIndex, count, "${tag}_control") {
-                DesignerSlider(stringResource(if (pebble) R.string.icon_designer_pebble_roundness else R.string.icon_designer_square_corner_radius),
-                    (if (pebble) design.pebbleRoundness else design.squareCornerRadius).toFloat(),
-                    (if (pebble) defaults.pebbleRoundness else defaults.squareCornerRadius).toFloat(),
-                    0f..100f, enabled, tag) { value ->
-                    onChange(if (pebble) design.copy(pebbleRoundness = value.roundToInt())
-                        else design.copy(squareCornerRadius = value.roundToInt()))
-                }
+                DesignerShapeAdjustment(design, defaults, enabled, "icon_designer", onChange)
             }
         }
     }
@@ -140,13 +113,7 @@ internal fun LazyListScope.iconDesignerControls(
         val cookieIndex = index++
         item("cookie") {
             DesignerSegment(cookieIndex, count, "icon_designer_cookie") {
-                Text(stringResource(R.string.icon_designer_cookie_sides, design.cookieSides))
-                Slider(value = IconDesign.CookieSides.indexOf(design.cookieSides).coerceAtLeast(0).toFloat(),
-                    onValueChange = { onChange(design.copy(cookieSides = IconDesign.CookieSides[it.roundToInt().coerceIn(0, 4)])) },
-                    valueRange = 0f..4f, steps = 3, enabled = enabled, modifier = Modifier.testTag("icon_designer_cookie_slider"))
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                    IconDesign.CookieSides.forEach { Text(it.toString(), style = MaterialTheme.typography.labelSmall) }
-                }
+                DesignerShapeAdjustment(design, defaults, enabled, "icon_designer", onChange)
             }
         }
     }
@@ -214,6 +181,54 @@ internal fun LazyListScope.iconDesignerControls(
             modifier = Modifier.testTag("icon_designer_effects"),
             content = { Text(stringResource(R.string.icon_designer_effects)) },
             supportingContent = { Text(stringResource(R.string.settings_coming_soon)) })
+    }
+}
+
+@Composable
+internal fun DesignerShapeChoices(design: IconDesign, enabled: Boolean, tag: String, onChange: (IconDesign) -> Unit) {
+    LazyRow(Modifier.fillMaxWidth().selectableGroup().testTag("${tag}_shapes").padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        items(IconShape.entries, key = { it.name }) { shape ->
+            val label = shape.label()
+            val selected = shape == design.shape
+            val color = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+            Column(Modifier.width(if (shape == IconShape.Cookie) 104.dp else 76.dp).clip(MaterialTheme.shapes.large)
+                .selectable(selected, enabled = enabled, role = Role.RadioButton, onClick = { onChange(design.copy(shape = shape)) })
+                .testTag("${tag}_shape:${shape.name}").semantics { contentDescription = label }.padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Surface(shape = CircleShape, color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent) {
+                    Canvas(Modifier.size(48.dp).padding(6.dp)) {
+                        val path = iconShapePath(shape, design.cookieSides, size.minDimension,
+                            design.pebbleRoundness, design.squareCornerRadius).asComposePath()
+                        if (shape == IconShape.None) drawPath(path, color,
+                            style = Stroke(2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx()))))
+                        else drawPath(path, color)
+                    }
+                }
+                Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
+            }
+        }
+    }
+}
+
+@Composable
+internal fun DesignerShapeAdjustment(design: IconDesign, defaults: IconDesign, enabled: Boolean, tag: String, onChange: (IconDesign) -> Unit) {
+    val pebble = design.shape == IconShape.Pebble
+    if (pebble || design.shape == IconShape.Square) {
+        DesignerSlider(stringResource(if (pebble) R.string.icon_designer_pebble_roundness else R.string.icon_designer_square_corner_radius),
+            (if (pebble) design.pebbleRoundness else design.squareCornerRadius).toFloat(),
+            (if (pebble) defaults.pebbleRoundness else defaults.squareCornerRadius).toFloat(),
+            0f..100f, enabled, if (pebble) "${tag}_pebble_roundness" else "${tag}_square_corner_radius") { value ->
+            onChange(if (pebble) design.copy(pebbleRoundness = value.roundToInt())
+                else design.copy(squareCornerRadius = value.roundToInt()))
+        }
+    } else if (design.shape == IconShape.Cookie) {
+        Text(stringResource(R.string.icon_designer_cookie_sides, design.cookieSides))
+        Slider(value = IconDesign.CookieSides.indexOf(design.cookieSides).coerceAtLeast(0).toFloat(),
+            onValueChange = { onChange(design.copy(cookieSides = IconDesign.CookieSides[it.roundToInt().coerceIn(0, 4)])) },
+            valueRange = 0f..4f, steps = 3, enabled = enabled, modifier = Modifier.testTag("${tag}_cookie_slider"))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            IconDesign.CookieSides.forEach { Text(it.toString(), style = MaterialTheme.typography.labelSmall) }
+        }
     }
 }
 
