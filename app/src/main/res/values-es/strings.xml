@@ -218,7 +218,7 @@
     <string name="lab_milliseconds">%1$d ms</string>
     <string name="lab_percentage">%1$d%%</string>
     <string name="settings_advanced_summary">Más opciones para tu lanzador</string>
-    <string name="settings_about">Acerca de...</string>
+    <string name="settings_about">Acerca de</string>
     <string name="settings_about_summary">Grace Launcher, actualizaciones y licencias</string>
     <string name="settings_instant_access">Acceso inmediato</string>
     <string name="settings_calendar_agenda">Agenda del calendario</string>
@@ -376,7 +376,7 @@
     <string name="icon_designer_cookie_sides">Cookie · %1$d lados</string>
     <string name="icon_designer_color">Color</string>
     <string name="icon_designer_invert_background">Invertir la detección del fondo del icono</string>
-    <string name="icon_designer_invert_background_summary">Al generar una capa monocromática, trate las áreas oscuras como el símbolo y las áreas claras como el fondo</string>
+    <string name="icon_designer_invert_background_summary">Solo para imágenes planas: utilice las áreas claras como símbolo en lugar de las áreas oscuras</string>
     <string name="icon_designer_tray_color">Color de la bandeja</string>
     <string name="icon_designer_symbol_color">Color del símbolo</string>
     <string name="icon_designer_original_color">Color original</string>
@@ -391,7 +391,7 @@
     <string name="icon_designer_color_done">Hecho</string>
     <string name="icon_designer_reset">Restablecer</string>
     <string name="icon_designer_saturation_brightness">Brillo y saturación</string>
-    <string name="icon_designer_hue">Hue</string>
+    <string name="icon_designer_hue">Matiz</string>
     <string name="icon_designer_hex">Color Hex</string>
     <string name="icon_designer_color_presets">Ajustes preestablecidos de color</string>
     <string name="icon_pack_description">Los iconos utilizan los paquetes habilitados en orden y, a continuación, los iconos del sistema. Los diseños específicos de cada aplicación tienen prioridad.</string>
@@ -582,4 +582,24 @@
     <string name="list_left_alphabet">Utilizar el alfabeto a la izquierda</string>
     <string name="list_left_alphabet_summary">Desliza el dedo por el borde izquierdo para controlar el alfabeto de la derecha</string>
     <string name="search_settings_summary">Aplicaciones, contactos y sugerencias</string>
+    <string name="settings_wallpaper_dim_color">Color de superposición</string>
+    <string name="settings_wallpaper_dim_color_auto">Tinte primario automático</string>
+    <string name="icon_designer_pebble_roundness">Redondez</string>
+    <string name="icon_designer_square_corner_radius">Radio de esquina</string>
+    <string name="shortcuts_folders_title">Accesos directos y carpetas</string>
+    <string name="shortcuts_folders_enable">Habilitar ventanas emergentes de la aplicación</string>
+    <string name="popup_swipe_left_first">Desliza hacia la izquierda para abrir el primer elemento</string>
+    <string name="popup_swipe_left_first_summary">Abre el primer acceso directo, aplicación o widget en la ventana emergente</string>
+    <string name="popup_silent_notifications">Silenciar notificaciones</string>
+    <string name="popup_normal_notifications">Notificaciones normales</string>
+    <string name="popup_notification_normal">Mostrar normalmente</string>
+    <string name="popup_notification_expanded">Solo expandida</string>
+    <string name="popup_notification_hidden">Ocultar</string>
+    <string name="settings_alphabet">Lista A-Z</string>
+    <string name="alphabet_letter_color">Color de letra</string>
+    <string name="alphabet_indicator_shape">Forma del indicador</string>
+    <string name="alphabet_top">Posición superior</string>
+    <string name="alphabet_bottom">Posición inferior</string>
+    <string name="alphabet_free_movement">Movimiento libre</string>
+    <string name="alphabet_free_movement_summary">Arrastra más allá de cualquiera de los extremos para mover el alfabeto. Suelta para volver.</string>
 </resources>
