@@ -22,6 +22,8 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -233,6 +235,21 @@ internal fun SwipeRevealPanel(
     val margin = with(density) { 32.dp.roundToPx() }
     val maxListHeight = with(density) { windowSize.height.toDp() } * 0.55f
     val currentOnDismiss by rememberUpdatedState(onDismiss)
+    val haptics by rememberUpdatedState(LocalHapticFeedback.current)
+    var feedbackExpanded by remember(reveal) { mutableStateOf(false) }
+    LaunchedEffect(reveal) {
+        snapshotFlow { reveal.expanded }.collect { expanded ->
+            if (expanded != feedbackExpanded) {
+                haptics.performHapticFeedback(if (expanded) HapticFeedbackType.GestureThresholdActivate else HapticFeedbackType.GestureEnd)
+                feedbackExpanded = expanded
+            }
+        }
+    }
+    DisposableEffect(reveal) {
+        // Back, launching an item, and opening its details can remove the panel
+        // directly. A swipe/tap close has already emitted its feedback above.
+        onDispose { if (feedbackExpanded) haptics.performHapticFeedback(HapticFeedbackType.GestureEnd) }
+    }
     val spatial = remember(reveal) { Animatable(0f) }
     val effects = remember(reveal) { Animatable(0f) }
     val spatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()

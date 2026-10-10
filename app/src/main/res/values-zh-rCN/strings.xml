@@ -597,4 +597,13 @@
     <string name="list_names_app_list">仅应用列表</string>
     <string name="list_left_alphabet">从左侧使用字母表</string>
     <string name="list_left_alphabet_summary">沿左侧边缘滑动，操作右侧的字母表</string>
+    <string name="shortcuts_folders_title">快捷方式与文件夹</string>
+    <string name="shortcuts_folders_enable">启用应用弹出窗口</string>
+    <string name="popup_swipe_left_first">左滑打开第一项</string>
+    <string name="popup_swipe_left_first_summary">打开弹出窗口中的第一个快捷方式、应用或小组件所属应用</string>
+    <string name="popup_silent_notifications">静默通知</string>
+    <string name="popup_normal_notifications">普通通知</string>
+    <string name="popup_notification_normal">正常显示</string>
+    <string name="popup_notification_expanded">仅展开时显示</string>
+    <string name="popup_notification_hidden">不显示</string>
 </resources>

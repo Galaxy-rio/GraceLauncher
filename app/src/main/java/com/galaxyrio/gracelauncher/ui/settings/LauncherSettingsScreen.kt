@@ -77,7 +77,7 @@ internal enum class SettingsPage {
     Root, Productivity, Clock, ClockStyle, Calendar, Weather, Themes, Advanced, About, HiddenApps, Folders, FolderEditor,
     Changelog, Licenses, AppLicense, IconPacks, IconDesigner, IconDesignerApp, PrivateSpace, PrivateSpaceEditor, Search,
     MediaPlayer, GraceButton, GraceAction, GraceApp, GraceShortcut, Gestures, WorkProfile, WorkProfileEditor,
-    LabGraceButton, LabGesture, Fonts, ListAppearance,
+    LabGraceButton, LabGesture, Fonts, ListAppearance, ShortcutsFolders,
 }
 
 /** Navigation owns each page's saved state and seekable predictive-back transition. */
@@ -192,6 +192,7 @@ fun LauncherSettingsScreen(
                     SettingsPage.Productivity -> ProductivitySettings(uiState, actions, back, navigate)
                     SettingsPage.Clock -> ClockSettings(uiState, actions, back)
                     SettingsPage.Search -> SearchSettingsScreen(uiState, actions, back)
+                    SettingsPage.ShortcutsFolders -> ShortcutsFoldersSettingsScreen(uiState, actions, back)
                     SettingsPage.MediaPlayer -> MediaPlayerSettings(uiState, actions, back)
                     SettingsPage.GraceButton, SettingsPage.Gestures -> GraceButtonSettingsScreen(uiState, actions, back,
                         home = page == SettingsPage.Gestures, onEditIcon = {

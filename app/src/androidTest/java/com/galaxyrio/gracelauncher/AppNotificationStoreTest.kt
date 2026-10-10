@@ -12,6 +12,7 @@ import androidx.core.app.Person
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.galaxyrio.gracelauncher.data.notifications.AppNotificationStore
+import com.galaxyrio.gracelauncher.data.notifications.AppNotificationRanking
 import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
@@ -98,9 +99,9 @@ class AppNotificationStoreTest {
         assertFalse(store.dismiss(old.key, old.revision))
         store.connected(listOf(sbn(3))) { cancelled += it; true }
         assertEquals(sbn(3).key, notifications().single().key)
-        store.ranking { false }
+        store.ranking { AppNotificationRanking(visible = false) }
         assertTrue(notifications().isEmpty())
-        store.ranking { true }
+        store.ranking { AppNotificationRanking() }
         assertEquals(1, notifications().size)
     }
 
@@ -117,5 +118,18 @@ class AppNotificationStoreTest {
         pending.cancel()
         val updated = notifications().single()
         assertFalse(store.open(context, updated.key, updated.revision))
+    }
+
+    @Test fun silentRankingChangesRefreshExistingContentWithoutResettingItsIdentity() = main {
+        val notification = sbn(1)
+        store.connected(listOf(notification), { AppNotificationRanking(silent = true) }) { true }
+        val original = notifications().single()
+        assertTrue(original.silent)
+        store.ranking { AppNotificationRanking() }
+        assertEquals(original.copy(silent = false), notifications().single())
+        store.posted(notification) { AppNotificationRanking(silent = true) }
+        assertTrue(notifications().single().silent)
+        store.ranking { AppNotificationRanking(visible = false, silent = true) }
+        assertTrue(notifications().isEmpty())
     }
 }

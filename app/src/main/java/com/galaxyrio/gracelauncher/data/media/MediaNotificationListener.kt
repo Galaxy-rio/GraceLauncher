@@ -8,6 +8,7 @@ import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import androidx.annotation.MainThread
 import com.galaxyrio.gracelauncher.data.notifications.appNotifications
+import com.galaxyrio.gracelauncher.data.notifications.AppNotificationRanking
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 
@@ -67,30 +68,32 @@ class MediaNotificationListener : NotificationListenerService() {
         try {
             val notifications = activeNotifications.orEmpty().toList()
             mediaNotifications.connected(notifications)
-            appNotifications.connected(notifications) { key -> runCatching { cancelNotification(key) }.isSuccess }
-            updateAppRanking(currentRanking)
+            appNotifications.connected(notifications, appRanking(currentRanking)) { key -> runCatching { cancelNotification(key) }.isSuccess }
         } catch (_: RuntimeException) {
             mediaNotifications.disconnected()
             appNotifications.disconnected()
         }
     }
 
-    override fun onNotificationPosted(sbn: StatusBarNotification) {
-        updateAppRanking(currentRanking)
+    override fun onNotificationPosted(sbn: StatusBarNotification, rankingMap: RankingMap) {
         mediaNotifications.posted(sbn)
-        appNotifications.posted(sbn)
+        // Publish content and its ranking together, without a transient normal/silent flash.
+        appNotifications.posted(sbn, appRanking(rankingMap))
     }
     override fun onNotificationRemoved(sbn: StatusBarNotification) {
         mediaNotifications.removed(sbn.key)
         appNotifications.removed(sbn.key)
     }
-    override fun onNotificationRankingUpdate(rankingMap: RankingMap) { updateAppRanking(rankingMap) }
-    private fun updateAppRanking(rankingMap: RankingMap?) {
-        appNotifications.ranking { key ->
-            val ranking = Ranking()
-            rankingMap == null || !rankingMap.getRanking(key, ranking) ||
-                (!ranking.isSuspended && ranking.importance != NotificationManager.IMPORTANCE_NONE)
-        }
+    override fun onNotificationRankingUpdate(rankingMap: RankingMap) { appNotifications.ranking(appRanking(rankingMap)) }
+    private fun appRanking(rankingMap: RankingMap?): (String) -> AppNotificationRanking = { key ->
+        val ranking = Ranking()
+        if (rankingMap == null || !rankingMap.getRanking(key, ranking)) AppNotificationRanking()
+        else AppNotificationRanking(
+            visible = !ranking.isSuspended && ranking.importance != NotificationManager.IMPORTANCE_NONE,
+            // Use the system's per-notification importance, not sound/vibration or DND:
+            // muting the phone does not turn ordinary messages into silent channels.
+            silent = ranking.importance in NotificationManager.IMPORTANCE_MIN..NotificationManager.IMPORTANCE_LOW,
+        )
     }
     override fun onListenerDisconnected() { mediaNotifications.disconnected(); appNotifications.disconnected() }
     override fun onDestroy() {

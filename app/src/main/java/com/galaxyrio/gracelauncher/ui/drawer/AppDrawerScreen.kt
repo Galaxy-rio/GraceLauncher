@@ -38,6 +38,7 @@ import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
 import com.galaxyrio.gracelauncher.data.RecentlyInstalledFolderId
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
+import com.galaxyrio.gracelauncher.data.ShortcutsFoldersSettings
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
@@ -68,6 +69,7 @@ fun AppDrawerScreen(
     onFolderDrag: (LauncherFolder, Rect, Boolean) -> Unit = { _, _, _ -> },
     onFolderDragEnd: (Boolean) -> Unit = {},
     notifications: Map<String, List<AppNotification>> = emptyMap(),
+    popupSettings: ShortcutsFoldersSettings = ShortcutsFoldersSettings(),
     folderApps: Map<String, LauncherApp> = emptyMap(),
     privateExpanded: Boolean = false,
     privateAppsPublic: Boolean = false,
@@ -159,7 +161,9 @@ fun AppDrawerScreen(
                         onSwipeRight = { onAppShortcuts(item.app, it) },
                         gestures = rowGestures,
                         highlighted = highlightedAppKey == item.app.key,
-                        notification = notifications[item.app.packageName]?.firstOrNull().takeUnless { item.app.user != null },
+                        notification = notifications[item.app.packageName]?.firstOrNull {
+                            popupSettings.showsNotification(it.silent, expanded = false)
+                        }.takeUnless { item.app.user != null },
                     )
                     is DrawerItem.Folder -> FolderRow(
                         showLabel = listAppearance.showNames(favorites = false),
@@ -170,6 +174,9 @@ fun AppDrawerScreen(
                         onLongClick = if (item.folder.id == RecentlyInstalledFolderId) null else ({ onEditFolder(item.folder) }),
                         onDrag = { bounds, expanded -> onFolderDrag(item.folder, bounds, expanded) },
                         onDragEnd = onFolderDragEnd,
+                        onSwipeLeft = rowGestures.onOpenFirst?.let { open -> { bounds ->
+                            open(folderApps[item.folder.id] ?: item.folder.asApp(), bounds)
+                        } },
                     )
                     is DrawerItem.PrivateApp -> LauncherAppRow(
                         showLabel = listAppearance.showNames(favorites = false),

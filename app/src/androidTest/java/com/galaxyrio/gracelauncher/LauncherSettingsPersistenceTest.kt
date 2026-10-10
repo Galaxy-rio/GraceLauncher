@@ -8,6 +8,8 @@ import com.galaxyrio.gracelauncher.data.FolderPlacement
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherDatabase
 import com.galaxyrio.gracelauncher.data.SearchSettings
+import com.galaxyrio.gracelauncher.data.ShortcutsFoldersSettings
+import com.galaxyrio.gracelauncher.data.NotificationDisplay
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.LauncherSettings
 import com.galaxyrio.gracelauncher.data.LauncherSettingsRepository
@@ -54,7 +56,9 @@ class LauncherSettingsPersistenceTest {
                 LauncherDatabase.Migration9To10, LauncherDatabase.Migration10To11, LauncherDatabase.Migration11To12,
                 LauncherDatabase.Migration12To13, LauncherDatabase.Migration13To14,
                 LauncherDatabase.Migration14To15, LauncherDatabase.Migration15To16,
-                LauncherDatabase.Migration16To17, LauncherDatabase.Migration17To18).build()
+                LauncherDatabase.Migration16To17, LauncherDatabase.Migration17To18,
+                LauncherDatabase.Migration18To19, LauncherDatabase.Migration19To20,
+                LauncherDatabase.Migration20To21).build()
         database = reopened
         return LauncherSettingsRepository(reopened)
     }
@@ -338,5 +342,16 @@ class LauncherSettingsPersistenceTest {
         assertTrue(loading.favoriteApps.isEmpty())
         assertTrue(loading.copy(isLoadingSettings = false, settingsLoadFailed = true).appListApps.isEmpty())
         assertFalse(loading.copy(isLoadingSettings = false).appListApps.isEmpty())
+    }
+
+    @Test fun popupOptionsRoundTripAndMissingOrInvalidValuesKeepDefaults() = runBlocking {
+        val options = ShortcutsFoldersSettings(enabled = false, swipeLeftToOpenFirst = true,
+            silentNotifications = NotificationDisplay.ExpandedOnly, normalNotifications = NotificationDisplay.Hidden)
+        assertEquals(options, ShortcutsFoldersSettings.decode(options.encode()))
+        assertEquals(ShortcutsFoldersSettings(), ShortcutsFoldersSettings.decode(null))
+        assertEquals(ShortcutsFoldersSettings(), ShortcutsFoldersSettings.decode("invalid"))
+        assertEquals(ShortcutsFoldersSettings(), ShortcutsFoldersSettings.decode("{\"normalNotifications\":\"unknown\"}"))
+        openRepository().mutateSettings { it.copy(shortcutsFolders = options) }
+        assertEquals(options, withTimeout(10_000) { openRepository().snapshots.first().settings.shortcutsFolders })
     }
 }

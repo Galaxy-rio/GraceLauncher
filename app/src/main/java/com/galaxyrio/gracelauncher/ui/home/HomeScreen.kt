@@ -254,6 +254,7 @@ fun HomeScreen(
                 onLongClick = { onEditFolder(folder) },
                 onDrag = { bounds, expanded -> onFolderDrag(folder, bounds, expanded) },
                 onDragEnd = onFolderDragEnd,
+                onSwipeLeft = rowGestures.onOpenFirst?.let { open -> { bounds -> open(app, bounds) } },
                 showLabel = uiState.settings.listAppearance.showNames(favorites = true),
             ) else LauncherAppRow(
                 app = app,
@@ -262,7 +263,7 @@ fun HomeScreen(
                 onSwipeRight = { onAppShortcuts(app, it) },
                 gestures = rowGestures,
                 highlighted = highlightedAppKey == app.key,
-                notification = uiState.notifications[app.packageName]?.firstOrNull().takeUnless { app.user != null },
+                notification = uiState.notificationsFor(app, expanded = false).firstOrNull(),
                 showLabel = uiState.settings.listAppearance.showNames(favorites = true),
             )
         }

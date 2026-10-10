@@ -76,7 +76,7 @@ data class IconDesign(
             }
     }
     companion object {
-        const val DefaultPebbleRoundness = 70
+        const val DefaultPebbleRoundness = 85
         val CookieSides = listOf(4, 6, 7, 9, 12)
         fun defaults(themedIcons: Boolean = false) = IconDesign(
             background = IconColor.Theme, foreground = IconColor.Theme, themeIcons = themedIcons,

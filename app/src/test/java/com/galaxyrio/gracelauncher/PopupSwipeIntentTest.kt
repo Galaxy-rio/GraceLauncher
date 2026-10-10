@@ -5,6 +5,36 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class PopupSwipeIntentTest {
+    @Test fun leftGestureCommitsOnlyBeyondItsThresholdAndNeverRevealsAPopup() {
+        val swipe = PopupSwipeIntent(8f, 40f)
+        assertNull(swipe.drag(-39f))
+        assertFalse(swipe.opensFirst)
+        assertNull(swipe.drag(-1f))
+        assertTrue(swipe.opensFirst)
+        assertFalse(swipe.revealed)
+        swipe.reset()
+        assertFalse(swipe.opensFirst)
+        assertEquals(true, swipe.drag(20f))
+    }
+
+    @Test fun returningTowardTheStartCancelsLeftLaunch() {
+        val swipe = PopupSwipeIntent(8f, 40f)
+        swipe.drag(-80f)
+        assertTrue(swipe.opensFirst)
+        swipe.drag(60f)
+        assertFalse(swipe.opensFirst)
+        assertFalse(swipe.revealed)
+    }
+
+    @Test fun closingAnOpenPopupDoesNotLaunchItsFirstItem() {
+        val swipe = PopupSwipeIntent(8f, 40f)
+        assertEquals(true, swipe.drag(80f))
+        assertEquals(false, swipe.drag(-150f))
+        assertFalse(swipe.opensFirst)
+        assertEquals(true, swipe.drag(10f))
+        assertFalse(swipe.opensFirst)
+    }
+
     @Test fun firstRightMovementAfterTouchSlopTriggersOpening() {
         val swipe = PopupSwipeIntent(8f)
         assertNull(swipe.drag(-20f))

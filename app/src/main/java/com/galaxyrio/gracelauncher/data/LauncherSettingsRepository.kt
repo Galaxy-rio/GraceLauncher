@@ -77,6 +77,7 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
             workProfileJson = settings.workProfile.encode(),
             homeGesturesJson = settings.homeGestures.encode(),
             searchJson = settings.search.encode(),
+            shortcutsFoldersJson = settings.shortcutsFolders.encode(),
         ))
     }
 
@@ -177,6 +178,7 @@ private fun LauncherSettingsEntity.toSettings() = LauncherSettings(
     workProfile = ProfileSettings.decode(workProfileJson, ProfileSettings.workDefaults()),
     homeGestures = GraceButtonSettings.decode(homeGesturesJson, GraceButtonSettings.homeDefaults()),
     search = SearchSettings.decode(searchJson),
+    shortcutsFolders = ShortcutsFoldersSettings.decode(shortcutsFoldersJson),
 )
 
 private fun decodeIconPackOrder(json: String?): List<String> = runCatching {

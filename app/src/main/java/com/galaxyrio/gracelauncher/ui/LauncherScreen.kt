@@ -49,6 +49,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
@@ -143,6 +144,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.yield
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
@@ -528,6 +530,9 @@ internal fun LauncherScreen(
     var privateSwipeAnchor by remember { mutableStateOf<Rect?>(null) }
     var privateFolderWasOpen by remember { mutableStateOf(false) }
     val latestUiState by rememberUpdatedState(uiState)
+    val latestActions by rememberUpdatedState(actions)
+    val firstItemScope = rememberCoroutineScope()
+    var firstItemJob by remember { mutableStateOf<Job?>(null) }
     val privateExpanded = privateListOpen && uiState.privateContentVisible && uiState.settings.privateSpace.display == PrivateSpaceDisplay.List
     val privateFolder = uiState.privateFolder.takeIf {
         uiState.settings.privateSpace.enabled && uiState.settings.privateSpace.display != PrivateSpaceDisplay.NormalApp &&
@@ -552,6 +557,7 @@ internal fun LauncherScreen(
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_PAUSE) firstItemJob?.cancel()
             val transition = currentButtonTransition ?: return@LifecycleEventObserver
             when (event) {
                 Lifecycle.Event.ON_PAUSE -> {
@@ -662,6 +668,7 @@ internal fun LauncherScreen(
 
     LaunchedEffect(returnHomeRequests) {
         returnHomeRequests.collect {
+            firstItemJob?.cancel()
             drawerOpen = false; selectedLetter = null; overlay = null; editingHome = false
             if (buttonTransition?.lockCommitted != true) buttonTransition = null
         }
@@ -719,15 +726,49 @@ internal fun LauncherScreen(
         // scrolling here would cause a jump between the held and released views.
         selectedLetter = null
     }
+    val popupSettings = uiState.settings.shortcutsFolders
+    LaunchedEffect(popupSettings.enabled) {
+        if (!popupSettings.enabled && overlay is LauncherOverlay.Shortcuts) overlay = null
+    }
+    val openAppPopup: (LauncherApp, Rect) -> Unit = { app, bounds ->
+        if (popupSettings.enabled) overlay = LauncherOverlay.Shortcuts(app, bounds)
+    }
+    val openFirstItem: (LauncherApp, Rect) -> Unit = openFirst@{ owner, bounds ->
+        if (firstItemJob?.isActive == true || overlay != null || !popupSettings.swipeLeftToOpenFirst ||
+            (owner.folderId == null && !popupSettings.enabled)) return@openFirst
+        val fromDrawer = drawerOpen
+        firstItemJob = firstItemScope.launch {
+            val custom = latestUiState.popups[owner.key]
+            val needsShortcuts = owner.folderId == null && (custom == null || custom.firstOrNull()?.let {
+                it.widget == null && latestUiState.findItem(it.key) == null
+            } == true)
+            val defaults = if (needsShortcuts) latestActions.shortcuts(owner).shortcuts.map {
+                latestUiState.findItem(it.key) ?: it.asApp(owner)
+            } else emptyList()
+            // A cold shortcut lookup must not launch later after HOME, navigation,
+            // disabling the feature, or a profile change has cancelled the intent.
+            val state = latestUiState
+            val currentSettings = state.settings.shortcutsFolders
+            if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) || overlay != null || drawerOpen != fromDrawer ||
+                !currentSettings.swipeLeftToOpenFirst || (owner.folderId == null && !currentSettings.enabled)) return@launch
+            val target = state.firstPopupApp(owner, defaults)
+            if (target == null) Toast.makeText(context, R.string.popup_item_unavailable, Toast.LENGTH_SHORT).show()
+            else latestActions.launchAppAt?.invoke(target, bounds) ?: onLaunchApp(target)
+        }
+    }
     val rowGestures = AppRowGestures(
         onPrepare = actions.prepareShortcuts,
         onLaunchAt = actions.launchAppAt,
+        popupsEnabled = popupSettings.enabled,
+        onOpenFirst = openFirstItem.takeIf { popupSettings.swipeLeftToOpenFirst },
         onDrag = { app, bounds, expanded ->
-            val current = overlay as? LauncherOverlay.Shortcuts
-            if (current?.app?.key == app.key) {
-                current.reveal.expanded = expanded
-            } else {
-                overlay = LauncherOverlay.Shortcuts(app, bounds, ShortcutRevealState(expanded, dragging = true))
+            if (popupSettings.enabled) {
+                val current = overlay as? LauncherOverlay.Shortcuts
+                if (current?.app?.key == app.key) {
+                    current.reveal.expanded = expanded
+                } else {
+                    overlay = LauncherOverlay.Shortcuts(app, bounds, ShortcutRevealState(expanded, dragging = true))
+                }
             }
         },
         onDragEnd = { commit ->
@@ -914,7 +955,7 @@ internal fun LauncherScreen(
                 topSpace = homeTop,
                 onLaunchApp = onLaunchApp,
                 onAppDetails = { overlay = LauncherOverlay.AppDetails(it) },
-                onAppShortcuts = { app, bounds -> overlay = LauncherOverlay.Shortcuts(app, bounds) },
+                onAppShortcuts = openAppPopup,
                 onDateClick = {
                     actions.refreshWeather()
                     actions.refreshAgenda()
@@ -955,12 +996,13 @@ internal fun LauncherScreen(
             model = model,
             folderApps = (uiState.folders + listOfNotNull(workFolder, privateFolder)).associate { it.id to uiState.folderItem(it) },
             notifications = uiState.notifications,
+            popupSettings = popupSettings,
             listState = drawerState,
             selectedLetter = selectedLetter,
             topSpace = drawerTop,
             onLaunchApp = onLaunchApp,
             onAppDetails = { overlay = LauncherOverlay.AppDetails(it) },
-            onAppShortcuts = { app, bounds -> overlay = LauncherOverlay.Shortcuts(app, bounds) },
+            onAppShortcuts = openAppPopup,
             rowGestures = rowGestures,
             highlightedAppKey = highlightedAppKey,
             onOpenFolder = openFolder,

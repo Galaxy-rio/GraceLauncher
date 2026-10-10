@@ -178,6 +178,23 @@ data class LauncherUiState(
         return if (owner.folderId != PrivateSpaceFolderId && !settings.privateSpace.exposesApps)
             items.filterNot { it.key.startsWith("profile:") && findItem(it.key)?.isWorkProfile != true } else items
     }
+
+    fun notificationsFor(app: LauncherApp, expanded: Boolean): List<AppNotification> =
+        if (app.shortcut != null || app.user != null || app.folderId != null) emptyList()
+        else notifications[app.packageName].orEmpty().filter { settings.shortcutsFolders.showsNotification(it.silent, expanded) }
+
+    /** Resolve the exact first configured item, without skipping an unavailable item. */
+    fun firstPopupApp(owner: LauncherApp, defaults: List<LauncherApp>): LauncherApp? {
+        val first = popupItems(owner, defaults).firstOrNull() ?: return null
+        val widget = first.widget
+        if (widget != null) {
+            val packageName = widget.widgetProvider?.let(android.content.ComponentName::unflattenFromString)?.packageName ?: return null
+            // Hosted widgets currently belong to the personal profile. Never launch a
+            // same-package work/private app or a saved shortcut in its place.
+            return apps.firstOrNull { it.packageName == packageName && it.user == null && it.shortcut == null && it.folderId == null }
+        }
+        return findItem(first.key) ?: defaults.firstOrNull { it.key == first.key }
+    }
     val homeMedia: NowPlaying?
         get() = media.nowPlaying.takeIf {
             settings.mediaPlayer && media.hasAccess && !isLoadingSettings && !settingsLoadFailed

@@ -1,15 +1,25 @@
 package com.galaxyrio.gracelauncher.ui.components
 
 /** Direction changes control the destination, never the animation's progress. */
-internal class PopupSwipeIntent(private val reversalSlop: Float) {
+internal class PopupSwipeIntent(private val reversalSlop: Float, private val firstItemSlop: Float = Float.POSITIVE_INFINITY) {
     var revealed = false
         private set
     var expanded = false
         private set
     private var reverseTravel = 0f
+    private var openingFirst = false
+    private var firstTravel = 0f
+    val opensFirst: Boolean get() = openingFirst && firstTravel >= firstItemSlop
 
     // The row recognizer has already crossed Android's horizontal touch slop.
     fun drag(amount: Float): Boolean? {
+        // Only a gesture that starts leftwards can launch an item. Reversing an
+        // already revealed pop-up always keeps its existing close/reopen behavior.
+        if (!revealed && amount < 0f && firstItemSlop.isFinite()) openingFirst = true
+        if (openingFirst) {
+            firstTravel = (firstTravel - amount).coerceAtLeast(0f)
+            return null
+        }
         if (!revealed) {
             if (amount <= 0f) return null
             revealed = true
@@ -28,5 +38,7 @@ internal class PopupSwipeIntent(private val reversalSlop: Float) {
         revealed = false
         expanded = false
         reverseTravel = 0f
+        openingFirst = false
+        firstTravel = 0f
     }
 }

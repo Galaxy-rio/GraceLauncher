@@ -16,7 +16,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
@@ -73,21 +72,20 @@ internal fun ProductivitySettings(
     navigate: (SettingsPage) -> Unit,
 ) {
     val settings = uiState.settings
-    var showMediaAccessDialog by rememberSaveable { mutableStateOf(false) }
     SettingsScaffold(stringResource(R.string.settings_productivity), "settings_productivity", onBack) { padding ->
         SettingsList(padding) {
             item { SettingsHeading(stringResource(R.string.settings_instant_access)) }
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_clock), clockAppSummary(uiState),
-                    0, 7, "settings_clock",
+                    0, 8, "settings_clock",
                     leading = { LauncherIcon(LauncherSymbol.Clock) },
                 ) { navigate(SettingsPage.Clock) }
             }
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_calendar_agenda), stringResource(R.string.settings_calendar_agenda_summary),
-                    1, 7, "calendar_agenda",
+                    1, 8, "calendar_agenda",
                     leading = { LauncherIcon(LauncherSymbol.Calendar) },
                 ) { navigate(SettingsPage.Calendar) }
             }
@@ -95,24 +93,24 @@ internal fun ProductivitySettings(
                 SettingsActionItem(
                     stringResource(R.string.settings_weather),
                     stringResource(if (settings.weatherEnabled) R.string.weather_settings_enabled_summary else R.string.weather_settings_disabled_summary),
-                    2, 7, "settings_weather",
+                    2, 8, "settings_weather",
                     leading = { LauncherIcon(LauncherSymbol.Weather) },
                 ) { navigate(SettingsPage.Weather) }
             }
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_media_player), stringResource(R.string.media_player_summary),
-                    3, 7, "settings_media_player",
+                    3, 8, "settings_media_player",
                     leading = { LauncherIcon(LauncherSymbol.Music) },
                 ) { navigate(SettingsPage.MediaPlayer) }
             }
             item {
                 SettingsActionItem(stringResource(R.string.settings_search), stringResource(R.string.search_settings_summary),
-                    4, 7, "settings_open_search", leading = { LauncherIcon(LauncherSymbol.Search) }) { navigate(SettingsPage.Search) }
+                    4, 8, "settings_open_search", leading = { LauncherIcon(LauncherSymbol.Search) }) { navigate(SettingsPage.Search) }
             }
             item {
                 SettingsActionItem(stringResource(R.string.settings_grace_button), null,
-                    5, 7, "settings_grace_button", leading = {
+                    5, 8, "settings_grace_button", leading = {
                         // Remove the adaptive icon's transparent safe-zone inset;
                         // keep the same 24dp leading slot as Material Symbols.
                         Icon(painterResource(R.drawable.ic_launcher_foreground), contentDescription = null,
@@ -120,7 +118,11 @@ internal fun ProductivitySettings(
                     }) { navigate(SettingsPage.GraceButton) }
             }
             item {
-                SettingsActionItem(stringResource(R.string.widget_add), null, 6, 7, "settings_add_widget",
+                SettingsActionItem(stringResource(R.string.shortcuts_folders_title), null, 6, 8, "settings_shortcuts_folders",
+                    leading = { LauncherIcon(LauncherSymbol.Outbound) }) { navigate(SettingsPage.ShortcutsFolders) }
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.widget_add), null, 7, 8, "settings_add_widget",
                     leading = { LauncherIcon(LauncherSymbol.Widgets) }, onClick = actions.addWidget)
             }
             item {
@@ -129,11 +131,6 @@ internal fun ProductivitySettings(
                     leading = { LauncherIcon(LauncherSymbol.Move) }, onClick = actions.moveWidget)
             }
             item { SettingsHeading(stringResource(R.string.settings_app_organization)) }
-            if (!uiState.media.hasAccess) item {
-                SettingsActionItem(stringResource(R.string.notification_allow), stringResource(R.string.media_access_required),
-                    0, 1, "notifications_access", leading = { LauncherIcon(LauncherSymbol.Notifications) }) { showMediaAccessDialog = true }
-                Spacer(Modifier.height(12.dp))
-            }
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_hide_apps), pluralStringResource(R.plurals.settings_hidden_count, uiState.hiddenAppKeys.size, uiState.hiddenAppKeys.size),
@@ -170,21 +167,6 @@ internal fun ProductivitySettings(
             }
         }
     }
-    if (showMediaAccessDialog) AlertDialog(
-        onDismissRequest = { showMediaAccessDialog = false },
-        title = { Text(stringResource(R.string.media_allow_controls)) },
-        text = { Text(stringResource(R.string.media_access_explanation)) },
-        confirmButton = {
-            TextButton(onClick = { showMediaAccessDialog = false; actions.requestMediaAccess() }, modifier = Modifier.testTag("media_access_continue")) {
-                Text(stringResource(R.string.media_open_settings))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = { showMediaAccessDialog = false }, modifier = Modifier.testTag("media_access_cancel")) {
-                Text(stringResource(R.string.settings_cancel))
-            }
-        },
-    )
 }
 
 @Composable

@@ -161,6 +161,8 @@ fun LauncherAppRow(
         onPrepare = { gestures.onPrepare(app) },
         onDrag = { bounds, expanded -> gestures.onDrag(app, bounds, expanded) },
         onDragEnd = gestures.onDragEnd,
+        popupsEnabled = gestures.popupsEnabled,
+        onSwipeLeft = gestures.onOpenFirst?.let { open -> { bounds -> open(app, bounds) } },
         openDescription = stringResource(R.string.app_shortcuts),
         detailsDescription = stringResource(R.string.app_actions),
         modifier = modifier,
@@ -178,6 +180,7 @@ fun FolderRow(
     modifier: Modifier = Modifier,
     onDrag: (Rect, Boolean) -> Unit = { _, _ -> },
     onDragEnd: (Boolean) -> Unit = {},
+    onSwipeLeft: ((Rect) -> Unit)? = null,
     highlighted: Boolean = false,
     showLabel: Boolean = true,
     app: LauncherApp = folder.asApp(),
@@ -192,6 +195,7 @@ fun FolderRow(
         onPrepare = {},
         onDrag = onDrag,
         onDragEnd = onDragEnd,
+        onSwipeLeft = onSwipeLeft,
         openDescription = stringResource(R.string.open_folder),
         detailsDescription = stringResource(R.string.folder_actions),
         modifier = modifier,
@@ -219,6 +223,8 @@ private fun LauncherRow(
     detailsDescription: String,
     modifier: Modifier,
     highlighted: Boolean,
+    popupsEnabled: Boolean = true,
+    onSwipeLeft: ((Rect) -> Unit)? = null,
     notification: AppNotification? = null,
     showLabel: Boolean = true,
     trailing: (@Composable () -> Unit)? = null,
@@ -228,9 +234,11 @@ private fun LauncherRow(
     val inputEnabled = LocalLauncherInputEnabled.current
     val list = LocalListAppearance.current
     val labelStyle = listLabelStyle()
+    val openFirstDescription = stringResource(R.string.popup_swipe_left_first)
     val currentPrepare by rememberUpdatedState(onPrepare)
     val currentDrag by rememberUpdatedState(onDrag)
     val currentDragEnd by rememberUpdatedState(onDragEnd)
+    val currentSwipeLeft by rememberUpdatedState(onSwipeLeft)
     var bounds by remember { mutableStateOf(Rect.Zero) }
     var iconBounds by remember { mutableStateOf(Rect.Zero) }
     val interactionSource = remember { MutableInteractionSource() }
@@ -249,16 +257,17 @@ private fun LauncherRow(
             .onGloballyPositioned { bounds = it.boundsInWindow() }
             .clip(LauncherLayout.RowShape)
             .background(highlight)
-            .pointerInput(rowKey, inputEnabled) {
-                if (!inputEnabled) return@pointerInput
+            .pointerInput(rowKey, inputEnabled, popupsEnabled) {
+                if (!inputEnabled || !popupsEnabled) return@pointerInput
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                     currentPrepare()
                 }
             }
-            .pointerInput(rowKey, inputEnabled) {
-                if (!inputEnabled) return@pointerInput
-                val swipe = PopupSwipeIntent(reversalSlop = 8.dp.toPx())
+            .pointerInput(rowKey, inputEnabled, popupsEnabled, onSwipeLeft != null) {
+                if (!inputEnabled || !popupsEnabled) return@pointerInput
+                val swipe = PopupSwipeIntent(reversalSlop = 8.dp.toPx(),
+                    firstItemSlop = if (currentSwipeLeft != null) 40.dp.toPx() else Float.POSITIVE_INFINITY)
                 detectHorizontalDragGestures(
                     onDragStart = { swipe.reset() },
                     onDragCancel = {
@@ -267,6 +276,7 @@ private fun LauncherRow(
                     },
                     onDragEnd = {
                         if (swipe.revealed) currentDragEnd(swipe.expanded)
+                        else if (swipe.opensFirst) currentSwipeLeft?.invoke(iconBounds)
                         swipe.reset()
                     },
                 ) { change, amount ->
@@ -282,7 +292,8 @@ private fun LauncherRow(
                 if (!showLabel) contentDescription = label
                 selected = pressed || highlighted
                 customActions = buildList {
-                    add(CustomAccessibilityAction(openDescription) { onOpen(iconBounds); true })
+                    if (popupsEnabled) add(CustomAccessibilityAction(openDescription) { onOpen(iconBounds); true })
+                    if (popupsEnabled && onSwipeLeft != null) add(CustomAccessibilityAction(openFirstDescription) { onSwipeLeft(iconBounds); true })
                     if (onLongClick != null) add(CustomAccessibilityAction(detailsDescription) { onLongClick(); true })
                 }
             }
@@ -335,4 +346,6 @@ data class AppRowGestures(
     val onDrag: (LauncherApp, Rect, Boolean) -> Unit = { _, _, _ -> },
     val onDragEnd: (Boolean) -> Unit = {},
     val onLaunchAt: ((LauncherApp, Rect) -> Unit)? = null,
+    val popupsEnabled: Boolean = true,
+    val onOpenFirst: ((LauncherApp, Rect) -> Unit)? = null,
 )

@@ -47,6 +47,7 @@ data class LauncherSettings(
     val privateSpace: ProfileSettings = ProfileSettings(),
     val workProfile: ProfileSettings = ProfileSettings.workDefaults(),
     val search: SearchSettings = SearchSettings(),
+    val shortcutsFolders: ShortcutsFoldersSettings = ShortcutsFoldersSettings(),
     val graceButton: GraceButtonSettings = GraceButtonSettings(),
     val homeGestures: GraceButtonSettings = GraceButtonSettings.homeDefaults(),
 ) {

@@ -613,4 +613,13 @@
     <string name="list_names_app_list">App list only</string>
     <string name="list_left_alphabet">Use alphabet from the left</string>
     <string name="list_left_alphabet_summary">Slide along the left edge to control the alphabet on the right</string>
+    <string name="shortcuts_folders_title">Shortcuts &amp; folders</string>
+    <string name="shortcuts_folders_enable">Enable app pop-ups</string>
+    <string name="popup_swipe_left_first">Swipe left to open the first item</string>
+    <string name="popup_swipe_left_first_summary">Open the first shortcut, app, or widget’s app in the pop-up</string>
+    <string name="popup_silent_notifications">Silent notifications</string>
+    <string name="popup_normal_notifications">Normal notifications</string>
+    <string name="popup_notification_normal">Show normally</string>
+    <string name="popup_notification_expanded">Expanded only</string>
+    <string name="popup_notification_hidden">Hide</string>
 </resources>
