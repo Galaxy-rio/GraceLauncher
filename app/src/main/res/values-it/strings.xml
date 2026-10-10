@@ -324,10 +324,12 @@
     <string name="icon_designer_shape_square">Quadrato</string>
     <string name="icon_designer_shape_gem">Gemma</string>
     <string name="icon_designer_shape_cookie">biscotto a n lati</string>
+    <string name="icon_designer_pebble_roundness">Arrotondamento</string>
+    <string name="icon_designer_square_corner_radius">Raggio degli angoli</string>
     <string name="icon_designer_cookie_sides">Biscotto · %1$d lati</string>
     <string name="icon_designer_color">Colore</string>
     <string name="icon_designer_invert_background">Inverti rilevamento dello sfondo</string>
-    <string name="icon_designer_invert_background_summary">Durante la generazione del livello monocromatico, considera le aree scure come simbolo e le aree chiare come sfondo</string>
+    <string name="icon_designer_invert_background_summary">Solo per immagini a livello unico: usa le aree chiare come simbolo anziché quelle scure</string>
     <string name="icon_designer_tray_color">Colore riquadro</string>
     <string name="icon_designer_symbol_color">Colore simbolo</string>
     <string name="icon_designer_original_color">Colore originale</string>

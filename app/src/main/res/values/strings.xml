@@ -384,10 +384,12 @@
     <string name="icon_designer_shape_square">Square</string>
     <string name="icon_designer_shape_gem">Gem</string>
     <string name="icon_designer_shape_cookie">n-side cookie</string>
+    <string name="icon_designer_pebble_roundness">Roundness</string>
+    <string name="icon_designer_square_corner_radius">Corner radius</string>
     <string name="icon_designer_cookie_sides">Cookie · %1$d sides</string>
     <string name="icon_designer_color">Color</string>
     <string name="icon_designer_invert_background">Invert icon background detection</string>
-    <string name="icon_designer_invert_background_summary">When generating a monochrome layer, treat dark areas as the symbol and light areas as the background</string>
+    <string name="icon_designer_invert_background_summary">For flat images only: use light areas as the symbol instead of dark areas</string>
     <string name="icon_designer_tray_color">Tray color</string>
     <string name="icon_designer_symbol_color">Symbol color</string>
     <string name="icon_designer_original_color">Original color</string>

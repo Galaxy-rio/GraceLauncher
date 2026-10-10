@@ -381,10 +381,12 @@
     <string name="icon_designer_shape_square">正方形</string>
     <string name="icon_designer_shape_gem">Gem</string>
     <string name="icon_designer_shape_cookie">n-side cookie</string>
+    <string name="icon_designer_pebble_roundness">圆滑度</string>
+    <string name="icon_designer_square_corner_radius">圆角大小</string>
     <string name="icon_designer_cookie_sides">Cookie · %1$d 边</string>
     <string name="icon_designer_color">颜色</string>
     <string name="icon_designer_invert_background">反转图标背景识别</string>
-    <string name="icon_designer_invert_background_summary">生成单色图层时，将深色识别为符号、浅色识别为背景</string>
+    <string name="icon_designer_invert_background_summary">仅对单层图片生效：改用浅色区域作为符号，而非默认的深色区域</string>
     <string name="icon_designer_tray_color">托盘颜色</string>
     <string name="icon_designer_symbol_color">符号颜色</string>
     <string name="icon_designer_original_color">原始颜色</string>

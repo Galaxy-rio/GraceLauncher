@@ -46,8 +46,10 @@ internal fun LazyListScope.iconDesignerControls(
     colorModifier: @Composable (String) -> Modifier = { Modifier },
 ) {
     val cookie = design.shape == IconShape.Cookie
+    val adjustableCorners = design.shape == IconShape.Pebble || design.shape == IconShape.Square
     val canAddTray = all || !layered
-    val count = (if (all) 8 else 9) + (if (cookie) 1 else 0) + (if (canAddTray) 1 else 0) + (if (showSuggestions && !all) 1 else 0)
+    val count = (if (all) 8 else 9) + (if (cookie || adjustableCorners) 1 else 0) +
+        (if (canAddTray) 1 else 0) + (if (showSuggestions && !all) 1 else 0)
     var index = 0
     if (!all) {
         val position = index++
@@ -105,7 +107,8 @@ internal fun LazyListScope.iconDesignerControls(
                         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Surface(shape = CircleShape, color = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent) {
                             Canvas(Modifier.size(48.dp).padding(6.dp)) {
-                                val path = iconShapePath(shape, design.cookieSides, size.minDimension).asComposePath()
+                                val path = iconShapePath(shape, design.cookieSides, size.minDimension,
+                                    design.pebbleRoundness, design.squareCornerRadius).asComposePath()
                                 if (shape == IconShape.None) drawPath(path, color,
                                     style = Stroke(2.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(4.dp.toPx(), 3.dp.toPx()))))
                                 else drawPath(path, color)
@@ -113,6 +116,22 @@ internal fun LazyListScope.iconDesignerControls(
                         }
                         Text(label, style = MaterialTheme.typography.labelSmall, maxLines = 1)
                     }
+                }
+            }
+        }
+    }
+    if (adjustableCorners) {
+        val roundnessIndex = index++
+        val pebble = design.shape == IconShape.Pebble
+        val tag = if (pebble) "icon_designer_pebble_roundness" else "icon_designer_square_corner_radius"
+        item("shape_roundness") {
+            DesignerSegment(roundnessIndex, count, "${tag}_control") {
+                DesignerSlider(stringResource(if (pebble) R.string.icon_designer_pebble_roundness else R.string.icon_designer_square_corner_radius),
+                    (if (pebble) design.pebbleRoundness else design.squareCornerRadius).toFloat(),
+                    (if (pebble) defaults.pebbleRoundness else defaults.squareCornerRadius).toFloat(),
+                    0f..100f, enabled, tag) { value ->
+                    onChange(if (pebble) design.copy(pebbleRoundness = value.roundToInt())
+                        else design.copy(squareCornerRadius = value.roundToInt()))
                 }
             }
         }
@@ -170,7 +189,8 @@ internal fun LazyListScope.iconDesignerControls(
     item("invert_background") {
         SettingsToggleItem(stringResource(R.string.icon_designer_invert_background),
             stringResource(R.string.icon_designer_invert_background_summary),
-            design.invertBackgroundDetection, invertIndex, count, "icon_designer_invert_background", enabled = enabled) {
+            design.invertBackgroundDetection, invertIndex, count, "icon_designer_invert_background",
+            enabled = enabled && (all || !layered) && design.themeIcons && design.themeUnsupportedIcons) {
             onChange(design.copy(invertBackgroundDetection = it))
         }
     }

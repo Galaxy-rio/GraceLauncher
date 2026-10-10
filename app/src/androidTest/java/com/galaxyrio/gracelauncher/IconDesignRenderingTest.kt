@@ -64,25 +64,55 @@ class IconDesignRenderingTest {
         assertEquals(Color.RED, resetForeground.getPixel(50, 50))
     }
 
-    @Test fun grayscaleNormalizesVisiblePixelsAndPreservesAlpha() {
+    @Test fun flatMonochromeDefaultsToDarkInkAndPreservesAlpha() {
         val source = Bitmap.createBitmap(intArrayOf(Color.TRANSPARENT, Color.rgb(64, 64, 64),
             Color.argb(128, 128, 128, 128), Color.rgb(192, 192, 192)), 4, 1, Bitmap.Config.ARGB_8888)
-        val result = recolorGrayscale(source, Color.RED, Color.BLUE)
-        assertEquals(Color.TRANSPARENT, result.getPixel(0, 0))
-        assertEquals(Color.RED, result.getPixel(1, 0))
-        assertEquals(Color.BLUE, result.getPixel(3, 0))
-        assertEquals(128, Color.alpha(result.getPixel(2, 0)))
-        assertTrue(Color.red(result.getPixel(2, 0)) in 126..129)
-        assertTrue(Color.blue(result.getPixel(2, 0)) in 126..129)
         val mono = normalizedMonochrome(source)
-        assertEquals(0, Color.alpha(mono.getPixel(1, 0)))
-        assertEquals(255, Color.alpha(mono.getPixel(3, 0)))
+        assertEquals(0, Color.alpha(mono.getPixel(0, 0)))
+        assertEquals(255, Color.alpha(mono.getPixel(1, 0)))
+        assertEquals(0, Color.alpha(mono.getPixel(3, 0)))
         assertTrue(Color.alpha(mono.getPixel(2, 0)) in 63..65)
         val inverted = normalizedMonochrome(source, invert = true)
         assertEquals(0, Color.alpha(inverted.getPixel(0, 0)))
-        assertEquals(255, Color.alpha(inverted.getPixel(1, 0)))
-        assertEquals(0, Color.alpha(inverted.getPixel(3, 0)))
+        assertEquals(0, Color.alpha(inverted.getPixel(1, 0)))
+        assertEquals(255, Color.alpha(inverted.getPixel(3, 0)))
         assertTrue(Color.alpha(inverted.getPixel(2, 0)) in 63..65)
+    }
+
+    @Test fun adaptiveWithoutMonochromeUsesForegroundAlphaAndIgnoresInversion() {
+        val original = layers()
+        val foreground = solid(Color.TRANSPARENT)
+        foreground.setPixel(40, 50, Color.BLACK)
+        foreground.setPixel(50, 50, Color.WHITE)
+        foreground.setPixel(60, 50, Color.argb(128, 40, 90, 150))
+        val source = IconLayers(original.original, original.background, foreground)
+        assertSame(foreground, source.symbol(Color.MAGENTA, themeUnsupported = false))
+        val symbol = source.symbol(Color.MAGENTA, themeUnsupported = true)
+        assertEquals(Color.MAGENTA, symbol.getPixel(40, 50))
+        assertEquals(Color.MAGENTA, symbol.getPixel(50, 50))
+        assertEquals(128, Color.alpha(symbol.getPixel(60, 50)))
+        assertEquals(0, Color.alpha(symbol.getPixel(45, 50)))
+        assertSame(symbol, source.symbol(Color.MAGENTA, themeUnsupported = true, invertBackgroundDetection = true))
+        val nativeMono = original.symbol(Color.MAGENTA, themeUnsupported = true)
+        assertSame(nativeMono, original.symbol(Color.MAGENTA, themeUnsupported = true, invertBackgroundDetection = true))
+    }
+
+    @Test fun flatBackgroundIsFullyClearedBeforeDrawingTheTray() {
+        val bitmap = solid(0xFFDBEBFA.toInt())
+        Canvas(bitmap).drawRect(40f, 40f, 60f, 60f, Paint().apply { color = 0xFF24354C.toInt() })
+        // The near-transparent rounding noise must not set the brightness range.
+        bitmap.setPixel(0, 0, Color.argb(1, 255, 255, 255))
+        bitmap.setPixel(99, 0, Color.argb(1, 0, 0, 0))
+        val source = IconLayers(bitmap)
+        val design = IconDesign(shape = IconShape.Square, addTray = true,
+            background = IconColor(Color.GREEN), foreground = IconColor(Color.MAGENTA),
+            themeIcons = true, themeUnsupportedIcons = true)
+        val result = render(source, design)
+        assertEquals(Color.GREEN, result.getPixel(20, 20))
+        assertEquals(Color.MAGENTA, result.getPixel(50, 50))
+        val inverted = render(source, design.copy(invertBackgroundDetection = true))
+        assertEquals(Color.MAGENTA, inverted.getPixel(20, 20))
+        assertEquals(Color.GREEN, inverted.getPixel(50, 50))
     }
 
     @Test fun allCropChoicesRenderAndCookieCountsProduceDistinctMasks() {
@@ -99,6 +129,28 @@ class IconDesignRenderingTest {
             IntArray(10_000).also { bitmap.getPixels(it, 0, 100, 0, 0, 100, 100) }.contentHashCode()
         }
         assertEquals(5, masks.distinct().size)
+    }
+
+    @Test fun roundnessControlsChangeTheMaskWithoutChangingTheIconCenter() {
+        val source = layers()
+        fun area(style: IconDesign): Int {
+            val bitmap = render(source, style)
+            assertEquals(Color.RED, bitmap.getPixel(50, 50))
+            return IntArray(10_000).also { bitmap.getPixels(it, 0, 100, 0, 0, 100, 100) }
+                .count { Color.alpha(it) > 128 }
+        }
+        val pebbleAreas = listOf(0, 70, 100).map { area(IconDesign(shape = IconShape.Pebble, pebbleRoundness = it)) }
+        assertTrue(pebbleAreas.zipWithNext().all { (previous, next) -> next < previous })
+        val squareAreas = listOf(0, 50, 100).map { area(IconDesign(shape = IconShape.Square, squareCornerRadius = it)) }
+        assertEquals(10_000, squareAreas.first())
+        assertTrue(squareAreas.zipWithNext().all { (previous, next) -> next < previous })
+    }
+
+    @Test fun oldDesignsGetShapeDefaultsWithoutChangingTheirSavedThemeSwitch() {
+        val old = ItemIcon.decode("""{"kind":"theme","design":{"shape":"Pebble","themeIcons":true}}""")!!.design!!
+        assertEquals(IconDesign.DefaultPebbleRoundness, old.pebbleRoundness)
+        assertEquals(0, old.squareCornerRadius)
+        assertTrue(old.themeIcons)
     }
 
     @Test fun allStylesPackMatchesAndSingleParametersTakePriority() = runBlocking {
@@ -126,6 +178,7 @@ class IconDesignRenderingTest {
         val desktop = """{"kind":"pack","source":"example.icons","name":"alternate"}"""
         assertEquals(ItemIcon("pack", "example.icons", "alternate"), ItemIcon.decode(desktop))
         val design = ItemIcon("image", "example.png", design = IconDesign(shape = IconShape.Cookie, cookieSides = 9,
+            pebbleRoundness = 33, squareCornerRadius = 58,
             background = IconColor.Theme, foreground = IconColor(Color.BLUE), x = 12.5f, y = -10f, size = 175,
             iconSize = 150, themeIcons = true, themeUnsupportedIcons = true, invertBackgroundDetection = true))
         assertEquals(design, ItemIcon.decode(design.encode()))

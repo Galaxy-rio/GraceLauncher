@@ -22,6 +22,10 @@ data class IconColor(val argb: Int, val dynamic: Boolean = false, val theme: Boo
 data class IconDesign(
     val shape: IconShape = IconShape.None,
     val cookieSides: Int = 4,
+    /** 0 is a boxier superellipse; 100 approaches a circle. */
+    val pebbleRoundness: Int = DefaultPebbleRoundness,
+    /** Radius as a percentage of half the icon width; 0 keeps sharp corners. */
+    val squareCornerRadius: Int = 0,
     val background: IconColor? = null,
     val foreground: IconColor? = null,
     val addTray: Boolean = false,
@@ -34,6 +38,7 @@ data class IconDesign(
     val iconSize: Int = 100,
     val themeIcons: Boolean = false,
     val themeUnsupportedIcons: Boolean = false,
+    /** Flat images use dark ink by default; layered/monochrome sources ignore inversion. */
     val invertBackgroundDetection: Boolean = false,
     /** Old saved designs lack theming switches; resolve them against the current shared defaults. */
     val inheritThemeDefaults: Boolean = false,
@@ -49,6 +54,8 @@ data class IconDesign(
 
     fun normalized() = copy(
         cookieSides = cookieSides.takeIf { it in CookieSides } ?: 4,
+        pebbleRoundness = pebbleRoundness.coerceIn(0, 100),
+        squareCornerRadius = squareCornerRadius.coerceIn(0, 100),
         x = x.takeIf { it.isFinite() }?.coerceIn(-50f, 50f) ?: 0f,
         y = y.takeIf { it.isFinite() }?.coerceIn(-50f, 50f) ?: 0f,
         size = size.coerceIn(25, 200),
@@ -57,6 +64,7 @@ data class IconDesign(
     )
     internal fun json(): JSONObject = normalized().let { value ->
         JSONObject().put("shape", value.shape.name).put("cookieSides", value.cookieSides)
+            .put("pebbleRoundness", value.pebbleRoundness).put("squareCornerRadius", value.squareCornerRadius)
             .put("x", value.x).put("y", value.y).put("size", value.size).put("addTray", value.addTray)
             .put("rotation", value.rotation)
             .put("iconSize", value.iconSize).put("themeIcons", value.themeIcons)
@@ -68,14 +76,17 @@ data class IconDesign(
             }
     }
     companion object {
+        const val DefaultPebbleRoundness = 70
         val CookieSides = listOf(4, 6, 7, 9, 12)
-        fun defaults(themedIcons: Boolean = true) = IconDesign(
+        fun defaults(themedIcons: Boolean = false) = IconDesign(
             background = IconColor.Theme, foreground = IconColor.Theme, themeIcons = themedIcons,
         )
         internal fun decode(value: JSONObject?) = value?.let {
             IconDesign(
                 shape = IconShape.entries.firstOrNull { shape -> shape.name == it.optString("shape") } ?: IconShape.None,
                 cookieSides = it.optInt("cookieSides", 4),
+                pebbleRoundness = it.optInt("pebbleRoundness", DefaultPebbleRoundness),
+                squareCornerRadius = it.optInt("squareCornerRadius", 0),
                 background = IconColor.decode(if (it.optBoolean("addTray") && it.has("trayColor"))
                     it.optJSONObject("trayColor") else it.optJSONObject("background")),
                 foreground = IconColor.decode(it.optJSONObject("foreground")),
