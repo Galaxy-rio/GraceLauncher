@@ -16,16 +16,67 @@ class AlphabetAppearanceTest {
         assertFalse(value.freeMovement)
         assertNull(value.fontId)
         assertNull(value.fontColor)
+        assertNull(value.topPercent)
     }
 
     @Test fun limitsAlwaysDescribeANonEmptyRangeWithinTheScreen() {
         for (top in listOf(-100, 0, 35, 85, 99, 100, 1000)) {
             for (bottom in listOf(-100, 0, 35, 85, 99, 100, 1000)) {
                 val value = AlphabetAppearance(topPercent = top, bottomPercent = bottom).normalized()
-                assertTrue(value.topPercent in 0..99)
-                assertTrue(value.bottomPercent in (value.topPercent + 1)..100)
+                val normalizedTop = requireNotNull(value.topPercent)
+                assertTrue(normalizedTop in 0..99)
+                assertTrue(value.bottomPercent in (normalizedTop + 1)..100)
             }
         }
+    }
+
+    @Test fun automaticLayoutAnchorsTheBottomAndKeeps18DpForFewOrManyLetters() {
+        val value = AlphabetAppearance()
+        for (count in 1..36) {
+            val layout = value.layout(800f, count)
+            assertEquals(18f, layout.heightDp / count, .001f)
+            assertEquals(680f, layout.topDp + layout.heightDp, .001f)
+        }
+        val before = value.layout(800f, 15)
+        val after = value.layout(800f, 16)
+        assertEquals(18f, before.topDp - after.topDp, .001f)
+    }
+
+    @Test fun changingTheBottomTranslatesTheAutomaticRailWithoutChangingSpacing() {
+        val first = AlphabetAppearance(bottomPercent = 85).layout(800f, 20)
+        val moved = AlphabetAppearance(bottomPercent = 75).layout(800f, 20)
+        assertEquals(first.heightDp, moved.heightDp, .001f)
+        assertEquals(80f, first.topDp - moved.topDp, .001f)
+    }
+
+    @Test fun explicitRangesStillUseTheirSavedPercentagesAndResetRestoresSpacing() {
+        val value = AlphabetAppearance(topPercent = 35, bottomPercent = 85)
+        val custom = value.layout(800f, 20)
+        assertEquals(280f, custom.topDp, .001f)
+        assertEquals(400f, custom.heightDp, .001f)
+        val reset = value.copy(topPercent = null).layout(800f, 20)
+        assertEquals(360f, reset.heightDp, .001f)
+        assertEquals(custom.topDp + custom.heightDp, reset.topDp + reset.heightDp, .001f)
+    }
+
+    @Test fun automaticSpacingDoesNotStretchOnTallerScreens() {
+        val value = AlphabetAppearance()
+        val phone = value.layout(800f, 28)
+        val tablet = value.layout(1200f, 28)
+        assertEquals(504f, phone.heightDp, .001f)
+        assertEquals(phone.heightDp, tablet.heightDp, .001f)
+        assertEquals(1200f * .85f, tablet.topDp + tablet.heightDp, .001f)
+    }
+
+    @Test fun tinyOrEmptyViewportsRemainFiniteAndNeverRunOffTheTop() {
+        val value = AlphabetAppearance()
+        val tiny = value.layout(240f, 30)
+        assertEquals(0f, tiny.topDp, .001f)
+        assertEquals(204f, tiny.heightDp, .001f)
+        for (height in listOf(0f, -100f, Float.NaN, Float.POSITIVE_INFINITY)) {
+            assertEquals(0f, value.layout(height, 30).heightDp, 0f)
+        }
+        assertEquals(0f, value.layout(800f, 0).heightDp, 0f)
     }
 
     @Test fun invalidSizesAndShapeParametersAreSanitized() {

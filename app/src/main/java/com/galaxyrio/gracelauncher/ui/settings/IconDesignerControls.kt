@@ -241,7 +241,8 @@ internal fun DesignerSegment(index: Int, count: Int, tag: String, content: @Comp
 
 @Composable
 internal fun DesignerSlider(label: String, value: Float, default: Float, range: ClosedFloatingPointRange<Float>,
-    enabled: Boolean, tag: String, suffix: String = "%", onFinished: ((Float) -> Unit)? = null, onChange: (Float) -> Unit) {
+    enabled: Boolean, tag: String, suffix: String = "%", onFinished: ((Float) -> Unit)? = null,
+    resetEnabled: Boolean = value != default, onReset: (() -> Unit)? = null, onChange: (Float) -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text("$label · ${value.roundToInt()}$suffix", style = MaterialTheme.typography.labelLarge)
@@ -249,7 +250,9 @@ internal fun DesignerSlider(label: String, value: Float, default: Float, range: 
                 onValueChangeFinished = { onFinished?.invoke(value) },
                 modifier = Modifier.testTag(tag).semantics { contentDescription = label })
         }
-        ResetIconButton(label, enabled && value != default, "${tag}_reset") { onChange(default); onFinished?.invoke(default) }
+        ResetIconButton(label, enabled && resetEnabled, "${tag}_reset") {
+            if (onReset != null) onReset() else { onChange(default); onFinished?.invoke(default) }
+        }
     }
 }
 

@@ -166,6 +166,16 @@ class LauncherSettingsPersistenceTest {
     }
 
     @Test
+    fun automaticAlphabetSpacingAndAnExplicitOldDefaultSurviveDatabaseRecreation() = runBlocking {
+        val automatic = LauncherSettings(listAppearance = ListAppearance(alphabet = AlphabetAppearance(bottomPercent = 80)))
+        openRepository().updateSettings(automatic)
+        assertEquals(automatic, withTimeout(10_000) { openRepository().snapshots.first().settings })
+        val manual = automatic.copy(listAppearance = automatic.listAppearance.copy(alphabet = AlphabetAppearance(topPercent = 35)))
+        openRepository().updateSettings(manual)
+        assertEquals(manual, withTimeout(10_000) { openRepository().snapshots.first().settings })
+    }
+
+    @Test
     fun settingsHiddenAppsAndOrderedFoldersSurviveDatabaseRecreation() = runBlocking {
         val repository = openRepository()
         val settings = LauncherSettings(

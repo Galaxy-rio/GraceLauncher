@@ -950,8 +950,7 @@ internal fun LauncherScreen(
         val homeTop = statusBarHeight + regularHomeTop
         val drawerTop = statusBarHeight + safeHeight * 0.28f
         val alphabet = uiState.settings.listAppearance.alphabet.normalized()
-        val railTop = maxHeight * (alphabet.topPercent / 100f)
-        val railHeight = maxHeight * ((alphabet.bottomPercent - alphabet.topPercent) / 100f)
+        val railLayout = alphabet.layout(maxHeight.value, model.letters.size + 1)
 
         CompositionLocalProvider(LocalHomeAnimationTarget provides true) {
             HomeScreen(
@@ -1031,7 +1030,7 @@ internal fun LauncherScreen(
             leftTouchEnabled = uiState.settings.listAppearance.leftAlphabet,
             letters = model.letters,
             selectedLetter = if (drawerOpen) selectedLetter else null,
-            height = railHeight,
+            height = railLayout.heightDp.dp,
             onLetterSelected = { letter ->
                 if (letter == null) {
                     drawerOpen = false
@@ -1045,7 +1044,7 @@ internal fun LauncherScreen(
                     drawerOpen = true
                 }
             },
-            modifier = Modifier.align(Alignment.TopEnd).offset(y = railTop)
+            modifier = Modifier.align(Alignment.TopEnd).offset(y = railLayout.topDp.dp)
                 .graceReveal(drawerTransition.takeIf { uiState.settings.hideAlphabet }, reveal = true),
             onScrubFinished = finishScrubbing,
             autoHide = uiState.settings.hideAlphabet && !drawerOpen,

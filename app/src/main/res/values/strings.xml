@@ -631,4 +631,5 @@
     <string name="alphabet_bottom">Lower position</string>
     <string name="alphabet_free_movement">Free movement</string>
     <string name="alphabet_free_movement_summary">Drag beyond either end to move the alphabet. Release to return.</string>
+    <string name="alphabet_automatic_spacing">Automatic · %1$d dp spacing</string>
 </resources>

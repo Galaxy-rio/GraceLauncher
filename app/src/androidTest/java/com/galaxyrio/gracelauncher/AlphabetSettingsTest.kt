@@ -1,5 +1,6 @@
 package com.galaxyrio.gracelauncher
 
+import android.content.ComponentName
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,8 +14,10 @@ import com.galaxyrio.gracelauncher.data.AlphabetAppearance
 import com.galaxyrio.gracelauncher.data.IconColor
 import com.galaxyrio.gracelauncher.data.IconShape
 import com.galaxyrio.gracelauncher.data.ListAppearance
+import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
+import com.galaxyrio.gracelauncher.ui.LauncherScreen
 import com.galaxyrio.gracelauncher.ui.components.AlphabetRail
 import com.galaxyrio.gracelauncher.ui.settings.LauncherSettingsScreen
 import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
@@ -31,6 +34,7 @@ class AlphabetSettingsTest {
     @Test fun settingsRoundTripAndLegacyListsGetSafeDefaults() {
         assertEquals(AlphabetAppearance(), ListAppearance.decode(null).alphabet)
         assertEquals(AlphabetAppearance(), ListAppearance.decode("""{"fontSize":22}""").alphabet)
+        assertNull(ListAppearance.decode(ListAppearance().encode()).alphabet.topPercent)
         IconShape.entries.forEach { shape ->
             val alphabet = AlphabetAppearance(fontId = "imported.ttf", fontColor = IconColor(0xFF34ABCD.toInt()),
                 fontSize = 24, indicatorShape = shape, pebbleRoundness = 64, squareCornerRadius = 45,
@@ -38,6 +42,18 @@ class AlphabetSettingsTest {
             val list = ListAppearance(fontSize = 18, fontColor = IconColor(-1), alphabet = alphabet)
             assertEquals(list, ListAppearance.decode(list.encode()))
         }
+    }
+
+    @Test fun previouslySavedRangesIncludingTheOldDefaultsAreNeverMigrated() {
+        for (top in listOf(0, 20, 35, 60)) {
+            val old = ListAppearance.decode("""{"alphabet":{"topPercent":$top,"bottomPercent":85,"fontSize":22}}""")
+            assertEquals(top, old.alphabet.topPercent)
+            assertEquals(85, old.alphabet.bottomPercent)
+            assertEquals(22, old.alphabet.fontSize)
+            assertEquals(old, ListAppearance.decode(old.encode()))
+        }
+        val reset = ListAppearance(alphabet = AlphabetAppearance(topPercent = null, bottomPercent = 70))
+        assertEquals(reset, ListAppearance.decode(reset.encode()))
     }
 
     @Test fun fourthPersonalizationEntryOpensTheRightSidePreview() {
@@ -78,10 +94,39 @@ class AlphabetSettingsTest {
             val list = state.settings.listAppearance
             assertEquals(original.copy(alphabet = list.alphabet), list)
             assertEquals(14, list.alphabet.fontSize)
-            assertEquals(35, list.alphabet.topPercent)
+            assertNull(list.alphabet.topPercent)
             assertEquals(90, list.alphabet.bottomPercent)
             assertTrue(list.alphabet.freeMovement)
             assertEquals(IconColor(0xFF34ABCD.toInt()), list.alphabet.fontColor)
+        }
+    }
+
+    @Test fun previewLettersOccupyTheSameScreenPositionsAsTheActualDesktop() {
+        var editor by mutableStateOf(false)
+        state = state.copy(apps = ('A'..'Z').map { letter ->
+            LauncherApp(ComponentName("test.$letter", "App$letter"), letter.toString(), null)
+        }, isLoadingApps = false)
+        compose.setContent {
+            GraceLauncherTheme(dynamicColor = false) {
+                if (editor) LauncherSettingsScreen(state, LauncherActions(), onBack = {}, initialPage = "Alphabet")
+                else LauncherScreen(state, onDateClick = {}, onClockClick = {}, onLaunchApp = {}, onToggleFavorite = {})
+            }
+        }
+        for (alphabet in listOf(AlphabetAppearance(), AlphabetAppearance(topPercent = 35, fontSize = 22))) {
+            compose.runOnIdle {
+                editor = false
+                state = state.copy(settings = state.settings.copy(listAppearance = ListAppearance(alphabet = alphabet)))
+            }
+            val tags = listOf("alphabet:M", "alphabet:S", "alphabet:Y")
+            val actual = tags.map { compose.onNodeWithTag(it).fetchSemanticsNode().boundsInRoot }
+            compose.runOnIdle { editor = true }
+            tags.forEachIndexed { index, tag ->
+                val preview = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
+                assertEquals(actual[index].top, preview.top, 1f)
+                assertEquals(actual[index].left, preview.left, 1f)
+                assertEquals(actual[index].width, preview.width, 1f)
+                assertEquals(actual[index].height, preview.height, 1f)
+            }
         }
     }
 
@@ -96,19 +141,22 @@ class AlphabetSettingsTest {
                 }
             }
         }
-        val initial = compose.onNodeWithTag("alphabet:A").fetchSemanticsNode().boundsInRoot.top
+        // Free movement deliberately draws outside the stationary touch surface;
+        // accessibility's clipped bounds do not describe that visual translation.
+        val initial = compose.onNodeWithTag("alphabet:A").getUnclippedBoundsInRoot().top.value
         for (tag in listOf("alphabet_rail", "alphabet_left_touch")) {
             val rail = compose.onNodeWithTag(tag, useUnmergedTree = true)
             val hitArea = rail.fetchSemanticsNode().boundsInRoot
             rail.performTouchInput { down(Offset(centerX, centerY)); moveTo(Offset(centerX, -height / 2f)) }
             compose.runOnIdle { assertEquals("A", selected) }
-            assertTrue(compose.onNodeWithTag("alphabet:A").fetchSemanticsNode().boundsInRoot.top < initial)
+            val moved = compose.onNodeWithTag("alphabet:A").getUnclippedBoundsInRoot().top.value
+            assertTrue("$tag: visual top $moved must be above $initial", moved < initial)
             assertEquals(hitArea, rail.fetchSemanticsNode().boundsInRoot)
             rail.performTouchInput { moveTo(Offset(centerX, -height / 2f + height / 5f * 1.1f)) }
             compose.runOnIdle { assertEquals("B", selected) }
             rail.performTouchInput { up() }
             compose.waitForIdle()
-            assertEquals(initial, compose.onNodeWithTag("alphabet:A").fetchSemanticsNode().boundsInRoot.top, 1f)
+            assertEquals(initial, compose.onNodeWithTag("alphabet:A").getUnclippedBoundsInRoot().top.value, .5f)
         }
     }
 

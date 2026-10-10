@@ -13,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.AbsoluteAlignment
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
@@ -22,18 +23,21 @@ import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.AlphabetAppearance
+import com.galaxyrio.gracelauncher.data.AlphabetRailLayout
 import com.galaxyrio.gracelauncher.data.IconDesign
 import com.galaxyrio.gracelauncher.data.PrivateSpaceDisplay
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AlphabetRail
 import com.galaxyrio.gracelauncher.ui.drawer.AppListModel
-import com.galaxyrio.gracelauncher.ui.drawer.FolderSection
 import com.galaxyrio.gracelauncher.ui.drawer.GraceSection
 import com.galaxyrio.gracelauncher.ui.theme.LocalFontLibrary
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
@@ -42,13 +46,21 @@ import com.galaxyrio.gracelauncher.ui.theme.wallpaperTint
 import kotlin.math.roundToInt
 
 @Composable
-internal fun AlphabetSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit, onManageFonts: () -> Unit) {
+internal fun AlphabetSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit, onManageFonts: () -> Unit) = BoxWithConstraints(Modifier.fillMaxSize()) {
     val saved = uiState.settings.listAppearance.alphabet
     val defaults = remember { AlphabetAppearance() }
     var draft by remember(saved) { mutableStateOf(saved.normalized()) }
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     val controls = rememberLazyListState()
     val enabled = LocalSettingsStorageState.current.canEdit
+    val letters = rememberAlphabetPreviewLetters(uiState)
+    val density = LocalDensity.current
+    var viewportTop by remember { mutableFloatStateOf(0f) }
+    // Measure before the scaffold takes out its app bar and navigation padding,
+    // just like the desktop's full-height BoxWithConstraints.
+    val viewportHeight = maxHeight.value.coerceAtLeast(1f)
+    val railLayout = draft.layout(viewportHeight, letters.size + 1)
+    val automaticTop = draft.copy(topPercent = null).layout(viewportHeight, letters.size + 1).topDp / viewportHeight * 100f
     val wallpaper = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons, 100)
     val primary = MaterialTheme.colorScheme.primary
     val heroSpec = MaterialTheme.motionScheme.slowSpatialSpec<Rect>()
@@ -71,12 +83,14 @@ internal fun AlphabetSettings(uiState: LauncherUiState, actions: LauncherActions
         onManage = { dialog = null; onManageFonts() }, onDismiss = { dialog = null }, tag = "alphabet_font_picker")
 
     SettingsScaffold(stringResource(R.string.settings_alphabet), "alphabet_settings",
-        { if (dialog == "color") closeColor() else onBack() }, fixedCollapsed = true) { padding ->
+        { if (dialog == "color") closeColor() else onBack() },
+        modifier = Modifier.onGloballyPositioned { viewportTop = with(density) { it.positionInWindow().y.toDp().value } },
+        fixedCollapsed = true) { padding ->
         BoxWithConstraints(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
             // Leave a useful controls column on small phones, and enough preview width
             // for both the wave and its indicator. The right edge has no outer margin.
             val previewWidth = (maxWidth * .42f).coerceIn(160.dp, 180.dp)
-            AlphabetPreview(uiState, draft, Modifier.align(AbsoluteAlignment.TopRight).width(previewWidth).fillMaxHeight()
+            AlphabetPreview(uiState, draft, letters, railLayout, viewportTop, Modifier.align(AbsoluteAlignment.TopRight).width(previewWidth).fillMaxHeight()
                 .padding(top = 8.dp, bottom = 8.dp + LocalSettingsBottomInset.current))
             SharedTransitionLayout(Modifier.fillMaxSize().absolutePadding(left = 12.dp, right = previewWidth + 8.dp, top = 8.dp).clipToBounds()) {
                 AnimatedContent(dialog == "color", Modifier.fillMaxSize(),
@@ -125,11 +139,16 @@ internal fun AlphabetSettings(uiState: LauncherUiState, actions: LauncherActions
                         }
                         item("top") {
                             DesignerSegment(4, 7, "alphabet_top_control") {
-                                DesignerSlider(stringResource(R.string.alphabet_top), draft.topPercent.toFloat(), defaults.topPercent.toFloat(),
+                                if (draft.topPercent == null) Text(
+                                    stringResource(R.string.alphabet_automatic_spacing, AlphabetAppearance.DefaultStepDp.roundToInt()),
+                                    Modifier.testTag("alphabet_top_automatic"), style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                                DesignerSlider(stringResource(R.string.alphabet_top), draft.topPercent?.toFloat() ?: automaticTop, automaticTop,
                                     0f..99f, enabled, "alphabet_top", onFinished = { value ->
                                         val bottom = draft.bottomPercent
                                         change { it.copy(topPercent = value.roundToInt(), bottomPercent = bottom) }
-                                    }) {
+                                    }, resetEnabled = draft.topPercent != null, onReset = { change { it.copy(topPercent = null) } }) {
                                     draft = draft.copy(topPercent = it.roundToInt()).normalized()
                                 }
                             }
@@ -137,8 +156,8 @@ internal fun AlphabetSettings(uiState: LauncherUiState, actions: LauncherActions
                         item("bottom") {
                             DesignerSegment(5, 7, "alphabet_bottom_control") {
                                 DesignerSlider(stringResource(R.string.alphabet_bottom), draft.bottomPercent.toFloat(),
-                                    maxOf(defaults.bottomPercent, draft.topPercent + 1).toFloat(),
-                                    (draft.topPercent + 1f)..100f, enabled, "alphabet_bottom",
+                                    maxOf(defaults.bottomPercent, (draft.topPercent ?: 0) + 1).toFloat(),
+                                    ((draft.topPercent ?: 0) + 1f)..100f, enabled, "alphabet_bottom",
                                     onFinished = { value -> change { it.copy(bottomPercent = value.roundToInt()) } }) {
                                     draft = draft.copy(bottomPercent = it.roundToInt()).normalized()
                                 }
@@ -156,7 +175,8 @@ internal fun AlphabetSettings(uiState: LauncherUiState, actions: LauncherActions
 }
 
 @Composable
-private fun AlphabetPreview(uiState: LauncherUiState, draft: AlphabetAppearance, modifier: Modifier) {
+private fun AlphabetPreview(uiState: LauncherUiState, draft: AlphabetAppearance, letters: List<String>, layout: AlphabetRailLayout,
+    viewportTop: Float, modifier: Modifier) {
     val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons, 100)
     val settings = uiState.settings
     val primary = MaterialTheme.colorScheme.primary
@@ -165,26 +185,42 @@ private fun AlphabetPreview(uiState: LauncherUiState, draft: AlphabetAppearance,
     }
     val dimAlpha = if (settings.dimWallpaper) settings.wallpaperDimAmount / 100f else 0f
     val shape = remember { AbsoluteRoundedCornerShape(topLeft = 24.dp, bottomLeft = 24.dp) }
-    val privateFolder = uiState.privateFolder.takeIf { settings.privateSpace.enabled && uiState.privateSpace.supported &&
-        settings.privateSpace.display != PrivateSpaceDisplay.NormalApp }
-    val workFolder = uiState.workFolder.takeIf { settings.workProfile.enabled && uiState.workProfiles.isNotEmpty() &&
-        settings.workProfile.display != PrivateSpaceDisplay.NormalApp }
-    val apps = uiState.appListApps
-    val letters = remember(apps, uiState.folders, privateFolder, workFolder) {
-        val actual = AppListModel(apps, uiState.folders, privateFolder, workFolder = workFolder).letters
-        (actual.ifEmpty { listOf("A", "B", "C", "D", "F", "G", "M", "P", "S", "T", "V", "W", "Y", FolderSection) } + GraceSection).distinct()
-    }
+    val density = LocalDensity.current
+    var previewTop by remember { mutableFloatStateOf(0f) }
+    var positioned by remember { mutableStateOf(false) }
     var selected by remember { mutableStateOf<String?>(null) }
-    BoxWithConstraints(modifier.testTag("alphabet_preview").drawWithContent {
+    Box(modifier.testTag("alphabet_preview").onGloballyPositioned {
+        previewTop = with(density) { it.positionInWindow().y.toDp().value }
+        positioned = true
+    }.drawWithContent {
         val outline = shape.createOutline(size, layoutDirection, this)
         drawOutline(outline, Color.Transparent, blendMode = BlendMode.Clear)
         drawOutline(outline, tint.copy(alpha = dimAlpha))
         drawContent()
     }.clip(shape)) {
         CompositionLocalProvider(LocalLauncherAppearance provides appearance, LocalFontLibrary provides settings.fontLibrary) {
-            AlphabetRail(letters, selected, maxHeight * ((draft.bottomPercent - draft.topPercent) / 100f),
+            // A window into the desktop, not another screen with a shorter coordinate
+            // system. Preserve actual letter spacing, glyph sizes and indicator geometry.
+            if (positioned) AlphabetRail(letters, selected, layout.heightDp.dp,
                 onLetterSelected = { selected = it }, alphabet = draft,
-                modifier = Modifier.align(AbsoluteAlignment.TopRight).offset(y = maxHeight * (draft.topPercent / 100f)))
+                modifier = Modifier.align(AbsoluteAlignment.TopRight).offset(y = (viewportTop + layout.topDp - previewTop).dp)
+                    .wrapContentHeight(Alignment.Top, unbounded = true))
         }
+    }
+}
+
+@Composable
+private fun rememberAlphabetPreviewLetters(uiState: LauncherUiState): List<String> {
+    val settings = uiState.settings
+    val profilesReady = !uiState.isLoadingSettings && !uiState.settingsLoadFailed
+    val privateFolder = uiState.privateFolder.takeIf { settings.privateSpace.enabled && uiState.privateSpace.supported &&
+        settings.privateSpace.display != PrivateSpaceDisplay.NormalApp && profilesReady }
+    val workFolder = uiState.workFolder.takeIf { settings.workProfile.enabled && uiState.workProfiles.isNotEmpty() &&
+        settings.workProfile.display != PrivateSpaceDisplay.NormalApp && profilesReady }
+    val apps = uiState.appListApps
+    return remember(apps, uiState.folders, privateFolder, workFolder) {
+        val actual = AppListModel(apps, uiState.folders, privateFolder, workFolder = workFolder).letters
+        // The real drawer always has Recently Installed in the Grace section.
+        (actual + GraceSection).distinct()
     }
 }

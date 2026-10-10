@@ -566,4 +566,5 @@
     <string name="alphabet_bottom">Posizione inferiore</string>
     <string name="alphabet_free_movement">Movimento libero</string>
     <string name="alphabet_free_movement_summary">Trascina oltre un’estremità per spostare l’alfabeto. Rilascia per tornare alla posizione iniziale.</string>
+    <string name="alphabet_automatic_spacing">Automatico · spaziatura di %1$d dp</string>
 </resources>
