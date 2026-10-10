@@ -889,6 +889,14 @@ internal fun LauncherScreen(
                 if (app != null) onLaunchApp(app)
                 else Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
             }
+            GraceButtonAction.Folder -> {
+                val folder = uiState.folders.firstOrNull { it.key == target.itemKey }
+                if (folder != null) {
+                    // Reuse the folder hero, starting at the button's current dragged pose.
+                    overlay = LauncherOverlay.Folder(folder, origin.bounds,
+                        ShortcutRevealState(animationsEnabled = !fromButton || buttonSettings.animationsEnabled))
+                } else Toast.makeText(context, R.string.folder_unavailable, Toast.LENGTH_SHORT).show()
+            }
             GraceButtonAction.AppList -> {
                 if (fromButton && buttonSettings.animationsEnabled)
                     buttonTransition = GraceButtonTransition(target.action, origin, durationMillis = buttonSettings.appListAnimationDurationMs)

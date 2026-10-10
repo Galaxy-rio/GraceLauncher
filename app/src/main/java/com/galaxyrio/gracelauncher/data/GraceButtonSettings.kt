@@ -3,7 +3,7 @@ package com.galaxyrio.gracelauncher.data
 import org.json.JSONObject
 
 enum class GraceButtonAction {
-    App, Shortcut, Settings, Search, Website, LockScreen, AppList, Notifications, QuickSettings, Assistant, Agenda, Disabled;
+    App, Shortcut, Folder, Settings, Search, Website, LockScreen, AppList, Notifications, QuickSettings, Assistant, Agenda, Disabled;
 
     val requiresAccessibility: Boolean get() = this == LockScreen || this == Notifications || this == QuickSettings
 }

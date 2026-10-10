@@ -76,7 +76,7 @@ import kotlinx.coroutines.withContext
 internal enum class SettingsPage {
     Root, Productivity, Clock, ClockStyle, Calendar, Weather, Themes, Advanced, About, HiddenApps, Folders, FolderEditor,
     Changelog, Licenses, AppLicense, IconPacks, IconDesigner, IconDesignerApp, PrivateSpace, PrivateSpaceEditor, Search,
-    MediaPlayer, GraceButton, GraceAction, GraceApp, GraceShortcut, Gestures, WorkProfile, WorkProfileEditor,
+    MediaPlayer, GraceButton, GraceAction, GraceApp, GraceShortcut, GraceFolder, Gestures, WorkProfile, WorkProfileEditor,
     LabGraceButton, LabGesture, Fonts, ListAppearance, ShortcutsFolders,
 }
 
@@ -163,7 +163,7 @@ fun LauncherSettingsScreen(
       ) {
         SettingsPage.entries.forEach { page ->
             val isEditor = page == SettingsPage.FolderEditor
-            val isGraceAction = page in listOf(SettingsPage.GraceAction, SettingsPage.GraceApp, SettingsPage.GraceShortcut)
+            val isGraceAction = page in listOf(SettingsPage.GraceAction, SettingsPage.GraceApp, SettingsPage.GraceShortcut, SettingsPage.GraceFolder)
             composable(
                 route = when { isEditor -> "FolderEditor/{folderId}"; isGraceAction -> "${page.name}/{gesture}?home={home}"; else -> page.name },
                 arguments = when {
@@ -206,8 +206,12 @@ fun LauncherSettingsScreen(
                     SettingsPage.GraceAction -> {
                         val gesture = GraceButtonGesture.entries.firstOrNull { it.name == entry.arguments?.getString("gesture") } ?: GraceButtonGesture.Tap
                         val home = entry.arguments?.getBoolean("home") == true
-                        GraceButtonActionSettings(gesture, uiState, actions, back, home) { shortcut ->
-                            val destination = if (shortcut) SettingsPage.GraceShortcut else SettingsPage.GraceApp
+                        GraceButtonActionSettings(gesture, uiState, actions, back, home) { action ->
+                            val destination = when (action) {
+                                GraceButtonAction.Folder -> SettingsPage.GraceFolder
+                                GraceButtonAction.Shortcut -> SettingsPage.GraceShortcut
+                                else -> SettingsPage.GraceApp
+                            }
                             if (isCurrent()) navController.navigate("${destination.name}/${gesture.name}?home=$home") { launchSingleTop = true }
                         }
                     }
@@ -221,6 +225,22 @@ fun LauncherSettingsScreen(
                                 actions.updateSettings { it.withGestureSettings(home) { settings -> settings.withTarget(gesture, GraceButtonTarget(GraceButtonAction.App, key)) } }
                                 back()
                             } })
+                    }
+                    SettingsPage.GraceFolder -> {
+                        val gesture = GraceButtonGesture.entries.firstOrNull { it.name == entry.arguments?.getString("gesture") } ?: GraceButtonGesture.Tap
+                        val home = entry.arguments?.getBoolean("home") == true
+                        val target = uiState.settings.gestureSettings(home).target(gesture)
+                        val selectedFolder = uiState.folders.firstOrNull { target.action == GraceButtonAction.Folder && it.key == target.itemKey }
+                        FolderSettings(uiState, actions, back, selectedIds = setOfNotNull(selectedFolder?.id), singleChoice = true,
+                            onToggle = { id ->
+                                val folder = uiState.folders.firstOrNull { it.id == id }
+                                if (isCurrent() && folder != null) {
+                                    actions.updateSettings { it.withGestureSettings(home) { settings -> settings.withTarget(gesture,
+                                        GraceButtonTarget(GraceButtonAction.Folder, folder.key)) } }
+                                    back()
+                                }
+                            },
+                            onEdit = { id -> if (isCurrent()) navController.navigate("FolderEditor/${Uri.encode(id)}") })
                     }
                     SettingsPage.GraceShortcut -> {
                         val gesture = GraceButtonGesture.entries.firstOrNull { it.name == entry.arguments?.getString("gesture") } ?: GraceButtonGesture.Tap

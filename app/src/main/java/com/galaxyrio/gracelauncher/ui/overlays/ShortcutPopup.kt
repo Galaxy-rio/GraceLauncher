@@ -56,7 +56,7 @@ import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
 
 @Stable
-class ShortcutRevealState(expanded: Boolean = true, dragging: Boolean = false) {
+class ShortcutRevealState(expanded: Boolean = true, dragging: Boolean = false, val animationsEnabled: Boolean = true) {
     var dragging by mutableStateOf(dragging)
     var expanded by mutableStateOf(expanded)
 }
@@ -250,8 +250,8 @@ internal fun SwipeRevealPanel(
         // directly. A swipe/tap close has already emitted its feedback above.
         onDispose { if (feedbackExpanded) haptics.performHapticFeedback(HapticFeedbackType.GestureEnd) }
     }
-    val spatial = remember(reveal) { Animatable(0f) }
-    val effects = remember(reveal) { Animatable(0f) }
+    val spatial = remember(reveal) { Animatable(if (!reveal.animationsEnabled && reveal.expanded) 1f else 0f) }
+    val effects = remember(reveal) { Animatable(spatial.value) }
     val spatialSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
     val effectsSpec = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
     LaunchedEffect(reveal, spatialSpec, effectsSpec) {
@@ -259,14 +259,15 @@ internal fun SwipeRevealPanel(
             val destination = if (expanded) 1f else 0f
             // Let Animatable interrupt its previous animateTo. Cancelling the
             // owning effect on every target change would reset its velocity.
-            launch { effects.animateTo(destination, effectsSpec) }
-            launch { spatial.animateTo(destination, spatialSpec) }
+            launch { if (reveal.animationsEnabled) effects.animateTo(destination, effectsSpec) else effects.snapTo(destination) }
+            launch { if (reveal.animationsEnabled) spatial.animateTo(destination, spatialSpec) else spatial.snapTo(destination) }
         }
     }
-    LaunchedEffect(reveal.dragging, reveal.expanded, spatial.isRunning) {
+    val finishedClosing = !reveal.dragging && !reveal.expanded && !spatial.isRunning && spatial.value == 0f
+    LaunchedEffect(reveal, finishedClosing) {
         // Keep the original gesture alive at zero so a rightward reversal can
         // reopen the same panel without lifting the finger.
-        if (!reveal.dragging && !reveal.expanded && !spatial.isRunning && spatial.value == 0f) currentOnDismiss()
+        if (finishedClosing) currentOnDismiss()
     }
     var origin by remember { mutableStateOf(Offset.Zero) }
     Box(Modifier.fillMaxSize().onGloballyPositioned { origin = it.boundsInWindow().topLeft }) {

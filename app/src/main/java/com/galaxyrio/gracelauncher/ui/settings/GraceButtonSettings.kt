@@ -74,7 +74,7 @@ internal fun GraceButtonSettingsScreen(uiState: LauncherUiState, actions: Launch
 
 @Composable
 internal fun GraceButtonActionSettings(gesture: GraceButtonGesture, uiState: LauncherUiState, actions: LauncherActions,
-    onBack: () -> Unit, home: Boolean = false, onChooseTarget: (shortcut: Boolean) -> Unit) {
+    onBack: () -> Unit, home: Boolean = false, onChooseTarget: (GraceButtonAction) -> Unit) {
     val target = uiState.settings.gestureSettings(home).target(gesture)
     var websiteDialog by rememberSaveable { mutableStateOf(false) }
     var accessDialog by rememberSaveable { mutableStateOf(false) }
@@ -90,14 +90,14 @@ internal fun GraceButtonActionSettings(gesture: GraceButtonGesture, uiState: Lau
                 item {
                     val checked = target.action == action
                     SettingsActionItem(stringResource(action.labelRes),
-                        if (checked && action in listOf(GraceButtonAction.App, GraceButtonAction.Shortcut, GraceButtonAction.Website))
+                        if (checked && action in listOf(GraceButtonAction.App, GraceButtonAction.Shortcut, GraceButtonAction.Folder, GraceButtonAction.Website))
                             target.summary(uiState) else null,
                         index, options.size, "grace_action:${action.name}",
                         leading = { RadioButton(checked, onClick = null) },
                         modifier = Modifier.semantics { role = Role.RadioButton; selected = checked },
                     ) {
                         when (action) {
-                            GraceButtonAction.App, GraceButtonAction.Shortcut -> onChooseTarget(action == GraceButtonAction.Shortcut)
+                            GraceButtonAction.App, GraceButtonAction.Shortcut, GraceButtonAction.Folder -> onChooseTarget(action)
                             GraceButtonAction.Website -> websiteDialog = true
                             else -> select(GraceButtonTarget(action))
                         }
@@ -143,6 +143,8 @@ private fun GraceWebsiteDialog(initial: String, onDismiss: () -> Unit, onSave: (
 private fun GraceButtonTarget.summary(uiState: LauncherUiState): String = when (action) {
     GraceButtonAction.App, GraceButtonAction.Shortcut -> itemKey?.let { uiState.findItem(it)?.label }
         ?: stringResource(R.string.popup_item_unavailable)
+    GraceButtonAction.Folder -> uiState.folders.firstOrNull { it.key == itemKey }?.name
+        ?: stringResource(R.string.folder_unavailable)
     GraceButtonAction.Website -> url.orEmpty()
     else -> stringResource(action.labelRes)
 }
@@ -150,6 +152,7 @@ private fun GraceButtonTarget.summary(uiState: LauncherUiState): String = when (
 private val GraceButtonAction.labelRes: Int get() = when (this) {
     GraceButtonAction.App -> R.string.grace_button_open_app
     GraceButtonAction.Shortcut -> R.string.grace_button_open_shortcut
+    GraceButtonAction.Folder -> R.string.open_folder
     GraceButtonAction.Settings -> R.string.grace_settings
     GraceButtonAction.Search -> R.string.settings_search
     GraceButtonAction.Website -> R.string.grace_button_open_website

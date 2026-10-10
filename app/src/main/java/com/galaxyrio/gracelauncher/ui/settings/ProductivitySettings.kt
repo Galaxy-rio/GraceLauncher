@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Icon
@@ -41,6 +42,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.toggleableState
 import androidx.compose.ui.state.ToggleableState
@@ -247,6 +249,7 @@ internal fun FavoriteFoldersScreen(uiState: LauncherUiState, actions: LauncherAc
 internal fun FolderSettings(
     uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
     selectedIds: Set<String>? = null, onToggle: (String) -> Unit = {}, enabled: Boolean = true,
+    singleChoice: Boolean = false,
     onEdit: (String) -> Unit,
 ) {
     var creating by rememberSaveable { mutableStateOf(false) }
@@ -275,7 +278,8 @@ internal fun FolderSettings(
                 itemsIndexed(uiState.folders, key = { _, folder -> folder.id }) { index, folder ->
                     val count = uiState.popups[folder.key]?.size ?: folder.appKeys.size
                     val checked = selectedIds?.contains(folder.id)
-                    val placement = if (checked == null) folder.placement else folder.placement.withFavorites(checked)
+                    // An action selects a target, not whether the folder belongs in favorites.
+                    val placement = if (checked == null || singleChoice) folder.placement else folder.placement.withFavorites(checked)
                     SettingsActionItem(
                         folder.name,
                         pluralStringResource(R.plurals.settings_folder_summary, count, count, placement.label()),
@@ -283,14 +287,23 @@ internal fun FolderSettings(
                         enabled = enabled,
                         modifier = Modifier.semantics {
                             if (checked != null) {
-                                role = Role.Checkbox
-                                toggleableState = if (checked) ToggleableState.On else ToggleableState.Off
+                                if (singleChoice) {
+                                    role = Role.RadioButton
+                                    selected = checked
+                                } else {
+                                    role = Role.Checkbox
+                                    toggleableState = if (checked) ToggleableState.On else ToggleableState.Off
+                                }
                             }
                         },
                         leading = {
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                                if (checked != null) Checkbox(checked, onCheckedChange = null,
-                                    enabled = enabled && LocalSettingsStorageState.current.canEdit)
+                                if (checked != null) {
+                                    if (singleChoice) RadioButton(checked, onClick = null,
+                                        enabled = enabled && LocalSettingsStorageState.current.canEdit)
+                                    else Checkbox(checked, onCheckedChange = null,
+                                        enabled = enabled && LocalSettingsStorageState.current.canEdit)
+                                }
                                 AppIcon(uiState.folderItem(folder), size = 32.dp)
                             }
                         },
