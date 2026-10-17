@@ -94,7 +94,7 @@
     <string name="private_space_security_required">Définissez un verrouillage d\'écran pour activer la protection par mot de passe</string>
     <string name="private_space_unlock_edit">Déverrouiller pour modifier</string>
     <string name="private_space_lock">Verrouiller l’espace privé</string>
-    <string name="app_name">Lanceur Grace</string>
+    <string name="app_name">Grace Launcher</string>
     <string name="alphabet_scroller">Défilement alphabétique rapide</string>
     <string name="back_home">Retour à l’accueil</string>
     <string name="jump_to_letter">Applications commençant par %1$s</string>
@@ -485,4 +485,24 @@
     <string name="weather_thunderstorm">Orage</string>
     <string name="weather_fog">Brouillard</string>
     <string name="weather_wind">Venteux</string>
+    <string name="weather_hail">Grêle</string>
+    <string name="weather_sleet">Neige fondue</string>
+    <string name="weather_unknown">Météo indisponible</string>
+    <string name="weather_temperature_unknown">Température indisponible</string>
+    <string name="weather_now">à l\'instant</string>
+    <string name="weather_updated">mis à jour %1$s</string>
+    <string name="weather_outdated">données obsolètes · mises à jour %1$s</string>
+    <string name="weather_update_unknown">heure de mise à jour inconnue</string>
+    <string name="weather_via_breezy">Météo fournie par Breezy Weather</string>
+    <string name="weather_agenda_action">%1$s. Ouvrir l\'agenda et la météo</string>
+    <string name="licenses_app_license">GNU GPLv3</string>
+    <string name="licenses_app_summary">Grace Launcher est un logiciel libre sous licence GNU General Public License version 3. Distribué sans garantie. Les composants tiers restent soumis à leurs propres licences.</string>
+    <string name="licenses_third_party">Bibliothèques tierces</string>
+    <plurals name="licenses_count">
+        <item quantity="one">%1$d bibliothèque</item>
+        <item quantity="many">%1$d bibliothèques</item>
+        <item quantity="other">%1$d bibliothèques</item>
+    </plurals>
+    <string name="licenses_search">Rechercher des bibliothèques</string>
+    <string name="licenses_clear_search">Effacer la recherche</string>
 </resources>

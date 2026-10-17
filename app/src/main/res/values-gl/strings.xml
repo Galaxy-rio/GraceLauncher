@@ -209,7 +209,7 @@
     <string name="settings_themes">Aparencia</string>
     <string name="settings_themes_summary">Cores, aspecto e personalización</string>
     <string name="settings_advanced">Avanzado</string>
-    <string name="settings_lab">Lab</string>
+    <string name="settings_lab">Laboratorio</string>
     <string name="lab_animation">Animación</string>
     <string name="lab_swipe_sensitivity">Sensibilidade do esvarado</string>
     <string name="lab_swipe_sensitivity_summary">Os valores máis altos facilitan a activación dos esvarados na pantalla de inicio e do movemento cara a abaixo para pechar a busca. O 100 % mantén os limiares predeterminados de distancia e velocidade.</string>
@@ -370,7 +370,7 @@
     <string name="icon_designer_shape_pebble">Croio</string>
     <string name="icon_designer_shape_square">Cadrado</string>
     <string name="icon_designer_shape_gem">Xema</string>
-    <string name="icon_designer_shape_cookie">n-side cookie</string>
+    <string name="icon_designer_shape_cookie">Galleta n-lados</string>
     <string name="icon_designer_pebble_roundness">Redondez</string>
     <string name="icon_designer_square_corner_radius">Raio da esquina</string>
     <string name="icon_designer_cookie_sides">Cookie · %1$d lados</string>

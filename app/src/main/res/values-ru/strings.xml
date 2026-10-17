@@ -60,4 +60,15 @@
     <string name="work_profile_indicator">Индикатор рабочего приложения</string>
     <string name="work_profile_indicator_summary">Показывать значок работы на иконках рабочих приложений</string>
     <string name="work_profile_edit">Изменить</string>
+    <string name="work_profile_setup">Открыть настройки профиля</string>
+    <string name="work_profile_setup_summary">Управление рабочим профилем в настройках Android</string>
+    <string name="work_profile_default_home">Установите Grace в качестве лаунчера по умолчанию, чтобы получить доступ к рабочим приложениям</string>
+    <string name="work_profile_empty">Рабочий профиль Android не найден. При отключенной группировке рабочие приложения остаются доступными как обычные приложения.</string>
+    <string name="work_profile_no_apps">Доступных рабочих приложений нет. Возможно, ваш рабочий профиль приостановлен.</string>
+    <string name="private_space_title">Личное пространство</string>
+    <string name="private_space_summary">Защищенное пространство для ваших личных приложений</string>
+    <string name="private_space_enable">Включить «Личное пространство»</string>
+    <string name="private_space_enable_summary">Отображать «Личное пространство» внизу раздела «Папки» в списке приложений</string>
+    <string name="private_space_password">Защита паролем</string>
+    <string name="private_space_password_summary">При открытии приложения необходимо пройти аутентификацию с помощью отпечатка пальца или системного пароля. В Android также может потребоваться ввод пароля «Личного пространства».</string>
 </resources>
