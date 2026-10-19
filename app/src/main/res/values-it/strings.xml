@@ -687,4 +687,5 @@
     <string name="lab_dp">%1$d dp</string>
     <string name="lab_degrees">±%1$d°</string>
     <string name="grace_widgets_title">Widget Grace</string>
+    <string name="grace_widget_baseline">Base (invisibile)</string>
 </resources>
