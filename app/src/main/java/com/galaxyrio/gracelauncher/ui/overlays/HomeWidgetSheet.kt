@@ -47,14 +47,12 @@ internal fun HomeWidgetSheet(uiState: LauncherUiState, actions: LauncherActions,
             if (app != null) WidgetAction(LauncherSymbol.Info, stringResource(R.string.app_info)) { onChange(null); actions.appInfo(app) }
             WidgetAction(LauncherSymbol.Resize, stringResource(R.string.widget_move_resize)) { actions.moveWidget() }
             WidgetAction(LauncherSymbol.Edit, stringResource(R.string.widget_configuration)) { onChange(null); actions.configureWidget() }
-            WidgetAction(LauncherSymbol.Plus, stringResource(R.string.widget_add)) { onChange(null); actions.addWidget() }
             WidgetAction(LauncherSymbol.Delete, stringResource(R.string.widget_remove)) { onChange(null); actions.removeWidget() }
         } else {
             WidgetAction(LauncherSymbol.Clock, stringResource(R.string.settings_clock_style), arrow = true) { navigate("ClockStyle") }
             WidgetAction(LauncherSymbol.Calendar, stringResource(R.string.widget_calendar),
                 stringResource(R.string.settings_calendar_agenda_summary), arrow = true) { navigate("Calendar") }
             WidgetAction(LauncherSymbol.Weather, stringResource(R.string.settings_weather), arrow = true) { navigate("Weather") }
-            WidgetAction(LauncherSymbol.Apps, stringResource(R.string.widget_add), arrow = true) { onChange(null); actions.addWidget() }
             WidgetAction(LauncherSymbol.Move, stringResource(R.string.settings_move_widget), arrow = true) { actions.moveWidget() }
             WidgetToggle(stringResource(R.string.settings_media_player), stringResource(R.string.media_player_summary), settings.mediaPlayer) { enabled ->
                 actions.updateSettings { it.copy(mediaPlayer = enabled) }

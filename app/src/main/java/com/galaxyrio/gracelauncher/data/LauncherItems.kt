@@ -138,11 +138,13 @@ class LauncherItemsRepository(private val database: LauncherDatabase) {
     suspend fun updatePopup(key: String, defaults: List<PopupItem>, transform: (List<PopupItem>) -> List<PopupItem>): List<Int> =
         database.withTransaction {
             requireExistingFolder(key)
+            if (key == HomeContentKey) LauncherSettingsRepository(database).migrateLegacyHomeWidget()
             val previous = dao.popup(key)?.let { PopupItem.decode(it.itemsJson) } ?: defaults
             val stack = key.takeIf { it.startsWith("folder:") }?.removePrefix("folder:")
                 ?.let { database.settingsDao().folder(it) }?.isAppStack == true
             val next = transform(previous).distinctBy { it.key }.filter {
-                !stack || (it.widget == null && !it.key.startsWith("folder:"))
+                (!stack || (it.widget == null && !it.key.startsWith("folder:"))) &&
+                    (key == WidgetScreenKey || (it.key != PrivateSpaceFolderKey && it.key != WorkProfileFolderKey))
             }
             dao.savePopup(AppPopupEntity(key, PopupItem.encode(next)))
             val retained = next.mapNotNull { it.widget?.widgetId }.toSet()

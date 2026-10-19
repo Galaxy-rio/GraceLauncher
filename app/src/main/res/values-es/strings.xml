@@ -510,7 +510,7 @@
     <string name="search_unnamed_contact">Contacto sin nombre</string>
     <string name="search_files">Buscar archivos</string>
     <string name="search_fuzzy">Búsqueda difusa</string>
-    <string name="search_fuzzy_summary">Hacer coincidir variantes ortográficas e iniciales</string>
+    <string name="search_fuzzy_summary">Emparejar iniciales y letras no consecutivas</string>
     <string name="search_internet_setting">Buscar en Internet</string>
     <string name="search_engine">Motor de búsqueda</string>
     <string name="search_engine_google">Google</string>
@@ -671,4 +671,21 @@
     <string name="app_stack_expand">Expandir pila de aplicaciones</string>
     <string name="app_stack_collapse">Colapsar pila de aplicaciones</string>
     <string name="app_stack_empty">Elige aplicaciones o accesos directos a continuación.</string>
+    <string name="favorites_shortcuts_app_group">Atajos y grupo de aplicaciones</string>
+    <string name="favorites_add_shortcut">Añadir atajo</string>
+    <string name="favorites_add_folder">Añadir carpeta</string>
+    <string name="favorites_add_app_stack">Añadir pila de aplicaciones</string>
+    <string name="home_gesture_alphabet_double_tap">Doble toque en la lista A-Z</string>
+    <string name="grace_widgets_title">Widget de Grace</string>
+    <string name="grace_widget_baseline">Línea base (invisible)</string>
+    <string name="popup_widget_full_width">Ancho completo</string>
+    <string name="popup_widget_background">Fondo</string>
+    <string name="popup_widget_content_scale">Escala del contenido · %1$d%%</string>
+    <string name="lab_popup">Ventana emergente</string>
+    <string name="lab_popup_distance">Distancia de deslizamiento adicional</string>
+    <string name="lab_popup_distance_summary">Distancia adicional necesaria al deslizar hacia la derecha antes de abrir una aplicación o una ventana emergente de carpeta. Un valor más alto hace que sea más difícil activar esta acción.</string>
+    <string name="lab_popup_angle">Ángulo de deslizamiento permitido</string>
+    <string name="lab_popup_angle_summary">Desviación máxima por encima o por debajo de la dirección horizontal hacia la derecha. Los valores más bajos requieren un deslizamiento más recto.</string>
+    <string name="lab_dp">%1$d dp</string>
+    <string name="lab_degrees">±%1$d°</string>
 </resources>

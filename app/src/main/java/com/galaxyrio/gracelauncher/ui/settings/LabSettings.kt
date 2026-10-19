@@ -16,6 +16,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.R
+import com.galaxyrio.gracelauncher.data.ShortcutsFoldersSettings
 import com.galaxyrio.gracelauncher.data.GraceButtonSettings
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
@@ -29,15 +30,19 @@ internal fun AdvancedSettings(onBack: () -> Unit, navigate: (SettingsPage) -> Un
         SettingsList(padding) {
             item { SettingsHeading(stringResource(R.string.settings_lab)) }
             item {
-                SettingsActionItem(stringResource(R.string.settings_grace_button), null, 0, 2, "lab_open_grace_button",
+                SettingsActionItem(stringResource(R.string.settings_grace_button), null, 0, 3, "lab_open_grace_button",
                     leading = { Icon(painterResource(R.drawable.ic_grace_solid), null,
                         Modifier.size(24.dp).graphicsLayer { scaleX = 5f / 3f; scaleY = 5f / 3f }) }) {
                     navigate(SettingsPage.LabGraceButton)
                 }
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_gestures), null, 1, 2, "lab_open_gesture",
+                SettingsActionItem(stringResource(R.string.settings_gestures), null, 1, 3, "lab_open_gesture",
                     leading = { LauncherIcon(LauncherSymbol.Gesture) }) { navigate(SettingsPage.LabGesture) }
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.lab_popup), null, 2, 3, "lab_open_popup",
+                    leading = { LauncherIcon(LauncherSymbol.Launch) }) { navigate(SettingsPage.LabPopup) }
             }
         }
     }
@@ -91,6 +96,31 @@ internal fun LabGestureSettings(uiState: LauncherUiState, actions: LauncherActio
                     hasOverride = settings.doubleTapIntervalMs != null,
                     onReset = { actions.updateSettings { it.copy(homeGestures = it.homeGestures.copy(doubleTapIntervalMs = null)) } },
                     onChange = { value -> actions.updateSettings { it.copy(homeGestures = it.homeGestures.copy(doubleTapIntervalMs = value)) } })
+            }
+        }
+    }
+}
+
+@Composable
+internal fun LabPopupSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit) {
+    val settings = uiState.settings.shortcutsFolders
+    val defaults = remember { ShortcutsFoldersSettings() }
+    SettingsScaffold(stringResource(R.string.lab_popup), "lab_popup", onBack) { padding ->
+        SettingsList(padding) {
+            item { Spacer(Modifier.height(24.dp)) }
+            item {
+                LabSliderItem(stringResource(R.string.lab_popup_distance), settings.popupSwipeDistanceDp,
+                    defaults.popupSwipeDistanceDp, 0..48, 0, 2, "lab_popup_distance",
+                    valueFormat = R.string.lab_dp, description = stringResource(R.string.lab_popup_distance_summary),
+                    onReset = { actions.updateSettings { it.copy(shortcutsFolders = it.shortcutsFolders.copy(popupSwipeDistanceDp = defaults.popupSwipeDistanceDp)) } },
+                    onChange = { value -> actions.updateSettings { it.copy(shortcutsFolders = it.shortcutsFolders.copy(popupSwipeDistanceDp = value)) } })
+            }
+            item {
+                LabSliderItem(stringResource(R.string.lab_popup_angle), settings.popupSwipeAngleDegrees,
+                    defaults.popupSwipeAngleDegrees, 10..90, 1, 2, "lab_popup_angle",
+                    valueFormat = R.string.lab_degrees, description = stringResource(R.string.lab_popup_angle_summary),
+                    onReset = { actions.updateSettings { it.copy(shortcutsFolders = it.shortcutsFolders.copy(popupSwipeAngleDegrees = defaults.popupSwipeAngleDegrees)) } },
+                    onChange = { value -> actions.updateSettings { it.copy(shortcutsFolders = it.shortcutsFolders.copy(popupSwipeAngleDegrees = value)) } })
             }
         }
     }

@@ -10,7 +10,12 @@ enum class GraceButtonAction {
 
 enum class GraceButtonGesture(val storageKey: String) {
     Tap("tap"), LongPress("longPress"), DoubleTap("doubleTap"),
-    SwipeUp("swipeUp"), SwipeDown("swipeDown"), SwipeLeft("swipeLeft"), SwipeRight("swipeRight");
+    SwipeUp("swipeUp"), SwipeDown("swipeDown"), SwipeLeft("swipeLeft"), SwipeRight("swipeRight"),
+    AlphabetDoubleTap("alphabetDoubleTap");
+
+    companion object {
+        val buttonGestures = entries.filterNot { it == AlphabetDoubleTap }
+    }
 }
 
 data class GraceButtonTarget(
@@ -31,6 +36,7 @@ data class GraceButtonSettings(
     val swipeDown: GraceButtonTarget = GraceButtonTarget(GraceButtonAction.Search, enabled = false),
     val swipeLeft: GraceButtonTarget = GraceButtonTarget(GraceButtonAction.Search, enabled = false),
     val swipeRight: GraceButtonTarget = GraceButtonTarget(GraceButtonAction.Search, enabled = false),
+    val alphabetDoubleTap: GraceButtonTarget = GraceButtonTarget(GraceButtonAction.LockScreen, enabled = false),
     val animationsEnabled: Boolean = true,
     val searchAnimationDurationMs: Int = 500,
     val appListAnimationDurationMs: Int = 500,
@@ -50,6 +56,7 @@ data class GraceButtonSettings(
         GraceButtonGesture.SwipeDown -> swipeDown
         GraceButtonGesture.SwipeLeft -> swipeLeft
         GraceButtonGesture.SwipeRight -> swipeRight
+        GraceButtonGesture.AlphabetDoubleTap -> alphabetDoubleTap
     }
 
     fun withTarget(gesture: GraceButtonGesture, target: GraceButtonTarget): GraceButtonSettings = when (gesture) {
@@ -60,12 +67,17 @@ data class GraceButtonSettings(
         GraceButtonGesture.SwipeDown -> copy(swipeDown = target)
         GraceButtonGesture.SwipeLeft -> copy(swipeLeft = target)
         GraceButtonGesture.SwipeRight -> copy(swipeRight = target)
+        GraceButtonGesture.AlphabetDoubleTap -> copy(alphabetDoubleTap = target)
     }
 
     fun withEnabled(gesture: GraceButtonGesture, enabled: Boolean): GraceButtonSettings {
         val current = target(gesture)
         val action = if (current.action != GraceButtonAction.Disabled) current.action
-            else if (gesture == GraceButtonGesture.LongPress) GraceButtonAction.Settings else GraceButtonAction.Search
+            else when (gesture) {
+                GraceButtonGesture.LongPress -> GraceButtonAction.Settings
+                GraceButtonGesture.AlphabetDoubleTap -> GraceButtonAction.LockScreen
+                else -> GraceButtonAction.Search
+            }
         return withTarget(gesture, current.copy(action = action, enabled = enabled))
     }
 

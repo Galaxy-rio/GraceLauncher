@@ -2,11 +2,13 @@ package com.galaxyrio.gracelauncher
 
 import android.content.ComponentName
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -232,6 +234,42 @@ class AlphabetSettingsTest {
             click(Offset(5f, height * .92f))
         }
         compose.runOnIdle { assertEquals(2, backgroundClicks); assertEquals("E", selected) }
+    }
+
+    @Test fun disabledHiddenRailPassesEdgeDragsThroughAndWorksAgainWhenEnabled() {
+        var enabled by mutableStateOf(false)
+        var selections = 0
+        var drags = 0
+        compose.setContent {
+            GraceLauncherTheme(dynamicColor = false) {
+                BoxWithConstraints(Modifier.fillMaxSize()) {
+                    Box(Modifier.fillMaxSize().testTag("resize_surface").pointerInput(Unit) {
+                        detectDragGestures(onDragStart = { drags++ }) { change, _ -> change.consume() }
+                    })
+                    AlphabetRail(listOf("A", "B", "C"), null, maxHeight * .30f, { selections++ },
+                        Modifier.align(Alignment.TopEnd), includeHome = false, leftTouchEnabled = true,
+                        autoHide = true, topOffset = maxHeight * .35f, touchHeight = maxHeight, enabled = enabled)
+                }
+            }
+        }
+        // Real pointer input, not semantics actions: both invisible edge strips
+        // overlap the surface below, just like the widget's resize handles.
+        for (active in listOf(false, true, false)) {
+            compose.runOnIdle { enabled = active }
+            for (left in listOf(false, true)) {
+                val previousDrags = drags
+                val previousSelections = selections
+                compose.onNodeWithTag("resize_surface").performTouchInput {
+                    val x = if (left) 5f else width - 5f
+                    swipe(Offset(x, height * .5f), Offset(x, height * .75f))
+                }
+                compose.runOnIdle {
+                    assertEquals(previousDrags + if (active) 0 else 1, drags)
+                    if (active) assertTrue(selections > previousSelections)
+                    else assertEquals(previousSelections, selections)
+                }
+            }
+        }
     }
 
     // The cell's test tag precedes graphicsLayer and describes its stationary

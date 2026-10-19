@@ -440,8 +440,15 @@ class LauncherSettingsPersistenceTest {
 
     @Test fun popupOptionsRoundTripAndMissingOrInvalidValuesKeepDefaults() = runBlocking {
         val options = ShortcutsFoldersSettings(enabled = false, swipeLeftToOpenFirst = true,
-            silentNotifications = NotificationDisplay.ExpandedOnly, normalNotifications = NotificationDisplay.Hidden)
+            silentNotifications = NotificationDisplay.ExpandedOnly, normalNotifications = NotificationDisplay.Hidden,
+            popupSwipeDistanceDp = 24, popupSwipeAngleDegrees = 30)
         assertEquals(options, ShortcutsFoldersSettings.decode(options.encode()))
+        val clamped = ShortcutsFoldersSettings.decode("""{"popupSwipeDistanceDp":-1,"popupSwipeAngleDegrees":100}""")
+        assertEquals(0, clamped.popupSwipeDistanceDp)
+        assertEquals(90, clamped.popupSwipeAngleDegrees)
+        val upperDistance = ShortcutsFoldersSettings.decode("""{"popupSwipeDistanceDp":100,"popupSwipeAngleDegrees":0}""")
+        assertEquals(48, upperDistance.popupSwipeDistanceDp)
+        assertEquals(10, upperDistance.popupSwipeAngleDegrees)
         assertEquals(ShortcutsFoldersSettings(), ShortcutsFoldersSettings.decode(null))
         assertEquals(ShortcutsFoldersSettings(), ShortcutsFoldersSettings.decode("invalid"))
         assertEquals(ShortcutsFoldersSettings(), ShortcutsFoldersSettings.decode("{\"normalNotifications\":\"unknown\"}"))

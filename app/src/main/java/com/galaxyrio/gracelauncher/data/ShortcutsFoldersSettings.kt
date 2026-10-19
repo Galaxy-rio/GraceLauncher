@@ -13,6 +13,8 @@ data class ShortcutsFoldersSettings(
     val swipeLeftToOpenFirst: Boolean = false,
     val silentNotifications: NotificationDisplay = NotificationDisplay.Hidden,
     val normalNotifications: NotificationDisplay = NotificationDisplay.Normal,
+    val popupSwipeDistanceDp: Int = 8,
+    val popupSwipeAngleDegrees: Int = 45,
 ) {
     fun showsNotification(silent: Boolean, expanded: Boolean): Boolean = enabled &&
         (if (silent) silentNotifications else normalNotifications).visible(expanded)
@@ -20,7 +22,9 @@ data class ShortcutsFoldersSettings(
     fun encode(): String = JSONObject().put("enabled", enabled)
         .put("swipeLeftToOpenFirst", swipeLeftToOpenFirst)
         .put("silentNotifications", silentNotifications.id)
-        .put("normalNotifications", normalNotifications.id).toString()
+        .put("normalNotifications", normalNotifications.id)
+        .put("popupSwipeDistanceDp", popupSwipeDistanceDp.coerceIn(0, 48))
+        .put("popupSwipeAngleDegrees", popupSwipeAngleDegrees.coerceIn(10, 90)).toString()
 
     companion object {
         fun decode(value: String?): ShortcutsFoldersSettings = runCatching {
@@ -28,6 +32,8 @@ data class ShortcutsFoldersSettings(
             ShortcutsFoldersSettings(
                 enabled = json.optBoolean("enabled", true),
                 swipeLeftToOpenFirst = json.optBoolean("swipeLeftToOpenFirst", false),
+                popupSwipeDistanceDp = json.optInt("popupSwipeDistanceDp", 8).coerceIn(0, 48),
+                popupSwipeAngleDegrees = json.optInt("popupSwipeAngleDegrees", 45).coerceIn(10, 90),
                 silentNotifications = NotificationDisplay.entries.firstOrNull { it.id == json.optString("silentNotifications") }
                     ?: NotificationDisplay.Hidden,
                 normalNotifications = NotificationDisplay.entries.firstOrNull { it.id == json.optString("normalNotifications") }

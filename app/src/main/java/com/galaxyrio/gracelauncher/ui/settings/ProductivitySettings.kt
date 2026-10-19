@@ -80,14 +80,14 @@ internal fun ProductivitySettings(
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_clock), clockAppSummary(uiState),
-                    0, 8, "settings_clock",
+                    0, 7, "settings_clock",
                     leading = { LauncherIcon(LauncherSymbol.Clock) },
                 ) { navigate(SettingsPage.Clock) }
             }
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_calendar_agenda), stringResource(R.string.settings_calendar_agenda_summary),
-                    1, 8, "calendar_agenda",
+                    1, 7, "calendar_agenda",
                     leading = { LauncherIcon(LauncherSymbol.Calendar) },
                 ) { navigate(SettingsPage.Calendar) }
             }
@@ -95,24 +95,24 @@ internal fun ProductivitySettings(
                 SettingsActionItem(
                     stringResource(R.string.settings_weather),
                     stringResource(if (settings.weatherEnabled) R.string.weather_settings_enabled_summary else R.string.weather_settings_disabled_summary),
-                    2, 8, "settings_weather",
+                    2, 7, "settings_weather",
                     leading = { LauncherIcon(LauncherSymbol.Weather) },
                 ) { navigate(SettingsPage.Weather) }
             }
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_media_player), stringResource(R.string.media_player_summary),
-                    3, 8, "settings_media_player",
+                    3, 7, "settings_media_player",
                     leading = { LauncherIcon(LauncherSymbol.Music) },
                 ) { navigate(SettingsPage.MediaPlayer) }
             }
             item {
                 SettingsActionItem(stringResource(R.string.settings_search), stringResource(R.string.search_settings_summary),
-                    4, 8, "settings_open_search", leading = { LauncherIcon(LauncherSymbol.Search) }) { navigate(SettingsPage.Search) }
+                    4, 7, "settings_open_search", leading = { LauncherIcon(LauncherSymbol.Search) }) { navigate(SettingsPage.Search) }
             }
             item {
                 SettingsActionItem(stringResource(R.string.settings_grace_button), null,
-                    5, 8, "settings_grace_button", leading = {
+                    5, 7, "settings_grace_button", leading = {
                         // Render the artwork at 20dp inside the 24dp slot,
                         // leaving 2dp above and below the logo.
                         Icon(painterResource(R.drawable.ic_grace_solid), contentDescription = null,
@@ -120,12 +120,8 @@ internal fun ProductivitySettings(
                     }) { navigate(SettingsPage.GraceButton) }
             }
             item {
-                SettingsActionItem(stringResource(R.string.shortcuts_folders_title), null, 6, 8, "settings_shortcuts_folders",
+                SettingsActionItem(stringResource(R.string.shortcuts_folders_title), null, 6, 7, "settings_shortcuts_folders",
                     leading = { LauncherIcon(LauncherSymbol.Outbound) }) { navigate(SettingsPage.ShortcutsFolders) }
-            }
-            item {
-                SettingsActionItem(stringResource(R.string.widget_add), null, 7, 8, "settings_add_widget",
-                    leading = { LauncherIcon(LauncherSymbol.Widgets) }, onClick = actions.addWidget)
             }
             item {
                 Spacer(Modifier.height(12.dp))
@@ -271,9 +267,10 @@ internal fun FolderSettings(
     appStacks: Boolean = false,
     selectionChangesFavorites: Boolean = true,
     newPlacement: FolderPlacement = FolderPlacement.Favorites,
+    excludedIds: Set<String> = emptySet(),
     onEdit: (String) -> Unit,
 ) {
-    val folders = uiState.folders.filter { it.isAppStack == appStacks }
+    val folders = uiState.folders.filter { it.isAppStack == appStacks && it.id !in excludedIds }
     val title = stringResource(if (appStacks) R.string.app_stacks_title else R.string.settings_folders)
     val createTitle = stringResource(if (appStacks) R.string.app_stack_create else R.string.settings_folder_create)
     var creating by rememberSaveable { mutableStateOf(false) }

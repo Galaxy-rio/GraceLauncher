@@ -110,7 +110,7 @@
     <string name="package_name_copied">Copiato</string>
     <string name="choose_app_store">Scegli app store</string>
     <string name="app_store_unavailable">Nessuno store può aprire la pagina di questa app.</string>
-    <string name="grace_settings">Impostazioni Grace</string>
+    <string name="grace_settings">Impostazioni di Grace</string>
     <string name="done">Fatto</string>
     <string name="save">Salva</string>
     <string name="cancel">Annulla</string>
@@ -465,7 +465,7 @@
     <string name="search_unnamed_contact">Contatto senza nome</string>
     <string name="search_files">Ricerca file</string>
     <string name="search_fuzzy">Ricerca fuzzy</string>
-    <string name="search_fuzzy_summary">Conta anche iniziali e spelling alternativi</string>
+    <string name="search_fuzzy_summary">Cerca per iniziali e lettere non consecutive</string>
     <string name="search_internet_setting">Ricerca web</string>
     <string name="search_engine">Motore di ricerca</string>
     <string name="search_engine_google">Google</string>
@@ -535,6 +535,7 @@
     <string name="settings_gestures">Gesti</string>
     <string name="home_gestures_enable">Abilita gesti</string>
     <string name="home_gesture_double_tap">Tocco doppio sullo spazio vuoto</string>
+    <string name="home_gesture_alphabet_double_tap">Tocco doppio sull’elenco A–Z</string>
     <string name="work_profile_title">Profilo di lavoro</string>
     <string name="work_profile_summary">Organizza le app nel tuo profilo di lavoro Android</string>
     <string name="work_profile_indicator">Indicatore app di lavoro</string>
@@ -662,13 +663,28 @@
     <string name="app_stacks_title">Pile di app</string>
     <string name="app_stack_create">Crea pila di app</string>
     <string name="app_stack_edit">Modifica pila di app</string>
-    <string name="app_stack_name">Nome pila di app</string>
+    <string name="app_stack_name">Nome della pila di app</string>
     <string name="app_stack_rename">Rinomina pila di app</string>
-    <string name="app_stack_placement">Mostra pila di app in</string>
+    <string name="app_stack_placement">Mostra la pila di app in</string>
     <string name="app_stack_delete">Elimina pila di app</string>
     <string name="app_stack_delete_confirmation">Eliminare “%1$s”? Le app al suo interno resteranno installate.</string>
     <string name="app_stack_expand">Espandi pila di app</string>
     <string name="app_stack_collapse">Comprimi pila di app</string>
     <string name="app_stack_empty">Scegli app o scorciatoie qui sotto.</string>
     <string name="app_stacks_empty">Nessuna pila di app</string>
+    <string name="favorites_shortcuts_app_group">Scorciatoie e raggruppamento app</string>
+    <string name="favorites_add_shortcut">Aggiungi scorciatoia</string>
+    <string name="favorites_add_folder">Aggiungi cartella</string>
+    <string name="favorites_add_app_stack">Aggiungi pila di app</string>
+    <string name="popup_widget_full_width">A tutta larghezza</string>
+    <string name="popup_widget_background">Sfondo</string>
+    <string name="popup_widget_content_scale">Scala del contenuto · %1$d%%</string>
+    <string name="lab_popup">Popup</string>
+    <string name="lab_popup_distance">Distanza di scorrimento aggiuntiva</string>
+    <string name="lab_popup_distance_summary">Distanza aggiuntiva dello scorrimento verso destra prima di aprire il popup di un\'app o di una cartella. Valori più alti rendono più difficile attivarlo.</string>
+    <string name="lab_popup_angle">Angolo di scorrimento consentito</string>
+    <string name="lab_popup_angle_summary">Scostamento massimo, verso l\'alto o verso il basso, rispetto alla direzione orizzontale verso destra. Valori più bassi richiedono uno scorrimento più dritto.</string>
+    <string name="lab_dp">%1$d dp</string>
+    <string name="lab_degrees">±%1$d°</string>
+    <string name="grace_widgets_title">Widget Grace</string>
 </resources>

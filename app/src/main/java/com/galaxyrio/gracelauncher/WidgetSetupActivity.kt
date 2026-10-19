@@ -85,8 +85,6 @@ class WidgetSetupActivity : ComponentActivity() {
                     pendingId = configureId
                     configuringExisting = true
                     configure()
-                } else if (popupOwner == null && current.hasWidget) {
-                    fail(R.string.widget_single_limit)
                 } else {
                     providers = withContext(Dispatchers.IO) {
                         getSystemService(UserManager::class.java).userProfiles.filter { profile ->
@@ -162,20 +160,9 @@ class WidgetSetupActivity : ComponentActivity() {
             try {
                 val layout = HomeLayout(widgetId = id, widgetProvider = info.provider.flattenToString(),
                     widgetLabel = runCatching { info.loadLabel(packageManager) }.getOrDefault(info.provider.className))
-                val owner = popupOwner
-                if (owner != null) {
-                    itemsRepository.updatePopup(owner, emptyList()) { entries ->
-                        if (entries.any { it.widget?.widgetId == id }) entries else entries + PopupItem("widget:$id", layout)
-                    }
-                } else repository.mutateSettings { current ->
-                    // A recreated setup activity can resume just after the old
-                    // transaction committed. Keep ownership transfer idempotent.
-                    if (current.homeLayout.widgetId == id) return@mutateSettings current
-                    check(!current.homeLayout.hasWidget) { "Only one home widget is supported" }
-                    current.copy(homeLayout = current.homeLayout.copy(
-                        widgetId = id, widgetProvider = info.provider.flattenToString(),
-                        widgetLabel = runCatching { info.loadLabel(packageManager) }.getOrDefault(info.provider.className), widgetHeightDp = 0,
-                    ))
+                val owner = popupOwner ?: com.galaxyrio.gracelauncher.data.HomeContentKey
+                itemsRepository.updatePopup(owner, emptyList()) { entries ->
+                    if (entries.any { it.widget?.widgetId == id }) entries else entries + PopupItem("widget:$id", layout)
                 }
                 host.untrackPendingId(pendingId)
                 pendingId = -1 // The database owns it now; cancellation must not delete it.

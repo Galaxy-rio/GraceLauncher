@@ -1,12 +1,14 @@
 package com.galaxyrio.gracelauncher.ui.overlays
 
 import androidx.compose.animation.core.Animatable
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -38,8 +40,10 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
+import androidx.compose.ui.zIndex
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.IconDisplayStyle
+import com.galaxyrio.gracelauncher.data.HomeLayout
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
@@ -51,8 +55,6 @@ import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AppIcon
 import com.galaxyrio.gracelauncher.ui.components.AppNotificationLabel
 import com.galaxyrio.gracelauncher.ui.components.AppStack
-import com.galaxyrio.gracelauncher.ui.widgets.HomeWidget
-import com.galaxyrio.gracelauncher.ui.widgets.rememberHostedWidget
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import com.galaxyrio.gracelauncher.ui.components.LocalListAppearance
@@ -60,6 +62,7 @@ import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.effectiveDisplay
 import kotlin.math.roundToInt
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 
 @Stable
 class ShortcutRevealState(expanded: Boolean = true, dragging: Boolean = false, val animationsEnabled: Boolean = true) {
@@ -119,15 +122,70 @@ fun ShortcutPopup(
     val shortcuts = result.shortcuts.map { uiState.findItem(it.key) ?: it.asApp(app) }
     val customItems = uiState.popups[app.key]
     val entries = uiState.popupItems(app, shortcuts)
+    val list = rememberLazyListState()
+    var editingWidget by remember(app.key) { mutableStateOf<String?>(null) }
+    var resizingWidget by remember(app.key) { mutableStateOf(false) }
+    var widgetDragMoved by remember(app.key) { mutableStateOf(false) }
+    val drafts = remember(app.key) { mutableStateMapOf<String, HomeLayout>() }
+    val updateWidget: (String, HomeLayout, Boolean) -> Unit = { key, layout, save ->
+        drafts[key] = layout
+        if (save) actions.updatePopup(app, shortcuts) { current ->
+            current.map { if (it.key == key && it.widget != null) it.copy(widget = layout) else it }
+        }
+    }
+    val saveWidget by rememberUpdatedState(updateWidget)
+    val saveOrder by rememberUpdatedState<(List<String>) -> Unit>({ keys ->
+        actions.updatePopup(app, shortcuts) { current ->
+            val byKey = current.associateBy { it.key }
+            keys.mapNotNull(byKey::get) + current.filterNot { it.key in keys }
+        }
+    })
+    val haptics by rememberUpdatedState(LocalHapticFeedback.current)
+    val reorder = remember(app.key, list) {
+        FavoritesReorderState(list, entries.map { it.key }, { saveOrder(it) }) {
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+    }
+    LaunchedEffect(entries) {
+        reorder.synchronize(entries.map { it.key })
+        drafts.keys.toList().forEach { key ->
+            if (entries.none { it.key == key } || entries.firstOrNull { it.key == key }?.widget == drafts[key]) drafts.remove(key)
+        }
+        if (entries.none { it.key == editingWidget && it.widget != null }) editingWidget = null
+    }
+    val density = LocalDensity.current
+    LaunchedEffect(reorder.draggingKey, density) {
+        if (reorder.draggingKey == null) return@LaunchedEffect
+        val edge = with(density) { 48.dp.toPx() }
+        val speed = with(density) { 480.dp.toPx() }
+        var previous = withFrameNanos { it }
+        while (isActive && reorder.draggingKey != null) {
+            val frame = withFrameNanos { it }
+            if (widgetDragMoved) reorder.autoScroll(edge, speed * ((frame - previous) / 1_000_000_000f).coerceIn(0f, .032f))
+            previous = frame
+        }
+    }
+    val finishEditing = {
+        editingWidget?.let { key -> drafts[key]?.let { saveWidget(key, it, true) } }
+        editingWidget = null
+    }
+    BackHandler(enabled = editingWidget != null) { finishEditing() }
+    val selectedLayout = editingWidget?.let { key -> drafts[key] ?: entries.firstOrNull { it.key == key }?.widget }
+    val entriesByKey = entries.associateBy { it.key }
     SwipeRevealPanel(
         anchor = anchor,
         reveal = reveal,
         panelTag = if (isFolder) "folder_popup" else "shortcut_popup",
         title = if (isFolder) app.label else stringResource(R.string.app_shortcuts),
         onDismiss = onDismiss,
+        edgeToEdgeContent = true,
     ) { maxListHeight ->
+        if (selectedLayout != null) PopupWidgetControls(selectedLayout,
+            onChange = { layout, save -> editingWidget?.let { updateWidget(it, layout, save) } },
+            onDone = finishEditing)
+        else {
         Row(
-            Modifier.fillMaxWidth()
+            Modifier.fillMaxWidth().padding(horizontal = 6.dp)
                 .heightIn(min = 48.dp)
                 .testTag("shortcut_header")
                 .clip(RoundedCornerShape(16.dp))
@@ -140,13 +198,15 @@ fun ShortcutPopup(
             Spacer(Modifier.width(10.dp))
             Text(app.label, Modifier.weight(1f), fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
-        LazyColumn(Modifier.heightIn(max = maxListHeight).testTag(if (isFolder) "folder_members" else "shortcut_list")) {
+        }
+        LazyColumn(Modifier.heightIn(max = maxListHeight).testTag(if (isFolder) "folder_members" else "shortcut_list"),
+            state = list, userScrollEnabled = reorder.draggingKey == null && !resizingWidget) {
             items(notifications, key = { "notification:${it.key}" }) { notification ->
                 NotificationPopupItem(
                     app, notification,
                     onOpen = { if (actions.openNotification(notification.key, notification.revision)) onDismiss() },
                     onDismiss = { actions.dismissNotification(notification.key, notification.revision) },
-                    modifier = Modifier.animateItem(),
+                    modifier = Modifier.animateItem().padding(horizontal = 6.dp),
                     gesturesEnabled = !reveal.dragging && reveal.expanded,
                 )
             }
@@ -188,10 +248,16 @@ fun ShortcutPopup(
                 }
             }
         }
-        items(entries, key = { "entry:${it.key}" }) { entry ->
-            val widget = entry.widget
+        items(reorder.keys.mapNotNull(entriesByKey::get), key = { FavoritesReorderState.itemKey(it.key) }) { entry ->
+            val widget = drafts[entry.key] ?: entry.widget
+            val dragging = reorder.draggingKey == entry.key
+            val offset by rememberReorderTranslation(reorder, entry.key)
             val itemApp = uiState.findItem(entry.key) ?: shortcuts.firstOrNull { it.key == entry.key }
             val stack = uiState.folders.firstOrNull { it.id == itemApp?.folderId && it.isAppStack }
+            Box(Modifier.fillMaxWidth().then(if (dragging) Modifier else Modifier.animateItem())
+                .zIndex(if (dragging || reorder.drop?.key == entry.key) 1f else 0f)
+                .graphicsLayer { translationY = offset }
+                .padding(horizontal = if (widget == null) 6.dp else 0.dp)) {
             when {
                 stack != null -> AppStack(stack, uiState, onLaunch = { item, bounds ->
                     onLaunchItem(item, bounds); if (!isPrivateFolder) onDismiss()
@@ -200,11 +266,18 @@ fun ShortcutPopup(
                     iconSize = 36.dp, onWallpaper = false,
                     modifier = Modifier.padding(horizontal = (12f - com.galaxyrio.gracelauncher.data.AppStackInset).dp, vertical = 4.dp))
                 widget != null -> {
-                    val hosted = rememberHostedWidget(widget)
-                    Box(Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
-                        HomeWidget(widget, hosted, hosted.defaultHeight, editing = false,
-                            enabled = !reveal.dragging && reveal.expanded, hapticsEnabled = uiState.settings.allowHapticFeedback, onLongPress = { onEdit?.invoke() })
-                    }
+                    PopupWidgetItem(widget, selected = editingWidget == entry.key,
+                        enabled = !reveal.dragging && reveal.expanded && !uiState.isLoadingSettings && !uiState.settingsLoadFailed,
+                        haptics = uiState.settings.allowHapticFeedback,
+                        maxHeight = (maxListHeight.value - 16).roundToInt(),
+                        onChange = { layout, save -> updateWidget(entry.key, layout, save) },
+                        onResizing = { resizingWidget = it },
+                        onDragStart = { widgetDragMoved = false; reorder.start(entry.key) },
+                        onDrag = { delta -> if (delta != 0f) widgetDragMoved = true; reorder.drag(delta) },
+                        onDragEnd = { cancelled ->
+                            reorder.finish(cancelled)
+                            if (!cancelled) editingWidget = entry.key
+                        })
                 }
                 itemApp != null -> {
                         var iconBounds by remember { mutableStateOf(Rect.Zero) }
@@ -217,7 +290,8 @@ fun ShortcutPopup(
                                 .clip(RoundedCornerShape(16.dp))
                                 .combinedClickable(enabled = !reveal.dragging && reveal.expanded, onLongClick = { onDetails(itemApp) }, onClick = {
                                     onLaunchItem(itemApp, iconBounds)
-                                    if (!isPrivateFolder) onDismiss()
+                                    // A folder replaces this panel with its own hero transition.
+                                    if (!isPrivateFolder && itemApp.folderId == null) onDismiss()
                                 }).padding(horizontal = 12.dp, vertical = (listAppearance.appSpacing / 2f).dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
@@ -246,6 +320,7 @@ fun ShortcutPopup(
                 else -> Text(stringResource(R.string.popup_item_unavailable), Modifier.fillMaxWidth().clickable(enabled = onEdit != null, onClick = { onEdit?.invoke() }).padding(16.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            }
         }
         }
     }
@@ -260,6 +335,7 @@ internal fun SwipeRevealPanel(
     panelTag: String,
     title: String,
     onDismiss: () -> Unit,
+    edgeToEdgeContent: Boolean = false,
     content: @Composable ColumnScope.(maxListHeight: Dp) -> Unit,
 ) {
     val windowSize = LocalWindowInfo.current.containerSize
@@ -322,7 +398,7 @@ internal fun SwipeRevealPanel(
                         shadowElevation = 16.dp * spatial.value.coerceIn(0f, 1f),
                     ) {}
                     CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
-                        Column(Modifier.padding(horizontal = 6.dp, vertical = 12.dp)) {
+                        Column(Modifier.padding(horizontal = if (edgeToEdgeContent) 0.dp else 6.dp, vertical = 12.dp)) {
                             content(maxListHeight)
                         }
                     }

@@ -98,7 +98,7 @@ internal fun GraceButton(settings: GraceButtonSettings, editing: Boolean, enable
     fun activate(gesture: GraceButtonGesture) { perform(gesture, origin.copy(velocity = releaseVelocity)) }
     val activateLatest by rememberUpdatedState(::activate)
     val description = stringResource(if (editing) R.string.done else R.string.settings_grace_button)
-    val extraActions = if (editing || !enabled) emptyList() else GraceButtonGesture.entries
+    val extraActions = if (editing || !enabled) emptyList() else GraceButtonGesture.buttonGestures
         .filter { it != GraceButtonGesture.Tap && it != GraceButtonGesture.LongPress && settings.target(it).active }
         .map { gesture -> CustomAccessibilityAction(stringResource(gesture.labelRes)) { activate(gesture); true } }
 
@@ -210,6 +210,7 @@ internal val GraceButtonGesture.labelRes: Int get() = when (this) {
     GraceButtonGesture.SwipeDown -> R.string.grace_button_swipe_down
     GraceButtonGesture.SwipeLeft -> R.string.grace_button_swipe_left
     GraceButtonGesture.SwipeRight -> R.string.grace_button_swipe_right
+    GraceButtonGesture.AlphabetDoubleTap -> R.string.home_gesture_alphabet_double_tap
 }
 
 @Composable

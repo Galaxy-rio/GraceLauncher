@@ -209,7 +209,7 @@
     <string name="settings_themes">Aparencia</string>
     <string name="settings_themes_summary">Cores, aspecto e personalización</string>
     <string name="settings_advanced">Avanzado</string>
-    <string name="settings_lab">Lab</string>
+    <string name="settings_lab">Laboratorio</string>
     <string name="lab_animation">Animación</string>
     <string name="lab_swipe_sensitivity">Sensibilidade do esvarado</string>
     <string name="lab_swipe_sensitivity_summary">Os valores máis altos facilitan a activación dos esvarados na pantalla de inicio e do movemento cara a abaixo para pechar a busca. O 100 % mantén os limiares predeterminados de distancia e velocidade.</string>
@@ -370,7 +370,7 @@
     <string name="icon_designer_shape_pebble">Croio</string>
     <string name="icon_designer_shape_square">Cadrado</string>
     <string name="icon_designer_shape_gem">Xema</string>
-    <string name="icon_designer_shape_cookie">n-side cookie</string>
+    <string name="icon_designer_shape_cookie">Galleta n-lados</string>
     <string name="icon_designer_pebble_roundness">Redondez</string>
     <string name="icon_designer_square_corner_radius">Raio da esquina</string>
     <string name="icon_designer_cookie_sides">Cookie · %1$d lados</string>
@@ -508,7 +508,7 @@
     <string name="search_unnamed_contact">Contacto sen nome</string>
     <string name="search_files">Busca de ficheiros</string>
     <string name="search_fuzzy">Busca difusa</string>
-    <string name="search_fuzzy_summary">Facer coincidir variantes ortográficas e iniciais</string>
+    <string name="search_fuzzy_summary">Facer coincidir iniciais e letras non consecutivas</string>
     <string name="search_internet_setting">Busca en Internet</string>
     <string name="search_engine">Motor de busca</string>
     <string name="search_engine_google">Google</string>
@@ -663,4 +663,21 @@
     <string name="app_stack_expand">Expandir a pila de aplicacións</string>
     <string name="app_stack_collapse">Contraer a pila de aplicacións</string>
     <string name="app_stack_empty">Escolle aplicacións ou atallos a continuación.</string>
+    <string name="favorites_shortcuts_app_group">Atallos e grupo de aplicacións</string>
+    <string name="favorites_add_shortcut">Engadir atallo</string>
+    <string name="favorites_add_folder">Engadir cartafol</string>
+    <string name="favorites_add_app_stack">Engadir pila de aplicacións</string>
+    <string name="home_gesture_alphabet_double_tap">Dobre premido na lista da A a Z</string>
+    <string name="grace_widgets_title">Widget de Grace</string>
+    <string name="grace_widget_baseline">Liña base (invisible)</string>
+    <string name="popup_widget_full_width">Ancho completo</string>
+    <string name="popup_widget_background">Fondo</string>
+    <string name="popup_widget_content_scale">Escala do contido · %1$d%%</string>
+    <string name="lab_popup">Xanela emerxente</string>
+    <string name="lab_popup_distance">Distancia de esvaramento adicional</string>
+    <string name="lab_popup_distance_summary">Distancia adicional para esvarar cara á dereita antes de abrir unha aplicación ou unha xanela emerxente de cartafol. Uns valores máis altos fan que sexa máis difícil activalo.</string>
+    <string name="lab_popup_angle">Ángulo de deslizamento permitido</string>
+    <string name="lab_popup_angle_summary">Desviación máxima por riba ou por debaixo da dirección horizontal cara á dereita. Uns valores máis baixos requiren un movemento de esvaramento máis recto.</string>
+    <string name="lab_dp">%1$d dp</string>
+    <string name="lab_degrees">±%1$d°</string>
 </resources>

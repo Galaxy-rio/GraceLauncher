@@ -5,7 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.indication
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
@@ -71,6 +70,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.res.stringResource
 import com.galaxyrio.gracelauncher.R
+import com.galaxyrio.gracelauncher.data.ShortcutsFoldersSettings
 import com.galaxyrio.gracelauncher.data.IconDisplaySettings
 import com.galaxyrio.gracelauncher.data.IconDisplayStyle
 import com.galaxyrio.gracelauncher.data.IconShape
@@ -87,6 +87,7 @@ import com.galaxyrio.gracelauncher.ui.theme.effectiveDisplay
 // Retained desktop lists keep their scroll position under full-screen pages,
 // but must cancel the long press that opened the page before being unplaced.
 internal val LocalLauncherInputEnabled = staticCompositionLocalOf { true }
+internal val LocalPopupGestureSettings = staticCompositionLocalOf { ShortcutsFoldersSettings() }
 
 private val FallbackIconColors = listOf(
     Color(0xFF65D5BE), Color(0xFFFFB3A7), Color(0xFFAEC6FF),
@@ -296,6 +297,7 @@ private fun LauncherRow(
 ) {
     val appearance = LocalLauncherAppearance.current
     val inputEnabled = LocalLauncherInputEnabled.current
+    val popupSettings = LocalPopupGestureSettings.current
     val list = LocalListAppearance.current
     val openFirstDescription = stringResource(R.string.popup_swipe_left_first)
     val currentPrepare by rememberUpdatedState(onPrepare)
@@ -339,13 +341,17 @@ private fun LauncherRow(
                     currentPrepare()
                 }
             }
-            .pointerInput(rowKey, inputEnabled, popupsEnabled, onSwipeLeft != null) {
+            .pointerInput(rowKey, inputEnabled, popupsEnabled, onSwipeLeft != null,
+                popupSettings.popupSwipeDistanceDp, popupSettings.popupSwipeAngleDegrees) {
                 if (!inputEnabled || !popupsEnabled) return@pointerInput
                 val swipe = PopupSwipeIntent(reversalSlop = 8.dp.toPx(),
                     firstItemSlop = if (currentSwipeLeft != null) 40.dp.toPx() else Float.POSITIVE_INFINITY)
                 fun resetPull() { dragging = false; leftPull = 0f }
                 try {
-                    detectHorizontalDragGestures(
+                    detectPopupDragGestures(
+                        extraDistance = popupSettings.popupSwipeDistanceDp.coerceIn(0, 48).dp.toPx(),
+                        maxAngleDegrees = popupSettings.popupSwipeAngleDegrees.coerceIn(10, 90),
+                        leftEnabled = currentSwipeLeft != null,
                         onDragStart = { swipe.reset(); leftPull = 0f; dragging = true },
                         onDragCancel = {
                             if (swipe.revealed) currentDragEnd(false)

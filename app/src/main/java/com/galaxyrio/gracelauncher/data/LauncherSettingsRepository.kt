@@ -91,7 +91,21 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
     suspend fun mutateSettings(transform: (LauncherSettings) -> LauncherSettings) {
         database.withTransaction {
             val current = dao.readSettings()?.toSettings() ?: LauncherSettings()
-            updateSettings(transform(current))
+            updateSettings(synchronizeGraceWidgetOrder(current, transform(current)))
+        }
+    }
+
+    /** Move the old single widget into the mixed home collection without rebinding it. */
+    suspend fun migrateLegacyHomeWidget() = database.withTransaction {
+        val current = dao.readSettings()?.toSettings() ?: LauncherSettings()
+        if (current.homeLayout.hasWidget) {
+            val layout = current.homeLayout
+            val items = database.itemsDao()
+            val previous = items.popup(HomeContentKey)?.let { PopupItem.decode(it.itemsJson) }.orEmpty()
+            val widget = PopupItem("widget:${layout.widgetId}", layout.copy(homeOrder = null))
+            items.savePopup(AppPopupEntity(HomeContentKey, PopupItem.encode((listOf(widget) + previous).distinctBy { it.key })))
+            updateSettings(current.copy(homeLayout = layout.withoutWidget().copy(
+                homeOrder = layout.homeOrder ?: legacyHomeOrder(current))))
         }
     }
 

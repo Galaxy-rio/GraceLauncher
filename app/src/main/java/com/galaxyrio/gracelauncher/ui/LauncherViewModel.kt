@@ -20,6 +20,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.galaxyrio.gracelauncher.data.AppRepository
+import com.galaxyrio.gracelauncher.data.LauncherAppCache
 import com.galaxyrio.gracelauncher.data.CalendarRepository
 import com.galaxyrio.gracelauncher.data.CatalogRefreshState
 import com.galaxyrio.gracelauncher.data.FavoritesStore
@@ -41,8 +42,10 @@ import com.galaxyrio.gracelauncher.data.icons.IconPackRepository
 import com.galaxyrio.gracelauncher.data.icons.IconPackStatus
 import com.galaxyrio.gracelauncher.data.icons.ItemIconStore
 import com.galaxyrio.gracelauncher.data.icons.GraceButtonIcon
+import com.galaxyrio.gracelauncher.data.icons.isGraceButton
 import com.galaxyrio.gracelauncher.data.ItemIcon
 import com.galaxyrio.gracelauncher.data.IconDesign
+import com.galaxyrio.gracelauncher.data.launcherThemeSeed
 import com.galaxyrio.gracelauncher.data.PopupItem
 import com.galaxyrio.gracelauncher.data.LauncherItemsRepository
 import com.galaxyrio.gracelauncher.data.LauncherItemsSnapshot
@@ -264,11 +267,16 @@ data class LauncherUiState(
             // Existing folders keep their old position at the end until reordered.
             return (favoriteOrder + items.keys).distinct().mapNotNull(items::get)
         }
+
+    val homeItems: List<PopupItem> get() = com.galaxyrio.gracelauncher.data.orderedHomeItems(
+        settings, favoriteItems.map(LauncherApp::key), popups[com.galaxyrio.gracelauncher.data.HomeContentKey].orEmpty())
 }
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
     private val iconPacks = IconPackRepository(application)
     private val appRepository = AppRepository(application, iconPacks)
+    private val appCache = LauncherAppCache(application)
+    private var startupPreviewPending = true
     private val privateAppCache = PrivateAppCache(application)
     private var privateRawApps: List<LauncherApp> = emptyList()
     private var privateSavedApps: List<LauncherApp> = emptyList()
@@ -307,23 +315,14 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private var scheduleLoadJob: Job? = null
     private var weatherLoadJob: Job? = null
     private var lastWeatherRefresh = 0L
-    private val packageReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context?, intent: Intent?) {
-            if (intent?.action == Intent.ACTION_PACKAGE_REMOVED && intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) return
-            intent?.data?.schemeSpecificPart?.let { packageName ->
-                appRepository.invalidateApps(Process.myUserHandle(), listOf(packageName))
-                if (packageName == BreezyWeatherRepository.PACKAGE_NAME) refreshWeather()
-            }
-            refreshApps()
-        }
-    }
     private val dateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) { refreshApps() }
     }
     private val launcherApps = application.getSystemService(LauncherApps::class.java)
-    private val profilePackages = object : LauncherApps.Callback() {
+    private val packageChanges = object : LauncherApps.Callback() {
         private fun changed(user: UserHandle, packages: Collection<String>) {
             appRepository.invalidateApps(user, packages)
+            if (user == Process.myUserHandle() && BreezyWeatherRepository.PACKAGE_NAME in packages) refreshWeather()
             refreshApps()
         }
         override fun onPackageAdded(packageName: String, user: UserHandle) = changed(user, listOf(packageName))
@@ -343,7 +342,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     init {
-        launcherApps.registerCallback(profilePackages)
+        launcherApps.registerCallback(packageChanges)
         viewModelScope.launch {
             privateSpaceController.state.collect { state ->
                 val previous = _uiState.value.privateSpace
@@ -384,13 +383,6 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             mediaRepository.state.collect { media -> _uiState.update { it.copy(media = media) } }
         }
-        ContextCompat.registerReceiver(application, packageReceiver, IntentFilter().apply {
-            addAction(Intent.ACTION_PACKAGE_ADDED)
-            addAction(Intent.ACTION_PACKAGE_REMOVED)
-            addAction(Intent.ACTION_PACKAGE_REPLACED)
-            addAction(Intent.ACTION_PACKAGE_CHANGED)
-            addDataScheme("package")
-        }, ContextCompat.RECEIVER_NOT_EXPORTED)
         ContextCompat.registerReceiver(application, dateReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_DATE_CHANGED)
             addAction(Intent.ACTION_TIME_CHANGED)
@@ -483,10 +475,40 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 val request = catalogRefresh.start(catalogInputs()) ?: break
                 val iconSettings = _uiState.value.settings
                 val snapshot = itemsSnapshot
+                val inputs = request.inputs
+                val context = getApplication<Application>()
+                // Non-visual settings no longer rebuild the catalog, so they must
+                // not invalidate its startup preview after the process restarts.
+                val cacheKey = LauncherAppCache.key(listOf(
+                    iconSettings.enabledIconPackPackages, iconSettings.iconDesign, iconSettings.darkMode,
+                    iconSettings.useDynamicColors, iconSettings.themeColor, iconSettings.paletteStyle,
+                    snapshot.icons.toSortedMap(), snapshot.shortcuts.sortedBy { it.itemKey },
+                    _uiState.value.folders, inputs.renames.toSortedMap(), inputs.themedIcons,
+                    inputs.configuration, inputs.day,
+                    launcherThemeSeed(context.resources, true, iconSettings.themeColor),
+                    context.applicationInfo.sourceDir, inputs.shortcutAccess,
+                ).joinToString("\n"))
                 var incomplete = false
                 refreshPrivateApps()
                 _uiState.update {
                     it.copy(isLoadingApps = true, appLoadFailed = false, isLoadingIconPacks = true, hasShortcutAccess = shortcutRepository.hasAccess())
+                }
+                if (startupPreviewPending) {
+                    startupPreviewPending = false
+                    val preview = try { appCache.load(cacheKey, appRepository.launchableComponents()) }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { null }
+                    if (!catalogRefresh.isCurrent(request, catalogInputs())) continue
+                    if (preview != null) {
+                        val apps = preview.filter { it.folderId == null && !it.isGraceButton &&
+                            (it.shortcut == null || it.key in _uiState.value.shownShortcutKeys) }
+                        val favorites = favoritesStore.favoritesFor(apps)
+                        _uiState.update { it.copy(apps = apps,
+                            shortcutApps = preview.filter { app -> app.shortcut != null } + it.shortcutApps.filter(LauncherApp::isPrivateSpace),
+                            folderApps = preview.filter { app -> app.folderId != null },
+                            graceButtonApp = preview.firstOrNull { app -> app.isGraceButton } ?: it.graceButtonApp,
+                            favoriteKeys = favorites.toSet(), favoriteOrder = favorites) }
+                    }
                 }
                 try {
                     val installed = iconPacks.installedPacks()
@@ -516,8 +538,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                             emptyList()
                         }
                     }
-                    val renames = preferences.renames()
-                    suspend fun decorate(app: LauncherApp): LauncherApp = itemIcons.applyDesign(app, snapshot.icons[app.key], iconSettings.iconDesign, iconSettings, preferences.themedIcons)
+                    val renames = inputs.renames
+                    suspend fun decorate(app: LauncherApp): LauncherApp = itemIcons.applyDesign(app, snapshot.icons[app.key], iconSettings.iconDesign, iconSettings, inputs.themedIcons)
                         .copy(label = renames[app.key] ?: app.originalLabel, showWorkIndicator = iconSettings.workProfile.showIndicator)
                     val shortcuts = snapshot.shortcuts.mapNotNull { saved ->
                         // Package names alone cannot distinguish personal and work installations.
@@ -571,6 +593,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     // Retry incomplete sections on the next resume, without spinning here.
                     if (incomplete) return@launch
                     catalogRefresh.complete(request, request.inputs)
+                    // Publish first; PNG encoding and disk I/O run on Dispatchers.IO.
+                    appCache.save(cacheKey, displayedApps + shortcuts + folderApps + graceButtonApp)
                     shortcutRepository.prefetch(_uiState.value.favoriteApps)
                 } catch (error: Exception) {
                     if (error is CancellationException) throw error
@@ -754,8 +778,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     override fun onCleared() {
-        launcherApps.unregisterCallback(profilePackages)
-        getApplication<Application>().unregisterReceiver(packageReceiver)
+        launcherApps.unregisterCallback(packageChanges)
         getApplication<Application>().unregisterReceiver(dateReceiver)
         shortcutRepository.close()
         mediaRepository.close()
@@ -1085,6 +1108,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun reorderFavorites(keys: List<String>) {
         val updated = favoritesStore.reorder(keys, currentFavoriteOrder())
         _uiState.update { it.copy(favoriteOrder = updated) }
+        val visibleOrder = _uiState.value.homeItems.map { it.key }
+        persistSettings {
+            settingsRepository.mutateSettings { current -> current.copy(homeLayout = current.homeLayout.copy(
+                homeOrder = com.galaxyrio.gracelauncher.data.mergeHomeOrder(keys, current.homeLayout.homeOrder ?: visibleOrder))) }
+        }
     }
 
     private fun currentFavoriteOrder(): List<String> = _uiState.value.let { state ->

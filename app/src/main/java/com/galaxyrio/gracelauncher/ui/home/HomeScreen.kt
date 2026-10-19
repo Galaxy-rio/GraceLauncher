@@ -1,6 +1,28 @@
 package com.galaxyrio.gracelauncher.ui.home
 
 import android.text.format.DateFormat
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.zIndex
+import com.galaxyrio.gracelauncher.data.HomeLayout
+import com.galaxyrio.gracelauncher.data.GraceWidget
+import com.galaxyrio.gracelauncher.data.AppStackInset
+import com.galaxyrio.gracelauncher.data.homeContentOwner
+import com.galaxyrio.gracelauncher.ui.LauncherActions
+import com.galaxyrio.gracelauncher.ui.overlays.FavoritesReorderState
+import com.galaxyrio.gracelauncher.ui.overlays.rememberReorderTranslation
+import com.galaxyrio.gracelauncher.ui.overlays.PopupWidgetItem
+import com.galaxyrio.gracelauncher.ui.overlays.PopupWidgetControls
+import kotlinx.coroutines.isActive
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.overscroll
 import androidx.compose.foundation.rememberOverscrollEffect
@@ -119,10 +141,13 @@ fun HomeScreen(
     onTopOffsetChange: (Float) -> Unit = {},
     onWidgetHeightChange: (Int) -> Unit = {},
     onHomeGesture: (GraceButtonGesture, Offset) -> Unit = { _, _ -> },
+    actions: LauncherActions = LauncherActions(),
+    onWidgetEditingChange: (Boolean) -> Unit = {},
 ) {
     val now by rememberHomeTime()
     val event = if (uiState.settings.calendarAgenda) nextVisibleEvent(uiState.events, now) else null
-    val favorites = uiState.favoriteItems
+    val entries = uiState.homeItems
+    val entriesByKey = entries.associateBy { it.key }
     val favoriteFolders = uiState.favoriteFolders.associateBy { it.id }
     var idleMediaDismissed by rememberSaveable(uiState.settings.mediaAlwaysVisible, uiState.settings.mediaPlayer) { mutableStateOf(false) }
     LaunchedEffect(uiState.homeMedia?.sessionId, uiState.homeMedia?.revision) {
@@ -136,19 +161,80 @@ fun HomeScreen(
     ) else null
     val listState = rememberLazyListState()
     val homeLayout = uiState.settings.homeLayout
-    val hostedWidget = if (homeLayout.hasWidget && !uiState.isLoadingSettings && !uiState.settingsLoadFailed) rememberHostedWidget(homeLayout) else null
     var topOffset by remember(homeLayout.topOffsetDp) { mutableFloatStateOf(homeLayout.topOffsetDp) }
-    var widgetHeight by remember(homeLayout.widgetId, homeLayout.widgetHeightDp) { mutableFloatStateOf(homeLayout.widgetHeightDp.toFloat()) }
-    var headerHeightPx by remember { mutableIntStateOf(0) }
-    var anchorOffsetPx by remember { mutableIntStateOf(0) }
+    var capturedBaseline by rememberSaveable { mutableStateOf<Float?>(null) }
+    var baselinePinned by rememberSaveable { mutableStateOf(true) }
+    val itemHeights = remember { mutableStateMapOf<String, Int>() }
     val density = LocalDensity.current
     val context = LocalContext.current
+    val haptics by rememberUpdatedState(LocalHapticFeedback.current)
+    val saveOrder by rememberUpdatedState(actions.reorderFavorites)
+    val reorder = remember(listState) {
+        FavoritesReorderState(listState, entries.map { it.key }, { saveOrder(it) }) {
+            haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        }
+    }
+    var selectedWidget by rememberSaveable { mutableStateOf<String?>(null) }
+    var resizing by remember { mutableStateOf(false) }
+    var dragged by remember { mutableStateOf(false) }
+    val drafts = remember { mutableStateMapOf<String, HomeLayout>() }
+    val updateWidget: (String, HomeLayout, Boolean) -> Unit = { key, layout, save ->
+        drafts[key] = layout
+        if (save) actions.updatePopup(homeContentOwner(), emptyList()) { current ->
+            current.map { if (it.key == key && it.widget != null) it.copy(widget = layout) else it }
+        }
+    }
+    val saveWidget by rememberUpdatedState(updateWidget)
+    val finishEditing = {
+        selectedWidget?.let { key -> drafts[key]?.let { saveWidget(key, it, true) } }
+        selectedWidget = null
+    }
+    BackHandler(enabled = selectedWidget != null) { finishEditing() }
+    LaunchedEffect(entries) {
+        reorder.synchronize(entries.map { it.key })
+        drafts.keys.toList().forEach { key ->
+            if (entries.none { it.key == key } || entriesByKey[key]?.widget == drafts[key]) drafts.remove(key)
+        }
+        if (entriesByKey[selectedWidget]?.widget == null) selectedWidget = null
+    }
+    val widgetEditing = selectedWidget != null || reorder.draggingKey != null
+    val editingCallback by rememberUpdatedState(onWidgetEditingChange)
+    LaunchedEffect(widgetEditing) { editingCallback(widgetEditing) }
+    DisposableEffect(Unit) { onDispose { editingCallback(false) } }
+    LaunchedEffect(widgetInputEnabled, editingLayout) {
+        if (!widgetInputEnabled || editingLayout) {
+            reorder.finish(true)
+            finishEditing()
+        }
+    }
+    LaunchedEffect(reorder.draggingKey, density) {
+        if (reorder.draggingKey == null) return@LaunchedEffect
+        val edge = with(density) { 64.dp.toPx() }
+        val speed = with(density) { 640.dp.toPx() }
+        var previous = withFrameNanos { it }
+        while (isActive && reorder.draggingKey != null) {
+            val frame = withFrameNanos { it }
+            if (dragged) reorder.autoScroll(edge, speed * ((frame - previous) / 1_000_000_000f).coerceIn(0f, .032f))
+            previous = frame
+        }
+    }
+    val startDrag: (String) -> Unit = { key -> dragged = false; reorder.start(key) }
+    val drag: (Float) -> Unit = { delta -> if (delta != 0f) dragged = true; reorder.drag(delta) }
     val doubleTapSlop = remember(context, density) { android.view.ViewConfiguration.get(context).scaledDoubleTapSlop.toFloat() }
     val minimumTop = stableStatusBarInset() + 8.dp
     val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
-    LaunchedEffect(editingLayout) { if (editingLayout) listState.scrollToItem(0) }
+    LaunchedEffect(editingLayout, homeLayout.homeOrder) {
+        baselinePinned = true
+        if (editingLayout && !homeLayout.baselineEnabled) listState.scrollToItem(0)
+    }
+    val userIsEditing by rememberUpdatedState(widgetEditing || resizing || editingLayout)
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.isScrollInProgress }.collect {
+            if (it && !userIsEditing) baselinePinned = false
+        }
+    }
     val overscroll = rememberOverscrollEffect()
-    val gesturesEnabled = widgetInputEnabled && !editingLayout && uiState.settings.homeGestures.enabled &&
+    val gesturesEnabled = widgetInputEnabled && !editingLayout && !widgetEditing && uiState.settings.homeGestures.enabled &&
         !uiState.isLoadingSettings && !uiState.settingsLoadFailed
     val doubleTapEnabled = gesturesEnabled && uiState.settings.homeGestures.doubleTap.active
     val latestGestures by rememberUpdatedState(uiState.settings.homeGestures)
@@ -162,138 +248,159 @@ fun HomeScreen(
         onGesture = { latestOnGesture(it, windowOffset + pointerPosition) },
     )
     LaunchedEffect(gesturesEnabled) { if (!gesturesEnabled) scrollConnection.cancelGesture() }
-
     BoxWithConstraints(modifier.fillMaxSize()
         .onGloballyPositioned { windowOffset = it.positionInWindow() }
         .observeListGestures(scrollConnection) { pointerPosition = it }
-        // Keep the node attached when a popup disables HOME gestures mid-swipe.
-        // Removing a pointer-input ancestor cancels its descendants too, causing
-        // the app/folder row to cancel the very popup it has just started opening.
-        // Restart only this observer so disabled gestures also clear any pending tap.
         .pointerInput(doubleTapEnabled, doubleTapSlop, latestGestures.doubleTapIntervalMs) {
             if (!doubleTapEnabled) return@pointerInput
             observeBlankDoubleTaps(doubleTapSlop, latestGestures.doubleTapIntervalMs) { position ->
                 if (latestEnabled && latestGestures.doubleTap.active) latestOnGesture(GraceButtonGesture.DoubleTap, windowOffset + position)
             }
         }) {
-    val availableHeight = (maxHeight - bottomInset).coerceAtLeast(0.dp)
-    val headerHeight = with(density) { headerHeightPx.toDp() }
-    // Only content ABOVE the calendar anchor constrains its position. Agenda,
-    // media, widgets and favorites grow downwards without moving this anchor.
-    // Measure the boundary, not a hard-coded clock height, so it can be optional later.
-    val anchorOffset = with(density) { anchorOffsetPx.toDp() }
-    val maximumTop = (availableHeight - anchorOffset - 56.dp).coerceAtLeast(minimumTop)
-    val resolvedTop = (topSpace + topOffset.dp).coerceIn(minimumTop, maximumTop)
-    val minWidgetHeight = hostedWidget?.minHeight ?: 0
-    val maximumWidgetHeight = minOf(hostedWidget?.maxHeight ?: 0,
-        (availableHeight - minimumTop - headerHeight - 56.dp).value.toInt()).coerceAtLeast(minWidgetHeight)
-    val resolvedWidgetHeight = if (hostedWidget == null) 0 else
-        (if (widgetHeight == 0f) hostedWidget.defaultHeight else widgetHeight.roundToInt()).coerceIn(minWidgetHeight, maximumWidgetHeight)
-    val resizeLimit = (availableHeight - resolvedTop - headerHeight - 56.dp).value.toInt()
-        .coerceIn(minWidgetHeight, maximumWidgetHeight)
-    LazyColumn(
-        state = listState,
-        modifier = Modifier.fillMaxSize()
-            .overscroll(overscroll)
-            .nestedScroll(scrollConnection)
-            .testTag("home_content"),
-        // The row's 8dp inset keeps icons aligned at 44dp while giving its
-        // rounded touch surface breathing room around the icon.
-        contentPadding = PaddingValues(start = uiState.settings.listAppearance.startPadding, end = uiState.settings.listAppearance.endPadding, top = resolvedTop, bottom = 72.dp + bottomInset),
-        userScrollEnabled = !editingLayout,
-        // Feed the native effect at both boundaries even when every row fits.
-        // LazyColumn's own effect is disabled to avoid stretching twice.
-        overscrollEffect = null,
-    ) {
-        item(key = "date", contentType = "date") {
-            HomeClockHeader(
-                now = now,
-                event = event,
-                onDateClick = onDateClick,
-                onClockClick = onClockClick,
-                onLongClick = onWidgetMenu,
-                interactive = !editingLayout,
-                onAnchorOffsetChange = { anchorOffsetPx = it },
-                showClock = uiState.settings.clockEnabled,
-                showCalendar = uiState.settings.calendarAgenda,
-                calendarAboveClock = uiState.settings.calendarAboveClock,
-                clockStyle = uiState.settings.clockStyle,
-                showBattery = uiState.settings.showBatteryPercentage,
-                weather = uiState.weather.snapshot?.current.takeIf {
-                    uiState.settings.weatherEnabled && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
-                },
-                modifier = Modifier.fillMaxWidth().onSizeChanged { headerHeightPx = it.height },
-            )
-            Spacer(Modifier.height(2.dp))
+        val availableHeight = (maxHeight - bottomInset).coerceAtLeast(0.dp)
+        val maximumTop = (availableHeight - 56.dp).coerceAtLeast(minimumTop)
+        val resolvedTop = (topSpace + topOffset.dp).coerceIn(minimumTop, maximumTop)
+        val baselineOffset = homeLayout.baselineOffsetDp ?: capturedBaseline
+        val baselineTop = (topSpace + topOffset.dp + (baselineOffset ?: 0f).dp).coerceIn(minimumTop, maximumTop)
+        val baselineIndex = reorder.keys.indexOf(GraceWidget.Baseline.key)
+        val aboveHeights = reorder.keys.take(baselineIndex.coerceAtLeast(0)).map { itemHeights[it] }
+        val prefixHeight = if (aboveHeights.all { it != null }) with(density) { aboveHeights.filterNotNull().sum().toDp() } else null
+        // Once measured, use real leading space, not scrollable virtual padding.
+        // A short home list must still stretch immediately at its top boundary.
+        val anchoredOrigin = if (baselineIndex >= 0 && baselineOffset != null && prefixHeight != null) baselineTop - prefixHeight else null
+        val selectedLayout = selectedWidget?.let { drafts[it] ?: entriesByKey[it]?.widget }
+        val toolbarHeight = if (selectedLayout != null) minimumTop + 104.dp else 0.dp
+        val inputEnabled = widgetInputEnabled && !editingLayout && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
+        // When an off-screen prefix has not been measured yet, align by the
+        // marker's key. Measured prefixes use ordinary padding and scroll bounds.
+        LaunchedEffect(reorder.keys, aboveHeights, baselineTop, baselineOffset, toolbarHeight, baselinePinned, reorder.draggingKey) {
+            if (baselinePinned && baselineIndex >= 0 && baselineOffset != null && reorder.draggingKey == null) {
+                if (anchoredOrigin != null) listState.requestScrollToItem(0,
+                    with(density) { (toolbarHeight - anchoredOrigin).coerceAtLeast(0.dp).roundToPx() })
+                else listState.requestScrollToItem(baselineIndex, 0)
+            }
         }
-        if (hostedWidget != null) item(key = "widget:${homeLayout.widgetId}", contentType = "widget") {
-            HomeWidget(homeLayout, hostedWidget, resolvedWidgetHeight, editingLayout,
-                enabled = widgetInputEnabled, hapticsEnabled = uiState.settings.allowHapticFeedback,
-                onLongPress = onCustomWidgetMenu)
-            Spacer(Modifier.height(2.dp))
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize().padding(top = toolbarHeight)
+                .overscroll(overscroll).nestedScroll(scrollConnection).testTag("home_content"),
+            contentPadding = PaddingValues(start = uiState.settings.listAppearance.startPadding,
+                end = uiState.settings.listAppearance.endPadding,
+                top = ((anchoredOrigin ?: if (baselineIndex >= 0) baselineTop else resolvedTop) - toolbarHeight).coerceAtLeast(0.dp),
+                bottom = if (baselineIndex >= 0 && (anchoredOrigin == null || anchoredOrigin < toolbarHeight))
+                    (availableHeight - baselineTop).coerceAtLeast(72.dp + bottomInset) else 72.dp + bottomInset),
+            userScrollEnabled = !editingLayout && reorder.draggingKey == null && !resizing,
+            overscrollEffect = null,
+        ) {
+            items(reorder.keys.mapNotNull(entriesByKey::get), key = { FavoritesReorderState.itemKey(it.key) }) { entry ->
+                val grace = GraceWidget.fromKey(entry.key)
+                val widget = drafts[entry.key] ?: entry.widget
+                val app = uiState.findItem(entry.key)
+                val dragging = reorder.draggingKey == entry.key
+                val offset by rememberReorderTranslation(reorder, entry.key)
+                var coordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
+                val currentStart by rememberUpdatedState(startDrag)
+                val currentDrag by rememberUpdatedState(drag)
+                Box(Modifier.fillMaxWidth()
+                    .then(if (dragging) Modifier else Modifier.animateItem())
+                    .zIndex(if (dragging || reorder.drop?.key == entry.key) 1f else 0f)
+                    .graphicsLayer { translationY = offset }
+                    .onGloballyPositioned { coordinates = it }
+                    .onSizeChanged { itemHeights[entry.key] = it.height }
+                    .testTag("home_item:${entry.key}")
+                    .pointerInput(grace, inputEnabled) {
+                        if (grace != null && grace != GraceWidget.Baseline && inputEnabled) {
+                            var previous = Offset.Zero
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = {
+                                    previous = coordinates?.localToRoot(it) ?: it
+                                    currentStart(entry.key)
+                                },
+                                onDragEnd = { reorder.finish(false) },
+                                onDragCancel = { reorder.finish(true) },
+                            ) { change, _ ->
+                                val root = coordinates?.localToRoot(change.position) ?: change.position
+                                change.consume(); currentDrag(root.y - previous.y); previous = root
+                            }
+                        }
+                    }) {
+                    when {
+                        grace == GraceWidget.Baseline -> Spacer(Modifier.fillMaxWidth().height(2.dp)
+                            .testTag("home_baseline").onGloballyPositioned {
+                                if (baselineOffset == null && baselinePinned && !listState.isScrollInProgress && inputEnabled) {
+                                    val measured = ((it.positionInWindow().y - windowOffset.y) / density.density - resolvedTop.value).coerceIn(0f, 1600f)
+                                    capturedBaseline = measured
+                                    actions.updateSettings { current ->
+                                        if (current.homeLayout.baselineOffsetDp != null) current else
+                                            current.copy(homeLayout = current.homeLayout.copy(baselineOffsetDp = measured))
+                                    }
+                                }
+                            })
+                        grace == GraceWidget.Clock -> HomeClockHeader(now, null, onDateClick, onClockClick,
+                            showBattery = false, clockStyle = uiState.settings.clockStyle, weather = null,
+                            showClock = true, showCalendar = false, interactive = inputEnabled, onLongClick = {})
+                        grace == GraceWidget.Calendar -> HomeClockHeader(now, event, onDateClick, onClockClick,
+                            showBattery = uiState.settings.showBatteryPercentage,
+                            clockStyle = uiState.settings.clockStyle,
+                            weather = uiState.weather.snapshot?.current.takeIf { uiState.settings.weatherEnabled &&
+                                !uiState.isLoadingSettings && !uiState.settingsLoadFailed },
+                            showClock = false, showCalendar = true, clockPresent = uiState.settings.clockEnabled,
+                            interactive = inputEnabled, onLongClick = {})
+                        grace == GraceWidget.Media -> if (media != null) HomeMediaPlayer(media, onMediaCommand,
+                            onDismiss = { id, revision ->
+                                if (id == IdleMediaSessionId) { idleMediaDismissed = true; true }
+                                else onDismissMedia(id, revision).also { if (it) idleMediaDismissed = true }
+                            })
+                        widget != null -> PopupWidgetItem(widget, selected = selectedWidget == entry.key,
+                            enabled = inputEnabled, haptics = uiState.settings.allowHapticFeedback,
+                            horizontalInset = 8.dp,
+                            maxHeight = 1600,
+                            onChange = { layout, save -> updateWidget(entry.key, layout, save) },
+                            onResizing = { resizing = it }, onDragStart = { startDrag(entry.key) },
+                            onDrag = drag, onDragEnd = { cancelled ->
+                                reorder.finish(cancelled)
+                                if (!cancelled) selectedWidget = entry.key
+                            })
+                        app != null -> {
+                            val folder = app.folderId?.let(favoriteFolders::get)
+                            if (folder?.isAppStack == true) AppStack(folder, uiState,
+                                onLaunch = { item, bounds -> rowGestures.onLaunchAt?.invoke(item, bounds) ?: onLaunchApp(item) },
+                                onDetails = onAppDetails, onEdit = { onEditFolder(folder) },
+                                modifier = Modifier.padding(horizontal = LauncherLayout.ContentInset - AppStackInset.dp, vertical = 4.dp))
+                            else if (folder != null) FolderRow(folder, app = app,
+                                highlighted = highlightedAppKey == folder.key,
+                                notification = uiState.notificationsFor(app, expanded = false).firstOrNull(),
+                                onOpen = { onOpenFolder(folder, it) }, onLongClick = { onEditFolder(folder) },
+                                onDrag = { bounds, expanded -> onFolderDrag(folder, bounds, expanded) },
+                                onDragEnd = onFolderDragEnd,
+                                onSwipeLeft = rowGestures.onOpenFirst?.let { open -> { bounds -> open(app, bounds) } },
+                                showLabel = uiState.settings.listAppearance.showNames(favorites = true))
+                            else LauncherAppRow(app, onClick = { onLaunchApp(app) }, onLongClick = { onAppDetails(app) },
+                                onSwipeRight = { onAppShortcuts(app, it) }, gestures = rowGestures,
+                                highlighted = highlightedAppKey == app.key,
+                                notification = uiState.notificationsFor(app, expanded = false).firstOrNull(),
+                                showLabel = uiState.settings.listAppearance.showNames(favorites = true))
+                        }
+                    }
+                }
+            }
         }
-        if (media != null) item(key = "media", contentType = "media") {
-            HomeMediaPlayer(media, onMediaCommand, onDismiss = { id, revision ->
-                if (id == IdleMediaSessionId) { idleMediaDismissed = true; true }
-                else onDismissMedia(id, revision).also { if (it) idleMediaDismissed = true }
-            })
-            Spacer(Modifier.height(2.dp))
+        if (selectedLayout != null) Surface(Modifier.fillMaxWidth()
+            .padding(horizontal = 16.dp).offset(y = minimumTop).zIndex(4f),
+            shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
+            PopupWidgetControls(selectedLayout,
+                onChange = { layout, save -> selectedWidget?.let { updateWidget(it, layout, save) } }, onDone = finishEditing)
         }
-        items(favorites, key = LauncherApp::key, contentType = { if (it.folderId == null) "app" else "folder" }) { app ->
-            val folder = app.folderId?.let(favoriteFolders::get)
-            if (folder?.isAppStack == true) AppStack(folder, uiState,
-                onLaunch = { item, bounds -> rowGestures.onLaunchAt?.invoke(item, bounds) ?: onLaunchApp(item) },
-                onDetails = onAppDetails, onEdit = { onEditFolder(folder) },
-                modifier = Modifier.padding(horizontal = LauncherLayout.ContentInset - com.galaxyrio.gracelauncher.data.AppStackInset.dp, vertical = 4.dp))
-            else if (folder != null) FolderRow(
-                folder = folder,
-                app = app,
-                highlighted = highlightedAppKey == folder.key,
-                notification = uiState.notificationsFor(app, expanded = false).firstOrNull(),
-                onOpen = { onOpenFolder(folder, it) },
-                onLongClick = { onEditFolder(folder) },
-                onDrag = { bounds, expanded -> onFolderDrag(folder, bounds, expanded) },
-                onDragEnd = onFolderDragEnd,
-                onSwipeLeft = rowGestures.onOpenFirst?.let { open -> { bounds -> open(app, bounds) } },
-                showLabel = uiState.settings.listAppearance.showNames(favorites = true),
-            ) else LauncherAppRow(
-                app = app,
-                onClick = { onLaunchApp(app) },
-                onLongClick = { onAppDetails(app) },
-                onSwipeRight = { onAppShortcuts(app, it) },
-                gestures = rowGestures,
-                highlighted = highlightedAppKey == app.key,
-                notification = uiState.notificationsFor(app, expanded = false).firstOrNull(),
-                showLabel = uiState.settings.listAppearance.showNames(favorites = true),
-            )
-        }
-    }
-    // The visual move handle stays BELOW the agenda, independently of the
-    // actual anchor above the calendar. Its position never drives the layout.
-    // Overlay the handles in the viewport, not outside a lazy item's bounds:
-    // both halves of each circular control must remain inside its hit-test area.
-    if (editingLayout) {
-        val handleModifier = Modifier.padding(start = uiState.settings.listAppearance.startPadding, end = uiState.settings.listAppearance.endPadding)
-        HomeEditHandle(
+        if (editingLayout) HomeEditHandle(
             label = stringResource(R.string.widget_move_home), changed = topOffset != 0f, tag = "home_position_handle",
             onReset = { topOffset = 0f; onTopOffsetChange(0f) },
             onDelta = { delta ->
-                val currentTop = (topSpace.value + topOffset).coerceIn(minimumTop.value, maximumTop.value)
-                topOffset = (currentTop + delta).coerceIn(minimumTop.value, maximumTop.value) - topSpace.value
-            },
-            onFinished = { onTopOffsetChange(topOffset) },
-            modifier = handleModifier.offset(y = resolvedTop + headerHeight - 20.dp),
-        )
-        if (hostedWidget != null) HomeEditHandle(
-            label = stringResource(R.string.widget_resize), changed = widgetHeight != 0f && widgetHeight.roundToInt() != hostedWidget.defaultHeight,
-            tag = "home_widget_size_handle",
-            onReset = { widgetHeight = 0f; onWidgetHeightChange(0) },
-            onDelta = { delta -> widgetHeight = ((if (widgetHeight == 0f) resolvedWidgetHeight.toFloat() else widgetHeight) + delta)
-                .coerceIn(minWidgetHeight.toFloat(), resizeLimit.toFloat()) },
-            onFinished = { onWidgetHeightChange(if (widgetHeight.roundToInt() == hostedWidget.defaultHeight) 0 else widgetHeight.roundToInt()) },
-            modifier = handleModifier.offset(y = resolvedTop + headerHeight + 2.dp + resolvedWidgetHeight.dp - 20.dp),
-        )
-    }
+                val anchorOffset = if (baselineIndex >= 0) baselineOffset ?: 0f else 0f
+                val current = (topSpace.value + topOffset + anchorOffset).coerceIn(minimumTop.value, maximumTop.value)
+                topOffset = (current + delta).coerceIn(minimumTop.value, maximumTop.value) - topSpace.value - anchorOffset
+            }, onFinished = { onTopOffsetChange(topOffset) },
+            modifier = Modifier.padding(start = uiState.settings.listAppearance.startPadding, end = uiState.settings.listAppearance.endPadding)
+                .offset(y = (if (baselineIndex >= 0) baselineTop else resolvedTop) - 20.dp))
     }
 }
 
@@ -315,13 +422,14 @@ internal fun HomeClockHeader(
     showClock: Boolean = true,
     showCalendar: Boolean = true,
     calendarAboveClock: Boolean = false,
+    clockPresent: Boolean = showClock,
 ) {
     val appearance = LocalLauncherAppearance.current
     val battery = if (showCalendar && showBattery) rememberBatteryPercent() else null
     val context = LocalContext.current
     val locale = LocalConfiguration.current.locales[0]
     val clockText = formatHomeClock(now, DateFormat.is24HourFormat(context), locale)
-    val week = showClock && clockStyle.layout.week
+    val week = clockPresent && clockStyle.layout.week
     val weekday = SimpleDateFormat("EEE", locale).format(Date.from(now))
     val datePattern = DateFormat.getBestDateTimePattern(locale, if (week) "MMMd" else "MMMEd")
     val dateText = SimpleDateFormat(datePattern, locale).format(Date.from(now))

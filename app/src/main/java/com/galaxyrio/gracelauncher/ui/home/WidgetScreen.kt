@@ -64,11 +64,16 @@ internal fun WidgetScreen(
     uiState: LauncherUiState, actions: LauncherActions, topInset: Dp, bottomInset: Dp,
     editing: Boolean, enabled: Boolean, onEditingChange: (Boolean) -> Unit, onEdit: () -> Unit,
     onLaunchApp: (LauncherApp) -> Unit, onAppDetails: (LauncherApp) -> Unit,
+    onOpenFolder: (LauncherFolder, Rect) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val title = stringResource(R.string.widget_screen_title)
     val owner = remember(title) { widgetScreenOwner(title) }
-    val entries = uiState.popupItems(owner, emptyList())
+    // Keep disabled/unavailable profiles saved, but do not expose their launchers.
+    val entries = uiState.popupItems(owner, emptyList()).filter {
+        (it.key != PrivateSpaceFolderKey || uiState.canFavoritePrivateSpace) &&
+            (it.key != WorkProfileFolderKey || uiState.canFavoriteWorkProfile)
+    }
     val byKey = entries.associateBy { it.key }
     val stacks = uiState.folders.filter { it.isAppStack && it.key in byKey }.associateBy { it.key }
     val currentStackKeys by rememberUpdatedState(stacks.keys)
@@ -101,7 +106,14 @@ internal fun WidgetScreen(
     val launch by rememberUpdatedState<(String) -> Unit>({ key ->
         uiState.findItem(key)?.let { app ->
             val bounds = iconCoordinates[key]?.takeIf { it.isAttached }?.boundsInWindow()
-            if (bounds != null && actions.launchAppAt != null) actions.launchAppAt.invoke(app, bounds) else onLaunchApp(app)
+            if (app.folderId != null) {
+                val folder = when (app.folderId) {
+                    PrivateSpaceFolderId -> uiState.privateFolder
+                    WorkProfileFolderId -> uiState.workFolder
+                    else -> uiState.folders.firstOrNull { it.id == app.folderId }
+                }
+                if (folder != null) onOpenFolder(folder, bounds ?: Rect.Zero)
+            } else if (bounds != null && actions.launchAppAt != null) actions.launchAppAt.invoke(app, bounds) else onLaunchApp(app)
         }
     })
     val startDrag: (String, Offset) -> Unit = { key, pointer ->
@@ -380,7 +392,7 @@ private fun BoxScope.WidgetResizeFrame(grid: WidgetGridState, key: String, limit
             WidgetResizeEdge.Bottom -> Alignment.BottomCenter
         }
         var coordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
-        Box(Modifier.align(alignment).size(28.dp)
+        Box(Modifier.align(alignment).size(40.dp)
             .onGloballyPositioned { coordinates = it }
             .semantics { contentDescription = label }
             .testTag("widget_resize:${edge.name.lowercase()}")
@@ -405,7 +417,7 @@ private fun BoxScope.WidgetResizeFrame(grid: WidgetGridState, key: String, limit
                     } finally { if (!completed) grid.finishResize(true) }
                 }
             }, contentAlignment = Alignment.Center) {
-            Box(Modifier.size(12.dp).background(color, CircleShape).border(2.dp, MaterialTheme.colorScheme.surface, CircleShape))
+            Box(Modifier.size(20.dp).background(color, CircleShape).border(2.dp, MaterialTheme.colorScheme.surface, CircleShape))
         }
     }
 }

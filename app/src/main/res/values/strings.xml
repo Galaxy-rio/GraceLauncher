@@ -54,6 +54,7 @@
     <string name="settings_gestures">Gesture</string>
     <string name="home_gestures_enable">Enable gestures</string>
     <string name="home_gesture_double_tap">Double tap empty space</string>
+    <string name="home_gesture_alphabet_double_tap">Double tap A–Z list</string>
     <string name="work_profile_title">Work Profile</string>
     <string name="work_profile_summary">Organize apps in your Android work profile</string>
     <string name="work_profile_enable">Enable Work Profile grouping</string>
@@ -615,6 +616,11 @@
     <string name="widget_remove">Remove</string>
     <string name="widget_move_home">Move the clock and app list</string>
     <string name="widget_resize">Resize widget</string>
+    <string name="grace_widgets_title">Grace widget</string>
+    <string name="grace_widget_baseline">Baseline (invisible)</string>
+    <string name="popup_widget_full_width">Full width</string>
+    <string name="popup_widget_background">Background</string>
+    <string name="popup_widget_content_scale">Content scale · %1$d%%</string>
     <string name="widget_adjust_up">Move up / decrease height</string>
     <string name="widget_adjust_down">Move down / increase height</string>
     <string name="widget_calendar">Calendar</string>
@@ -706,4 +712,11 @@
     <string name="app_stack_expand">Expand app stack</string>
     <string name="app_stack_collapse">Collapse app stack</string>
     <string name="app_stack_empty">Choose apps or shortcuts below.</string>
+    <string name="lab_popup">Pop up</string>
+    <string name="lab_popup_distance">Extra swipe distance</string>
+    <string name="lab_popup_distance_summary">Extra distance to swipe right before opening an app or folder pop-up. Higher values make it harder to trigger.</string>
+    <string name="lab_popup_angle">Allowed swipe angle</string>
+    <string name="lab_popup_angle_summary">Maximum deviation above or below the rightward horizontal direction. Lower values require a straighter swipe.</string>
+    <string name="lab_dp">%1$d dp</string>
+    <string name="lab_degrees">±%1$d°</string>
 </resources>

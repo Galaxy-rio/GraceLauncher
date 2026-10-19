@@ -36,7 +36,8 @@ import com.galaxyrio.gracelauncher.ui.components.labelRes
 internal fun GraceButtonSettingsScreen(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
     home: Boolean = false, onAppearance: () -> Unit = {}, onChooseGesture: (GraceButtonGesture) -> Unit) {
     val settings = uiState.settings.gestureSettings(home)
-    val gestures = if (home) listOf(GraceButtonGesture.SwipeUp, GraceButtonGesture.SwipeDown, GraceButtonGesture.DoubleTap) else GraceButtonGesture.entries
+    val gestures = if (home) listOf(GraceButtonGesture.SwipeUp, GraceButtonGesture.SwipeDown,
+        GraceButtonGesture.DoubleTap, GraceButtonGesture.AlphabetDoubleTap) else GraceButtonGesture.buttonGestures
     SettingsScaffold(stringResource(if (home) R.string.settings_gestures else R.string.settings_grace_button),
         if (home) "settings_home_gestures" else "settings_grace_button_page", onBack,
         actions = { if (!home) SettingsAppearanceAction(onAppearance) }) { padding ->

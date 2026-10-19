@@ -33,13 +33,17 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asComposePath
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.changedToUpIgnoreConsumed
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -99,6 +103,8 @@ fun AlphabetRail(
     topOffset: Dp = 0.dp,
     touchHeight: Dp = height,
     enabled: Boolean = true,
+    onDoubleTap: ((Offset) -> Unit)? = null,
+    doubleTapIntervalMs: Int? = null,
 ) {
     if (letters.isEmpty()) return
     val appearance = LocalLauncherAppearance.current
@@ -119,8 +125,12 @@ fun AlphabetRail(
     val currentOnSelect by rememberUpdatedState(onLetterSelected)
     val inputEnabled by rememberUpdatedState(enabled)
     val currentOnScrubFinished by rememberUpdatedState(onScrubFinished)
+    val currentOnDoubleTap by rememberUpdatedState(onDoubleTap)
+    var leftTouchOrigin by remember { mutableStateOf(Offset.Zero) }
+    var rightTouchOrigin by remember { mutableStateOf(Offset.Zero) }
     val haptics by rememberUpdatedState(LocalHapticFeedback.current)
     val density = LocalDensity.current
+    val doubleTapSlop = with(density) { 100.dp.toPx() }
     // The desktop's edge touch strips span the viewport, independently of the
     // alphabet's configured position/spacing. Pickers keep the compact defaults.
     val railHeightPx by rememberUpdatedState(with(density) { height.roundToPx().coerceAtLeast(1) })
@@ -155,10 +165,25 @@ fun AlphabetRail(
     val railDescription = stringResource(R.string.alphabet_scroller)
     val homeDescription = stringResource(R.string.back_home)
 
-    fun touchSurface(fromLeft: Boolean) = Modifier.pointerInput(entries, fromLeft) {
+    // Ignoring events inside a disabled pointer handler still blocks siblings below
+    // this overlay. Detach it so widget resize handles can receive the initial down.
+    fun touchSurface(fromLeft: Boolean) = if (!enabled) Modifier else Modifier.pointerInput(
+        entries, fromLeft, onDoubleTap != null, doubleTapIntervalMs, doubleTapSlop,
+    ) {
+        val doubleTapTimeout = doubleTapIntervalMs?.coerceIn(150, 700)?.toLong()
+            ?: viewConfiguration.doubleTapTimeoutMillis
+        var firstTapUpTime: Long? = null
+        var firstTapPosition = Offset.Zero
         awaitEachGesture {
             val down = awaitFirstDown()
             if (!inputEnabled) return@awaitEachGesture
+            val previousUpTime = firstTapUpTime
+            firstTapUpTime = null
+            val secondTap = previousUpTime != null &&
+                down.uptimeMillis - previousUpTime in viewConfiguration.doubleTapMinTimeMillis..doubleTapTimeout &&
+                (down.position - firstTapPosition).getDistance() <= doubleTapSlop
+            var isTap = currentOnDoubleTap != null
+            var doubleTapPosition: Offset? = null
             val pointerId = down.id
             var change = down
             var previousIndex = -1
@@ -167,7 +192,19 @@ fun AlphabetRail(
             try {
                 while (true) {
                     if (!inputEnabled) break
+                    // Recognize taps in the existing scrub stream. Do not delay selection
+                    // or add a competing detector that could consume a drag's first down.
+                    isTap = isTap && !change.isConsumed && currentEvent.changes.size == 1 &&
+                        (change.position - down.position).getDistance() <= viewConfiguration.touchSlop &&
+                        change.uptimeMillis - down.uptimeMillis < viewConfiguration.longPressTimeoutMillis &&
+                        change.position.x in 0f..size.width.toFloat() && change.position.y in 0f..size.height.toFloat()
                     if (!change.pressed) {
+                        if (isTap && change.changedToUpIgnoreConsumed()) {
+                            if (secondTap) doubleTapPosition = change.position else {
+                                firstTapUpTime = change.uptimeMillis
+                                firstTapPosition = down.position
+                            }
+                        }
                         change.consume()
                         break
                     }
@@ -193,15 +230,22 @@ fun AlphabetRail(
                 state.active = false
                 currentOnScrubFinished()
             }
+            // Finish the scrub before an action changes pages or starts its transition.
+            doubleTapPosition?.let { position ->
+                val origin = if (fromLeft) leftTouchOrigin else rightTouchOrigin
+                currentOnDoubleTap?.invoke(origin + position)
+            }
         }
     }
 
     // Two touch regions, one visual rail and one scrub state. No second alphabet is drawn.
     Box(modifier.then(if (leftTouchEnabled) Modifier.fillMaxWidth() else Modifier.width(48.dp)).height(touchHeight)) {
         if (leftTouchEnabled) Box(Modifier.align(Alignment.TopStart).width(28.dp).height(touchHeight)
+            .onGloballyPositioned { leftTouchOrigin = it.positionInRoot() }
             .testTag("alphabet_left_touch").then(touchSurface(true)).clearAndSetSemantics {})
         Box(
             Modifier.align(Alignment.TopEnd).width(48.dp).height(touchHeight)
+                .onGloballyPositioned { rightTouchOrigin = it.positionInRoot() }
                 .testTag("alphabet_rail")
                 .semantics { contentDescription = railDescription }
                 .then(touchSurface(false)),

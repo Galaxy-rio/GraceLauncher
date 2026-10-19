@@ -1,5 +1,17 @@
 # Changelog
 
+## 1.2.0
+
+- Added Widget Screen to the right of the home screen. Open it by swiping on empty space or using a Grace Button gesture, and arrange widgets in a traditional grid.
+- Added App Stack for arranging apps horizontally.
+- Improved home screen sorting, with support for more widgets and Private Space and Work Profile folders.
+- Improved widget usability and added resizing support.
+- Expanded the A-Z list gesture trigger area.
+- Added double-tap actions to the A-Z list, including locking the screen.
+- Adjusted Pop-up trigger sensitivity, with further customization available in Lab.
+- Added animations to the home screen and app list.
+- Improved performance.
+
 ## 1.1.9
 
 - Updated the app icon. I hope you like the new design!

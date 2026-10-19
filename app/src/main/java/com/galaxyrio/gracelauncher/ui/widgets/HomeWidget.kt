@@ -14,12 +14,19 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
@@ -31,6 +38,7 @@ import com.galaxyrio.gracelauncher.platform.HomeWidgetHost
 import com.galaxyrio.gracelauncher.platform.HomeWidgetHostView
 import kotlinx.coroutines.delay
 import kotlin.math.ceil
+import kotlin.math.roundToInt
 
 internal data class HostedWidget(
     val host: HomeWidgetHost,
@@ -100,6 +108,8 @@ internal fun HomeWidget(
     enabled: Boolean, hapticsEnabled: Boolean, onLongPress: () -> Unit,
     onDrag: ((Float, Float) -> Unit)? = null, onDragEnd: ((Boolean) -> Unit)? = null,
     onDragStart: ((Float, Float) -> Unit)? = null,
+    contentScale: Float = 1f,
+    removeHorizontalPadding: Boolean = false,
 ) {
     val density = LocalDensity.current.density
     val latestLongPress by rememberUpdatedState(onLongPress)
@@ -107,17 +117,40 @@ internal fun HomeWidget(
     val latestDrag by rememberUpdatedState(onDrag)
     val latestDragEnd by rememberUpdatedState(onDragEnd)
     var size by remember { mutableStateOf(IntSize.Zero) }
+    var coordinates by remember { mutableStateOf<LayoutCoordinates?>(null) }
     var view by remember(layout.widgetId) { mutableStateOf<HomeWidgetHostView?>(null) }
     var creationFailed by remember(layout.widgetId, widget.info) { mutableStateOf(false) }
-    val modifier = Modifier.fillMaxWidth().height(height.dp).onSizeChanged { size = it }
+    val scale = contentScale.coerceIn(.5f, 1.5f)
+    // The slot never changes size. Measure RemoteViews in inverse-scaled space,
+    // then scale its entire contents (including touch coordinates) into that slot.
+    val modifier = Modifier.fillMaxWidth().height(height.dp).clipToBounds().layout { measurable, constraints ->
+        val width = constraints.maxWidth
+        val outerHeight = constraints.maxHeight
+        val child = measurable.measure(Constraints.fixed(
+            (width / scale).roundToInt().coerceAtLeast(1), (outerHeight / scale).roundToInt().coerceAtLeast(1)))
+        layout(width, outerHeight) {
+            child.placeWithLayer(0, 0) {
+                scaleX = scale; scaleY = scale; transformOrigin = TransformOrigin(0f, 0f)
+            }
+        }
+    }.onSizeChanged { size = it }.onGloballyPositioned { coordinates = it }
     if (widget.info == null || creationFailed) {
         // A failed RemoteViews must still finish/cancel its grid drag. Other surfaces
         // retain their existing tap/hold menu rather than entering a drag without UP.
         val fallback = if (onDrag != null) modifier.pointerInput(layout.widgetId, enabled, editing) {
+            var previous = Offset.Zero
             if (enabled && !editing) detectDragGesturesAfterLongPress(
-                onDragStart = { latestDragStart?.invoke(it.x, it.y) ?: latestLongPress() }, onDragEnd = { latestDragEnd?.invoke(false) },
+                onDragStart = {
+                    previous = coordinates?.localToRoot(it) ?: it
+                    latestDragStart?.invoke(it.x, it.y) ?: latestLongPress()
+                }, onDragEnd = { latestDragEnd?.invoke(false) },
                 onDragCancel = { latestDragEnd?.invoke(true) },
-            ) { change, amount -> change.consume(); latestDrag?.invoke(amount.x, amount.y) }
+            ) { change, _ ->
+                val root = coordinates?.localToRoot(change.position) ?: change.position
+                change.consume()
+                latestDrag?.invoke(root.x - previous.x, root.y - previous.y)
+                previous = root
+            }
         } else modifier.combinedClickable(enabled = enabled && !editing, onClick = onLongPress, onLongClick = onLongPress)
         Surface(fallback,
             shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainer) {
@@ -139,6 +172,12 @@ internal fun HomeWidget(
                 it.onWidgetDragEnd = { cancelled -> latestDragEnd?.invoke(cancelled) }
                 it.interactionEnabled = enabled && !editing
                 it.hapticsEnabled = hapticsEnabled
+                val padding = AppWidgetHostView.getDefaultPaddingForWidget(it.context, widget.info.provider, null)
+                if (removeHorizontalPadding) { padding.left = 0; padding.right = 0 }
+                if (it.paddingLeft != padding.left || it.paddingTop != padding.top ||
+                    it.paddingRight != padding.right || it.paddingBottom != padding.bottom) {
+                    it.setPadding(padding.left, padding.top, padding.right, padding.bottom)
+                }
             },
             onRelease = {
                 it.onWidgetLongPress = null; it.onWidgetDragStart = null; it.onWidgetDrag = null; it.onWidgetDragEnd = null

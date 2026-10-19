@@ -102,6 +102,17 @@ internal fun LauncherOverlays(
     favoritesSurface: Boolean = true,
 ) {
     if (overlay == null) return
+    val launchPopupItem: (LauncherApp, Rect) -> Unit = { item, bounds ->
+        if (item.folderId != null) {
+            // Built-in protected profiles cannot be members of an app/folder pop-up.
+            uiState.folders.firstOrNull { it.id == item.folderId }?.let {
+                onChange(LauncherOverlay.Folder(it, bounds))
+            }
+        } else {
+            onChange(null)
+            actions.launchAppAt?.invoke(item, bounds) ?: onLaunchApp(item)
+        }
+    }
     val privateApp = when (overlay) {
         is LauncherOverlay.AppDetails -> overlay.app.takeIf { it.isPrivateSpace }
         is LauncherOverlay.IconDesigner -> overlay.app.takeIf { it.isPrivateSpace }
@@ -199,10 +210,7 @@ internal fun LauncherOverlays(
                     returnTo = overlay.takeIf { isPrivate || isRecent || isWork }))
             },
             onDismiss = { if (isPrivate) actions.closePrivateSpace(); onChange(null) },
-            onLaunchApp = { app, bounds ->
-                onChange(null)
-                actions.launchAppAt?.invoke(app, bounds) ?: onLaunchApp(app)
-            },
+            onLaunchApp = launchPopupItem,
             onEdit = edit,
         )
         return
@@ -216,10 +224,7 @@ internal fun LauncherOverlays(
             onOpenAppPopup = { app, bounds -> onChange(LauncherOverlay.Shortcuts(app, bounds)) },
             onEdit = { onChange(LauncherOverlay.EditPopup(overlay.app)) },
             onDetails = { onChange(LauncherOverlay.AppDetails(it, overlay.app)) },
-            onLaunchItem = { item, bounds ->
-                onChange(null)
-                actions.launchAppAt?.invoke(item, bounds) ?: onLaunchApp(item)
-            },
+            onLaunchItem = launchPopupItem,
             onLaunchApp = { onChange(null); onLaunchApp(overlay.app) }, onDismiss = { onChange(null) },
         )
         return

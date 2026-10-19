@@ -1,5 +1,8 @@
 package com.galaxyrio.gracelauncher.ui.drawer
 
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -17,12 +20,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
@@ -87,6 +95,15 @@ fun AppDrawerScreen(
         .coerceAtLeast(LauncherLayout.TopFadeHeight).roundToPx() }
     val currentModel by rememberUpdatedState(model)
     val currentPrivateLoading by rememberUpdatedState(privateLoading)
+    var lastSelectedLetter by remember { mutableStateOf(selectedLetter) }
+    SideEffect { if (selectedLetter != null) lastSelectedLetter = selectedLetter }
+    // Share one fade clock across all rows, including those composed after
+    // release. The selected section stays opaque and every row keeps its height.
+    val releasedItemsAlpha = animateFloatAsState(
+        targetValue = if (selectedLetter == null) 1f else 0f,
+        animationSpec = if (selectedLetter == null) tween(180) else snap(),
+        label = "alphabetReleaseFade",
+    )
     LaunchedEffect(privateExpanded, workExpanded) {
         if (!privateExpanded && !workExpanded) return@LaunchedEffect
         val expandedId = if (workExpanded) com.galaxyrio.gracelauncher.data.WorkProfileFolderId else PrivateSpaceFolderId
@@ -130,7 +147,10 @@ fun AppDrawerScreen(
         ) { item ->
             // Keep every item's key and measured height. Hiding a group must
             // not change scroll bounds or move the selected header on release.
-            Box(Modifier.retainItemSpace(selectedLetter == null || item.section == selectedLetter)) {
+            Box(Modifier.retainItemSpace(selectedLetter == null || item.section == selectedLetter)
+                .graphicsLayer {
+                    alpha = if (selectedLetter == null && item.section != lastSelectedLetter) releasedItemsAlpha.value else 1f
+                }) {
                 when (item) {
                     is DrawerItem.Header -> Text(
                         text = when (item.section) {

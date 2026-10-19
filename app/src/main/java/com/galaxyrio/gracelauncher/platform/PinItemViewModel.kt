@@ -73,8 +73,9 @@ class PinItemViewModel(application: Application) : AndroidViewModel(application)
         viewModelScope.launch {
             try {
                 val current = settings.snapshots.first().settings.homeLayout
+                val savedWidgets = LauncherItemsRepository(database).snapshots.first().popups.values.flatten().mapNotNull { it.widget?.widgetId }
                 // Process recreation may happen just after the database took ownership.
-                if (pendingWidgetId >= 0 && current.widgetId == pendingWidgetId) {
+                if (pendingWidgetId >= 0 && (current.widgetId == pendingWidgetId || pendingWidgetId in savedWidgets)) {
                     host.untrackPendingId(pendingWidgetId)
                     pendingWidgetId = -1
                     complete()
@@ -86,12 +87,8 @@ class PinItemViewModel(application: Application) : AndroidViewModel(application)
                 }
                 label = if (isWidget) pin.getAppWidgetProviderInfo(context)?.loadLabel(context.packageManager).orEmpty()
                     else pin.shortcutInfo?.shortLabel?.toString().orEmpty()
-                if (isWidget && current.hasWidget) {
-                    fail(R.string.widget_single_limit)
-                } else {
-                    busy = pendingWidgetId >= 0 // A restored Android bind dialog will deliver its result.
-                    ready = true
-                }
+                busy = pendingWidgetId >= 0 // A restored Android bind dialog will deliver its result.
+                ready = true
             } catch (exception: Exception) {
                 if (exception is CancellationException) throw exception
                 fail(R.string.settings_storage_save_error)
@@ -112,10 +109,6 @@ class PinItemViewModel(application: Application) : AndroidViewModel(application)
                 if (!isWidget) {
                     addShortcut(pin)
                 } else {
-                    if (settings.snapshots.first().settings.homeLayout.hasWidget) {
-                        fail(R.string.widget_single_limit)
-                        return@launch
-                    }
                     val info = pin.getAppWidgetProviderInfo(context) ?: error("Missing widget provider")
                     pendingWidgetId = host.allocateAppWidgetId().also(host::trackPendingId)
                     val options = widgetOptions()
@@ -178,12 +171,12 @@ class PinItemViewModel(application: Application) : AndroidViewModel(application)
             val id = pendingWidgetId
             val bound = manager.getAppWidgetInfo(id)
             check(bound != null && bound.provider == expected.provider && bound.profile == expected.profile)
-            settings.mutateSettings { current ->
-                check(!current.homeLayout.hasWidget) { "Home widget slot already occupied" }
+            LauncherItemsRepository(database).updatePopup(com.galaxyrio.gracelauncher.data.HomeContentKey, emptyList()) { entries ->
                 check(valid(pin) && pin.accept(widgetOptions().apply { putInt(AppWidgetManager.EXTRA_APPWIDGET_ID, id) }))
                 // Pin requests are already configured by the requesting app. Do not launch configure again.
-                current.copy(homeLayout = current.homeLayout.copy(widgetId = id,
-                    widgetProvider = expected.provider.flattenToString(), widgetLabel = label, widgetHeightDp = 0))
+                entries + com.galaxyrio.gracelauncher.data.PopupItem("widget:$id",
+                    com.galaxyrio.gracelauncher.data.HomeLayout(widgetId = id,
+                        widgetProvider = expected.provider.flattenToString(), widgetLabel = label))
             }
             host.untrackPendingId(id)
             pendingWidgetId = -1
