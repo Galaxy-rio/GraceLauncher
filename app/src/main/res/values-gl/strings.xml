@@ -680,4 +680,5 @@
     <string name="lab_popup_angle_summary">Desviación máxima por riba ou por debaixo da dirección horizontal cara á dereita. Uns valores máis baixos requiren un movemento de esvaramento máis recto.</string>
     <string name="lab_dp">%1$d dp</string>
     <string name="lab_degrees">±%1$d°</string>
+    <string name="icon_designer_apply_to_shortcuts">Aplicar tamén a configuración aos atallos</string>
 </resources>
