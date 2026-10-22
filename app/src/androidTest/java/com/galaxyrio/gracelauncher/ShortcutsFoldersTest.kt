@@ -69,6 +69,26 @@ class ShortcutsFoldersTest {
         assertTrue(state.copy(notifications = emptyMap()).notificationsFor(folder.asApp(), false).isEmpty())
     }
 
+    @Test fun multipleOuterPreviewsUseEachAppsLatestVisibleNotificationAndLeavePopupsComplete() {
+        val own = AppNotification("own", owner.packageName, "Own", "Body", 1, 1, true, true)
+        val child = own.copy(key = "child", packageName = target.packageName, postedAt = 2)
+        val olderChild = child.copy(key = "older-child", postedAt = 0)
+        val silent = child.copy(key = "silent", postedAt = 3, silent = true)
+        val apps = listOf(PopupItem(owner.key), PopupItem(target.key), PopupItem(target.key))
+        val state = LauncherUiState(apps = listOf(owner, target), folders = listOf(folder),
+            notifications = mapOf(owner.packageName to listOf(own), target.packageName to listOf(silent, child, olderChild)),
+            popups = mapOf(owner.key to apps, folder.key to apps))
+        val multiple = state.copy(settings = state.settings.copy(shortcutsFolders =
+            state.settings.shortcutsFolders.copy(multipleAppNotificationPreviews = true)))
+        listOf(owner, folder.asApp()).forEach { row ->
+            assertEquals(listOf(child), state.notificationPreviewsFor(row))
+            assertEquals(listOf(child, own), multiple.notificationPreviewsFor(row))
+            assertEquals(listOf(child, own, olderChild), multiple.notificationsFor(row, expanded = true))
+            assertTrue(multiple.copy(settings = multiple.settings.copy(shortcutsFolders =
+                multiple.settings.shortcutsFolders.copy(enabled = false))).notificationPreviewsFor(row).isEmpty())
+        }
+    }
+
     @Test fun memberNotificationFilteringStillRespectsModesAndProfileIdentity() {
         val silent = AppNotification("child", target.packageName, "Silent", "Body", 1, 1, true, true, silent = true)
         val shortcut = LauncherShortcut("link", target.packageName, "Shortcut", null).asApp(target)
@@ -107,6 +127,14 @@ class ShortcutsFoldersTest {
         // Clicking the active button must not leave a single-choice group empty.
         compose.onNodeWithTag("popup_silent:expanded").performClick().assertIsOn()
         compose.runOnIdle { assertEquals(NotificationDisplay.ExpandedOnly, state.settings.shortcutsFolders.silentNotifications) }
+        compose.onNodeWithTag("settings_list").performScrollToNode(hasTestTag("popup_single_line_previews"))
+        compose.onNodeWithTag("popup_single_line_previews").assertIsOff().performClick().assertIsOn()
+        compose.onNodeWithTag("settings_list").performScrollToNode(hasTestTag("popup_multiple_app_previews"))
+        compose.onNodeWithTag("popup_multiple_app_previews").assertIsOff().performClick().assertIsOn()
+        compose.runOnIdle {
+            assertTrue(state.settings.shortcutsFolders.singleLineNotificationPreviews)
+            assertTrue(state.settings.shortcutsFolders.multipleAppNotificationPreviews)
+        }
     }
 
     @Test fun masterSwitchDisablesAppPopupButDoesNotHideOrDisableFolders() {

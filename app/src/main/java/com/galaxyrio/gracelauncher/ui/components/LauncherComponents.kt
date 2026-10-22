@@ -32,6 +32,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -201,7 +202,7 @@ fun LauncherAppRow(
     onSwipeRight: (Rect) -> Unit = {},
     gestures: AppRowGestures = AppRowGestures(),
     highlighted: Boolean = false,
-    notification: AppNotification? = null,
+    notifications: List<AppNotification> = emptyList(),
     showLabel: Boolean = true,
 ) {
     val display = app.effectiveDisplay(LocalLauncherAppearance.current)
@@ -220,7 +221,7 @@ fun LauncherAppRow(
         detailsDescription = stringResource(R.string.app_actions),
         modifier = modifier,
         highlighted = highlighted,
-        notification = notification.takeIf { app.shortcut == null && app.user == null },
+        notifications = if (app.shortcut == null && app.user == null) notifications else emptyList(),
         showLabel = showLabel,
         animationComponents = listOf(app.componentName),
         hiddenIcon = display.style == IconDisplayStyle.Hidden,
@@ -240,7 +241,7 @@ fun FolderRow(
     showLabel: Boolean = true,
     app: LauncherApp = folder.asApp(),
     trailing: (@Composable () -> Unit)? = null,
-    notification: AppNotification? = null,
+    notifications: List<AppNotification> = emptyList(),
 ) {
     val display = app.effectiveDisplay(LocalLauncherAppearance.current)
     LauncherRow(
@@ -259,7 +260,7 @@ fun FolderRow(
         highlighted = highlighted,
         showLabel = showLabel,
         trailing = trailing,
-        notification = notification,
+        notifications = notifications,
         animationComponents = folder.appKeys.mapNotNull(android.content.ComponentName::unflattenFromString),
         animationFolder = true,
         hiddenIcon = display.style == IconDisplayStyle.Hidden,
@@ -287,7 +288,7 @@ private fun LauncherRow(
     highlighted: Boolean,
     popupsEnabled: Boolean = true,
     onSwipeLeft: ((Rect) -> Unit)? = null,
-    notification: AppNotification? = null,
+    notifications: List<AppNotification> = emptyList(),
     showLabel: Boolean = true,
     trailing: (@Composable () -> Unit)? = null,
     animationComponents: List<android.content.ComponentName> = emptyList(),
@@ -416,11 +417,12 @@ private fun LauncherRow(
                     .then(if (animationComponents.isNotEmpty())
                         Modifier.launcherAnimationTarget(animationComponents, animationFolder) else Modifier)
                 else Modifier)) {
-                AppNotificationLabel(label, notification, labelVisible,
-                    labelModifier = Modifier.testTag("$rowKey:label"))
+                AppNotificationLabel(label, notifications, labelVisible,
+                    labelModifier = Modifier.testTag("$rowKey:label"),
+                    notificationBodyLines = if (popupSettings.singleLineNotificationPreviews) 1 else 2)
             }
             trailing?.invoke()
-            if (notification != null) {
+            if (notifications.isNotEmpty()) {
                 IconButton(
                     onClick = { onPrepare(); onOpen(iconBounds()) },
                     enabled = inputEnabled,
@@ -440,26 +442,32 @@ private fun LauncherRow(
 @Composable
 internal fun AppNotificationLabel(
     label: String,
-    notification: AppNotification?,
+    notifications: List<AppNotification>,
     showLabel: Boolean,
     modifier: Modifier = Modifier,
     labelModifier: Modifier = Modifier,
     onWallpaper: Boolean = true,
     maxLines: Int = 1,
+    notificationBodyLines: Int = 1,
 ) {
     val style = listLabelStyle(onWallpaper)
     val list = LocalListAppearance.current
     Column(modifier) {
         if (showLabel) Text(
-            text = label + (notification?.let { " · ${notificationAge(it.postedAt)}" } ?: ""),
+            text = label + (notifications.firstOrNull()?.let { " · ${notificationAge(it.postedAt)}" } ?: ""),
             modifier = labelModifier, style = style, maxLines = maxLines, overflow = TextOverflow.Ellipsis,
         )
-        if (notification != null) {
-            if (showLabel) Spacer(Modifier.height(2.dp))
-            listOf(notification.title, notification.text.replace('\n', ' ')).filter { it.isNotBlank() }.forEach { line ->
-                Text(line, color = style.color.copy(alpha = 0.88f),
-                    style = style.copy(fontSize = (list.fontSize - 2).sp),
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
+        notifications.forEachIndexed { index, notification ->
+            key(notification.key) {
+                if (index > 0) Spacer(Modifier.height(6.dp))
+                else if (showLabel) Spacer(Modifier.height(2.dp))
+                val previewStyle = style.copy(fontSize = (list.fontSize - 2).sp, color = style.color.copy(alpha = 0.88f))
+                if (notification.title.isNotBlank()) Text(notification.title,
+                    style = previewStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (notification.text.isNotBlank()) Text(
+                    text = if (notificationBodyLines > 1) notification.text else notification.text.replace('\n', ' '),
+                    modifier = Modifier.testTag("notification_preview:${notification.key}:body"),
+                    style = previewStyle, maxLines = notificationBodyLines, overflow = TextOverflow.Ellipsis)
             }
         }
     }

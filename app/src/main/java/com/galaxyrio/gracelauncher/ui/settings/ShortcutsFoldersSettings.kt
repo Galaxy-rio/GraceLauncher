@@ -24,6 +24,7 @@ import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 @Composable
 internal fun ShortcutsFoldersSettingsScreen(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit) {
     val settings = uiState.settings.shortcutsFolders
+    val itemCount = 5
     var requestAccess by rememberSaveable { mutableStateOf(false) }
     fun update(change: (ShortcutsFoldersSettings) -> ShortcutsFoldersSettings) =
         actions.updateSettings { it.copy(shortcutsFolders = change(it.shortcutsFolders)) }
@@ -42,20 +43,32 @@ internal fun ShortcutsFoldersSettingsScreen(uiState: LauncherUiState, actions: L
             }
             item {
                 SettingsToggleItem(stringResource(R.string.popup_swipe_left_first), stringResource(R.string.popup_swipe_left_first_summary),
-                    settings.swipeLeftToOpenFirst, 0, 3, "popup_swipe_left_first") { value ->
+                    settings.swipeLeftToOpenFirst, 0, itemCount, "popup_swipe_left_first") { value ->
                     update { it.copy(swipeLeftToOpenFirst = value) }
                 }
             }
             item {
                 NotificationDisplayItem(stringResource(R.string.popup_silent_notifications),
-                    settings.silentNotifications, settings.enabled, 1, "popup_silent") { mode ->
+                    settings.silentNotifications, settings.enabled, 1, itemCount, "popup_silent") { mode ->
                     update { it.copy(silentNotifications = mode) }
                 }
             }
             item {
                 NotificationDisplayItem(stringResource(R.string.popup_normal_notifications),
-                    settings.normalNotifications, settings.enabled, 2, "popup_normal") { mode ->
+                    settings.normalNotifications, settings.enabled, 2, itemCount, "popup_normal") { mode ->
                     update { it.copy(normalNotifications = mode) }
+                }
+            }
+            item {
+                SettingsToggleItem(stringResource(R.string.popup_single_line_previews), stringResource(R.string.popup_single_line_previews_summary),
+                    settings.singleLineNotificationPreviews, 3, itemCount, "popup_single_line_previews", enabled = settings.enabled) { value ->
+                    update { it.copy(singleLineNotificationPreviews = value) }
+                }
+            }
+            item {
+                SettingsToggleItem(stringResource(R.string.popup_multiple_app_previews), stringResource(R.string.popup_multiple_app_previews_summary),
+                    settings.multipleAppNotificationPreviews, 4, itemCount, "popup_multiple_app_previews", enabled = settings.enabled) { value ->
+                    update { it.copy(multipleAppNotificationPreviews = value) }
                 }
             }
         }
@@ -78,10 +91,10 @@ internal fun ShortcutsFoldersSettingsScreen(uiState: LauncherUiState, actions: L
 @Composable
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 private fun NotificationDisplayItem(title: String, selected: NotificationDisplay, enabled: Boolean,
-    index: Int, tag: String, onSelect: (NotificationDisplay) -> Unit) {
+    index: Int, count: Int, tag: String, onSelect: (NotificationDisplay) -> Unit) {
     val canEdit = enabled && LocalSettingsStorageState.current.canEdit
     SegmentedListItem(
-        shapes = ListItemDefaults.segmentedShapes(index, 3),
+        shapes = ListItemDefaults.segmentedShapes(index, count),
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
         enabled = canEdit,
         modifier = Modifier.testTag(tag),

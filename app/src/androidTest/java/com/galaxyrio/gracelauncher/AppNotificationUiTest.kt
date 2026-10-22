@@ -5,11 +5,15 @@ import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -19,6 +23,8 @@ import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherScreen
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
+import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
+import com.galaxyrio.gracelauncher.ui.components.LocalPopupGestureSettings
 import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
 import java.io.File
 import org.junit.Assert.*
@@ -150,6 +156,36 @@ class AppNotificationUiTest {
         compose.waitUntil(5_000) { compose.onAllNodesWithTag("app:${app.key}").fetchSemanticsNodes().isNotEmpty() }
         compose.onNodeWithTag("app:${app.key}").assertIsDisplayed().performClick()
         compose.runOnIdle { assertEquals(1, launchedApps); assertTrue(opened.isEmpty()) }
+    }
+
+    @Test fun previewsDefaultToTwoLinesAndCanSwitchToASingleLineWithoutLineBreaks() {
+        var settings by mutableStateOf(ShortcutsFoldersSettings())
+        val first = message.copy(text = "First\nSecond\nThird")
+        val second = message.copy(key = "browser", packageName = browser.packageName, title = "Browser update", text = "Another app")
+        compose.setContent {
+            GraceLauncherTheme(dynamicColor = false) {
+                CompositionLocalProvider(LocalPopupGestureSettings provides settings) {
+                    LauncherAppRow(app, {}, {}, modifier = Modifier.width(280.dp),
+                        notifications = settings.previewNotifications(listOf(first, second)))
+                }
+            }
+        }
+        val body = compose.onNodeWithTag("notification_preview:${first.key}:body", useUnmergedTree = true)
+        fun bodyLayout(): TextLayoutResult {
+            val layouts = mutableListOf<TextLayoutResult>()
+            body.performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+            return layouts.single()
+        }
+        body.assertTextEquals(first.text)
+        assertEquals(2, bodyLayout().lineCount)
+        assertEquals("First\n".length, bodyLayout().getLineStart(1))
+        assertTrue(bodyLayout().isLineEllipsized(1))
+        compose.onNodeWithText(second.title, useUnmergedTree = true).assertDoesNotExist()
+        compose.runOnIdle { settings = settings.copy(singleLineNotificationPreviews = true, multipleAppNotificationPreviews = true) }
+        body.assertTextEquals("First Second Third")
+        assertEquals(1, bodyLayout().lineCount)
+        compose.onNodeWithText(second.title, useUnmergedTree = true).assertIsDisplayed()
+        compose.onAllNodesWithTag("notification_arrow:app:${app.key}").assertCountEquals(1)
     }
 
     private fun screenshot(name: String) {

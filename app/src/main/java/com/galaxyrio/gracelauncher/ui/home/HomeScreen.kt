@@ -369,7 +369,7 @@ fun HomeScreen(
                                 modifier = Modifier.padding(horizontal = LauncherLayout.ContentInset - AppStackInset.dp, vertical = 4.dp))
                             else if (folder != null) FolderRow(folder, app = app,
                                 highlighted = highlightedAppKey == folder.key,
-                                notification = uiState.notificationsFor(app, expanded = false).firstOrNull(),
+                                notifications = uiState.notificationPreviewsFor(app),
                                 onOpen = { onOpenFolder(folder, it) }, onLongClick = { onEditFolder(folder) },
                                 onDrag = { bounds, expanded -> onFolderDrag(folder, bounds, expanded) },
                                 onDragEnd = onFolderDragEnd,
@@ -378,7 +378,7 @@ fun HomeScreen(
                             else LauncherAppRow(app, onClick = { onLaunchApp(app) }, onLongClick = { onAppDetails(app) },
                                 onSwipeRight = { onAppShortcuts(app, it) }, gestures = rowGestures,
                                 highlighted = highlightedAppKey == app.key,
-                                notification = uiState.notificationsFor(app, expanded = false).firstOrNull(),
+                                notifications = uiState.notificationPreviewsFor(app),
                                 showLabel = uiState.settings.listAppearance.showNames(favorites = true))
                         }
                     }

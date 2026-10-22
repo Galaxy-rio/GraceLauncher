@@ -302,7 +302,7 @@ fun ShortcutPopup(
                                     Spacer(Modifier.width(listAppearance.iconNameGap.dp))
                                 }
                             }
-                            AppNotificationLabel(itemApp.label, notification, showNames || hiddenIcon,
+                            AppNotificationLabel(itemApp.label, listOfNotNull(notification), showNames || hiddenIcon,
                                 modifier = Modifier.weight(1f).then(if (hiddenIcon)
                                     Modifier.onGloballyPositioned { iconBounds = it.boundsInWindow() } else Modifier),
                                 onWallpaper = false, maxLines = 2)

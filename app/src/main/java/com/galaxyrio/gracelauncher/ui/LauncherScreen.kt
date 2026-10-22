@@ -1087,7 +1087,7 @@ internal fun LauncherScreen(
         AppDrawerScreen(
             model = model,
             folderApps = (uiState.folders + listOfNotNull(workFolder, privateFolder, recentFolder)).associate { it.id to uiState.folderItem(it) },
-            notificationFor = { uiState.notificationsFor(it, expanded = false).firstOrNull() },
+            notificationsFor = { uiState.notificationPreviewsFor(it) },
             appStackContent = { stack -> AppStack(stack, uiState,
                 onLaunch = { app, bounds -> actions.launchAppAt?.invoke(app, bounds) ?: onLaunchApp(app) },
                 onDetails = { overlay = LauncherOverlay.AppDetails(it, fromAppList = true) }, onEdit = { editFolder(stack) },

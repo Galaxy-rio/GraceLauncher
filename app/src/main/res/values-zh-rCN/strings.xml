@@ -650,6 +650,10 @@
     <string name="popup_swipe_left_first_summary">打开弹出窗口中的第一个快捷方式、应用或小组件所属应用</string>
     <string name="popup_silent_notifications">静默通知</string>
     <string name="popup_normal_notifications">普通通知</string>
+    <string name="popup_single_line_previews">单行显示通知</string>
+    <string name="popup_single_line_previews_summary">通知正文只显示一行，并忽略换行</string>
+    <string name="popup_multiple_app_previews">显示多个应用的通知</string>
+    <string name="popup_multiple_app_previews_summary">在文件夹或应用条目下，显示其中每个应用的最新通知</string>
     <string name="popup_notification_normal">正常显示</string>
     <string name="popup_notification_expanded">仅展开时显示</string>
     <string name="popup_notification_hidden">不显示</string>

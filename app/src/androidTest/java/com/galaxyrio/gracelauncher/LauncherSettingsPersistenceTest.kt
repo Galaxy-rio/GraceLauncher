@@ -441,7 +441,8 @@ class LauncherSettingsPersistenceTest {
     @Test fun popupOptionsRoundTripAndMissingOrInvalidValuesKeepDefaults() = runBlocking {
         val options = ShortcutsFoldersSettings(enabled = false, swipeLeftToOpenFirst = true,
             silentNotifications = NotificationDisplay.ExpandedOnly, normalNotifications = NotificationDisplay.Hidden,
-            popupSwipeDistanceDp = 24, popupSwipeAngleDegrees = 30)
+            popupSwipeDistanceDp = 24, popupSwipeAngleDegrees = 30,
+            singleLineNotificationPreviews = true, multipleAppNotificationPreviews = true)
         assertEquals(options, ShortcutsFoldersSettings.decode(options.encode()))
         val clamped = ShortcutsFoldersSettings.decode("""{"popupSwipeDistanceDp":-1,"popupSwipeAngleDegrees":100}""")
         assertEquals(0, clamped.popupSwipeDistanceDp)
@@ -452,6 +453,9 @@ class LauncherSettingsPersistenceTest {
         assertEquals(ShortcutsFoldersSettings(), ShortcutsFoldersSettings.decode(null))
         assertEquals(ShortcutsFoldersSettings(), ShortcutsFoldersSettings.decode("invalid"))
         assertEquals(ShortcutsFoldersSettings(), ShortcutsFoldersSettings.decode("{\"normalNotifications\":\"unknown\"}"))
+        val oldOptions = ShortcutsFoldersSettings.decode("""{"enabled":true,"swipeLeftToOpenFirst":true,"normalNotifications":"normal"}""")
+        assertFalse(oldOptions.singleLineNotificationPreviews)
+        assertFalse(oldOptions.multipleAppNotificationPreviews)
         openRepository().mutateSettings { it.copy(shortcutsFolders = options) }
         assertEquals(options, withTimeout(10_000) { openRepository().snapshots.first().settings.shortcutsFolders })
     }

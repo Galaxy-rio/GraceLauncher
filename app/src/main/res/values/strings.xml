@@ -668,6 +668,10 @@
     <string name="popup_swipe_left_first_summary">Open the first shortcut, app, or widget’s app in the pop-up</string>
     <string name="popup_silent_notifications">Silent notifications</string>
     <string name="popup_normal_notifications">Normal notifications</string>
+    <string name="popup_single_line_previews">Single-line notification previews</string>
+    <string name="popup_single_line_previews_summary">Show notification text on one line, ignoring line breaks</string>
+    <string name="popup_multiple_app_previews">Notifications from multiple apps</string>
+    <string name="popup_multiple_app_previews_summary">Preview the latest notification from each app in a folder or app pop-up</string>
     <string name="popup_notification_normal">Show normally</string>
     <string name="popup_notification_expanded">Expanded only</string>
     <string name="popup_notification_hidden">Hide</string>
