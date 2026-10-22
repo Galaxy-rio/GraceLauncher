@@ -688,4 +688,5 @@
     <string name="lab_popup_angle_summary">Desviación máxima por encima o por debajo de la dirección horizontal hacia la derecha. Los valores más bajos requieren un deslizamiento más recto.</string>
     <string name="lab_dp">%1$d dp</string>
     <string name="lab_degrees">±%1$d°</string>
+    <string name="icon_designer_apply_to_shortcuts">Aplicar también la configuración a los accesos directos</string>
 </resources>
