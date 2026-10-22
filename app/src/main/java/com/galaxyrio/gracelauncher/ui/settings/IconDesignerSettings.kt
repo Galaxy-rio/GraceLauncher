@@ -48,7 +48,8 @@ internal fun IconDesignerPreview(
     modifier: Modifier = Modifier,
 ) {
     val rowDisplay = if (!all && selectedApp?.isGraceButton == true) IconDisplaySettings()
-        else choice.display ?: uiState.settings.iconDisplay
+        else choice.display ?: if (!all && selectedApp?.shortcut != null && uiState.settings.iconDesign?.design?.applyToShortcuts != true)
+            IconDisplaySettings() else uiState.settings.iconDisplay
     val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons,
         iconSize = design.iconSize, iconDisplay = rowDisplay)
     val shape = ListItemDefaults.segmentedShapes(0, 1).shape
@@ -117,7 +118,8 @@ private fun AllIconsPreview(uiState: LauncherUiState, choice: ItemIcon, store: I
                     .semantics(mergeDescendants = true) { contentDescription = "${categories[row]} · $label" }
                     .padding(LauncherLayout.ContentInset), verticalAlignment = Alignment.CenterVertically) {
                     // Rows preview the resolved display: per-item override, else the shared draft.
-                    val rowDisplay = (app?.let { uiState.itemIcons[it.key]?.display } ?: appearance.iconDisplay)
+                    val rowDisplay = app?.let { uiState.itemIcons[it.key]?.display?.resolve(appearance.iconDisplay) }
+                        ?: appearance.iconDisplay
                     if (rowDisplay.style != IconDisplayStyle.Hidden) {
                         Box(Modifier.testTag("icon_designer_icon:$row:0")) {
                             if (app != null) DesignerDisplayRowIcon(app, uiState, choice, store, dynamicColors, themeColors, iconSize, rowDisplay)

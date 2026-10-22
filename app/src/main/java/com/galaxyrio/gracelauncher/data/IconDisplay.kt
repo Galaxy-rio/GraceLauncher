@@ -20,7 +20,45 @@ data class IconDisplaySettings(
     val dotPebbleRoundness: Int = IconDesign.DefaultPebbleRoundness,
     val dotSquareCornerRadius: Int = 0,
     val dotSquareAspectRatio: Float = 1f,
+    /** Null preserves old complete overrides; new saves retain only differing fields. */
+    val overriddenFields: Set<String>? = null,
 ) {
+    fun resolve(defaults: IconDisplaySettings): IconDisplaySettings {
+        val fields = overriddenFields ?: return this
+        fun <T> pick(key: String, value: T, inherited: T): T = if (key in fields) value else inherited
+        return defaults.copy(
+            style = pick("style", style, defaults.style),
+            dotColor = pick("dotColor", dotColor, defaults.dotColor),
+            customColor = pick("customColor", customColor, defaults.customColor),
+            dotSize = pick("dotSize", dotSize, defaults.dotSize),
+            dotShape = pick("dotShape", dotShape, defaults.dotShape),
+            dotCookieSides = pick("dotCookieSides", dotCookieSides, defaults.dotCookieSides),
+            dotPebbleRoundness = pick("dotPebbleRoundness", dotPebbleRoundness, defaults.dotPebbleRoundness),
+            dotSquareCornerRadius = pick("dotSquareCornerRadius", dotSquareCornerRadius, defaults.dotSquareCornerRadius),
+            dotSquareAspectRatio = pick("dotSquareAspectRatio", dotSquareAspectRatio, defaults.dotSquareAspectRatio),
+            overriddenFields = null,
+        )
+    }
+
+    fun overridesFrom(defaults: IconDisplaySettings): IconDisplaySettings? {
+        val resolved = resolve(defaults).normalized()
+        val value = resolved.withColor(resolved.color.normalized())
+        val base = defaults.normalized()
+        val fields = buildSet {
+            if (value.style != base.style) add("style")
+            // Color source and its parameters form one property, including explicit null.
+            if (value.color != base.color.normalized()) { add("dotColor"); add("customColor") }
+            if (value.dotSize != base.dotSize) add("dotSize")
+            if (value.dotShape != base.dotShape) add("dotShape")
+            if (value.dotCookieSides != base.dotCookieSides) add("dotCookieSides")
+            if (value.dotPebbleRoundness != base.dotPebbleRoundness) add("dotPebbleRoundness")
+            if (value.dotSquareCornerRadius != base.dotSquareCornerRadius) add("dotSquareCornerRadius")
+            if (value.dotSquareAspectRatio != base.dotSquareAspectRatio) add("dotSquareAspectRatio")
+        }
+        if (fields.isEmpty()) return null
+        return value.copy(overriddenFields = fields).resolve(IconDisplaySettings()).copy(overriddenFields = fields)
+    }
+
     val color: IconColor get() = when (dotColor) {
         IconDotColor.Artwork -> customColor?.takeIf { it.source == IconColorSource.FromApp } ?: IconColor.FromApp
         IconDotColor.Theme -> customColor?.takeIf { it.source == IconColorSource.Theme } ?: IconColor.Theme
@@ -59,6 +97,7 @@ data class IconDisplaySettings(
         .put("dotSquareCornerRadius", value.dotSquareCornerRadius)
         .put("dotSquareAspectRatio", value.dotSquareAspectRatio)
         .apply { value.customColor?.let { put("customColor", it.json()) } }
+        .onlyIconOverrides(value.overriddenFields)
     }
 
     companion object {
@@ -77,6 +116,7 @@ data class IconDisplaySettings(
                     dotPebbleRoundness = it.optInt("dotPebbleRoundness", IconDesign.DefaultPebbleRoundness),
                     dotSquareCornerRadius = it.optInt("dotSquareCornerRadius", 0),
                     dotSquareAspectRatio = it.optDouble("dotSquareAspectRatio", 1.0).toFloat(),
+                    overriddenFields = it.iconOverrideFields(),
                 ).normalized()
             }
         }.getOrDefault(IconDisplaySettings())

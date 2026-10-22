@@ -176,9 +176,9 @@ private fun Offset.rotated(degrees: Float): Offset {
 internal fun DesignerBulkPreviewIcon(app: LauncherApp, uiState: LauncherUiState, choice: ItemIcon,
     store: ItemIconStore, dynamicColors: Pair<Int, Int>, themeColors: Pair<Int, Int>, size: Dp) {
     val single = uiState.itemIcons[app.key]
-    val source = single ?: ItemIcon.Theme
     val shared = choice.design ?: IconDesign.defaults(uiState.themedIcons)
-    val design = single?.design?.withThemeDefaults(shared) ?: shared
+    val source = (single ?: ItemIcon.Theme).resolve(shared, choice.display ?: uiState.settings.iconDisplay, isShortcut = app.shortcut != null)
+    val design = source.design ?: shared
     val layers by produceState<IconLayers?>(null, app.key, source.kind, source.source, source.name,
         uiState.settings.enabledIconPackPackages) {
         value = store.layers(app, source, uiState.settings)
@@ -193,9 +193,9 @@ internal fun DesignerDisplayRowIcon(app: LauncherApp, uiState: LauncherUiState, 
     store: ItemIconStore, dynamicColors: Pair<Int, Int>, themeColors: Pair<Int, Int>, size: Dp,
     display: IconDisplaySettings) {
     val single = uiState.itemIcons[app.key]
-    val source = single ?: ItemIcon.Theme
     val shared = choice.design ?: IconDesign.defaults(uiState.themedIcons)
-    val design = single?.design?.withThemeDefaults(shared) ?: shared
+    val source = (single ?: ItemIcon.Theme).resolve(shared, choice.display ?: uiState.settings.iconDisplay, isShortcut = app.shortcut != null)
+    val design = source.design ?: shared
     val layers by produceState<IconLayers?>(null, app.key, source.kind, source.source, source.name,
         uiState.settings.enabledIconPackPackages) {
         value = store.layers(app, source, uiState.settings)

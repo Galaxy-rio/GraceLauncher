@@ -89,6 +89,7 @@ enum class FolderPlacement(val inFavorites: Boolean, val inAppList: Boolean) {
 }
 
 const val RecentlyInstalledFolderId = "recently-installed"
+const val RecentlyInstalledFolderKey = "folder:$RecentlyInstalledFolderId"
 
 data class LauncherFolder(
     val id: String,

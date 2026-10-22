@@ -200,9 +200,14 @@ class ItemIconStore(private val context: Context, private val packs: IconPackRep
         themedIcons: Boolean = false): LauncherApp {
         val defaults = IconDesign.defaults(themedIcons)
         val shared = bulk?.design?.withThemeDefaults(defaults) ?: defaults
-        val choice = (special ?: ItemIcon.Theme).let {
-            it.copy(design = (it.design?.withThemeDefaults(shared) ?: shared).copy(iconSize = shared.iconSize))
+        if (app.shortcut != null && !shared.applyToShortcuts && special == null) {
+            // The opt-out path needs neither new bitmaps nor a render-cache entry.
+            return app.copy(iconDisplay = com.galaxyrio.gracelauncher.data.IconDisplaySettings())
         }
+        val resolved = (special ?: ItemIcon.Theme).resolve(shared, settings.iconDisplay, isShortcut = app.shortcut != null)
+        // This is an inheritance policy, not artwork. Toggling it must not invalidate
+        // identical rendered icons for ordinary apps and folders.
+        val choice = resolved.copy(design = resolved.design?.copy(applyToShortcuts = false))
         return withContext(Dispatchers.IO) {
             // Only visual inputs belong in this key. Opening a folder, ordering apps,
             // changing badges or other settings must not redraw the whole catalog.
@@ -211,7 +216,9 @@ class ItemIconStore(private val context: Context, private val packs: IconPackRep
                 "pack" -> listOf(choice.source)
                 else -> emptyList()
             }
-            val signature = RenderSignature(app.iconSourceRevision ?: app.profileIconSource?.cacheKey ?: app.icon, choice,
+            val source = if (app.folderId != null) app.folderId to app.isAppStack
+                else app.iconSourceRevision ?: app.profileIconSource?.cacheKey ?: app.icon
+            val signature = RenderSignature(source, choice,
                 selectedPacks.map { packs.load(it)?.cacheKey }, themeColors(settings), dynamicColors(settings),
                 if (choice.design?.background?.fromApp == true || choice.design?.foreground?.fromApp == true)
                     appColors(app.originalIconColor, settings) else null,

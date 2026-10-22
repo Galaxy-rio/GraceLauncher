@@ -13,6 +13,56 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class IconDesignerPersistenceTest {
+    @Test fun shortcutPolicyRoundTripsAndOlderSettingsStayOptedOut() {
+        val shared = ItemIcon.Theme.copy(design = IconDesign.defaults().copy(applyToShortcuts = true))
+        assertEquals(shared, ItemIcon.decode(shared.encode()))
+        assertFalse(IconDesign.decode(JSONObject("""{"themeIcons":true}"""))!!.applyToShortcuts)
+    }
+
+    @Test fun sparseDesignsRoundTripWithoutCapturingInheritedValues() {
+        val all = IconDesign.defaults().copy(shape = IconShape.Cookie, themeIcons = true,
+            background = IconColor.FromApp, size = 130)
+        val display = IconDisplaySettings(style = IconDisplayStyle.Dot, dotSize = 18)
+            .withColor(IconColor.FromApp.copy(brightnessShift = 20))
+        val saved = ItemIcon.Theme.copy(design = all.copy(invertBackgroundDetection = true,
+            themeIcons = false, background = null), display = display.withColor(IconColor.Theme))
+            .overridesFrom(all, display)
+        val json = JSONObject(saved.encode())
+        assertEquals(setOf("overrides", "invertBackgroundDetection", "themeIcons", "background"),
+            json.getJSONObject("design").keys().asSequence().toSet())
+        assertTrue(json.getJSONObject("design").isNull("background"))
+        assertEquals(setOf("overrides", "dotColor", "customColor"),
+            json.getJSONObject("display").keys().asSequence().toSet())
+        assertTrue(json.getJSONObject("display").isNull("customColor"))
+        val restored = requireNotNull(ItemIcon.decode(saved.encode()))
+        assertEquals(saved, restored)
+        val next = all.copy(shape = IconShape.Square, foreground = IconColor.FromApp)
+        val nextDisplay = display.copy(dotSize = 25)
+        assertEquals(next.copy(invertBackgroundDetection = true, themeIcons = false, background = null),
+            restored.resolve(next, nextDisplay).design)
+        assertEquals(nextDisplay.withColor(IconColor.Theme), restored.resolve(next, nextDisplay).display)
+    }
+
+    @Test fun builtInFolderIconsPersistWithoutCreatingEditableFolderRows() = runBlocking {
+        var db = open()
+        val base = IconDesign.defaults()
+        val saved = ItemIcon.Theme.copy(design = base.copy(shape = IconShape.Pebble)).overridesFrom(base, IconDisplaySettings())
+        val keys = listOf(RecentlyInstalledFolderKey, PrivateSpaceFolderKey, WorkProfileFolderKey)
+        keys.forEach { LauncherItemsRepository(db).saveIcon(it, saved) }
+        db = open()
+        val repository = LauncherItemsRepository(db)
+        val restored = withTimeout(10_000) { repository.snapshots.first().icons }
+        keys.forEach { key ->
+            assertEquals(saved, restored[key])
+            assertNull(db.settingsDao().folder(key.removePrefix("folder:")))
+            repository.saveIcon(key, null)
+        }
+        assertTrue(withTimeout(10_000) { repository.snapshots.first().icons }.isEmpty())
+        // The exception is limited to icon data; deleted normal folders still fail validation.
+        assertTrue(runCatching { repository.saveIcon("folder:deleted", saved) }.isFailure)
+        assertTrue(runCatching { repository.updatePopup(RecentlyInstalledFolderKey, emptyList()) { it } }.isFailure)
+    }
+
     @Test fun relativeColorOffsetsRoundTripForIconsDotsAndNonAppColors() {
         val tray = IconColor.FromApp.copy(hueShift = 30, saturationShift = -25, brightnessShift = 10)
         val symbol = IconColor.Theme.copy(hueShift = -15, brightnessShift = -20)

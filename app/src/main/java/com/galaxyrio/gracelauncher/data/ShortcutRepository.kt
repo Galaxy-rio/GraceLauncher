@@ -48,7 +48,14 @@ enum class ShortcutStatus { Loading, Ready, DefaultLauncherRequired, Error }
 data class ShortcutResult(
     val status: ShortcutStatus,
     val shortcuts: List<LauncherShortcut> = emptyList(),
-)
+    /** Presentation only. Keep provider artwork intact for re-theming and the single editor. */
+    val styledApps: Map<String, LauncherApp> = emptyMap(),
+) {
+    fun asApps(owner: LauncherApp): List<LauncherApp> = shortcuts.map { shortcut ->
+        val item = shortcut.asApp(owner)
+        styledApps[item.key] ?: item
+    }
+}
 
 class ShortcutRepository(context: Context) : AutoCloseable {
     private data class QueryKey(val packageName: String, val activity: String, val user: UserHandle,

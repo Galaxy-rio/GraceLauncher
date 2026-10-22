@@ -438,6 +438,7 @@
     <string name="icon_designer_size">Symbol size</string>
     <string name="icon_designer_rotation">Rotation</string>
     <string name="icon_designer_effects">Effects</string>
+    <string name="icon_designer_apply_to_shortcuts">Also apply settings to shortcuts</string>
     <string name="icon_designer_drag_symbol">%1$s · Drag to move; use two fingers to scale and rotate</string>
     <string name="icon_designer_color_done">Done</string>
     <string name="icon_designer_reset">Reset</string>

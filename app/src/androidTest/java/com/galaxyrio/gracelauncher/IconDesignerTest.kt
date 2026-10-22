@@ -102,6 +102,20 @@ class IconDesignerTest {
         compose.onNodeWithTag("icon_designer_app:${apps[index].key}").performClick()
     }
 
+    @Test fun shortcutPolicyIsAnAllOnlyDraftAboveEffects() {
+        show()
+        compose.onNodeWithTag("icon_designer_apply_to_shortcuts").performScrollTo().assertIsOff().performClick()
+        compose.runOnIdle { assertEquals(0, writes) }
+        compose.onNodeWithTag("icon_designer_effects").performScrollTo()
+        val toggle = compose.onNodeWithTag("icon_designer_apply_to_shortcuts").fetchSemanticsNode().boundsInRoot
+        val effects = compose.onNodeWithTag("icon_designer_effects").fetchSemanticsNode().boundsInRoot
+        assertTrue(toggle.bottom <= effects.top)
+        compose.onNodeWithTag("icon_designer_save").performClick()
+        compose.runOnIdle { assertEquals(true, bulkSaved?.design?.applyToShortcuts) }
+        chooseApp()
+        compose.onNodeWithTag("icon_designer_apply_to_shortcuts").assertDoesNotExist()
+    }
+
     @Test fun singlePreviewOnlyShowsTheArtworkForFullAndTheCenteredRowForDotOrHidden() {
         show(); chooseApp()
         compose.onNodeWithTag("icon_designer_selected_app").assertIsDisplayed()
@@ -248,7 +262,9 @@ class IconDesignerTest {
         compose.runOnIdle {
             assertEquals("system", specialSaved?.kind)
             assertEquals(0xFFED5234.toInt(), specialSaved?.design?.background?.argb)
-            assertEquals(IconColor.Theme, specialSaved?.design?.foreground)
+            assertEquals(setOf("background"), specialSaved?.design?.overriddenFields)
+            assertEquals(IconColor.Theme, specialSaved?.resolve(
+                com.galaxyrio.gracelauncher.data.IconDesign.defaults(), state.settings.iconDisplay)?.design?.foreground)
             assertEquals(0f, specialSaved?.design?.x)
         }
     }

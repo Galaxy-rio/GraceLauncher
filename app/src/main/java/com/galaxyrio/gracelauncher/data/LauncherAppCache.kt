@@ -36,7 +36,7 @@ internal class LauncherAppCache(context: Context) {
             bestEffort(null) {
                 if (!file.baseFile.exists()) return@bestEffort null
                 val root = JSONObject(file.readFully().toString(Charsets.UTF_8))
-                if (root.getInt("version") != 2 || root.getString("key") != key) return@bestEffort null
+                if (root.getInt("version") != 3 || root.getString("key") != key) return@bestEffort null
                 val coroutine = currentCoroutineContext()
                 val entries = root.getJSONArray("apps")
                 List(entries.length()) { index ->
@@ -56,7 +56,7 @@ internal class LauncherAppCache(context: Context) {
                     coroutine.ensureActive()
                     entries.put(encode(app))
                 }
-                val root = JSONObject().put("version", 2).put("key", key).put("apps", entries)
+                val root = JSONObject().put("version", 3).put("key", key).put("apps", entries)
                 val bytes = root.toString().toByteArray(Charsets.UTF_8)
                 coroutine.ensureActive()
                 val stream = file.startWrite()

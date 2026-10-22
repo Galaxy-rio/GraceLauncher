@@ -22,6 +22,45 @@ class PersonalIconCachingTest {
     private fun design(color: Int) = ItemIcon.Theme.copy(design = IconDesign(
         themeIcons = true, themeUnsupportedIcons = true, foreground = IconColor(color)))
 
+    @Test fun transientShortcutsUseSharedDesignsWithoutReplacingProviderArtwork() = runBlocking {
+        val store = ItemIconStore(context, IconPackRepository(context))
+        val owner = app()
+        val raw = LauncherShortcut("action", owner.packageName, "Action", bitmap(Color.BLACK))
+        val shortcut = raw.asApp(owner)
+        val enabled = design(Color.RED).copy(design = design(Color.RED).design!!.copy(applyToShortcuts = true))
+        val settings = LauncherSettings(iconDesign = enabled)
+        val styled = store.applyDesign(shortcut, null, enabled, settings)
+        assertEquals(Color.RED, styled.icon!!.asAndroidBitmap().getPixel(72, 72))
+        assertSame(styled.icon, store.applyDesign(shortcut, null, enabled, settings).icon)
+        assertEquals(Color.BLACK, raw.icon!!.asAndroidBitmap().getPixel(72, 72))
+        val result = ShortcutResult(ShortcutStatus.Ready, listOf(raw), mapOf(raw.key to styled))
+        assertSame(styled, result.asApps(owner).single())
+        assertSame(raw, result.shortcuts.single())
+        val disabled = enabled.copy(design = enabled.design!!.copy(applyToShortcuts = false))
+        assertSame(raw.icon, store.applyDesign(shortcut, null, disabled, settings.copy(iconDesign = disabled)).icon)
+    }
+
+    @Test fun folderIconsFollowAllWhileSparseOverridesAndRenderCachingArePreserved() = runBlocking {
+        val store = ItemIconStore(context, IconPackRepository(context))
+        val initial = IconDesign.defaults().copy(shape = IconShape.Circle, themeIcons = true)
+        val special = ItemIcon.Theme.copy(design = initial.copy(invertBackgroundDetection = true))
+            .overridesFrom(initial, IconDisplaySettings())
+        val updated = initial.copy(shape = IconShape.Square, background = IconColor(Color.GREEN))
+        for (id in listOf("ordinary", RecentlyInstalledFolderId, PrivateSpaceFolderId, WorkProfileFolderId)) {
+            val app = LauncherFolder(id, "Group", emptyList(), FolderPlacement.AppList).asApp()
+            suspend fun rendered(style: IconDesign, override: ItemIcon? = null): LauncherApp {
+                val bulk = ItemIcon.Theme.copy(design = style)
+                return store.applyDesign(app, override, bulk, LauncherSettings(iconDesign = bulk))
+            }
+            val first = rendered(initial)
+            assertEquals(0, Color.alpha(first.icon!!.asAndroidBitmap().getPixel(4, 4)))
+            val next = rendered(updated, special)
+            assertEquals(Color.GREEN, next.icon!!.asAndroidBitmap().getPixel(4, 4))
+            assertNotSame(first.icon, next.icon)
+            assertSame(next.icon, rendered(updated, special).icon)
+        }
+    }
+
     @Test fun inventoryRefreshReusesSourcePixelsUntilThatPackageChanges() = runBlocking {
         val repository = AppRepository(context)
         fun List<LauncherApp>.ownApp() = single { it.packageName == context.packageName }
@@ -46,6 +85,9 @@ class PersonalIconCachingTest {
         assertSame(first.icon, again.icon)
         assertEquals("Renamed", again.label)
         assertEquals(Color.RED, again.icon!!.asAndroidBitmap().getPixel(72, 72))
+        val shortcutsEnabled = style.copy(design = style.design!!.copy(applyToShortcuts = true))
+        assertSame(first.icon, store.applyDesign(original, null, shortcutsEnabled,
+            settings.copy(iconDesign = shortcutsEnabled)).icon)
     }
 
     @Test fun newSourceAndPerAppDesignsInvalidateOnlyTheAffectedRender() = runBlocking {

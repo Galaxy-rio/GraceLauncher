@@ -115,11 +115,11 @@ fun ShortcutPopup(
     val initialResult = remember(app.key, hasAccess) {
         if (isFolder) ShortcutResult(ShortcutStatus.Ready) else actions.cachedShortcuts(app) ?: ShortcutResult(ShortcutStatus.Loading)
     }
-    val result by produceState(initialResult, app.key, hasAccess, retry, uiState.itemRevision) {
+    val result by produceState(initialResult, app, hasAccess, retry, uiState.itemRevision, uiState.settings) {
         // Keep cached content while refreshing; never insert a progress indicator.
         if (!isFolder) value = loadShortcuts(app)
     }
-    val shortcuts = result.shortcuts.map { uiState.findItem(it.key) ?: it.asApp(app) }
+    val shortcuts = result.asApps(app).map { uiState.findItem(it.key) ?: it }
     val customItems = uiState.popups[app.key]
     val entries = uiState.popupItems(app, shortcuts)
     val list = rememberLazyListState()

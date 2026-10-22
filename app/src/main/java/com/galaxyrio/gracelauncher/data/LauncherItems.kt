@@ -13,6 +13,21 @@ import org.json.JSONObject
 data class ItemIcon(val kind: String, val source: String = "", val name: String = "", val design: IconDesign? = null,
     /** Per-item icon-display override, null inherits the shared setting. */
     val display: IconDisplaySettings? = null) {
+    /** Used by launcher rendering and editor previews alike; never mutate the saved patch. */
+    fun resolve(shared: IconDesign, sharedDisplay: IconDisplaySettings, isShortcut: Boolean = false): ItemIcon {
+        val defaults = shared.itemDefaults(isShortcut)
+        val displayDefaults = if (shared.appliesTo(isShortcut)) sharedDisplay else IconDisplaySettings()
+        return copy(
+            design = (design?.withThemeDefaults(defaults) ?: defaults).copy(iconSize = shared.iconSize),
+            display = display?.resolve(displayDefaults) ?: displayDefaults.takeUnless { shared.appliesTo(isShortcut) },
+        )
+    }
+
+    fun overridesFrom(shared: IconDesign, sharedDisplay: IconDisplaySettings, isShortcut: Boolean = false): ItemIcon = copy(
+        design = design?.overridesFrom(shared.itemDefaults(isShortcut)),
+        display = display?.overridesFrom(if (shared.appliesTo(isShortcut)) sharedDisplay else IconDisplaySettings()),
+    )
+
     fun encode(): String = JSONObject().put("kind", kind).put("source", source).put("name", name)
         .apply {
             design?.let { put("design", it.json()) }
@@ -100,7 +115,11 @@ class LauncherItemsRepository(private val database: LauncherDatabase) {
     }.distinctUntilChanged()
 
     suspend fun saveIcon(key: String, icon: ItemIcon?) = database.withTransaction {
-        requireExistingFolder(key)
+        // Built-in groups have stable icon identities but deliberately have no folder row.
+        when (key) {
+            PrivateSpaceFolderKey, WorkProfileFolderKey, RecentlyInstalledFolderKey -> Unit
+            else -> requireExistingFolder(key)
+        }
         if (icon == null) dao.resetIcon(key) else dao.saveIcon(ItemIconEntity(key, icon.encode()))
     }
 

@@ -418,6 +418,7 @@
     <string name="icon_designer_size">符号大小</string>
     <string name="icon_designer_rotation">旋转</string>
     <string name="icon_designer_effects">效果</string>
+    <string name="icon_designer_apply_to_shortcuts">也将设置应用于快捷方式</string>
     <string name="icon_display_section">图标显示</string>
     <string name="icon_display_full">完整图标</string>
     <string name="icon_display_dot">点</string>

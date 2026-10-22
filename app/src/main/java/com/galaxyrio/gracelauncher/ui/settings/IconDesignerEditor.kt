@@ -137,15 +137,21 @@ internal fun IconDesignerSettings(
         val savedPage = page
         val saved = normalizedChoice(if (page == DesignerPage.All) ItemIcon.Theme.copy(design = design, display = bulkChoice.display)
             else choice.copy(design = design.copy(iconSize = if (button) 100 else bulkChoice.design?.iconSize ?: 100)))
+        // Keep full, resolved drafts for interaction. Persist only differences for list
+        // items; the Grace button has its own appearance and does not inherit All.
+        val stored = if (savedPage == DesignerPage.Single && !button)
+            saved.overridesFrom(bulkBaseline.design ?: sharedDesignerDefaults(uiState),
+                bulkBaseline.display ?: uiState.settings.iconDisplay, isShortcut = app?.shortcut != null).takeUnless { it == ItemIcon.Theme }
+            else saved
         val savedApp = app
         saving = true
         scope.launch {
             try {
                 val success = if (savedPage == DesignerPage.All) actions.applyIconDesign(saved)
-                    else savedApp?.let { actions.setItemIcon(it, saved) } == true
+                    else savedApp?.let { actions.setItemIcon(it, stored) } == true
                 if (success) {
                     if (savedPage == DesignerPage.All) { bulk = saved; bulkBaseline = bulk }
-                    else { special = saved; specialBaseline = special; specialSaved = true }
+                    else { special = saved; specialBaseline = special; specialSaved = stored != null }
                     cleanImports(saved.source.takeIf { saved.kind == "image" })
                     colorPicker = null; pendingAction = null
                     if (then != null) perform(then)
@@ -205,7 +211,7 @@ internal fun IconDesignerSettings(
     // Drafts can initialize before Room emits; re-seed them while still pristine so a
     // saved override (or the shared display) is not frozen as "default" on first load.
     val savedIcon = app?.let { uiState.itemIcons[it.key] }
-    LaunchedEffect(savedIcon, app?.key) {
+    LaunchedEffect(savedIcon, app?.key, uiState.settings.iconDesign, uiState.themedIcons) {
         if (normalizedChoice(specialChoice) == normalizedChoice(specialBaseline)) {
             val seeded = initialDesignerChoice(uiState, app)
             if (seeded != special) { special = seeded; specialBaseline = seeded }
@@ -278,8 +284,8 @@ internal fun IconDesignerSettings(
                             Modifier.padding(top = 8.dp, bottom = 16.dp).height(previewHeight))
                         DesignerControlsPane(isAll, shownChoice, layered, !saving && page == displayed && (isAll || app != null),
                             app?.label, sourceLabel, dynamicColors, themeColors,
-                            if (isAll) IconDesign.defaults() else if (button) GraceButtonIcon.defaults else shared, colorPicker,
-                            uiState.settings.iconDisplay,
+                            if (isAll) IconDesign.defaults() else if (button) GraceButtonIcon.defaults else shared.itemDefaults(app?.shortcut != null), colorPicker,
+                            if (isAll || shared.appliesTo(app?.shortcut != null)) uiState.settings.iconDisplay else IconDisplaySettings(),
                             onSwitch = { request("choose") }, onSource = { sourcePicker = true }, onColor = { colorPicker = it },
                             onCloseColor = { colorPicker = null }, onChange = ::changeDesign,
                             onDisplay = { change(shownChoice.copy(display = it)) },
@@ -395,5 +401,5 @@ private fun initialDesignerChoice(uiState: LauncherUiState, app: LauncherApp?, i
     val shared = sharedDesignerDefaults(uiState)
     val saved = if (includeSpecial) app?.let { uiState.itemIcons[it.key] } else null
     if (app?.isGraceButton == true) return GraceButtonIcon.choice(saved)
-    return (saved ?: ItemIcon.Theme).copy(design = (saved?.design?.withThemeDefaults(shared) ?: shared).copy(iconSize = shared.iconSize))
+    return (saved ?: ItemIcon.Theme).resolve(shared, uiState.settings.iconDisplay, isShortcut = app?.shortcut != null)
 }

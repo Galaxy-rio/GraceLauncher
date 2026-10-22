@@ -77,11 +77,19 @@ internal fun LazyListScope.iconDesignerControls(
     val cookie = design.shape == IconShape.Cookie
     val adjustableCorners = design.shape == IconShape.Pebble || design.shape == IconShape.Square
     val canAddTray = all || !layered
-    val count = when (style) {
+    val count = (when (style) {
         IconDisplayStyle.Hidden -> 1
         IconDisplayStyle.Dot -> 4
         IconDisplayStyle.Full -> (if (all) 8 else 9) + (if (cookie || adjustableCorners) 1 else 0) +
             (if (canAddTray) 1 else 0) + (if (showSuggestions && !all) 1 else 0) + (if (showDisplayModes) 1 else 0)
+    }) + if (all) 1 else 0
+    fun shortcutSetting(position: Int) {
+        if (all) item("apply_to_shortcuts") {
+            SettingsToggleItem(stringResource(R.string.icon_designer_apply_to_shortcuts), null,
+                design.applyToShortcuts, position, count, "icon_designer_apply_to_shortcuts", enabled = enabled) {
+                onChange(design.copy(applyToShortcuts = it))
+            }
+        }
     }
     var index = 0
     if (showDisplayModes) {
@@ -107,7 +115,7 @@ internal fun LazyListScope.iconDesignerControls(
             }
         }
     }
-    if (style == IconDisplayStyle.Hidden) return
+    if (style == IconDisplayStyle.Hidden) { shortcutSetting(1); return }
     if (style == IconDisplayStyle.Dot) {
         item("dot_size") {
             DesignerSegment(1, count, "icon_designer_dot_size_control") {
@@ -135,6 +143,7 @@ internal fun LazyListScope.iconDesignerControls(
                     colorModifier("dot"), { onColor("dot") }) { onDisplay(effective.withColor(default)) }
             }
         }
+        shortcutSetting(4)
         return
     }
     if (!all) {
@@ -264,6 +273,7 @@ internal fun LazyListScope.iconDesignerControls(
                 enabled, "icon_designer_rotation", suffix = "°") { onChange(design.copy(rotation = it)) }
         }
     }
+    if (all) shortcutSetting(index++)
     item("effects") {
         SegmentedListItem(shapes = ListItemDefaults.segmentedShapes(index, count),
             colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),

@@ -779,8 +779,8 @@ internal fun LauncherScreen(
             val needsShortcuts = owner.folderId == null && (custom == null || custom.firstOrNull()?.let {
                 it.widget == null && latestUiState.findItem(it.key) == null
             } == true)
-            val defaults = if (needsShortcuts) latestActions.shortcuts(owner).shortcuts.map {
-                latestUiState.findItem(it.key) ?: it.asApp(owner)
+            val defaults = if (needsShortcuts) latestActions.shortcuts(owner).asApps(owner).map {
+                latestUiState.findItem(it.key) ?: it
             } else emptyList()
             // A cold shortcut lookup must not launch later after HOME, navigation,
             // disabling the feature, or a profile change has cancelled the intent.

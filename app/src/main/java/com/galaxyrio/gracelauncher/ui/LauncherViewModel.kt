@@ -36,6 +36,7 @@ import com.galaxyrio.gracelauncher.data.LauncherSettingsRepository
 import com.galaxyrio.gracelauncher.data.LauncherShortcut
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.data.ShortcutRepository
+import com.galaxyrio.gracelauncher.data.ShortcutResult
 import com.galaxyrio.gracelauncher.data.WallpaperTextMode
 import com.galaxyrio.gracelauncher.data.icons.IconPackInfo
 import com.galaxyrio.gracelauncher.data.icons.IconPackRepository
@@ -289,6 +290,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private val settingsRepository = LauncherSettingsRepository(LauncherDatabase.getInstance(application))
     private val itemsRepository = LauncherItemsRepository(LauncherDatabase.getInstance(application))
     private val itemIcons = ItemIconStore(application, iconPacks)
+    private data class StyledShortcuts(val inputs: List<Any?>, val result: ShortcutResult)
+    private val styledShortcuts = android.util.LruCache<String, StyledShortcuts>(24)
     private var itemsSnapshot = LauncherItemsSnapshot()
     private var itemsReady = false
     private val mediaRepository = MediaSessionRepository(application)
@@ -451,6 +454,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     /** Explicit changes/retries invalidate the catalog; ordinary resumes only check its inputs. */
     fun refreshApps() {
+        // Explicit package/pack refreshes can change artwork without changing its saved identity.
+        styledShortcuts.evictAll()
         catalogRefresh.invalidate()
         refreshOnResume()
     }
@@ -560,10 +565,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         getApplication<Application>().getString(com.galaxyrio.gracelauncher.R.string.recently_installed),
                         emptyList(), FolderPlacement.AppList)
                     val folderApps = (_uiState.value.folders + recentFolder).map { folder ->
-                        itemIcons.apply(folder.asApp(), snapshot.icons[folder.key], iconSettings)
+                        decorate(folder.asApp())
                     }
-                    val privateFolderApp = itemIcons.apply(_uiState.value.privateFolder.asApp(), snapshot.icons[PrivateSpaceFolderKey], iconSettings)
-                    val workFolderApp = itemIcons.apply(_uiState.value.workFolder.asApp(), snapshot.icons[WorkProfileFolderKey], iconSettings)
+                    val privateFolderApp = decorate(_uiState.value.privateFolder.asApp())
+                    val workFolderApp = decorate(_uiState.value.workFolder.asApp())
                     val graceButtonApp = itemIcons.apply(GraceButtonIcon.item(getApplication()),
                         GraceButtonIcon.choice(snapshot.icons[GraceButtonIcon.key]), iconSettings)
                     // Do not publish a theme/package revision superseded while IO was running.
@@ -758,12 +763,39 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun preparePrivateAppLaunch(app: LauncherApp): Boolean = privateSpaceController.prepareAppLaunch(app.user, app.key)
 
-    suspend fun loadShortcuts(app: LauncherApp) = shortcutRepository.shortcutsFor(app)
+    private fun shortcutAppearanceInputs(app: LauncherApp, result: ShortcutResult): List<Any?> {
+        val settings = _uiState.value.settings
+        val resources = getApplication<Application>().resources
+        return listOf(result, app, settings.iconDesign, settings.enabledIconPackPackages,
+            settings.darkMode, settings.useDynamicColors, settings.themeColor, settings.paletteStyle,
+            result.shortcuts.map { itemsSnapshot.icons[it.key] }, preferences.themedIcons,
+            Configuration(resources.configuration), LocalDate.now(), launcherThemeSeed(resources, true, settings.themeColor))
+    }
 
-    fun cachedShortcuts(app: LauncherApp) = shortcutRepository.peek(app)
+    suspend fun loadShortcuts(app: LauncherApp): ShortcutResult {
+        val source = shortcutRepository.shortcutsFor(app)
+        val inputs = shortcutAppearanceInputs(app, source)
+        styledShortcuts[app.key]?.takeIf { it.inputs == inputs }?.let { return it.result }
+        val settings = _uiState.value.settings
+        val icons = itemsSnapshot.icons
+        val result = source.copy(styledApps = source.shortcuts.associate { shortcut ->
+            val item = shortcut.asApp(app)
+            item.key to itemIcons.applyDesign(item, icons[item.key], settings.iconDesign, settings, preferences.themedIcons)
+        })
+        // A settings change or provider invalidation during IO must not become the next warm result.
+        if (inputs == shortcutAppearanceInputs(app, source) && shortcutRepository.peek(app) == source) {
+            styledShortcuts.put(app.key, StyledShortcuts(inputs, result))
+        }
+        return result
+    }
+
+    fun cachedShortcuts(app: LauncherApp): ShortcutResult? {
+        val source = shortcutRepository.peek(app) ?: return null
+        return styledShortcuts[app.key]?.takeIf { it.inputs == shortcutAppearanceInputs(app, source) }?.result ?: source
+    }
 
     fun prepareShortcuts(app: LauncherApp) {
-        viewModelScope.launch { shortcutRepository.prefetch(listOf(app)) }
+        viewModelScope.launch { loadShortcuts(app) }
     }
 
     fun preparePrivateShortcutLaunch(shortcut: LauncherShortcut): Boolean =

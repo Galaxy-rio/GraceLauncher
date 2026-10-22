@@ -149,8 +149,8 @@ internal fun PopupEditorScreen(owner: LauncherApp, uiState: LauncherUiState, act
     val isStack = uiState.folders.any { it.id == owner.folderId && it.isAppStack }
     var retry by remember { mutableIntStateOf(0) }
     val result by produceState(if (isFolder) ShortcutResult(ShortcutStatus.Ready) else actions.cachedShortcuts(owner) ?: ShortcutResult(ShortcutStatus.Loading),
-        owner.key, uiState.hasShortcutAccess, retry, uiState.itemRevision) { if (!isFolder) value = actions.shortcuts(owner) }
-    val shortcuts = result.shortcuts.map { uiState.findItem(it.key) ?: it.asApp(owner) }
+        owner, uiState.hasShortcutAccess, retry, uiState.itemRevision, uiState.settings) { if (!isFolder) value = actions.shortcuts(owner) }
+    val shortcuts = result.asApps(owner).map { uiState.findItem(it.key) ?: it }
     val entries = uiState.popupItems(owner, shortcuts)
     val missing = stringResource(R.string.popup_item_unavailable)
     val selected = entries.map { item ->

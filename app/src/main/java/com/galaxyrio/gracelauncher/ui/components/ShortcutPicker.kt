@@ -50,12 +50,12 @@ internal fun ShortcutPickerScreen(uiState: LauncherUiState, actions: LauncherAct
     // Do not replace the expanded list with a loader after each checkbox tap.
     val appKeys = apps.map(LauncherApp::key)
     val load by rememberUpdatedState(actions.shortcuts)
-    val groups by produceState<List<ShortcutGroup>?>(null, appKeys, uiState.hasShortcutAccess, retry) {
+    val groups by produceState<List<ShortcutGroup>?>(null, appKeys, uiState.hasShortcutAccess, retry, uiState.settings.iconDesign) {
         value = null
         value = if (!uiState.hasShortcutAccess) emptyList() else coroutineScope {
             apps.map { app -> async {
                 val result = load(app)
-                ShortcutGroup(app, result.shortcuts.map { it.asApp(app) }, result.status)
+                ShortcutGroup(app, result.asApps(app), result.status)
             } }.awaitAll()
         }
     }
