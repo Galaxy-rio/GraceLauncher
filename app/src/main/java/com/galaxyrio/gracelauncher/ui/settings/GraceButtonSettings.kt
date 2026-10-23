@@ -76,7 +76,7 @@ internal fun GraceButtonActionSettings(gesture: GraceButtonGesture, uiState: Lau
     val options = GraceButtonAction.entries.filterNot { it == GraceButtonAction.Disabled }
     fun select(choice: GraceButtonTarget) {
         actions.updateSettings { it.withGestureSettings(home) { settings -> settings.withTarget(gesture, choice) } }
-        if (choice.action.requiresAccessibility && !GraceSystemActions.hasAccessibility) accessDialog = true
+        if (choice.action.requiresAccessibility(uiState.settings.preferNonAccessibility) && !GraceSystemActions.hasAccessibility) accessDialog = true
     }
     SettingsScaffold(stringResource(if (home && gesture == GraceButtonGesture.DoubleTap) R.string.home_gesture_double_tap else gesture.labelRes), "grace_action_page", onBack) { padding ->
         SettingsList(padding) {
@@ -99,7 +99,7 @@ internal fun GraceButtonActionSettings(gesture: GraceButtonGesture, uiState: Lau
                     }
                 }
             }
-            if (target.action.requiresAccessibility) item {
+            if (target.action.requiresAccessibility(uiState.settings.preferNonAccessibility)) item {
                 Spacer(Modifier.height(16.dp))
                 Text(stringResource(R.string.grace_accessibility_required), Modifier.padding(4.dp), style = MaterialTheme.typography.bodyMedium)
                 TextButton(onClick = { accessDialog = true }) { Text(stringResource(R.string.media_open_settings)) }

@@ -6,6 +6,12 @@ enum class GraceButtonAction {
     App, Shortcut, Folder, Settings, Search, Website, LockScreen, AppList, WidgetScreen, Notifications, QuickSettings, Assistant, Agenda, Disabled;
 
     val requiresAccessibility: Boolean get() = this == LockScreen || this == Notifications || this == QuickSettings
+
+    fun usesStatusBarApi(preferNonAccessibility: Boolean): Boolean =
+        preferNonAccessibility && (this == Notifications || this == QuickSettings)
+
+    fun requiresAccessibility(preferNonAccessibility: Boolean): Boolean =
+        requiresAccessibility && !usesStatusBarApi(preferNonAccessibility)
 }
 
 enum class GraceButtonGesture(val storageKey: String) {

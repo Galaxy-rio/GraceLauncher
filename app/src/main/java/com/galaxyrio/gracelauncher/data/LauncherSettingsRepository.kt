@@ -84,6 +84,7 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
             searchJson = settings.search.encode(),
             shortcutsFoldersJson = settings.shortcutsFolders.encode(),
             widgetScreenJson = settings.widgetScreen.encode(),
+            preferNonAccessibility = settings.preferNonAccessibility,
         ))
     }
 
@@ -211,6 +212,7 @@ private fun LauncherSettingsEntity.toSettings() = LauncherSettings(
     search = SearchSettings.decode(searchJson),
     shortcutsFolders = ShortcutsFoldersSettings.decode(shortcutsFoldersJson),
     widgetScreen = WidgetScreenSettings.decode(widgetScreenJson),
+    preferNonAccessibility = preferNonAccessibility,
 )
 
 private fun decodeIconPackOrder(json: String?): List<String> = runCatching {

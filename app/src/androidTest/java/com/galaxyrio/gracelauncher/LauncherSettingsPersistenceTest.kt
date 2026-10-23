@@ -65,9 +65,24 @@ class LauncherSettingsPersistenceTest {
                 LauncherDatabase.Migration14To15, LauncherDatabase.Migration15To16,
                 LauncherDatabase.Migration16To17, LauncherDatabase.Migration17To18,
                 LauncherDatabase.Migration18To19, LauncherDatabase.Migration19To20,
-                LauncherDatabase.Migration20To21, LauncherDatabase.Migration21To22).build()
+                LauncherDatabase.Migration20To21, LauncherDatabase.Migration21To22,
+                LauncherDatabase.Migration22To23, LauncherDatabase.Migration23To24,
+                LauncherDatabase.Migration24To25).build()
         database = reopened
         return LauncherSettingsRepository(reopened)
+    }
+
+    @Test
+    fun nonAccessibilityPreferencePersistsWithoutChangingOtherSettings() = runBlocking {
+        val repository = openRepository()
+        val defaults = withTimeout(10_000) { repository.snapshots.first().settings }
+        assertFalse(defaults.preferNonAccessibility)
+        repository.mutateSettings { it.copy(preferNonAccessibility = true) }
+        val reopened = openRepository()
+        assertEquals(defaults.copy(preferNonAccessibility = true),
+            withTimeout(10_000) { reopened.snapshots.first().settings })
+        reopened.mutateSettings { it.copy(preferNonAccessibility = false) }
+        assertEquals(defaults, withTimeout(10_000) { openRepository().snapshots.first().settings })
     }
 
     @Test

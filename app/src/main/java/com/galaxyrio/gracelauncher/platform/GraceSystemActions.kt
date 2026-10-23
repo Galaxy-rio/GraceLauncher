@@ -23,14 +23,16 @@ internal object GraceSystemActions {
         Uri.parse(uri.toASCIIString())
     }.getOrNull()
 
-    fun perform(context: Context, target: GraceButtonTarget): Boolean = when (target.action) {
+    fun perform(context: Context, target: GraceButtonTarget, preferNonAccessibility: Boolean = false): Boolean = when (target.action) {
         GraceButtonAction.Website -> target.url?.let(::websiteUri)?.let { uri ->
             open(context, Intent(Intent.ACTION_VIEW, uri).addCategory(Intent.CATEGORY_BROWSABLE))
         } ?: false
         GraceButtonAction.Assistant -> open(context, Intent(Intent.ACTION_ASSIST)) ||
             open(context, Intent(Intent.ACTION_VOICE_COMMAND))
         GraceButtonAction.LockScreen, GraceButtonAction.Notifications, GraceButtonAction.QuickSettings ->
-            GraceAccessibilityService.perform(target.action)
+            performGlobalSystemAction(target.action, preferNonAccessibility,
+                accessibility = GraceAccessibilityService::perform,
+                statusBar = { StatusBarActions.expand(context, it) })
         else -> false
     }
 

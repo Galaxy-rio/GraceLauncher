@@ -5,6 +5,8 @@
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <!-- Requested only when the user explicitly enables local contact search. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
+    <!-- Ordinary permission for the opt-in Lab status-bar API path; no accessibility access. -->
+    <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
     <!-- Hidden profiles are accessible only while Grace holds the default HOME role. -->
     <uses-permission android:name="android.permission.ACCESS_HIDDEN_PROFILES" />
     <uses-permission android:name="android.permission.USE_BIOMETRIC" />

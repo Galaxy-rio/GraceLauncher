@@ -243,9 +243,9 @@
     <string name="settings_themes_summary">颜色、外观与个性化</string>
     <string name="settings_advanced">高级</string>
     <string name="settings_lab">实验室</string>
-    <string name="lab_accessibility">辅助功能</string>
-    <string name="lab_prefer_non_accessibility">尽量不使用辅助功能权限</string>
-    <string name="lab_prefer_non_accessibility_summary">尝试通过系统接口打开通知栏和控制中心，无需辅助功能权限。效果因设备而异，不会自动回退；如无法使用，请自行关闭此开关。锁屏仍需辅助功能权限，不使用 root 或设备管理员权限。</string>
+    <string name="lab_accessibility">无障碍</string>
+    <string name="lab_prefer_non_accessibility">尽量不使用无障碍权限</string>
+    <string name="lab_prefer_non_accessibility_summary">尝试通过系统接口打开通知栏和控制中心，无需无障碍权限。效果因设备而异，不会自动回退；如无法使用，请自行关闭此开关。锁屏仍需无障碍权限，不使用 root 或设备管理员权限。</string>
     <string name="settings_debug">调试</string>
     <string name="lab_animation">动画</string>
     <string name="lab_swipe_sensitivity">滑动灵敏度</string>
