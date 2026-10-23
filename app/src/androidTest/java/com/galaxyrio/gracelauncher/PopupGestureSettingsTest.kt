@@ -146,7 +146,7 @@ class PopupGestureSettingsTest {
                     LabPopupSettings(state, LauncherActions(updateSettings = { update ->
                         state = state.copy(settings = update(state.settings))
                     }), onBack = { page = SettingsPage.Advanced })
-                } else AdvancedSettings(onBack = {}, navigate = { page = it })
+                } else AdvancedSettings(onBack = {}, navigate = { page = it }, onChooseDefaultHome = {})
             }
         }
         compose.onNodeWithTag("lab_open_popup").performClick()

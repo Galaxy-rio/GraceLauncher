@@ -5,9 +5,9 @@ import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Intent
 import android.content.pm.LauncherApps
-import android.os.Bundle
 import android.os.Process
 import android.os.UserManager
+import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -39,6 +39,7 @@ class PinItemViewModel(application: Application) : AndroidViewModel(application)
     private var request: LauncherApps.PinItemRequest? = null
     private var initialized = false
     private var committingWidget = false
+    private var homeSidePadding = 44
     var pendingWidgetId = -1
         private set
     var ready by mutableStateOf(false)
@@ -72,7 +73,9 @@ class PinItemViewModel(application: Application) : AndroidViewModel(application)
         if (pendingWidgetId >= 0) host.trackPendingId(pendingWidgetId)
         viewModelScope.launch {
             try {
-                val current = settings.snapshots.first().settings.homeLayout
+                val currentSettings = settings.snapshots.first().settings
+                homeSidePadding = currentSettings.listAppearance.sidePadding
+                val current = currentSettings.homeLayout
                 val savedWidgets = LauncherItemsRepository(database).snapshots.first().popups.values.flatten().mapNotNull { it.widget?.widgetId }
                 // Process recreation may happen just after the database took ownership.
                 if (pendingWidgetId >= 0 && (current.widgetId == pendingWidgetId || pendingWidgetId in savedWidgets)) {
@@ -91,6 +94,7 @@ class PinItemViewModel(application: Application) : AndroidViewModel(application)
                 ready = true
             } catch (exception: Exception) {
                 if (exception is CancellationException) throw exception
+                Log.e("GraceWidgetPin", "initialize failed id=$pendingWidgetId", exception)
                 fail(R.string.settings_storage_save_error)
             }
         }
@@ -111,7 +115,8 @@ class PinItemViewModel(application: Application) : AndroidViewModel(application)
                 } else {
                     val info = pin.getAppWidgetProviderInfo(context) ?: error("Missing widget provider")
                     pendingWidgetId = host.allocateAppWidgetId().also(host::trackPendingId)
-                    val options = widgetOptions()
+                    val options = initialWidgetOptions(context, info, homeSidePadding = homeSidePadding)
+                    Log.i("GraceWidgetPin", "bind id=$pendingWidgetId provider=${info.provider}")
                     if (manager.bindAppWidgetIdIfAllowed(pendingWidgetId, info.profile, info.provider, options)) {
                         addWidget(pin, info)
                     } else startBind(Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {
@@ -123,6 +128,7 @@ class PinItemViewModel(application: Application) : AndroidViewModel(application)
                 }
             } catch (exception: Exception) {
                 if (exception is CancellationException) throw exception
+                Log.e("GraceWidgetPin", "accept failed widget=$isWidget id=$pendingWidgetId", exception)
                 fail(if (isWidget) R.string.widget_setup_error else R.string.pin_item_error)
             }
         }
@@ -151,6 +157,7 @@ class PinItemViewModel(application: Application) : AndroidViewModel(application)
     }
 
     fun onBindResult(accepted: Boolean) {
+        Log.i("GraceWidgetPin", "bind result id=$pendingWidgetId accepted=$accepted")
         if (finished || pendingWidgetId < 0) return
         if (!accepted) { cancel(); return }
         val pin = request ?: return fail(R.string.pin_item_expired)
@@ -160,6 +167,7 @@ class PinItemViewModel(application: Application) : AndroidViewModel(application)
                 addWidget(pin, info)
             } catch (exception: Exception) {
                 if (exception is CancellationException) throw exception
+                Log.e("GraceWidgetPin", "save after bind failed id=$pendingWidgetId", exception)
                 fail(R.string.widget_setup_error)
             }
         }
@@ -172,7 +180,8 @@ class PinItemViewModel(application: Application) : AndroidViewModel(application)
             val bound = manager.getAppWidgetInfo(id)
             check(bound != null && bound.provider == expected.provider && bound.profile == expected.profile)
             LauncherItemsRepository(database).updatePopup(com.galaxyrio.gracelauncher.data.HomeContentKey, emptyList()) { entries ->
-                check(valid(pin) && pin.accept(widgetOptions().apply { putInt(AppWidgetManager.EXTRA_APPWIDGET_ID, id) }))
+                check(valid(pin) && pin.accept(initialWidgetOptions(context, expected, homeSidePadding = homeSidePadding)
+                    .apply { putInt(AppWidgetManager.EXTRA_APPWIDGET_ID, id) }))
                 // Pin requests are already configured by the requesting app. Do not launch configure again.
                 entries + com.galaxyrio.gracelauncher.data.PopupItem("widget:$id",
                     com.galaxyrio.gracelauncher.data.HomeLayout(widgetId = id,
@@ -182,10 +191,6 @@ class PinItemViewModel(application: Application) : AndroidViewModel(application)
             pendingWidgetId = -1
             complete()
         } finally { committingWidget = false }
-    }
-
-    private fun widgetOptions() = Bundle().apply {
-        putInt(AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY, AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN)
     }
 
     private fun complete() { added = true; busy = false; finished = true }

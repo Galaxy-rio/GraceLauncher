@@ -25,24 +25,49 @@ import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import kotlin.math.roundToInt
 
 @Composable
-internal fun AdvancedSettings(onBack: () -> Unit, navigate: (SettingsPage) -> Unit) {
+internal fun AdvancedSettings(onBack: () -> Unit, navigate: (SettingsPage) -> Unit, onChooseDefaultHome: () -> Unit) {
     SettingsScaffold(stringResource(R.string.settings_advanced), "settings_advanced", onBack) { padding ->
         SettingsList(padding) {
             item { SettingsHeading(stringResource(R.string.settings_lab)) }
             item {
-                SettingsActionItem(stringResource(R.string.settings_grace_button), null, 0, 3, "lab_open_grace_button",
+                SettingsActionItem(stringResource(R.string.settings_grace_button), null, 0, 4, "lab_open_grace_button",
                     leading = { Icon(painterResource(R.drawable.ic_grace_solid), null,
                         Modifier.size(24.dp).graphicsLayer { scaleX = 5f / 3f; scaleY = 5f / 3f }) }) {
                     navigate(SettingsPage.LabGraceButton)
                 }
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_gestures), null, 1, 3, "lab_open_gesture",
+                SettingsActionItem(stringResource(R.string.settings_gestures), null, 1, 4, "lab_open_gesture",
                     leading = { LauncherIcon(LauncherSymbol.Gesture) }) { navigate(SettingsPage.LabGesture) }
             }
             item {
-                SettingsActionItem(stringResource(R.string.lab_popup), null, 2, 3, "lab_open_popup",
-                    leading = { LauncherIcon(LauncherSymbol.Launch) }) { navigate(SettingsPage.LabPopup) }
+                SettingsActionItem(stringResource(R.string.lab_popup), null, 2, 4, "lab_open_popup",
+                    leading = { LauncherIcon(LauncherSymbol.Outbound) }) { navigate(SettingsPage.LabPopup) }
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.lab_accessibility), null, 3, 4, "lab_open_accessibility",
+                    leading = { LauncherIcon(LauncherSymbol.Settings) }) { navigate(SettingsPage.LabAccessibility) }
+            }
+            item { SettingsHeading(stringResource(R.string.settings_debug)) }
+            item {
+                SettingsActionItem(stringResource(R.string.choose_default_launcher), null, 0, 1, "debug_choose_default_home",
+                    leading = { LauncherIcon(LauncherSymbol.Home) }, onClick = onChooseDefaultHome)
+            }
+        }
+    }
+}
+
+@Composable
+internal fun LabAccessibilitySettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit) {
+    SettingsScaffold(stringResource(R.string.lab_accessibility), "lab_accessibility", onBack) { padding ->
+        SettingsList(padding) {
+            item { Spacer(Modifier.height(24.dp)) }
+            item {
+                SettingsToggleItem(stringResource(R.string.lab_prefer_non_accessibility),
+                    stringResource(R.string.lab_prefer_non_accessibility_summary), uiState.settings.preferNonAccessibility,
+                    0, 1, "lab_prefer_non_accessibility") { enabled ->
+                    actions.updateSettings { it.copy(preferNonAccessibility = enabled) }
+                }
             }
         }
     }

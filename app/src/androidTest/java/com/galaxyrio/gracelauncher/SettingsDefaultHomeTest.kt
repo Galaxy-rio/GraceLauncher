@@ -33,6 +33,8 @@ class SettingsDefaultHomeTest {
     private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
     private var state by mutableStateOf(LauncherUiState())
     private var requests = 0
+    private var directHomeRequests = 0
+    private var settingsCloses = 0
     private var highlight = Color.Unspecified
 
     private fun show(defaultHome: Boolean?, dark: Boolean = false) {
@@ -41,7 +43,8 @@ class SettingsDefaultHomeTest {
             GraceLauncherTheme(darkTheme = dark, dynamicColor = false, seedColor = Color(0xFFE27C33)) {
                 val primaryContainer = MaterialTheme.colorScheme.primaryContainer
                 SideEffect { highlight = primaryContainer }
-                LauncherSettingsScreen(state, LauncherActions(requestDefaultHome = { requests++ }), onBack = {})
+                LauncherSettingsScreen(state, LauncherActions(requestDefaultHome = { requests++ },
+                    openHome = { directHomeRequests++ }), onBack = { settingsCloses++ })
             }
         }
     }
@@ -77,12 +80,14 @@ class SettingsDefaultHomeTest {
     @Test fun realStatusChangesHideBannerAndRestoreOriginalSpacingWithoutFlashingUnknownState() {
         show(defaultHome = null)
         compose.onNodeWithTag("settings_default_home").assertDoesNotExist()
+        compose.onNodeWithTag("settings_open_home").assertDoesNotExist()
         val originalTop = compose.onNodeWithTag("settings_category_productivity").fetchSemanticsNode().boundsInRoot.top
         compose.runOnIdle { state = state.copy(isDefaultHome = false, hasShortcutAccess = true) }
         compose.onNodeWithTag("settings_default_home").assertIsDisplayed()
         assertTrue(compose.onNodeWithTag("settings_category_productivity").fetchSemanticsNode().boundsInRoot.top > originalTop)
         compose.runOnIdle { state = state.copy(isDefaultHome = true, hasShortcutAccess = false) }
         compose.onNodeWithTag("settings_default_home").assertDoesNotExist()
+        compose.onNodeWithTag("settings_open_home").assertDoesNotExist()
         assertEquals(originalTop, compose.onNodeWithTag("settings_category_productivity").fetchSemanticsNode().boundsInRoot.top, 1f)
         screenshot("default-home-already-default.png")
         compose.runOnIdle { state = state.copy(isDefaultHome = false) }
@@ -98,6 +103,40 @@ class SettingsDefaultHomeTest {
         compose.onNodeWithTag("settings_root").assertIsDisplayed()
         compose.onNodeWithTag("settings_default_home").assertDoesNotExist()
         compose.runOnIdle { assertEquals(0, requests) }
+    }
+
+    @Test fun directHomeIsSeparateBelowAboutAndDoesNotRequestADefaultOrJustCloseSettings() {
+        show(defaultHome = false)
+        compose.onNodeWithTag("settings_list").performScrollToNode(hasTestTag("settings_open_home"))
+        val directHome = compose.onNodeWithTag("settings_open_home").assertIsDisplayed()
+        directHome.assertTextContains(context.getString(R.string.settings_open_home))
+        directHome.assertTextContains(context.getString(R.string.settings_open_home_summary))
+        val about = compose.onNodeWithTag("settings_category_about").fetchSemanticsNode().boundsInRoot
+        val bounds = directHome.fetchSemanticsNode().boundsInRoot
+        assertTrue("Direct entry must be separate from the category group",
+            bounds.top - about.bottom >= 24f * context.resources.displayMetrics.density - 1f)
+        directHome.performClick()
+        compose.runOnIdle {
+            assertEquals(1, directHomeRequests)
+            assertEquals(0, requests)
+            assertEquals(0, settingsCloses)
+            assertEquals(false, state.isDefaultHome)
+            state = state.copy(isDefaultHome = true)
+        }
+        compose.onNodeWithTag("settings_open_home").assertDoesNotExist()
+    }
+
+    @Test fun debugDefaultHomeChooserRemainsAvailableEvenWhenAlreadyDefault() {
+        show(defaultHome = true)
+        compose.onNodeWithTag("settings_list").performScrollToNode(hasTestTag("settings_category_advanced"))
+        compose.onNodeWithTag("settings_category_advanced").performClick()
+        compose.onNodeWithTag("settings_list").performScrollToNode(hasTestTag("debug_choose_default_home"))
+        compose.onNodeWithText(context.getString(R.string.settings_debug)).assertIsDisplayed()
+        compose.onNodeWithTag("debug_choose_default_home").assertIsDisplayed().performClick()
+        compose.runOnIdle { assertEquals(1, requests); state = state.copy(isDefaultHome = false) }
+        compose.onNodeWithTag("debug_choose_default_home").performClick()
+        compose.runOnIdle { assertEquals(2, requests); assertEquals(0, directHomeRequests) }
+        compose.onNodeWithTag("settings_open_home").assertDoesNotExist()
     }
 
     @Test fun platformCheckMatchesSystemHomeRoleAndRequestUsesResolvableSystemUi() {

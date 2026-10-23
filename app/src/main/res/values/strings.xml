@@ -125,6 +125,7 @@
     <string name="app_actions">App actions</string>
     <string name="shortcut_permission">Set Grace as your default home app to see shortcuts provided by this app.</string>
     <string name="set_default_launcher">Set default launcher</string>
+    <string name="choose_default_launcher">Choose default launcher</string>
     <string name="shortcut_error">Couldn’t load or open this shortcut</string>
     <string name="no_shortcuts">This app hasn’t provided any shortcuts.</string>
     <string name="retry">Try again</string>
@@ -241,6 +242,10 @@
     <string name="settings_themes_summary">Colors, appearance, and personalization</string>
     <string name="settings_advanced">Advanced</string>
     <string name="settings_lab">Lab</string>
+    <string name="lab_accessibility">Accessibility</string>
+    <string name="lab_prefer_non_accessibility">Avoid accessibility access when possible</string>
+    <string name="lab_prefer_non_accessibility_summary">Try system APIs for notifications and control center without accessibility access. Results vary by device. There is no automatic fallback; turn this off yourself if it does not work. Locking the screen still requires accessibility access. No root or device administrator access is used.</string>
+    <string name="settings_debug">Debug</string>
     <string name="lab_animation">Animation</string>
     <string name="lab_swipe_sensitivity">Swipe sensitivity</string>
     <string name="lab_swipe_sensitivity_summary">Higher values make home-screen swipes and swiping down to close search easier to trigger. 100% keeps the default distance and speed thresholds.</string>
@@ -251,6 +256,8 @@
     <string name="settings_advanced_summary">More options for your launcher</string>
     <string name="settings_about">About</string>
     <string name="settings_about_summary">Grace Launcher, updates, and licenses</string>
+    <string name="settings_open_home">Go directly to home</string>
+    <string name="settings_open_home_summary">Go directly to home without setting Grace as the default launcher</string>
     <string name="settings_instant_access">Instant access</string>
     <string name="settings_calendar_agenda">Calendar agenda</string>
     <string name="settings_calendar_agenda_summary">Show the next event on your home screen</string>

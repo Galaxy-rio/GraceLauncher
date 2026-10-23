@@ -6,6 +6,7 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.Intent
 import android.os.Bundle
 import android.os.UserManager
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
@@ -24,6 +25,8 @@ import com.galaxyrio.gracelauncher.data.LauncherItemsRepository
 import com.galaxyrio.gracelauncher.data.HomeLayout
 import com.galaxyrio.gracelauncher.data.PopupItem
 import com.galaxyrio.gracelauncher.platform.HomeWidgetHost
+import com.galaxyrio.gracelauncher.platform.initialWidgetOptions
+import com.galaxyrio.gracelauncher.platform.widgetConfigurationOptions
 import com.galaxyrio.gracelauncher.ui.LauncherAppTheme
 import com.galaxyrio.gracelauncher.ui.LauncherViewModel
 import com.galaxyrio.gracelauncher.ui.widgets.WidgetPicker
@@ -46,6 +49,10 @@ class WidgetSetupActivity : ComponentActivity() {
     private var pendingId = -1
     private var expectedProvider: String? = null
     private var configuringExisting = false
+    private var gridColumns = 4
+    private var homeSidePadding = 44
+    private var stage = "loading"
+    private var expectedProfile: Long? = null
     private var saving by mutableStateOf(false)
     private var busy by mutableStateOf(true)
     private var providers by mutableStateOf<List<AppWidgetProviderInfo>?>(null)
@@ -57,6 +64,8 @@ class WidgetSetupActivity : ComponentActivity() {
         if (pendingId >= 0) host.trackPendingId(pendingId)
         expectedProvider = savedInstanceState?.getString("expectedProvider")
         configuringExisting = savedInstanceState?.getBoolean("configuringExisting") ?: false
+        stage = savedInstanceState?.getString("stage") ?: "loading"
+        expectedProfile = savedInstanceState?.getLong("expectedProfile", -1)?.takeIf { it >= 0 }
         setContent {
             LauncherAppTheme(viewModel) {
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -69,7 +78,10 @@ class WidgetSetupActivity : ComponentActivity() {
         }
         lifecycleScope.launch {
             try {
-                val current = repository.snapshots.first().settings.homeLayout
+                val settings = repository.snapshots.first().settings
+                gridColumns = settings.widgetScreen.columns
+                homeSidePadding = settings.listAppearance.sidePadding
+                val current = settings.homeLayout
                 val popupWidgets = itemsRepository.snapshots.first().popups.values.flatten().mapNotNull { it.widget?.widgetId }.toSet()
                 // Only discard this host's abandoned setup IDs; never touch the saved widget.
                 host.appWidgetIds.filter { it != current.widgetId && it != pendingId && it !in popupWidgets && !host.isPendingId(it) }.forEach(host::deleteAppWidgetId)
@@ -101,7 +113,7 @@ class WidgetSetupActivity : ComponentActivity() {
                 }
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
-                fail(R.string.widget_setup_error)
+                fail(R.string.widget_setup_error, error)
             }
         }
     }
@@ -109,12 +121,16 @@ class WidgetSetupActivity : ComponentActivity() {
     private fun select(info: AppWidgetProviderInfo) {
         if (busy) return
         busy = true
+        stage = "binding"
         try {
             pendingId = host.allocateAppWidgetId().also(host::trackPendingId)
             expectedProvider = info.provider.flattenToString()
-            val options = Bundle().apply {
-                putInt(AppWidgetManager.OPTION_APPWIDGET_HOST_CATEGORY, AppWidgetProviderInfo.WIDGET_CATEGORY_HOME_SCREEN)
-            }
+            expectedProfile = getSystemService(UserManager::class.java).getSerialNumberForUser(info.profile)
+                .takeIf { it >= 0 }
+            val options = initialWidgetOptions(this, info, popupOwner, gridColumns, homeSidePadding)
+            Log.i(TAG, "bind id=$pendingId provider=$expectedProvider profile=$expectedProfile " +
+                "min=${info.minWidth}x${info.minHeight} resizeMode=${info.resizeMode} configure=${info.configure} " +
+                "size=${options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH)}x${options.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT)}")
             if (manager.bindAppWidgetIdIfAllowed(pendingId, info.profile, info.provider, options)) configure()
             else startActivityForResult(Intent(AppWidgetManager.ACTION_APPWIDGET_BIND).apply {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, pendingId)
@@ -122,28 +138,36 @@ class WidgetSetupActivity : ComponentActivity() {
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_PROVIDER_PROFILE, info.profile)
                 putExtra(AppWidgetManager.EXTRA_APPWIDGET_OPTIONS, options)
             }, REQUEST_BIND)
-        } catch (_: Exception) { fail(R.string.widget_setup_error) }
+        } catch (error: Exception) { fail(R.string.widget_bind_error, error) }
     }
 
     private fun configure() {
-        val info = runCatching { manager.getAppWidgetInfo(pendingId) }.getOrNull()
-        if (info == null || (expectedProvider != null && info.provider.flattenToString() != expectedProvider)) {
+        stage = "configuration"
+        val info = runCatching { manager.getAppWidgetInfo(pendingId) }
+            .getOrElse { fail(R.string.widget_unavailable, it); return }
+        if (info == null || (expectedProvider != null && info.provider.flattenToString() != expectedProvider) ||
+            (expectedProfile != null && expectedProfile != getSystemService(UserManager::class.java).getSerialNumberForUser(info.profile))) {
             fail(R.string.widget_unavailable); return
         }
+        expectedProvider = info.provider.flattenToString()
+        // Even optional configuration is shown: adding a widget is an explicit setup action.
+        // Existing widgets use the same provider page without requiring a reconfigurable flag.
         if (info.configure == null) {
             if (configuringExisting) fail(R.string.widget_no_configuration) else finishAdding()
             return
         }
         try {
             // This API also handles providers in a managed/work profile.
-            host.startAppWidgetConfigureActivityForResult(this, pendingId, 0, REQUEST_CONFIGURE, null)
-        } catch (_: Exception) { fail(R.string.widget_no_configuration) }
+            Log.i(TAG, "configure id=$pendingId provider=${info.provider} existing=$configuringExisting")
+            host.startAppWidgetConfigureActivityForResult(this, pendingId, 0, REQUEST_CONFIGURE, widgetConfigurationOptions())
+        } catch (error: Exception) { fail(R.string.widget_configuration_launch_error, error) }
     }
 
     @Deprecated("Platform AppWidgetHost configuration uses request codes")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
         if (requestCode != REQUEST_BIND && requestCode != REQUEST_CONFIGURE) return
+        Log.i(TAG, "result stage=$stage id=$pendingId request=$requestCode result=$resultCode")
         if (resultCode != Activity.RESULT_OK) { cancelSetup(); return }
         if (pendingId < 0) { fail(R.string.widget_setup_error); return }
         if (requestCode == REQUEST_BIND) configure()
@@ -153,9 +177,11 @@ class WidgetSetupActivity : ComponentActivity() {
 
     private fun finishAdding() {
         if (saving) return
-        val info = runCatching { manager.getAppWidgetInfo(pendingId) }.getOrNull() ?: return fail(R.string.widget_unavailable)
+        val info = runCatching { manager.getAppWidgetInfo(pendingId) }
+            .getOrElse { fail(R.string.widget_unavailable, it); return } ?: return fail(R.string.widget_unavailable)
         val id = pendingId
         saving = true
+        stage = "saving"
         lifecycleScope.launch {
             try {
                 val layout = HomeLayout(widgetId = id, widgetProvider = info.provider.flattenToString(),
@@ -165,21 +191,24 @@ class WidgetSetupActivity : ComponentActivity() {
                     if (entries.any { it.widget?.widgetId == id }) entries else entries + PopupItem("widget:$id", layout)
                 }
                 host.untrackPendingId(pendingId)
+                Log.i(TAG, "saved id=$id provider=${info.provider}")
                 pendingId = -1 // The database owns it now; cancellation must not delete it.
                 finish()
             } catch (error: Exception) {
                 if (error is CancellationException) throw error
-                fail(R.string.settings_storage_save_error)
+                fail(R.string.settings_storage_save_error, error)
             } finally { saving = false }
         }
     }
 
-    private fun fail(message: Int) {
+    private fun fail(message: Int, error: Throwable? = null) {
+        Log.e(TAG, "failed stage=$stage id=$pendingId provider=$expectedProvider existing=$configuringExisting", error)
         Toast.makeText(this, message, Toast.LENGTH_LONG).show()
         cancelSetup()
     }
 
     private fun cancelSetup() {
+        Log.i(TAG, "cancel stage=$stage id=$pendingId existing=$configuringExisting")
         if (!configuringExisting && pendingId >= 0) runCatching { host.deleteAppWidgetId(pendingId) }
         host.untrackPendingId(pendingId)
         pendingId = -1
@@ -191,6 +220,8 @@ class WidgetSetupActivity : ComponentActivity() {
         outState.putString("expectedProvider", expectedProvider)
         outState.putBoolean("configuringExisting", configuringExisting)
         outState.putBoolean("saving", saving)
+        outState.putString("stage", stage)
+        expectedProfile?.let { outState.putLong("expectedProfile", it) }
         super.onSaveInstanceState(outState)
     }
 
@@ -201,6 +232,7 @@ class WidgetSetupActivity : ComponentActivity() {
     }
 
     companion object {
+        private const val TAG = "GraceWidgetSetup"
         const val EXTRA_POPUP_OWNER = "popupOwner"
         const val EXTRA_CONFIGURE_ID = "configureWidgetId"
         private const val REQUEST_BIND = 4001

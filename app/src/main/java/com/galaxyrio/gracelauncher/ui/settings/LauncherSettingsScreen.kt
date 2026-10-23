@@ -77,7 +77,7 @@ internal enum class SettingsPage {
     Root, Productivity, Clock, ClockStyle, Calendar, Weather, Themes, Advanced, About, HiddenApps, Folders, FolderEditor,
     Changelog, Licenses, AppLicense, IconPacks, IconDesigner, IconDesignerApp, PrivateSpace, PrivateSpaceEditor, Search,
     MediaPlayer, GraceButton, GraceAction, GraceApp, GraceShortcut, GraceFolder, Gestures, WorkProfile, WorkProfileEditor,
-    LabGraceButton, LabGesture, LabPopup, Fonts, ListAppearance, Alphabet, ShortcutsFolders, AppStacks,
+    LabGraceButton, LabGesture, LabPopup, LabAccessibility, Fonts, ListAppearance, Alphabet, ShortcutsFolders, AppStacks,
     GraceButtonAppearance, GraceButtonPosition, CalendarAppearance, WeatherAppearance, MediaPlayerAppearance,
     WidgetScreen, WidgetScreenEditor, Favorites,
 }
@@ -191,7 +191,8 @@ fun LauncherSettingsScreen(
                 if (!storage.canEdit) {
                     SettingsScaffold(stringResource(R.string.settings_title), "settings_storage_blocked", back) { }
                 } else when (page) {
-                    SettingsPage.Root -> SettingsHome(uiState.isDefaultHome, actions.requestDefaultHome, back, navigate)
+                    SettingsPage.Root -> SettingsHome(uiState.isDefaultHome, actions.requestDefaultHome,
+                        onOpenHome = { if (isCurrent()) actions.openHome() }, onBack = back, navigate = navigate)
                     SettingsPage.Productivity -> ProductivitySettings(uiState, actions, back, navigate)
                     SettingsPage.Favorites -> com.galaxyrio.gracelauncher.ui.overlays.FavoritesScreen(
                         uiState, actions, actions.toggleFavorite, actions.reorderFavorites, onDone = back)
@@ -300,10 +301,12 @@ fun LauncherSettingsScreen(
                         },
                     )
                     SettingsPage.Calendar -> CalendarSettings(uiState, actions, back) { navigate(SettingsPage.CalendarAppearance) }
-                    SettingsPage.Advanced -> AdvancedSettings(back, navigate)
+                    SettingsPage.Advanced -> AdvancedSettings(back, navigate,
+                        onChooseDefaultHome = { if (isCurrent()) actions.requestDefaultHome() })
                     SettingsPage.LabGraceButton -> LabGraceButtonSettings(uiState, actions, back)
                     SettingsPage.LabGesture -> LabGestureSettings(uiState, actions, back)
                     SettingsPage.LabPopup -> LabPopupSettings(uiState, actions, back)
+                    SettingsPage.LabAccessibility -> LabAccessibilitySettings(uiState, actions, back)
                     SettingsPage.About -> AboutSettings(back, navigate)
                     SettingsPage.HiddenApps -> HiddenAppsSettings(uiState, actions, back)
                     SettingsPage.PrivateSpace -> ProfileSettingsScreen(uiState, actions, back) { navigate(SettingsPage.PrivateSpaceEditor) }
@@ -349,6 +352,7 @@ fun LauncherSettingsScreen(
 private fun SettingsHome(
     isDefaultHome: Boolean?,
     onSetDefaultHome: () -> Unit,
+    onOpenHome: () -> Unit,
     onBack: () -> Unit,
     navigate: (SettingsPage) -> Unit,
 ) {
@@ -392,6 +396,13 @@ private fun SettingsHome(
                             }
                         },
                     ) { navigate(page) }
+                }
+            }
+            if (showDefaultHomeBanner) {
+                item(key = "direct_home_spacing") { Spacer(Modifier.height(24.dp)) }
+                item(key = "direct_home") {
+                    SettingsActionItem(stringResource(R.string.settings_open_home), stringResource(R.string.settings_open_home_summary),
+                        0, 1, "settings_open_home", leading = { LauncherIcon(LauncherSymbol.Home) }, onClick = onOpenHome)
                 }
             }
         }

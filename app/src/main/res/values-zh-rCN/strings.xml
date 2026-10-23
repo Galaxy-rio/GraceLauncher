@@ -126,6 +126,7 @@
     <string name="app_actions">应用操作</string>
     <string name="shortcut_permission">将 Grace 设为默认桌面后，即可查看此应用提供的快捷方式。</string>
     <string name="set_default_launcher">设置默认启动器</string>
+    <string name="choose_default_launcher">选择默认启动器</string>
     <string name="shortcut_error">无法加载或打开快捷方式</string>
     <string name="no_shortcuts">此应用尚未提供快捷方式。</string>
     <string name="retry">重试</string>
@@ -242,6 +243,10 @@
     <string name="settings_themes_summary">颜色、外观与个性化</string>
     <string name="settings_advanced">高级</string>
     <string name="settings_lab">实验室</string>
+    <string name="lab_accessibility">辅助功能</string>
+    <string name="lab_prefer_non_accessibility">尽量不使用辅助功能权限</string>
+    <string name="lab_prefer_non_accessibility_summary">尝试通过系统接口打开通知栏和控制中心，无需辅助功能权限。效果因设备而异，不会自动回退；如无法使用，请自行关闭此开关。锁屏仍需辅助功能权限，不使用 root 或设备管理员权限。</string>
+    <string name="settings_debug">调试</string>
     <string name="lab_animation">动画</string>
     <string name="lab_swipe_sensitivity">滑动灵敏度</string>
     <string name="lab_swipe_sensitivity_summary">数值越高，桌面上下划和下划关闭搜索越容易触发。100% 使用默认的距离和速度阈值。</string>
@@ -252,6 +257,8 @@
     <string name="settings_advanced_summary">更多启动器选项</string>
     <string name="settings_about">关于</string>
     <string name="settings_about_summary">Grace Launcher、更新与许可证</string>
+    <string name="settings_open_home">直接进入桌面</string>
+    <string name="settings_open_home_summary">直接进入桌面而不设置为默认启动器</string>
     <string name="settings_instant_access">即时访问</string>
     <string name="settings_calendar_agenda">日历日程</string>
     <string name="settings_calendar_agenda_summary">在主屏幕显示下一项日程</string>

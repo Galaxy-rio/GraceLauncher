@@ -377,6 +377,13 @@ fun LauncherRoute(
             runCatching { homeRoleLauncher.launch(DefaultHome.requestIntent(context)) }
                 .onFailure { openSystemApp(Intent(Settings.ACTION_HOME_SETTINGS)) }
         },
+        openHome = {
+            // Target Grace explicitly: this must neither resolve to another HOME
+            // app nor request/change the system's default launcher preference.
+            openSystemApp(Intent(context, MainActivity::class.java)
+                .setAction(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        },
         appInfo = { app ->
             if (app.user != null) openPrivateAppAction(app) {
                 context.getSystemService(LauncherApps::class.java).startAppDetailsActivity(
@@ -972,8 +979,8 @@ internal fun LauncherScreen(
             }
             GraceButtonAction.Website, GraceButtonAction.Assistant,
             GraceButtonAction.Notifications, GraceButtonAction.QuickSettings -> {
-                if (target.action.requiresAccessibility && !GraceSystemActions.hasAccessibility) systemActionAccess = true
-                else if (!GraceSystemActions.perform(context, target))
+                if (target.action.requiresAccessibility(uiState.settings.preferNonAccessibility) && !GraceSystemActions.hasAccessibility) systemActionAccess = true
+                else if (!GraceSystemActions.perform(context, target, uiState.settings.preferNonAccessibility))
                     Toast.makeText(context, R.string.grace_action_unavailable, Toast.LENGTH_SHORT).show()
             }
             GraceButtonAction.Disabled -> Unit

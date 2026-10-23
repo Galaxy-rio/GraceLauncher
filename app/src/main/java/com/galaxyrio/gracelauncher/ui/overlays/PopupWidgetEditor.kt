@@ -4,6 +4,8 @@ import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetProviderInfo
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
@@ -31,10 +33,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Dp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.HomeLayout
+import com.galaxyrio.gracelauncher.platform.widthBounds
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import com.galaxyrio.gracelauncher.ui.widgets.HomeWidget
 import com.galaxyrio.gracelauncher.ui.widgets.WidgetLongPressConfiguration
+import com.galaxyrio.gracelauncher.ui.widgets.WidgetConfigurationButton
 import com.galaxyrio.gracelauncher.ui.widgets.rememberHostedWidget
 import kotlin.math.roundToInt
 
@@ -46,12 +50,18 @@ internal fun PopupWidgetControls(
     Column(Modifier.fillMaxWidth().padding(horizontal = 12.dp).testTag("popup_widget_controls")) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(layout.popupFullWidth, onClick = { onChange(layout.copy(popupFullWidth = !layout.popupFullWidth), true) },
-                label = { Text(stringResource(R.string.popup_widget_full_width), maxLines = 1) },
-                modifier = Modifier.weight(1f).testTag("popup_widget_full_width"))
-            FilterChip(layout.popupBackground, onClick = { onChange(layout.copy(popupBackground = !layout.popupBackground), true) },
-                label = { Text(stringResource(R.string.popup_widget_background), maxLines = 1) },
-                modifier = Modifier.weight(1f).testTag("popup_widget_background"))
+            // Keep the Done action reachable on narrow pop-ups or with large fonts.
+            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FilterChip(layout.popupFullWidth, onClick = { onChange(layout.copy(popupFullWidth = !layout.popupFullWidth), true) },
+                    label = { Text(stringResource(R.string.popup_widget_full_width), maxLines = 1) },
+                    modifier = Modifier.testTag("popup_widget_full_width"))
+                FilterChip(layout.popupBackground, onClick = { onChange(layout.copy(popupBackground = !layout.popupBackground), true) },
+                    label = { Text(stringResource(R.string.popup_widget_background), maxLines = 1) },
+                    modifier = Modifier.testTag("popup_widget_background"))
+                WidgetConfigurationButton(layout, onBeforeOpen = onDone)
+            }
             IconButton(onClick = onDone, modifier = Modifier.size(40.dp).testTag("popup_widget_done")
                 .semantics { contentDescription = done }) { LauncherIcon(LauncherSymbol.Check) }
         }
@@ -93,12 +103,13 @@ internal fun PopupWidgetItem(
     BoxWithConstraints(Modifier.fillMaxWidth().padding(vertical = 8.dp),
         contentAlignment = Alignment.Center) {
         val available = (maxWidth.value - horizontalInset.value * 2).coerceAtLeast(1f)
-        val minWidth = hosted.info?.let {
-            ((it.minResizeWidth.takeIf { n -> n > 0 } ?: it.minWidth) +
-                (padding?.left ?: 0) + (padding?.right ?: 0)) / density
-        }?.coerceIn(64f.coerceAtMost(available), available) ?: 64f.coerceAtMost(available)
+        val bounds = hosted.info?.widthBounds(((padding?.left ?: 0) + (padding?.right ?: 0)).toFloat(),
+            density, available.toInt().coerceAtLeast(1), 64.coerceAtMost(available.toInt().coerceAtLeast(1)))
+        val limitWidth = bounds?.max?.toFloat() ?: available
+        val minWidth = (bounds?.min?.toFloat() ?: 64f.coerceAtMost(available))
+            .coerceAtLeast(available * .2f).coerceAtMost(limitWidth)
         val width = if (layout.popupFullWidth) maxWidth.value else
-            (available * layout.popupWidthPercent.coerceIn(20, 100) / 100f).coerceIn(minWidth, available)
+            (available * layout.popupWidthPercent.coerceIn(20, 100) / 100f).coerceIn(minWidth, limitWidth)
         val limitHeight = maxHeight.coerceIn(48, 1600).coerceAtMost(hosted.maxHeight)
         val minHeight = hosted.minHeight.coerceAtMost(limitHeight)
         val height = (layout.widgetHeightDp.takeIf { it > 0 } ?: hosted.defaultHeight).coerceIn(minHeight, limitHeight)
@@ -136,10 +147,10 @@ internal fun PopupWidgetItem(
                     }
                 })
                 Box(Modifier.matchParentSize().border(2.dp, color, RoundedCornerShape(16.dp)))
-                val horizontal = !layout.popupFullWidth && (hosted.info == null ||
+                val horizontal = !layout.popupFullWidth && minWidth < limitWidth && (hosted.info == null ||
                     hosted.info.resizeMode and AppWidgetProviderInfo.RESIZE_HORIZONTAL != 0)
-                val vertical = hosted.info == null ||
-                    hosted.info.resizeMode and AppWidgetProviderInfo.RESIZE_VERTICAL != 0
+                val vertical = minHeight < limitHeight && (hosted.info == null ||
+                    hosted.info.resizeMode and AppWidgetProviderInfo.RESIZE_VERTICAL != 0)
                 val edges = buildList {
                     if (horizontal) { add("left" to Alignment.CenterStart); add("right" to Alignment.CenterEnd) }
                     if (vertical) { add("top" to Alignment.TopCenter); add("bottom" to Alignment.BottomCenter) }
@@ -149,7 +160,7 @@ internal fun PopupWidgetItem(
                     Box(Modifier.align(alignment).size(40.dp)
                         .onGloballyPositioned { handle = it }
                         .testTag("popup_widget_resize:$edge").semantics { contentDescription = label }
-                        .pointerInput(enabled, minWidth, available, minHeight, limitHeight) {
+                        .pointerInput(enabled, minWidth, limitWidth, available, minHeight, limitHeight) {
                             if (enabled) awaitEachGesture {
                                 val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
                                 down.consume()
@@ -170,7 +181,7 @@ internal fun PopupWidgetItem(
                                         previous = root
                                         if (edge == "left" || edge == "right") {
                                             // Centered width: both edges travel half the total size change.
-                                            w = (w + delta.x * if (edge == "left") -2f else 2f).coerceIn(minWidth, available)
+                                            w = (w + delta.x * if (edge == "left") -2f else 2f).coerceIn(minWidth, limitWidth)
                                             draft = draft.copy(popupWidthPercent = (w / available * 100).roundToInt().coerceIn(20, 100))
                                         } else {
                                             h = (h + delta.y * if (edge == "top") -1f else 1f).coerceIn(minHeight.toFloat(), limitHeight.toFloat())

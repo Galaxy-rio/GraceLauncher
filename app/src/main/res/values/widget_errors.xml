@@ -1,0 +1,5 @@
+<resources>
+    <string name="widget_settings_button">Settings</string>
+    <string name="widget_bind_error">Couldn’t bind this widget. Please try again.</string>
+    <string name="widget_configuration_launch_error">Couldn’t open this widget’s settings. Please try again.</string>
+</resources>

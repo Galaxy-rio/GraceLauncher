@@ -1,0 +1,5 @@
+<resources>
+    <string name="widget_settings_button">设置</string>
+    <string name="widget_bind_error">无法绑定此小组件，请重试。</string>
+    <string name="widget_configuration_launch_error">无法打开此小组件的设置页面，请重试。</string>
+</resources>

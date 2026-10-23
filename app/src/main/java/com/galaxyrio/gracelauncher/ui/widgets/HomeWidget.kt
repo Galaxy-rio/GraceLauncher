@@ -3,9 +3,7 @@ package com.galaxyrio.gracelauncher.ui.widgets
 import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
-import android.os.Build
-import android.os.Bundle
-import android.util.SizeF
+import android.util.Log
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
@@ -36,8 +34,9 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.HomeLayout
 import com.galaxyrio.gracelauncher.platform.HomeWidgetHost
 import com.galaxyrio.gracelauncher.platform.HomeWidgetHostView
+import com.galaxyrio.gracelauncher.platform.heightBounds
+import com.galaxyrio.gracelauncher.platform.widgetSizeOptions
 import kotlinx.coroutines.delay
-import kotlin.math.ceil
 import kotlin.math.roundToInt
 
 internal data class HostedWidget(
@@ -92,13 +91,8 @@ internal fun rememberHostedWidget(layout: HomeLayout): HostedWidget {
     return remember(host, info, density) {
         val padding = info?.let { AppWidgetHostView.getDefaultPaddingForWidget(context, it.provider, null) }
         val extra = (padding?.top ?: 0) + (padding?.bottom ?: 0)
-        val default = info?.let { ceil((it.minHeight + extra) / density).toInt().coerceIn(48, 1600) } ?: 160
-        val min = info?.takeIf { it.resizeMode and AppWidgetProviderInfo.RESIZE_VERTICAL != 0 && it.minResizeHeight > 0 }
-            ?.let { ceil((it.minResizeHeight + extra) / density).toInt().coerceIn(48, default) } ?: default
-        val max = if (Build.VERSION.SDK_INT >= 31 && info != null && info.maxResizeHeight > 0) {
-            ceil((info.maxResizeHeight + extra) / density).toInt().coerceIn(default, 1600)
-        } else 1600
-        HostedWidget(host, info, default, min, max)
+        val bounds = info?.heightBounds(extra.toFloat(), density, 1600, 48)
+        HostedWidget(host, info, bounds?.initial ?: 160, bounds?.min ?: 48, bounds?.max ?: 1600)
     }
 }
 
@@ -124,7 +118,7 @@ internal fun HomeWidget(
     val scale = contentScale.coerceIn(.5f, 1.5f)
     // The slot never changes size. Measure RemoteViews in inverse-scaled space,
     // then scale its entire contents (including touch coordinates) into that slot.
-    val modifier = Modifier.fillMaxWidth().height(height.dp).clipToBounds().layout { measurable, constraints ->
+    val modifier = Modifier.fillMaxWidth().height(height.dp).clipToBounds().onSizeChanged { size = it }.layout { measurable, constraints ->
         val width = constraints.maxWidth
         val outerHeight = constraints.maxHeight
         val child = measurable.measure(Constraints.fixed(
@@ -134,7 +128,7 @@ internal fun HomeWidget(
                 scaleX = scale; scaleY = scale; transformOrigin = TransformOrigin(0f, 0f)
             }
         }
-    }.onSizeChanged { size = it }.onGloballyPositioned { coordinates = it }
+    }.onGloballyPositioned { coordinates = it }
     if (widget.info == null || creationFailed) {
         // A failed RemoteViews must still finish/cancel its grid drag. Other surfaces
         // retain their existing tap/hold menu rather than entering a drag without UP.
@@ -163,7 +157,10 @@ internal fun HomeWidget(
             factory = { context ->
                 // A provider may be removed/updated between lookup and creation.
                 runCatching { widget.host.createView(context, layout.widgetId, widget.info) as HomeWidgetHostView }
-                    .getOrElse { creationFailed = true; HomeWidgetHostView(context) }
+                    .getOrElse {
+                        Log.e("GraceWidgetHost", "create failed id=${layout.widgetId} provider=${layout.widgetProvider}", it)
+                        creationFailed = true; HomeWidgetHostView(context)
+                    }
                     .also { view = it }
             },
             update = {
@@ -186,18 +183,23 @@ internal fun HomeWidget(
             },
         )
     }
-    LaunchedEffect(view, size, editing, density) {
-        if (size.width == 0 || size.height == 0) return@LaunchedEffect
+    LaunchedEffect(view, size, editing, density, scale, removeHorizontalPadding, creationFailed) {
+        if (size.width == 0 || size.height == 0 || creationFailed || widget.info == null) return@LaunchedEffect
         // Avoid flooding providers with RemoteViews rebuilds on every drag frame.
         if (editing) delay(100)
-        val widthDp = size.width / density
-        val heightDp = size.height / density
+        val hostView = view ?: return@LaunchedEffect
+        // Report the actual RemoteViews content space, including content zoom and full-width padding.
+        // AppWidgetHostView.updateAppWidgetSize subtracts *default* padding, which is wrong when
+        // full-width mode removes it. Updating the manager directly avoids double subtraction.
+        val widthDp = ((size.width / scale).roundToInt() - hostView.paddingLeft - hostView.paddingRight) / density
+        val heightDp = ((size.height / scale).roundToInt() - hostView.paddingTop - hostView.paddingBottom) / density
         runCatching {
-            if (Build.VERSION.SDK_INT >= 31) view?.updateAppWidgetSize(Bundle(), listOf(SizeF(widthDp, heightDp)))
-            else {
-                @Suppress("DEPRECATION")
-                view?.updateAppWidgetSize(Bundle(), widthDp.toInt(), heightDp.toInt(), widthDp.toInt(), heightDp.toInt())
-            }
-        }
+            val manager = AppWidgetManager.getInstance(hostView.context)
+            val options = widgetSizeOptions(widthDp, heightDp)
+            val previous = manager.getAppWidgetOptions(layout.widgetId)
+            @Suppress("DEPRECATION")
+            val changed = options.keySet().any { options.get(it) != previous.get(it) }
+            if (changed) manager.updateAppWidgetOptions(layout.widgetId, options)
+        }.onFailure { Log.e("GraceWidgetHost", "resize failed id=${layout.widgetId} provider=${layout.widgetProvider} size=${widthDp}x$heightDp", it) }
     }
 }

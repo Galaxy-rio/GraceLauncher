@@ -46,6 +46,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.*
+import com.galaxyrio.gracelauncher.platform.widthBounds
+import com.galaxyrio.gracelauncher.platform.heightBounds
+import com.galaxyrio.gracelauncher.platform.widgetTargetSize
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.*
@@ -302,6 +305,13 @@ internal fun WidgetScreen(
                 }
             } }
         }
+        val selectedWidget = byKey[grid.selectedKey]?.widget
+        if (editable && !grid.busy && selectedWidget != null) {
+            Row(Modifier.align(Alignment.TopCenter).padding(top = topInset + 8.dp).zIndex(5f)
+                .clip(MaterialTheme.shapes.large).background(MaterialTheme.colorScheme.surfaceContainerHigh)) {
+                WidgetConfigurationButton(selectedWidget, onBeforeOpen = grid::deselect)
+            }
+        }
         val deleteAlpha by animateFloatAsState(if (grid.draggingKey != null) 1f else 0f, label = "gridDelete")
         val deleteScale by animateFloatAsState(if (grid.overDelete) 1.08f else 1f, spring(dampingRatio = .75f), label = "gridDeleteHover")
         if (editable && deleteAlpha > 0f) Row(
@@ -390,8 +400,8 @@ private fun BoxScope.WidgetResizeFrame(grid: WidgetGridState, key: String, limit
     val latestLimits by rememberUpdatedState(limits)
     Box(Modifier.matchParentSize().border(2.dp, color, RoundedCornerShape(16.dp)))
     val edges = buildList {
-        if (limits.horizontal) { add(WidgetResizeEdge.Left); add(WidgetResizeEdge.Right) }
-        if (limits.vertical) { add(WidgetResizeEdge.Top); add(WidgetResizeEdge.Bottom) }
+        if (limits.horizontal && limits.minColumns < limits.maxColumns) { add(WidgetResizeEdge.Left); add(WidgetResizeEdge.Right) }
+        if (limits.vertical && limits.minRows < limits.maxRows) { add(WidgetResizeEdge.Top); add(WidgetResizeEdge.Bottom) }
     }
     for (edge in edges) key(edge) {
         val alignment = when (edge) {
@@ -434,21 +444,10 @@ private fun BoxScope.WidgetResizeFrame(grid: WidgetGridState, key: String, limit
 /** Provider dimensions are pixels; convert once to grid spans, including the host's widget padding. */
 private fun widgetGridSpec(info: AppWidgetProviderInfo?, columns: Int, width: Float, height: Float,
     horizontalPadding: Float, verticalPadding: Float): Pair<WidgetGridSize, WidgetResizeLimits> {
-    fun x(pixels: Int) = ceil((pixels + horizontalPadding) / width).toInt().coerceIn(1, columns)
-    fun y(pixels: Int) = ceil((pixels + verticalPadding) / height).toInt().coerceIn(1, 20)
-    val targetWidth = if (Build.VERSION.SDK_INT >= 31) info?.targetCellWidth ?: 0 else 0
-    val targetHeight = if (Build.VERSION.SDK_INT >= 31) info?.targetCellHeight ?: 0 else 0
-    val size = WidgetGridSize(
-        (targetWidth.takeIf { it > 0 } ?: info?.let { x(it.minWidth) } ?: 2).coerceIn(1, columns),
-        (targetHeight.takeIf { it > 0 } ?: info?.let { y(it.minHeight) } ?: 2).coerceIn(1, 20),
-    )
-    val horizontal = info == null || info.resizeMode and AppWidgetProviderInfo.RESIZE_HORIZONTAL != 0
-    val vertical = info == null || info.resizeMode and AppWidgetProviderInfo.RESIZE_VERTICAL != 0
-    val minWidth = if (horizontal) info?.let { x(it.minResizeWidth.takeIf { n -> n > 0 } ?: it.minWidth) } ?: 1 else size.columns
-    val minHeight = if (vertical) info?.let { y(it.minResizeHeight.takeIf { n -> n > 0 } ?: it.minHeight) } ?: 1 else size.rows
-    val maxWidth = if (!horizontal) size.columns else if (Build.VERSION.SDK_INT >= 31 && info != null && info.maxResizeWidth > 0)
-        ((info.maxResizeWidth + horizontalPadding) / width).toInt().coerceIn(1, columns) else columns
-    val maxHeight = if (!vertical) size.rows else if (Build.VERSION.SDK_INT >= 31 && info != null && info.maxResizeHeight > 0)
-        ((info.maxResizeHeight + verticalPadding) / height).toInt().coerceIn(1, 20) else 20
-    return size to WidgetResizeLimits(minWidth, maxWidth.coerceAtLeast(minWidth), minHeight, maxHeight.coerceAtLeast(minHeight), horizontal, vertical)
+    if (info == null) return WidgetGridSize(2.coerceAtMost(columns), 2) to WidgetResizeLimits(1, columns, 1, 20, true, true)
+    val x = info.widthBounds(horizontalPadding, width, columns)
+    val y = info.heightBounds(verticalPadding, height, 20)
+    val target = if (Build.VERSION.SDK_INT >= 31) widgetTargetSize(x, y, info.targetCellWidth, info.targetCellHeight)
+        else x.initial to y.initial
+    return WidgetGridSize(target.first, target.second) to WidgetResizeLimits(x.min, x.max, y.min, y.max, x.canResize, y.canResize)
 }
