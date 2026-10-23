@@ -31,7 +31,7 @@
     <string name="grace_button_url">Adresse du site web</string>
     <string name="grace_button_url_hint">exemple.com ou https://exemple.com</string>
     <string name="grace_button_url_error">Saisissez une adresse web HTTP ou HTTPS valide.</string>
-    <string name="grace_button_quick_settings">Ouvrir les paramètres</string>
+    <string name="grace_button_quick_settings">Ouvrir les paramètres rapides</string>
     <string name="grace_action_unavailable">Cette action n’est pas disponible sur cet appareil.</string>
     <string name="grace_accessibility_description">Utilisez le bouton Grace ou les gestes sur l’écran d’accueil pour verrouiller l’écran, ouvrir les notifications ou les paramètres. Aucun contenu affiché à l’écran n’est lu ni enregistré.</string>
     <string name="grace_accessibility_explanation">Ces actions nécessitent l\'accès aux services d\'accessibilité d\'Android, et non les droits root. Dans les paramètres système, activez Grace Launcher dans les applications installées ou les services téléchargés. Grace effectue uniquement l\'action que vous déclenchez ; l\'application ne lit pas le contenu de l\'écran et ne surveille pas votre activité. Vous pouvez révoquer cet accès à tout moment.</string>
@@ -89,7 +89,7 @@
     <string name="private_space_lock_on_exit">Verrouiller automatiquement en quittant la liste</string>
     <string name="private_space_lock_on_screen">Garder déverrouillé jusqu’au verrouillage de l’écran</string>
     <string name="private_space_edit_summary">Modifier le nom, l\'icône et l\'ordre des applications</string>
-    <string name="private_space_empty">Aucune application dans l\'espace privé</string>
+    <string name="private_space_empty">Pas d\'applications dans l\'espace privé</string>
     <string name="private_space_default_home">Définissez Grace comme lanceur par défaut pour utiliser l\'espace privé</string>
     <string name="private_space_security_required">Définissez un verrouillage d\'écran pour activer la protection par mot de passe</string>
     <string name="private_space_unlock_edit">Déverrouiller pour modifier</string>
@@ -688,4 +688,17 @@
     <string name="lab_popup_angle_summary">Écart maximal au-dessus ou en dessous de l\'horizontale vers la droite. Plus la valeur est faible, plus le glissement doit être rectiligne.</string>
     <string name="lab_dp">%1$d dp</string>
     <string name="lab_degrees">±%1$d°</string>
+    <string name="choose_default_launcher">Choisir le lanceur par défaut</string>
+    <string name="lab_accessibility">Accessibilité</string>
+    <string name="lab_prefer_non_accessibility">Éviter l\'accès aux services d\'accessibilité si possible</string>
+    <string name="lab_prefer_non_accessibility_summary">Essayer d’utiliser les API système pour les notifications et le centre de contrôle sans accès aux services d\'accessibilité. Les résultats varient selon l\'appareil. Aucun basculement automatique n\'est prévu : désactivez cette option manuellement si elle ne fonctionne pas. Le verrouillage de l\'écran nécessite toujours l\'accès aux services d\'accessibilité. Aucun accès root ni accès administrateur de l\'appareil n\'est utilisé.</string>
+    <string name="settings_debug">Débogage</string>
+    <string name="settings_open_home">Accéder directement à l\'écran d\'accueil</string>
+    <string name="settings_open_home_summary">Accéder directement à l\'écran d\'accueil sans définir Grace comme lanceur par défaut</string>
+    <string name="icon_designer_apply_to_shortcuts">Appliquer également les paramètres aux raccourcis</string>
+    <string name="popup_single_line_previews">Aperçus des notifications sur une seule ligne</string>
+    <string name="popup_single_line_previews_summary">Afficher le texte des notifications sur une seule ligne, sans tenir compte des sauts de ligne</string>
+    <string name="popup_multiple_app_previews">Notifications de plusieurs applications</string>
+    <string name="popup_multiple_app_previews_summary">Afficher un aperçu de la dernière notification de chaque application dans un dossier ou une fenêtre contextuelle d\'application</string>
+    <string name="favorites_lock_editing">Verrouiller la modification</string>
 </resources>
