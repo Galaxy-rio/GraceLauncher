@@ -685,4 +685,5 @@
     <string name="popup_single_line_previews_summary">Mostrar o texto da notificación nunha soa liña, ignorando os saltos de liña</string>
     <string name="popup_multiple_app_previews">Notificacións de varias aplicacións</string>
     <string name="popup_multiple_app_previews_summary">Consulta a última notificación de cada aplicación nun cartafol ou nunha fiestra emerxente da aplicación</string>
+    <string name="favorites_lock_editing">Bloquear a edición</string>
 </resources>
