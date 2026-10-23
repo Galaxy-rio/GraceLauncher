@@ -132,7 +132,7 @@
     <string name="icon_edit_search">Buscar iconas</string>
     <string name="icon_edit_no_results">Non hai iconas coincidentes</string>
     <string name="icon_edit_failed">Non se puido gardar esta icona. Proba con outra imaxe ou icona.</string>
-    <string name="edit_app_popup">Editar a xanela emerxente %1$s</string>
+    <string name="edit_app_popup">Editar a fiestra emerxente %1$s</string>
     <string name="popup_app_shortcuts">Atallos de %1$s</string>
     <string name="popup_custom_widget">Widget personalizado</string>
     <string name="popup_add_new">Engadir novo</string>
@@ -232,7 +232,7 @@
         <item quantity="one">%1$d aplicación agochada</item>
         <item quantity="other">%1$d aplicacións agochadas</item>
     </plurals>
-    <string name="settings_hide_apps_description">Agocha as aplicacións só da lista de aplicacións. Seguen estando dispoñibles en favoritos, cartafoles, xanelas emerxentes e na busca.</string>
+    <string name="settings_hide_apps_description">Agocha as aplicacións só da lista de aplicacións. Seguen estando dispoñibles en favoritos, cartafoles, fiestras emerxentes e na busca.</string>
     <string name="settings_folders">Cartafoles</string>
     <plurals name="settings_folder_count">
         <item quantity="one">%1$d cartafol</item>
@@ -579,9 +579,9 @@
     <string name="list_left_alphabet">Usa o alfabeto na esquerda</string>
     <string name="list_left_alphabet_summary">Esvara o dedo polo bordo esquerdo para controlar o alfabeto da dereita</string>
     <string name="shortcuts_folders_title">Atallos e cartafoles</string>
-    <string name="shortcuts_folders_enable">Activar as xanelas emerxentes da aplicación</string>
+    <string name="shortcuts_folders_enable">Activar as fiestra emerxentes da aplicación</string>
     <string name="popup_swipe_left_first">Esvara cara á esquerda para abrir o primeiro elemento</string>
-    <string name="popup_swipe_left_first_summary">Abre o primeiro atallo, aplicación ou widget na xanela emerxente</string>
+    <string name="popup_swipe_left_first_summary">Abre o primeiro atallo, aplicación ou widget na fiestra emerxente</string>
     <string name="popup_silent_notifications">Notificacións silenciosas</string>
     <string name="popup_normal_notifications">Notificacións normais</string>
     <string name="popup_notification_normal">Amosar normalmente</string>
@@ -673,9 +673,9 @@
     <string name="popup_widget_full_width">Ancho completo</string>
     <string name="popup_widget_background">Fondo</string>
     <string name="popup_widget_content_scale">Escala do contido · %1$d%%</string>
-    <string name="lab_popup">Xanela emerxente</string>
+    <string name="lab_popup">Fiestra emerxente</string>
     <string name="lab_popup_distance">Distancia de esvaramento adicional</string>
-    <string name="lab_popup_distance_summary">Distancia adicional para esvarar cara á dereita antes de abrir unha aplicación ou unha xanela emerxente de cartafol. Uns valores máis altos fan que sexa máis difícil activalo.</string>
+    <string name="lab_popup_distance_summary">Distancia adicional para esvarar cara á dereita antes de abrir unha aplicación ou unha fiestra emerxente de cartafol. Uns valores máis altos fan que sexa máis difícil activalo.</string>
     <string name="lab_popup_angle">Ángulo de deslizamento permitido</string>
     <string name="lab_popup_angle_summary">Desviación máxima por riba ou por debaixo da dirección horizontal cara á dereita. Uns valores máis baixos requiren un movemento de esvaramento máis recto.</string>
     <string name="lab_dp">%1$d dp</string>
@@ -684,5 +684,5 @@
     <string name="popup_single_line_previews">Vista previa de notificacións dunha soa liña</string>
     <string name="popup_single_line_previews_summary">Mostrar o texto da notificación nunha soa liña, ignorando os saltos de liña</string>
     <string name="popup_multiple_app_previews">Notificacións de varias aplicacións</string>
-    <string name="popup_multiple_app_previews_summary">Consulta a última notificación de cada aplicación nun cartafol ou nunha xanela emerxente da aplicación</string>
+    <string name="popup_multiple_app_previews_summary">Consulta a última notificación de cada aplicación nun cartafol ou nunha fiestra emerxente da aplicación</string>
 </resources>
