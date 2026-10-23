@@ -42,6 +42,7 @@ import com.galaxyrio.gracelauncher.ui.components.ShortcutPickerScreen
 import com.galaxyrio.gracelauncher.ui.settings.FavoriteFoldersScreen
 import com.galaxyrio.gracelauncher.ui.settings.AppGroupPickerScreen
 import com.galaxyrio.gracelauncher.ui.settings.SettingsScaffold
+import com.galaxyrio.gracelauncher.ui.settings.SettingsFeatureBanner
 import com.galaxyrio.gracelauncher.ui.widgets.WidgetPreview
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -116,6 +117,12 @@ internal fun FavoritesScreen(uiState: LauncherUiState, actions: LauncherActions,
     }
     ItemSelectionScreen(
         title = stringResource(R.string.edit_favorites), tag = "favorites",
+        header = {
+            SettingsFeatureBanner(stringResource(R.string.favorites_lock_editing), uiState.settings.homeLayout.editingLocked,
+                "favorites_lock_editing") { locked ->
+                actions.updateSettings { it.copy(homeLayout = it.homeLayout.copy(editingLocked = locked)) }
+            }
+        },
         selected = uiState.homeItems.map { item ->
             val grace = GraceWidget.fromKey(item.key)
             val app = uiState.findItem(item.key)

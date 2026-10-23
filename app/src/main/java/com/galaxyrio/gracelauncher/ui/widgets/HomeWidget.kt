@@ -110,7 +110,8 @@ internal fun HomeWidget(
     onDragStart: ((Float, Float) -> Unit)? = null,
     contentScale: Float = 1f,
     removeHorizontalPadding: Boolean = false,
-) {
+    editGesturesEnabled: Boolean = true,
+) = WidgetLongPressConfiguration {
     val density = LocalDensity.current.density
     val latestLongPress by rememberUpdatedState(onLongPress)
     val latestDragStart by rememberUpdatedState(onDragStart)
@@ -137,7 +138,7 @@ internal fun HomeWidget(
     if (widget.info == null || creationFailed) {
         // A failed RemoteViews must still finish/cancel its grid drag. Other surfaces
         // retain their existing tap/hold menu rather than entering a drag without UP.
-        val fallback = if (onDrag != null) modifier.pointerInput(layout.widgetId, enabled, editing) {
+        val fallback = if (!editGesturesEnabled) modifier else if (onDrag != null) modifier.pointerInput(layout.widgetId, enabled, editing) {
             var previous = Offset.Zero
             if (enabled && !editing) detectDragGesturesAfterLongPress(
                 onDragStart = {
@@ -166,8 +167,8 @@ internal fun HomeWidget(
                     .also { view = it }
             },
             update = {
-                it.onWidgetLongPress = { latestLongPress() }
-                it.onWidgetDragStart = if (onDragStart == null) null else { x, y -> latestDragStart?.invoke(x, y) }
+                it.onWidgetLongPress = if (editGesturesEnabled) ({ latestLongPress() }) else null
+                it.onWidgetDragStart = if (!editGesturesEnabled || onDragStart == null) null else { x, y -> latestDragStart?.invoke(x, y) }
                 it.onWidgetDrag = { x, y -> latestDrag?.invoke(x, y) }
                 it.onWidgetDragEnd = { cancelled -> latestDragEnd?.invoke(cancelled) }
                 it.interactionEnabled = enabled && !editing

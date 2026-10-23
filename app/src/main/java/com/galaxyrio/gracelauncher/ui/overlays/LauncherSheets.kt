@@ -147,7 +147,12 @@ internal fun LauncherOverlays(
     if (overlay == LauncherOverlay.Settings || overlay is LauncherOverlay.FolderSettings || overlay is LauncherOverlay.SettingsDestination) {
         LauncherSettingsScreen(
             uiState = uiState, actions = actions, onBack = {
-                val folder = (overlay as? LauncherOverlay.FolderSettings)?.folderId?.let { uiState.findItem("folder:$it") }
+                val folder = (overlay as? LauncherOverlay.FolderSettings)?.folderId?.let { id ->
+                    // Stacks have no details sheet: that sheet redirects straight
+                    // back to this editor. Close instead of creating a return loop.
+                    if (uiState.folders.any { it.id == id && it.isAppStack }) null
+                    else uiState.findItem("folder:$id")
+                }
                 onChange(if ((overlay as? LauncherOverlay.SettingsDestination)?.returnToSearch == true && uiState.settings.search.enabled)
                     LauncherOverlay.Search else folder?.let { LauncherOverlay.AppDetails(it) })
             },

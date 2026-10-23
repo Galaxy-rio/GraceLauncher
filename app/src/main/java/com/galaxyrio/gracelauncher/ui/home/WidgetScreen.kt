@@ -79,7 +79,9 @@ internal fun WidgetScreen(
     val currentStackKeys by rememberUpdatedState(stacks.keys)
     var expandedStacks by rememberSaveable { mutableStateOf(emptyList<String>()) }
     val widgetKeys = entries.filter { it.widget != null }.map { it.key }.toSet()
-    val editable = enabled && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
+    val inputEnabled = enabled && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
+    val editable = inputEnabled && !uiState.settings.widgetScreen.editingLocked
+    val currentInputEnabled by rememberUpdatedState(inputEnabled)
     val currentEditable by rememberUpdatedState(editable)
     val currentEditingChange by rememberUpdatedState(onEditingChange)
     val currentEdit by rememberUpdatedState(onEdit)
@@ -93,8 +95,8 @@ internal fun WidgetScreen(
         }
     })
     val grid = remember { WidgetGridState({ cells, removed -> persist(cells, removed) }, { currentEditingChange(it) }) }
-    LaunchedEffect(editing, enabled) {
-        if (!editing || !enabled) grid.cancelInteraction()
+    LaunchedEffect(editing, enabled, editable) {
+        if (!editing || !editable) grid.cancelInteraction()
         if (!enabled) grid.scrolling.stopScroll()
     }
     DisposableEffect(grid) { onDispose { grid.cancelInteraction() } }
@@ -198,16 +200,16 @@ internal fun WidgetScreen(
             // Keep this node enabled during a held drag. Consumed pointer changes stop scrolling;
             // toggling/removing gesture modifiers here would cancel the same pointer stream.
             .scrollable(grid.scrolling, Orientation.Vertical, enabled = enabled)
-            .widgetGridInput(grid, { currentEditable }, { currentWidgetKeys }, { currentStackKeys }, { launch(it) },
+            .widgetGridInput(grid, { currentInputEnabled }, { currentEditable }, { currentWidgetKeys }, { currentStackKeys }, { launch(it) },
                 { key, point -> currentStart(key, point) }, { currentEdit() })
             .semantics {
                 verticalScrollAxisRange = ScrollAxisRange({ grid.scroll }, { grid.maxScroll })
-                customActions = listOf(CustomAccessibilityAction(editLabel) { if (editable) onEdit(); editable })
+                customActions = listOf(CustomAccessibilityAction(editLabel) { if (inputEnabled) onEdit(); inputEnabled })
                 semanticsScrollBy { _, y ->
                     if (!enabled || grid.busy) false else { scope.launch { grid.scrolling.scrollBy(-y) }; true }
                 }
             }) {
-            if (entries.isEmpty()) FilledTonalButton(onClick = onEdit, enabled = editable,
+            if (entries.isEmpty()) FilledTonalButton(onClick = onEdit, enabled = inputEnabled,
                 modifier = Modifier.align(Alignment.Center).testTag("widget_screen_add")) {
                 LauncherIcon(LauncherSymbol.Plus)
                 Spacer(Modifier.width(8.dp))
@@ -271,7 +273,8 @@ internal fun WidgetScreen(
                                 modifier = Modifier.fillMaxWidth())
                             else if (entry.widget != null && hosted != null) {
                                 HomeWidget(entry.widget, hosted, (height - gap).value.roundToInt(),
-                                    editing = selected, enabled = enabled, hapticsEnabled = false,
+                                    editing = selected && editable, enabled = enabled, hapticsEnabled = false,
+                                    editGesturesEnabled = editable,
                                     onLongPress = {},
                                     onDragStart = { x, y ->
                                         currentStart(cell.key, grid.viewportPosition(cell) + Offset(x + gapPx / 2, y + gapPx / 2))
@@ -287,7 +290,7 @@ internal fun WidgetScreen(
                                     maxLines = 2, overflow = TextOverflow.Ellipsis, textAlign = TextAlign.Center)
                             }
                         }
-                        if (selected && entry.widget != null) {
+                        if (editable && selected && entry.widget != null) {
                             // Hit-test above the native view; the stable viewport owns the next held drag.
                             Box(Modifier.matchParentSize().pointerInput(Unit) {
                                 awaitPointerEventScope { while (true) awaitPointerEvent() }
@@ -301,7 +304,7 @@ internal fun WidgetScreen(
         }
         val deleteAlpha by animateFloatAsState(if (grid.draggingKey != null) 1f else 0f, label = "gridDelete")
         val deleteScale by animateFloatAsState(if (grid.overDelete) 1.08f else 1f, spring(dampingRatio = .75f), label = "gridDeleteHover")
-        if (deleteAlpha > 0f) Row(
+        if (editable && deleteAlpha > 0f) Row(
             Modifier.absoluteOffset(x = deleteLeft, y = deleteTop).size(deleteWidth, 56.dp).zIndex(5f)
                 .graphicsLayer { alpha = deleteAlpha; scaleX = deleteScale; scaleY = deleteScale }
                 .clip(CircleShape).background(if (grid.overDelete) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.surfaceContainerHigh)
@@ -318,7 +321,7 @@ internal fun WidgetScreen(
 
 /** Apps and blank space share one recognizer. No moving hit target or clickable can cancel a held drag. */
 private fun Modifier.widgetGridInput(
-    grid: WidgetGridState, enabled: () -> Boolean, nativeWidgets: () -> Set<String>,
+    grid: WidgetGridState, enabled: () -> Boolean, canEdit: () -> Boolean, nativeWidgets: () -> Set<String>,
     interactiveItems: () -> Set<String>,
     onTap: (String) -> Unit, onHold: (String, Offset) -> Unit, onEmptyHold: () -> Unit,
 ) = pointerInput(grid) {
@@ -335,7 +338,10 @@ private fun Modifier.widgetGridInput(
         var released = false
         var cancelled = false
         var pointer = down.position
-        withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+        val holdTimeout = if (cell?.key in nativeWidgets())
+            com.galaxyrio.gracelauncher.platform.widgetLongPressTimeout(viewConfiguration.longPressTimeoutMillis)
+        else viewConfiguration.longPressTimeoutMillis
+        withTimeoutOrNull(holdTimeout) {
             while (true) {
                 val event = awaitPointerEvent(if (interactive) PointerEventPass.Initial else PointerEventPass.Main)
                 val change = event.changes.firstOrNull { it.id == down.id }
@@ -353,6 +359,9 @@ private fun Modifier.widgetGridInput(
         if (released) {
             if (grid.selectedKey != null) grid.deselect()
             else if (cell != null && !interactive) onTap(cell.key)
+        } else if (!canEdit()) {
+            // Still recognize taps while locked; only the held editing path is blocked.
+            return@awaitEachGesture
         } else if (cell == null) {
             grid.deselect()
             onEmptyHold()
@@ -360,7 +369,7 @@ private fun Modifier.widgetGridInput(
             onHold(cell.key, pointer)
             var completed = false
             try {
-                while (grid.draggingKey == cell.key && enabled()) {
+                while (grid.draggingKey == cell.key && enabled() && canEdit()) {
                     // Consume before the pager/native descendants; especially UP, even without a MOVE.
                     val event = awaitPointerEvent(PointerEventPass.Initial)
                     val change = event.changes.firstOrNull { it.id == down.id } ?: break

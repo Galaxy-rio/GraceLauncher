@@ -34,6 +34,7 @@ import com.galaxyrio.gracelauncher.data.HomeLayout
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import com.galaxyrio.gracelauncher.ui.widgets.HomeWidget
+import com.galaxyrio.gracelauncher.ui.widgets.WidgetLongPressConfiguration
 import com.galaxyrio.gracelauncher.ui.widgets.rememberHostedWidget
 import kotlin.math.roundToInt
 
@@ -73,7 +74,8 @@ internal fun PopupWidgetItem(
     onDragStart: () -> Unit, onDrag: (Float) -> Unit, onDragEnd: (Boolean) -> Unit,
     onResizing: (Boolean) -> Unit,
     horizontalInset: Dp = 18.dp,
-) {
+    editable: Boolean = true,
+) = WidgetLongPressConfiguration {
     val hosted = rememberHostedWidget(layout)
     val density = LocalDensity.current.density
     val context = LocalContext.current
@@ -107,7 +109,7 @@ internal fun PopupWidgetItem(
             .onGloballyPositioned { coordinates = it }) {
             Box(Modifier.matchParentSize().clip(RoundedCornerShape(16.dp))
                 .background(if (layout.popupBackground) MaterialTheme.colorScheme.primaryContainer else Color.Transparent)) {
-                HomeWidget(layout, hosted, height, editing = selected, enabled = enabled,
+                HomeWidget(layout, hosted, height, editing = selected, enabled = enabled, editGesturesEnabled = editable,
                     hapticsEnabled = haptics, onLongPress = {},
                     onDragStart = { _, _ -> currentStart() },
                     onDrag = { _, y -> currentDrag(y) }, onDragEnd = { currentEnd(it) },
@@ -116,8 +118,8 @@ internal fun PopupWidgetItem(
             if (selected) {
                 // The native child is disabled while selected. Only this widget's
                 // body gets a held-drag recognizer; app rows retain their details action.
-                Box(Modifier.matchParentSize().pointerInput(enabled) {
-                    if (enabled) {
+                Box(Modifier.matchParentSize().pointerInput(enabled, editable) {
+                    if (enabled && editable) {
                         var previous = Offset.Zero
                         detectDragGesturesAfterLongPress(
                             onDragStart = {

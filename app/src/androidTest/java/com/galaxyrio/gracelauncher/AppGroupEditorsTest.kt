@@ -104,6 +104,57 @@ class AppGroupEditorsTest {
         compose.runOnIdle { assertTrue(state.popups.getValue(WidgetScreenKey).any { it.key == WorkProfileFolderKey }) }
     }
 
+    @Test fun widgetScreenLockKeepsTapsButBlocksHeldEditing() {
+        val settings = WidgetScreenSettings(editingLocked = true)
+        assertEquals(settings, WidgetScreenSettings.decode(settings.encode()))
+        assertFalse(WidgetScreenSettings.decode("{}").editingLocked)
+        val widget = PopupItem("widget:locked", HomeLayout(widgetId = -1001))
+        val state = LauncherUiState(apps = listOf(member), isLoadingApps = false,
+            settings = LauncherSettings(widgetScreen = settings),
+            popups = mapOf(WidgetScreenKey to listOf(PopupItem(member.key), widget)))
+        val opened = mutableListOf<String>()
+        compose.setContent {
+            GraceLauncherTheme(dynamicColor = false) {
+                WidgetScreen(state, LauncherActions(), 0.dp, 0.dp, editing = false, enabled = true,
+                    onEditingChange = { assertFalse(it) }, onEdit = {},
+                    onLaunchApp = { opened += it.key }, onAppDetails = {}, onOpenFolder = { _, _ -> })
+            }
+        }
+        val appNode = compose.onNodeWithTag("widget_screen_item:${member.key}")
+        appNode.performTouchInput { longClick(durationMillis = 1600L) }
+        compose.onNodeWithTag("widget_screen_item:${widget.key}").performTouchInput { longClick(durationMillis = 1600L) }
+        compose.onNodeWithTag("widget_screen_delete").assertDoesNotExist()
+        compose.onNodeWithTag("widget_resize:right").assertDoesNotExist()
+        appNode.performTouchInput { click() }
+        compose.runOnIdle { assertEquals(listOf(member.key), opened) }
+    }
+
+    @Test fun stackEditorDoneClosesWithoutReopeningSettings() = assertStackEditorCloses("popup_editor_done")
+
+    @Test fun stackEditorBackClosesWithoutReopeningSettings() = assertStackEditorCloses("settings_back")
+
+    private fun assertStackEditorCloses(exitTag: String) {
+        val stack = folder.copy(isAppStack = true, placement = FolderPlacement.Favorites)
+        val state = LauncherUiState(apps = listOf(member), folders = listOf(stack), isLoadingApps = false,
+            popups = mapOf(stack.key to listOf(PopupItem(member.key))))
+        var overlay by mutableStateOf<LauncherOverlay?>(LauncherOverlay.FolderSettings(stack.id))
+        val transitions = mutableListOf<LauncherOverlay?>()
+        compose.setContent {
+            GraceLauncherTheme(dynamicColor = false) {
+                LauncherOverlays(overlay, state, LauncherActions(),
+                    onChange = { transitions += it; overlay = it }, onLaunchApp = {},
+                    onToggleFavorite = {}, onRequestCalendar = {})
+            }
+        }
+        compose.onNodeWithTag(exitTag).performClick()
+        compose.waitForIdle()
+        compose.runOnIdle {
+            assertNull(overlay)
+            assertEquals(listOf<LauncherOverlay?>(null), transitions)
+        }
+        compose.onNodeWithTag("settings_navigation").assertDoesNotExist()
+    }
+
     @Test fun popupFolderClickReplacesThePanelWithoutImmediatelyDismissingIt() {
         val state = LauncherUiState(apps = listOf(owner, member), folders = listOf(folder), isLoadingApps = false,
             popups = mapOf(owner.key to listOf(PopupItem(folder.key))))

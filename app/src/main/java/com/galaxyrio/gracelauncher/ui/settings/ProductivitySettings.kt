@@ -125,7 +125,11 @@ internal fun ProductivitySettings(
             }
             item {
                 Spacer(Modifier.height(12.dp))
-                SettingsActionItem(stringResource(R.string.settings_move_widget), null, 0, 1, "settings_move_widget",
+                SettingsActionItem(stringResource(R.string.edit_favorites), null, 0, 2, "settings_edit_favorites",
+                    leading = { LauncherIcon(LauncherSymbol.Star) }) { navigate(SettingsPage.Favorites) }
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.settings_move_widget), null, 1, 2, "settings_move_widget",
                     leading = { LauncherIcon(LauncherSymbol.Move) }, onClick = actions.moveWidget)
             }
             item { SettingsHeading(stringResource(R.string.settings_additional_screen)) }

@@ -462,6 +462,7 @@ fun LauncherRoute(
         cachedShortcuts = viewModel::cachedShortcuts,
         prepareShortcuts = viewModel::prepareShortcuts,
         reorderFavorites = viewModel::reorderFavorites,
+        toggleFavorite = { viewModel.toggleFavorite(it) },
         launchAppAt = { app, bounds -> launchApp(app, bounds) },
         launchSearchApp = { app, bounds -> launchApp(app, bounds, fromSearch = true) },
         launchShortcutAt = { shortcut, bounds -> launchShortcut(shortcut, bounds) },

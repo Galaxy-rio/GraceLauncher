@@ -80,7 +80,7 @@ class HomeWidgetHostView(context: Context) : AppWidgetHostView(context) {
                 downX = event.x; downY = event.y; downTime = event.downTime
                 lastRawX = event.rawX; lastRawY = event.rawY
                 removeCallbacks(longPress)
-                postDelayed(longPress, ViewConfiguration.getLongPressTimeout().toLong())
+                postDelayed(longPress, widgetLongPressTimeout(ViewConfiguration.getLongPressTimeout().toLong()))
             }
             MotionEvent.ACTION_MOVE -> if (abs(event.x - downX) > slop || abs(event.y - downY) > slop) removeCallbacks(longPress)
             MotionEvent.ACTION_POINTER_DOWN, MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> removeCallbacks(longPress)

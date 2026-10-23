@@ -14,15 +14,16 @@ data class WidgetScreenSettings(
     val enabled: Boolean = true,
     val swipeToOpen: Boolean = true,
     val columns: Int = 4,
+    val editingLocked: Boolean = false,
 ) {
     fun encode(): String = JSONObject().put("enabled", enabled).put("swipeToOpen", swipeToOpen)
-        .put("columns", columns.coerceIn(2, 8)).toString()
+        .put("columns", columns.coerceIn(2, 8)).put("editingLocked", editingLocked).toString()
 
     companion object {
         fun decode(json: String?): WidgetScreenSettings = runCatching {
             val data = JSONObject(json ?: "{}")
             WidgetScreenSettings(data.optBoolean("enabled", true), data.optBoolean("swipeToOpen", true),
-                data.optInt("columns", 4).coerceIn(2, 8))
+                data.optInt("columns", 4).coerceIn(2, 8), data.optBoolean("editingLocked", false))
         }.getOrDefault(WidgetScreenSettings())
     }
 }

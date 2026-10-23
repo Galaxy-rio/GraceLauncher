@@ -63,6 +63,7 @@ data class LauncherActions(
     val cachedShortcuts: (LauncherApp) -> ShortcutResult? = { null },
     val prepareShortcuts: (LauncherApp) -> Unit = {},
     val reorderFavorites: (List<String>) -> Unit = {},
+    val toggleFavorite: (LauncherApp) -> Unit = {},
     val launchAppAt: ((LauncherApp, Rect) -> Unit)? = null,
     val launchSearchApp: ((LauncherApp, Rect?) -> Unit)? = null,
     val launchShortcutAt: ((LauncherShortcut, Rect) -> Unit)? = null,

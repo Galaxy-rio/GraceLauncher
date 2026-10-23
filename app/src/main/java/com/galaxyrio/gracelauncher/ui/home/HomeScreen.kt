@@ -201,8 +201,8 @@ fun HomeScreen(
     val editingCallback by rememberUpdatedState(onWidgetEditingChange)
     LaunchedEffect(widgetEditing) { editingCallback(widgetEditing) }
     DisposableEffect(Unit) { onDispose { editingCallback(false) } }
-    LaunchedEffect(widgetInputEnabled, editingLayout) {
-        if (!widgetInputEnabled || editingLayout) {
+    LaunchedEffect(widgetInputEnabled, editingLayout, homeLayout.editingLocked) {
+        if (!widgetInputEnabled || editingLayout || homeLayout.editingLocked) {
             reorder.finish(true)
             finishEditing()
         }
@@ -218,7 +218,9 @@ fun HomeScreen(
             previous = frame
         }
     }
-    val startDrag: (String) -> Unit = { key -> dragged = false; reorder.start(key) }
+    val startDrag: (String) -> Unit = { key ->
+        if (!homeLayout.editingLocked) { dragged = false; reorder.start(key) }
+    }
     val drag: (Float) -> Unit = { delta -> if (delta != 0f) dragged = true; reorder.drag(delta) }
     val doubleTapSlop = remember(context, density) { android.view.ViewConfiguration.get(context).scaledDoubleTapSlop.toFloat() }
     val minimumTop = stableStatusBarInset() + 8.dp
@@ -308,8 +310,8 @@ fun HomeScreen(
                     .onGloballyPositioned { coordinates = it }
                     .onSizeChanged { itemHeights[entry.key] = it.height }
                     .testTag("home_item:${entry.key}")
-                    .pointerInput(grace, inputEnabled) {
-                        if (grace != null && grace != GraceWidget.Baseline && inputEnabled) {
+                    .pointerInput(grace, inputEnabled, homeLayout.editingLocked) {
+                        if (grace != null && grace != GraceWidget.Baseline && inputEnabled && !homeLayout.editingLocked) {
                             var previous = Offset.Zero
                             detectDragGesturesAfterLongPress(
                                 onDragStart = {
@@ -352,14 +354,14 @@ fun HomeScreen(
                                 else onDismissMedia(id, revision).also { if (it) idleMediaDismissed = true }
                             })
                         widget != null -> PopupWidgetItem(widget, selected = selectedWidget == entry.key,
-                            enabled = inputEnabled, haptics = uiState.settings.allowHapticFeedback,
+                            enabled = inputEnabled, editable = !homeLayout.editingLocked, haptics = uiState.settings.allowHapticFeedback,
                             horizontalInset = 8.dp,
                             maxHeight = 1600,
                             onChange = { layout, save -> updateWidget(entry.key, layout, save) },
                             onResizing = { resizing = it }, onDragStart = { startDrag(entry.key) },
                             onDrag = drag, onDragEnd = { cancelled ->
                                 reorder.finish(cancelled)
-                                if (!cancelled) selectedWidget = entry.key
+                                if (!cancelled && !homeLayout.editingLocked) selectedWidget = entry.key
                             })
                         app != null -> {
                             val folder = app.folderId?.let(favoriteFolders::get)

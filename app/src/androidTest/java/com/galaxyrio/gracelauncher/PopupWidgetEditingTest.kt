@@ -57,7 +57,7 @@ class PopupWidgetEditingTest {
 
     @Test fun releaseShowsHandlesAndResizeChangesBothWidgetAndPanel() {
         show()
-        compose.onNodeWithTag("popup_widget:-1001").performTouchInput { longClick() }
+        compose.onNodeWithTag("popup_widget:-1001").performTouchInput { longClick(durationMillis = 1600L) }
         compose.onNodeWithTag("popup_widget_controls").assertExists()
         val before = compose.onNodeWithTag("popup_widget:-1001").fetchSemanticsNode().boundsInRoot
         val panel = compose.onNodeWithTag("shortcut_popup").fetchSemanticsNode().boundsInRoot
@@ -73,7 +73,7 @@ class PopupWidgetEditingTest {
 
     @Test fun fullWidthRestoresInsetAndScaleDoesNotChangeOuterSize() {
         show()
-        compose.onNodeWithTag("popup_widget:-1001").performTouchInput { longClick() }
+        compose.onNodeWithTag("popup_widget:-1001").performTouchInput { longClick(durationMillis = 1600L) }
         val normal = compose.onNodeWithTag("popup_widget:-1001").fetchSemanticsNode().boundsInRoot
         compose.onNodeWithTag("popup_widget_full_width").performClick()
         val wide = compose.onNodeWithTag("popup_widget:-1001").fetchSemanticsNode().boundsInRoot
@@ -96,7 +96,7 @@ class PopupWidgetEditingTest {
     @Test fun widgetCanReorderButAppLongPressStillOpensDetails() {
         show()
         compose.onNodeWithTag("popup_widget:-1001").performTouchInput {
-            down(center); advanceEventTime(700); moveBy(Offset(0f, 240f)); up()
+            down(center); advanceEventTime(1600); moveBy(Offset(0f, 240f)); up()
         }
         compose.runOnIdle { assertEquals(listOf(app.key, widget.key), saved.map { it.key }) }
         compose.onNodeWithTag("popup_widget_done").performClick()

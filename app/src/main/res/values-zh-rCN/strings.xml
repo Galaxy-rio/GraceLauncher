@@ -706,4 +706,5 @@
     <string name="lab_popup_angle_summary">相对水平向右方向，允许向上或向下偏离的最大角度，数值越小越需要水平滑动。</string>
     <string name="lab_dp">%1$d dp</string>
     <string name="lab_degrees">±%1$d°</string>
+    <string name="favorites_lock_editing">锁定编辑</string>
 </resources>

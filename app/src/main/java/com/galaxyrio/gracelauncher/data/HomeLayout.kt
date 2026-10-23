@@ -19,11 +19,12 @@ data class HomeLayout(
     val baselineEnabled: Boolean = true,
     /** Offset from the old home origin, captured once to preserve its existing visual position. */
     val baselineOffsetDp: Float? = null,
+    val editingLocked: Boolean = false,
 ) {
     val hasWidget: Boolean get() = widgetId >= 0
 
     fun withoutWidget() = HomeLayout(topOffsetDp = topOffsetDp, homeOrder = homeOrder,
-        baselineEnabled = baselineEnabled, baselineOffsetDp = baselineOffsetDp)
+        baselineEnabled = baselineEnabled, baselineOffsetDp = baselineOffsetDp, editingLocked = editingLocked)
 
     fun encode(): String = JSONObject().apply {
         put("topOffsetDp", topOffsetDp.takeIf { it.isFinite() }?.coerceIn(-1200f, 1200f) ?: 0f)
@@ -37,6 +38,7 @@ data class HomeLayout(
         put("popupContentScale", popupContentScale.coerceIn(50, 150))
         homeOrder?.let { put("homeOrder", org.json.JSONArray(it.distinct())) }
         put("baselineEnabled", baselineEnabled)
+        put("editingLocked", editingLocked)
         baselineOffsetDp?.takeIf { it.isFinite() }?.let { put("baselineOffsetDp", it.coerceIn(0f, 1600f)) }
     }.toString()
 
@@ -57,6 +59,7 @@ data class HomeLayout(
                     (0 until array.length()).mapNotNull { (array.opt(it) as? String)?.takeIf(String::isNotBlank) }.distinct()
                 },
                 baselineEnabled = data.optBoolean("baselineEnabled", true),
+                editingLocked = data.optBoolean("editingLocked", false),
                 baselineOffsetDp = data.optDouble("baselineOffsetDp", Double.NaN).toFloat().takeIf { it.isFinite() }?.coerceIn(0f, 1600f),
             )
         }.getOrDefault(HomeLayout())

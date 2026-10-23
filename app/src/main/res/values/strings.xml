@@ -724,4 +724,5 @@
     <string name="lab_popup_angle_summary">Maximum deviation above or below the rightward horizontal direction. Lower values require a straighter swipe.</string>
     <string name="lab_dp">%1$d dp</string>
     <string name="lab_degrees">±%1$d°</string>
+    <string name="favorites_lock_editing">Lock editing</string>
 </resources>
