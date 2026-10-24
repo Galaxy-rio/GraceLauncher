@@ -100,4 +100,5 @@
     <string name="alphabet_scroller">Deslocação por alfabeto</string>
     <string name="back_home">Voltar para o ecrã inicial</string>
     <string name="jump_to_letter">Aplicações que começam com %1$s</string>
+    <string name="settings_grace_button_summary">Acção do botão flutuante</string>
 </resources>
