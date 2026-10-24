@@ -14,6 +14,7 @@ import android.os.Bundle
 import android.os.Process
 import android.os.UserHandle
 import android.os.UserManager
+import android.util.Log
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.AdaptiveIconDrawable
 import androidx.compose.ui.graphics.asImageBitmap
@@ -214,13 +215,23 @@ class AppRepository(private val context: Context, private val iconPacks: IconPac
         sourceBounds: Rect? = null,
         options: Bundle? = null,
     ): Boolean = runCatching {
-        // This launcher API preserves the target's task semantics and lets Android
-        // animate the launch from the real clicked icon, without private APIs.
-        context.getSystemService(LauncherApps::class.java).startMainActivity(
-            app.componentName,
-            app.user ?: Process.myUserHandle(),
-            sourceBounds,
-            options,
-        )
+        val user = app.user ?: Process.myUserHandle()
+        if (user == Process.myUserHandle()) {
+            // Match Launcher3/Lawnchair: current-user entry activities may perform
+            // OEM authentication or forwarding before opening the actual app.
+            val intent = Intent(Intent.ACTION_MAIN)
+                .addCategory(Intent.CATEGORY_LAUNCHER)
+                .setComponent(app.componentName)
+                .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_RESET_TASK_IF_NEEDED)
+                .also { it.sourceBounds = sourceBounds }
+            context.startActivity(intent, options)
+        } else {
+            // Never fall back to the personal installation of a cross-profile app.
+            context.getSystemService(LauncherApps::class.java).startMainActivity(
+                app.componentName, user, sourceBounds, options,
+            )
+        }
+    }.onFailure { error ->
+        Log.e("AppRepository", "Unable to launch ${app.componentName} for ${app.user ?: Process.myUserHandle()}", error)
     }.isSuccess
 }
