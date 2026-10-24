@@ -10,7 +10,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
@@ -108,7 +107,13 @@ internal fun SwipeDismissContainer(
         }
     }
 
-    Box(modifier.then(if (clipContent) Modifier.clip(LauncherLayout.RowShape) else Modifier)
+    Box(modifier.graphicsLayer {
+        shape = LauncherLayout.RowShape
+        // The translated foreground and dismiss backdrop share a stationary rounded
+        // boundary. Otherwise an unclipped cover hits the parent's rectangular edge.
+        // Wallpaper-native media can still draw its shadow outside the row at rest.
+        clip = clipContent || dragging || settling
+    }
         .onSizeChanged { width = it.width.coerceAtLeast(1) }
         // This surface never translates: movement and velocity stay in finger coordinates.
         // Horizontal detection leaves vertical scrolling, clicks and long presses to children.

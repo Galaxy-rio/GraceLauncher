@@ -79,7 +79,7 @@ internal fun HomeMediaPlayer(
         thresholdDp = dismissThresholdDp,
         backgroundColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.18f),
         contentColor = appearance.text,
-        // Clip the dismiss backdrop, not the artwork's faint floating shadow.
+        // Preserve the artwork's faint shadow at rest; swipes use the rounded row clip.
         clipContent = false,
     ) {
     BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = LauncherLayout.ContentInset, vertical = 3.dp)) {
