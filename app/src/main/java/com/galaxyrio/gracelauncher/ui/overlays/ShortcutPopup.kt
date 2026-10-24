@@ -208,6 +208,8 @@ fun ShortcutPopup(
                     onDismiss = { actions.dismissNotification(notification.key, notification.revision) },
                     modifier = Modifier.animateItem().padding(horizontal = 6.dp),
                     gesturesEnabled = !reveal.dragging && reveal.expanded,
+                    dismissResistance = uiState.settings.dismissResistance,
+                    dismissThresholdDp = uiState.settings.dismissThresholdDp,
                 )
             }
         if (isFolder && entries.isEmpty()) item {

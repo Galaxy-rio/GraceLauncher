@@ -743,4 +743,14 @@
     <string name="lab_dp">%1$d dp</string>
     <string name="lab_degrees">±%1$d°</string>
     <string name="favorites_lock_editing">锁定编辑</string>
+    <string name="widget_settings_button">设置</string>
+    <string name="widget_bind_error">无法绑定此小组件，请重试。</string>
+    <string name="widget_configuration_launch_error">无法打开此小组件的设置页面，请重试。</string>
+    <string name="media_keep_while_playing">播放时不可删除</string>
+    <string name="media_keep_while_playing_summary">播放期间滑动仅会回弹，不会移除音乐组件</string>
+    <string name="lab_swipe_dismiss">划除手势</string>
+    <string name="lab_dismiss_resistance">划除阻力</string>
+    <string name="lab_dismiss_resistance_summary">通知和音乐组件共用。数值越大阻力越强，0% 时完全跟手。</string>
+    <string name="lab_dismiss_threshold">突破阈值</string>
+    <string name="lab_dismiss_threshold_summary">解除阻力前需要滑动的距离。通知和音乐组件共用，不会超过可用宽度。</string>
 </resources>

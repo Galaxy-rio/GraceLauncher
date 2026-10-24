@@ -36,6 +36,9 @@ data class LauncherSettingsEntity(
     val iconDesignJson: String? = null,
     @ColumnInfo(defaultValue = "1") val mediaPlayer: Boolean = true,
     @ColumnInfo(defaultValue = "0") val mediaAlwaysVisible: Boolean = false,
+    @ColumnInfo(defaultValue = "1") val mediaKeepWhilePlaying: Boolean = true,
+    @ColumnInfo(defaultValue = "55") val dismissResistance: Int = 75,
+    @ColumnInfo(defaultValue = "72") val dismissThresholdDp: Int = 72,
     val mediaAppKey: String? = null,
     val graceButtonJson: String? = null,
     @ColumnInfo(defaultValue = "0") val weatherEnabled: Boolean = false,
@@ -124,7 +127,7 @@ abstract class LauncherSettingsDao {
     entities = [LauncherSettingsEntity::class, HiddenAppEntity::class,
         LauncherFolderEntity::class, ItemIconEntity::class,
         SavedShortcutEntity::class, AppPopupEntity::class],
-    version = 26,
+    version = 27,
     exportSchema = true,
 )
 abstract class LauncherDatabase : RoomDatabase() {
@@ -314,12 +317,23 @@ abstract class LauncherDatabase : RoomDatabase() {
             }
         }
 
+        val Migration26To27 = object : Migration(26, 27) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN mediaKeepWhilePlaying INTEGER NOT NULL DEFAULT 1")
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN dismissResistance INTEGER NOT NULL DEFAULT 55")
+                db.execSQL("ALTER TABLE launcher_settings ADD COLUMN dismissThresholdDp INTEGER NOT NULL DEFAULT 72")
+                // Keep the SQL default compatible with existing v27 databases. Only initialize
+                // this newly added preference; never overwrite an existing user's chosen value.
+                db.execSQL("UPDATE launcher_settings SET dismissResistance = 75")
+            }
+        }
+
         fun getInstance(context: Context): LauncherDatabase = instance ?: synchronized(this) {
             instance ?: Room.databaseBuilder(
                 context.applicationContext,
                 LauncherDatabase::class.java,
                 "grace_launcher.db",
-            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7, Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12, Migration12To13, Migration13To14, Migration14To15, Migration15To16, Migration16To17, Migration17To18, Migration18To19, Migration19To20, Migration20To21, Migration21To22, Migration22To23, Migration23To24, Migration24To25, Migration25To26).build().also { instance = it }
+            ).addMigrations(Migration1To2, Migration2To3, Migration3To4, Migration4To5, Migration5To6, Migration6To7, Migration7To8, Migration8To9, Migration9To10, Migration10To11, Migration11To12, Migration12To13, Migration13To14, Migration14To15, Migration15To16, Migration16To17, Migration17To18, Migration18To19, Migration19To20, Migration20To21, Migration21To22, Migration22To23, Migration23To24, Migration24To25, Migration25To26, Migration26To27).build().also { instance = it }
         }
     }
 }

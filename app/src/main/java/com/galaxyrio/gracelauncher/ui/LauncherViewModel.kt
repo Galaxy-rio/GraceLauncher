@@ -829,7 +829,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun controlMedia(sessionId: String, command: MediaCommand): Boolean = mediaRepository.command(sessionId, command)
-    fun dismissMedia(sessionId: String, revision: Long): Boolean = mediaRepository.dismiss(sessionId, revision)
+    fun dismissMedia(sessionId: String, revision: Long): Boolean {
+        // Recheck live playback after the exit animation, not only the gesture's starting state.
+        if (_uiState.value.settings.mediaKeepWhilePlaying && mediaRepository.state.value.nowPlaying?.playing == true) return false
+        return mediaRepository.dismiss(sessionId, revision)
+    }
     fun dismissNotification(key: String, revision: Long): Boolean = appNotifications.dismiss(key, revision)
     fun openNotification(key: String, revision: Long): Boolean = appNotifications.open(getApplication(), key, revision)
 

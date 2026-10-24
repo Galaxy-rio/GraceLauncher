@@ -77,7 +77,7 @@ internal enum class SettingsPage {
     Root, Productivity, Clock, ClockStyle, Calendar, Weather, Themes, Advanced, About, HiddenApps, Folders, FolderEditor,
     Changelog, Licenses, AppLicense, IconPacks, IconDesigner, IconDesignerApp, PrivateSpace, PrivateSpaceEditor, Search,
     MediaPlayer, GraceButton, GraceAction, GraceApp, GraceShortcut, GraceFolder, Gestures, WorkProfile, WorkProfileEditor,
-    LabGraceButton, LabGesture, LabPopup, LabAccessibility, Fonts, ListAppearance, Alphabet, ShortcutsFolders, AppStacks,
+    LabGraceButton, LabGesture, LabPopup, LabAccessibility, LabDismiss, Fonts, ListAppearance, Alphabet, ShortcutsFolders, AppStacks,
     GraceButtonAppearance, GraceButtonPosition, CalendarAppearance, WeatherAppearance, MediaPlayerAppearance,
     WidgetScreen, WidgetScreenEditor, Homepage, DigitalWellbeing,
 }
@@ -309,6 +309,7 @@ fun LauncherSettingsScreen(
                     SettingsPage.LabGesture -> LabGestureSettings(uiState, actions, back)
                     SettingsPage.LabPopup -> LabPopupSettings(uiState, actions, back)
                     SettingsPage.LabAccessibility -> LabAccessibilitySettings(uiState, actions, back)
+                    SettingsPage.LabDismiss -> LabDismissSettings(uiState, actions, back)
                     SettingsPage.About -> AboutSettings(back, navigate)
                     SettingsPage.HiddenApps -> HiddenAppsSettings(uiState, actions, back)
                     SettingsPage.PrivateSpace -> ProfileSettingsScreen(uiState, actions, back) { navigate(SettingsPage.PrivateSpaceEditor) }

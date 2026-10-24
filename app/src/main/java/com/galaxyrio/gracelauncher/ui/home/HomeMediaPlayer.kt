@@ -59,6 +59,9 @@ internal fun HomeMediaPlayer(
     onCommand: (String, MediaCommand) -> Unit,
     modifier: Modifier = Modifier,
     onDismiss: (String, Long) -> Boolean = { _, _ -> false },
+    keepWhilePlaying: Boolean = true,
+    dismissResistance: Int = 75,
+    dismissThresholdDp: Int = 72,
 ) {
     val appearance = LocalLauncherAppearance.current
     val enabled = LocalLauncherInputEnabled.current
@@ -71,6 +74,9 @@ internal fun HomeMediaPlayer(
         onDismiss = { onDismiss(media.sessionId, media.revision) },
         modifier = modifier.fillMaxWidth().testTag("home_media_player"),
         enabled = enabled,
+        canDismiss = !keepWhilePlaying || !media.playing,
+        resistance = dismissResistance,
+        thresholdDp = dismissThresholdDp,
         backgroundColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.18f),
         contentColor = appearance.text,
         // Clip the dismiss backdrop, not the artwork's faint floating shadow.

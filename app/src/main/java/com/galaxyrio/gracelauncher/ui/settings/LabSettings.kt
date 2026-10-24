@@ -30,22 +30,26 @@ internal fun AdvancedSettings(onBack: () -> Unit, navigate: (SettingsPage) -> Un
         SettingsList(padding) {
             item { SettingsHeading(stringResource(R.string.settings_lab)) }
             item {
-                SettingsActionItem(stringResource(R.string.settings_grace_button), null, 0, 4, "lab_open_grace_button",
+                SettingsActionItem(stringResource(R.string.settings_grace_button), null, 0, 5, "lab_open_grace_button",
                     leading = { Icon(painterResource(R.drawable.ic_grace_solid), null,
                         Modifier.size(24.dp).graphicsLayer { scaleX = 5f / 3f; scaleY = 5f / 3f }) }) {
                     navigate(SettingsPage.LabGraceButton)
                 }
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_gestures), null, 1, 4, "lab_open_gesture",
+                SettingsActionItem(stringResource(R.string.settings_gestures), null, 1, 5, "lab_open_gesture",
                     leading = { LauncherIcon(LauncherSymbol.Gesture) }) { navigate(SettingsPage.LabGesture) }
             }
             item {
-                SettingsActionItem(stringResource(R.string.lab_popup), null, 2, 4, "lab_open_popup",
+                SettingsActionItem(stringResource(R.string.lab_popup), null, 2, 5, "lab_open_popup",
                     leading = { LauncherIcon(LauncherSymbol.Outbound) }) { navigate(SettingsPage.LabPopup) }
             }
             item {
-                SettingsActionItem(stringResource(R.string.lab_accessibility), null, 3, 4, "lab_open_accessibility",
+                SettingsActionItem(stringResource(R.string.lab_swipe_dismiss), null, 3, 5, "lab_open_dismiss",
+                    leading = { LauncherIcon(LauncherSymbol.Delete) }) { navigate(SettingsPage.LabDismiss) }
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.lab_accessibility), null, 4, 5, "lab_open_accessibility",
                     leading = { LauncherIcon(LauncherSymbol.Settings) }) { navigate(SettingsPage.LabAccessibility) }
             }
             item { SettingsHeading(stringResource(R.string.settings_debug)) }
@@ -146,6 +150,30 @@ internal fun LabPopupSettings(uiState: LauncherUiState, actions: LauncherActions
                     valueFormat = R.string.lab_degrees, description = stringResource(R.string.lab_popup_angle_summary),
                     onReset = { actions.updateSettings { it.copy(shortcutsFolders = it.shortcutsFolders.copy(popupSwipeAngleDegrees = defaults.popupSwipeAngleDegrees)) } },
                     onChange = { value -> actions.updateSettings { it.copy(shortcutsFolders = it.shortcutsFolders.copy(popupSwipeAngleDegrees = value)) } })
+            }
+        }
+    }
+}
+
+@Composable
+internal fun LabDismissSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit) {
+    val settings = uiState.settings
+    SettingsScaffold(stringResource(R.string.lab_swipe_dismiss), "lab_dismiss", onBack) { padding ->
+        SettingsList(padding) {
+            item { Spacer(Modifier.height(24.dp)) }
+            item {
+                LabSliderItem(stringResource(R.string.lab_dismiss_resistance), settings.dismissResistance, 75,
+                    0..90, 0, 2, "lab_dismiss_resistance", valueFormat = R.string.lab_percentage,
+                    description = stringResource(R.string.lab_dismiss_resistance_summary),
+                    onReset = { actions.updateSettings { it.copy(dismissResistance = 75) } },
+                    onChange = { value -> actions.updateSettings { it.copy(dismissResistance = value) } })
+            }
+            item {
+                LabSliderItem(stringResource(R.string.lab_dismiss_threshold), settings.dismissThresholdDp, 72,
+                    24..160, 1, 2, "lab_dismiss_threshold", valueFormat = R.string.lab_dp,
+                    description = stringResource(R.string.lab_dismiss_threshold_summary),
+                    onReset = { actions.updateSettings { it.copy(dismissThresholdDp = 72) } },
+                    onChange = { value -> actions.updateSettings { it.copy(dismissThresholdDp = value) } })
             }
         }
     }

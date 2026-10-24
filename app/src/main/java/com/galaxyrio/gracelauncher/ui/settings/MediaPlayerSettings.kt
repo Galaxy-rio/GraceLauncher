@@ -44,8 +44,12 @@ internal fun MediaPlayerSettings(uiState: LauncherUiState, actions: LauncherActi
                 actions.updateSettings { it.copy(mediaPlayer = enabled) }
                 if (enabled && !uiState.media.hasAccess) requestAccess = true
             } }
+            item { SettingsToggleItem(stringResource(R.string.media_keep_while_playing), stringResource(R.string.media_keep_while_playing_summary),
+                settings.mediaKeepWhilePlaying, 0, 2, "media_keep_while_playing") { value ->
+                actions.updateSettings { it.copy(mediaKeepWhilePlaying = value) }
+            } }
             item { SettingsToggleItem(stringResource(R.string.media_always_visible), stringResource(R.string.media_always_visible_summary),
-                settings.mediaAlwaysVisible, 0, 1, "media_always_visible") { value ->
+                settings.mediaAlwaysVisible, 1, 2, "media_always_visible") { value ->
                 actions.updateSettings { it.copy(mediaAlwaysVisible = value) }
             } }
             if (!uiState.media.hasAccess) item {

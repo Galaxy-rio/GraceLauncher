@@ -36,6 +36,8 @@ internal fun NotificationPopupItem(
     onDismiss: () -> Boolean,
     modifier: Modifier = Modifier,
     gesturesEnabled: Boolean = true,
+    dismissResistance: Int = 75,
+    dismissThresholdDp: Int = 72,
 ) {
     val context = LocalContext.current
     val icon by produceState<ImageBitmap?>(null, notification.key, notification.icon) {
@@ -48,6 +50,8 @@ internal fun NotificationPopupItem(
         onDismiss = onDismiss,
         modifier = modifier.fillMaxWidth().testTag("notification:${notification.key}"),
         enabled = notification.canDismiss && gesturesEnabled,
+        resistance = dismissResistance,
+        thresholdDp = dismissThresholdDp,
     ) {
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp))
             .background(MaterialTheme.colorScheme.surface)

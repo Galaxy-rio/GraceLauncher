@@ -171,6 +171,7 @@ class HomeMediaPlayerTest {
     }
 
     @Test fun bothSwipeDirectionsDismissWithoutPlaybackCommandsAndNewRevisionCanReturn() {
+        state = state.copy(settings = state.settings.copy(mediaKeepWhilePlaying = false))
         home()
         compose.onNodeWithTag("home_media_player").performTouchInput { swipeLeft() }
         compose.onNodeWithTag("home_media_player").assertDoesNotExist()
@@ -193,6 +194,17 @@ class HomeMediaPlayerTest {
         }
         compose.onNodeWithTag("home_media_player").assertIsDisplayed()
         compose.runOnIdle { assertEquals(0, dismissals); assertTrue(commands.isEmpty()) }
+    }
+
+    @Test fun playingPlayerSpringsBackByDefaultButPausedPlayerCanBeDismissed() {
+        home()
+        compose.onNodeWithTag("home_media_player").performTouchInput { swipeLeft() }
+        compose.onNodeWithTag("home_media_player").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(0, dismissals); assertTrue(commands.isEmpty()) }
+        compose.runOnIdle { state = state.copy(media = MediaSnapshot(true, track.copy(playing = false, revision = 1))) }
+        compose.onNodeWithTag("home_media_player").performTouchInput { swipeRight() }
+        compose.onNodeWithTag("home_media_player").assertDoesNotExist()
+        compose.runOnIdle { assertEquals(1, dismissals); assertTrue(commands.isEmpty()) }
     }
 
     @Test fun metadataIsPlainTextWithoutAPressedRippleOrClippedGlyphs() {

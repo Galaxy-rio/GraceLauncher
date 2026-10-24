@@ -2,6 +2,8 @@ package com.galaxyrio.gracelauncher.ui.home
 
 import android.text.format.DateFormat
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.DisposableEffect
@@ -349,11 +351,20 @@ fun HomeScreen(
                                 !uiState.isLoadingSettings && !uiState.settingsLoadFailed },
                             showClock = false, showCalendar = true, clockPresent = uiState.settings.clockEnabled,
                             interactive = inputEnabled, onLongClick = {})
-                        grace == GraceWidget.Media -> if (media != null) HomeMediaPlayer(media, onMediaCommand,
-                            onDismiss = { id, revision ->
-                                if (id == IdleMediaSessionId) { idleMediaDismissed = true; true }
-                                else onDismissMedia(id, revision).also { if (it) idleMediaDismissed = true }
-                            })
+                        // Keep the slot while empty so its height springs to zero instead of
+                        // disappearing in one measure pass. Following rows flow into the gap.
+                        grace == GraceWidget.Media -> Box(Modifier.fillMaxWidth().animateContentSize(
+                            animationSpec = spring(dampingRatio = 1f, stiffness = 400f),
+                        )) {
+                            if (media != null) HomeMediaPlayer(media, onMediaCommand,
+                                keepWhilePlaying = uiState.settings.mediaKeepWhilePlaying,
+                                dismissResistance = uiState.settings.dismissResistance,
+                                dismissThresholdDp = uiState.settings.dismissThresholdDp,
+                                onDismiss = { id, revision ->
+                                    if (id == IdleMediaSessionId) { idleMediaDismissed = true; true }
+                                    else onDismissMedia(id, revision).also { if (it) idleMediaDismissed = true }
+                                })
+                        }
                         widget != null -> PopupWidgetItem(widget, selected = selectedWidget == entry.key,
                             enabled = inputEnabled, editable = !homeLayout.editingLocked, haptics = uiState.settings.allowHapticFeedback,
                             horizontalInset = 8.dp,

@@ -761,4 +761,14 @@
     <string name="lab_dp">%1$d dp</string>
     <string name="lab_degrees">±%1$d°</string>
     <string name="favorites_lock_editing">Lock editing</string>
+    <string name="widget_settings_button">Settings</string>
+    <string name="widget_bind_error">Couldn’t bind this widget. Please try again.</string>
+    <string name="widget_configuration_launch_error">Couldn’t open this widget’s settings. Please try again.</string>
+    <string name="media_keep_while_playing">Keep while playing</string>
+    <string name="media_keep_while_playing_summary">Swipes spring back instead of dismissing the player during playback</string>
+    <string name="lab_swipe_dismiss">Swipe to dismiss</string>
+    <string name="lab_dismiss_resistance">Swipe resistance</string>
+    <string name="lab_dismiss_resistance_summary">Shared by notifications and the media player. Higher values create more resistance; 0% follows your finger.</string>
+    <string name="lab_dismiss_threshold">Breakthrough threshold</string>
+    <string name="lab_dismiss_threshold_summary">Distance before resistance releases. Shared by notifications and the media player; limited by the available width.</string>
 </resources>
