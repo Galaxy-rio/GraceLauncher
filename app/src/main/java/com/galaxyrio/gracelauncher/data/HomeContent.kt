@@ -47,7 +47,7 @@ internal fun orderedHomeItems(settings: LauncherSettings, favorites: List<String
         .distinct().mapNotNull(contents::get)
 }
 
-/** Both feature banners and the favorites picker use this same activation rule. */
+/** Both feature banners and the homepage editor use this same activation rule. */
 internal fun synchronizeGraceWidgetOrder(previous: LauncherSettings, next: LauncherSettings): LauncherSettings {
     val added = GraceWidget.entries.filter { !it.enabled(previous) && it.enabled(next) }.map { it.key }
     if (added.isEmpty()) return next

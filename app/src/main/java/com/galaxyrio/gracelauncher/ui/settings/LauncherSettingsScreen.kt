@@ -79,7 +79,7 @@ internal enum class SettingsPage {
     MediaPlayer, GraceButton, GraceAction, GraceApp, GraceShortcut, GraceFolder, Gestures, WorkProfile, WorkProfileEditor,
     LabGraceButton, LabGesture, LabPopup, LabAccessibility, Fonts, ListAppearance, Alphabet, ShortcutsFolders, AppStacks,
     GraceButtonAppearance, GraceButtonPosition, CalendarAppearance, WeatherAppearance, MediaPlayerAppearance,
-    WidgetScreen, WidgetScreenEditor, Favorites, DigitalWellbeing,
+    WidgetScreen, WidgetScreenEditor, Homepage, DigitalWellbeing,
 }
 
 /** Navigation owns each page's saved state and seekable predictive-back transition. */
@@ -102,6 +102,7 @@ fun LauncherSettingsScreen(
         when {
             initialFolderId != null -> "FolderEditor/${Uri.encode(initialFolderId)}"
             initialPage == "folders" -> SettingsPage.Folders.name
+            initialPage == "Favorites" -> SettingsPage.Homepage.name
             initialPage != null -> SettingsPage.entries.firstOrNull { it.name == initialPage }?.name ?: SettingsPage.Root.name
             else -> SettingsPage.Root.name
         }
@@ -195,7 +196,7 @@ fun LauncherSettingsScreen(
                         onOpenHome = { if (isCurrent()) actions.openHome() }, onBack = back, navigate = navigate)
                     SettingsPage.Productivity -> ProductivitySettings(uiState, actions, back, navigate)
                     SettingsPage.DigitalWellbeing -> DigitalWellbeingSettingsScreen(uiState, actions, back)
-                    SettingsPage.Favorites -> com.galaxyrio.gracelauncher.ui.overlays.FavoritesScreen(
+                    SettingsPage.Homepage -> com.galaxyrio.gracelauncher.ui.overlays.HomepageEditorScreen(
                         uiState, actions, actions.toggleFavorite, actions.reorderFavorites, onDone = back)
                     SettingsPage.Clock -> ClockSettings(uiState, actions, back) { navigate(SettingsPage.ClockStyle) }
                     SettingsPage.Search -> SearchSettingsScreen(uiState, actions, back)

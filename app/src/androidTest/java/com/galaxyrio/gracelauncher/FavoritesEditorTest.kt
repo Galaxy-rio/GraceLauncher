@@ -21,7 +21,7 @@ import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherScreen
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.ScheduleStatus
-import com.galaxyrio.gracelauncher.ui.overlays.FavoritesScreen
+import com.galaxyrio.gracelauncher.ui.overlays.HomepageEditorScreen
 import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
 import java.io.File
 import org.junit.Assert.*
@@ -53,13 +53,23 @@ class FavoritesEditorTest {
                 Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
                     if (wholeLauncher) LauncherScreen(state, onDateClick = {}, onClockClick = {}, onLaunchApp = {},
                         onToggleFavorite = toggle, actions = LauncherActions(reorderFavorites = reorder))
-                    else Box(Modifier.fillMaxSize()) { FavoritesScreen(state, LauncherActions(), toggle, reorder, initialAppKey = initialAppKey, onDone = {}) }
+                    else Box(Modifier.fillMaxSize()) { HomepageEditorScreen(state, LauncherActions(), toggle, reorder, initialAppKey = initialAppKey, onDone = {}) }
                 }
             }
         }
     }
 
     private fun bounds(tag: String) = compose.onNodeWithTag(tag).fetchSemanticsNode().boundsInRoot
+
+    @Test fun homepageHeightActionClosesEditorAndStartsTheExistingHomeAdjustment() {
+        show(apps.take(1), wholeLauncher = true)
+        compose.onNodeWithTag("app:${apps[0].key}").performTouchInput { longClick() }
+        compose.onNodeWithTag("edit_favorites").performClick()
+        compose.onNodeWithTag("homepage_adjust_height").assertIsDisplayed().performClick()
+        compose.onNodeWithTag("favorites_screen").assertDoesNotExist()
+        compose.onNodeWithTag("home_position_handle").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(0, toggles); assertEquals(0, commits) }
+    }
 
     @Test fun enteringFromAnAppSelectsItOnceAndManualUnselectIsNotUndone() {
         show(listOf(apps[0]), initialAppKey = apps[1].key)

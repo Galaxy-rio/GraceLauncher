@@ -115,7 +115,7 @@
     <string name="shortcut_error">Non se puido cargar nin abrir este atallo</string>
     <string name="no_shortcuts">Esta aplicación non proporcionou ningún atallo.</string>
     <string name="retry">Téntao de novo</string>
-    <string name="edit_favorites">Editar favoritos</string>
+    <string name="edit_homepage">Editar pantalla de inicio</string>
     <string name="app_info">Información da aplicación</string>
     <string name="screen_time">Tempo de pantalla</string>
     <string name="add_to_category">Engadir á categoría</string>

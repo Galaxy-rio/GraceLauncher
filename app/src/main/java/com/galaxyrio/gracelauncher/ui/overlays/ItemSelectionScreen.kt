@@ -43,6 +43,7 @@ import com.galaxyrio.gracelauncher.ui.settings.FavoriteFoldersScreen
 import com.galaxyrio.gracelauncher.ui.settings.AppGroupPickerScreen
 import com.galaxyrio.gracelauncher.ui.settings.SettingsScaffold
 import com.galaxyrio.gracelauncher.ui.settings.SettingsFeatureBanner
+import com.galaxyrio.gracelauncher.ui.settings.SettingsActionItem
 import com.galaxyrio.gracelauncher.ui.widgets.WidgetPreview
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -89,7 +90,7 @@ internal fun ProfileEditorScreen(owner: LauncherApp, uiState: LauncherUiState, a
 }
 
 @Composable
-internal fun FavoritesScreen(uiState: LauncherUiState, actions: LauncherActions, onToggle: (LauncherApp) -> Unit, onReorder: (List<String>) -> Unit,
+internal fun HomepageEditorScreen(uiState: LauncherUiState, actions: LauncherActions, onToggle: (LauncherApp) -> Unit, onReorder: (List<String>) -> Unit,
     initialAppKey: String? = null, onDone: () -> Unit) {
     var initialSelectionApplied by rememberSaveable(initialAppKey) { mutableStateOf(false) }
     LaunchedEffect(initialAppKey, uiState.isLoadingApps, uiState.isLoadingSettings, uiState.settingsLoadFailed) {
@@ -116,11 +117,16 @@ internal fun FavoritesScreen(uiState: LauncherUiState, actions: LauncherActions,
         return
     }
     ItemSelectionScreen(
-        title = stringResource(R.string.edit_favorites), tag = "favorites",
+        title = stringResource(R.string.edit_homepage), tag = "favorites",
         header = {
-            SettingsFeatureBanner(stringResource(R.string.favorites_lock_editing), uiState.settings.homeLayout.editingLocked,
-                "favorites_lock_editing") { locked ->
-                actions.updateSettings { it.copy(homeLayout = it.homeLayout.copy(editingLocked = locked)) }
+            Column {
+                SettingsFeatureBanner(stringResource(R.string.favorites_lock_editing), uiState.settings.homeLayout.editingLocked,
+                    "favorites_lock_editing") { locked ->
+                    actions.updateSettings { it.copy(homeLayout = it.homeLayout.copy(editingLocked = locked)) }
+                }
+                SettingsActionItem(stringResource(R.string.homepage_adjust_height), null, 0, 1, "homepage_adjust_height",
+                    enabled = !uiState.isLoadingSettings && !uiState.settingsLoadFailed,
+                    leading = { LauncherIcon(LauncherSymbol.Move) }, onClick = actions.moveWidget)
             }
         },
         selected = uiState.homeItems.map { item ->
@@ -226,7 +232,7 @@ internal fun WidgetScreenEditor(uiState: LauncherUiState, actions: LauncherActio
     PopupEditorScreen(owner, uiState, actions, onBack, widgetScreen = true)
 }
 
-/** One full-screen editor for favorites and mixed pop-up contents. Search only filters All apps. */
+/** One full-screen editor for the homepage and mixed pop-up contents. Search only filters All apps. */
 @Composable
 private fun ItemSelectionScreen(
     title: String, tag: String, selected: List<SelectionEntry>, apps: List<LauncherApp>, enabled: Boolean,

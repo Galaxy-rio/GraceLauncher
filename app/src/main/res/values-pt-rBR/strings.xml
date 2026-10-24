@@ -128,7 +128,7 @@
     <string name="shortcut_error">Não foi possível carregar ou abrir este atalho</string>
     <string name="no_shortcuts">Este aplicativo não forneceu atalhos.</string>
     <string name="retry">Tente novamente</string>
-    <string name="edit_favorites">Editar favoritos</string>
+    <string name="edit_homepage">Editar tela inicial</string>
     <string name="app_info">Informações do aplicativo</string>
     <string name="screen_time">Tempo de uso</string>
     <string name="add_to_category">Adicionar à categoria</string>

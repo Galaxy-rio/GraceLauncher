@@ -644,7 +644,7 @@ internal fun LauncherScreen(
     LaunchedEffect(searching, drawerOpen) { if (!searching && !drawerOpen) instantButtonEntrance = false }
     val isSettings = overlay == LauncherOverlay.Settings || overlay is LauncherOverlay.FolderSettings ||
         overlay is LauncherOverlay.SettingsDestination || overlay is LauncherOverlay.IconDesigner
-    val fullScreen = isSettings || overlay == LauncherOverlay.Search || overlay is LauncherOverlay.Favorites ||
+    val fullScreen = isSettings || overlay == LauncherOverlay.Search || overlay is LauncherOverlay.Homepage ||
         overlay is LauncherOverlay.IconDesigner || overlay is LauncherOverlay.EditPopup
     val privateAppEditing = when (val current = overlay) {
         is LauncherOverlay.AppDetails -> current.app.isPrivateSpace

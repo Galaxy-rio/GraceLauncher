@@ -111,7 +111,7 @@ internal fun ProductivitySettings(
                     4, 7, "settings_open_search", leading = { LauncherIcon(LauncherSymbol.Search) }) { navigate(SettingsPage.Search) }
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_grace_button), null,
+                SettingsActionItem(stringResource(R.string.settings_grace_button), stringResource(R.string.settings_grace_button_summary),
                     5, 7, "settings_grace_button", leading = {
                         // Render the artwork at 20dp inside the 24dp slot,
                         // leaving 2dp above and below the logo.
@@ -120,17 +120,13 @@ internal fun ProductivitySettings(
                     }) { navigate(SettingsPage.GraceButton) }
             }
             item {
-                SettingsActionItem(stringResource(R.string.shortcuts_folders_title), null, 6, 7, "settings_shortcuts_folders",
+                SettingsActionItem(stringResource(R.string.popups_title), stringResource(R.string.shortcuts_folders_title), 6, 7, "settings_shortcuts_folders",
                     leading = { LauncherIcon(LauncherSymbol.Outbound) }) { navigate(SettingsPage.ShortcutsFolders) }
             }
             item {
                 Spacer(Modifier.height(12.dp))
-                SettingsActionItem(stringResource(R.string.edit_favorites), null, 0, 2, "settings_edit_favorites",
-                    leading = { LauncherIcon(LauncherSymbol.Star) }) { navigate(SettingsPage.Favorites) }
-            }
-            item {
-                SettingsActionItem(stringResource(R.string.settings_move_widget), null, 1, 2, "settings_move_widget",
-                    leading = { LauncherIcon(LauncherSymbol.Move) }, onClick = actions.moveWidget)
+                SettingsActionItem(stringResource(R.string.edit_homepage), null, 0, 1, "settings_edit_homepage",
+                    leading = { LauncherIcon(LauncherSymbol.Home) }) { navigate(SettingsPage.Homepage) }
             }
             item { SettingsHeading(stringResource(R.string.settings_additional_screen)) }
             item {
@@ -164,22 +160,21 @@ internal fun ProductivitySettings(
                 SettingsActionItem(stringResource(R.string.private_space_title), stringResource(R.string.private_space_summary),
                     4, 5, "settings_open_private_space", leading = { LauncherIcon(LauncherSymbol.Lock) }) { navigate(SettingsPage.PrivateSpace) }
             }
-            item {
-                Spacer(Modifier.height(24.dp))
-                SettingsActionItem(stringResource(R.string.digital_wellbeing), null, 0, 1, "settings_digital_wellbeing",
-                    leading = { LauncherIcon(LauncherSymbol.Hourglass) }) { navigate(SettingsPage.DigitalWellbeing) }
-            }
             item { SettingsHeading(stringResource(R.string.settings_advanced)) }
             item {
-                SettingsActionItem(stringResource(R.string.settings_gestures), null, 0, 2, "settings_gestures",
+                SettingsActionItem(stringResource(R.string.settings_gestures), null, 0, 3, "settings_gestures",
                     leading = { LauncherIcon(LauncherSymbol.Gesture) }) { navigate(SettingsPage.Gestures) }
             }
             item {
                 SettingsToggleItem(
                     stringResource(R.string.settings_allow_haptics), stringResource(R.string.settings_allow_haptics_summary),
-                    settings.allowHapticFeedback, 1, 2, "allow_haptics",
+                    settings.allowHapticFeedback, 1, 3, "allow_haptics",
                     leading = { LauncherIcon(LauncherSymbol.Vibration) },
                 ) { value -> actions.updateSettings { current -> current.copy(allowHapticFeedback = value) } }
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.digital_wellbeing), null, 2, 3, "settings_digital_wellbeing",
+                    leading = { LauncherIcon(LauncherSymbol.Hourglass) }) { navigate(SettingsPage.DigitalWellbeing) }
             }
         }
     }

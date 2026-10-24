@@ -23,6 +23,7 @@
     <string name="media_idle_summary">点击播放以继续</string>
     <string name="settings_none">无</string>
     <string name="settings_grace_button">Grace 按钮</string>
+    <string name="settings_grace_button_summary">悬浮操作按钮</string>
     <string name="grace_button_enable">启用 Grace 按钮</string>
     <string name="grace_button_tap">单击动作</string>
     <string name="grace_button_long_press">长按动作</string>
@@ -130,7 +131,8 @@
     <string name="shortcut_error">无法加载或打开快捷方式</string>
     <string name="no_shortcuts">此应用尚未提供快捷方式。</string>
     <string name="retry">重试</string>
-    <string name="edit_favorites">编辑收藏</string>
+    <string name="edit_homepage">编辑主页</string>
+    <string name="homepage_adjust_height">调整高度</string>
     <string name="app_info">应用信息</string>
     <string name="screen_time">使用时间</string>
     <string name="add_to_category">添加到分类</string>
@@ -678,6 +680,7 @@
     <string name="list_left_alphabet">从左侧使用字母表</string>
     <string name="list_left_alphabet_summary">沿左侧边缘滑动，操作右侧的字母表</string>
     <string name="shortcuts_folders_title">快捷方式与文件夹</string>
+    <string name="popups_title">弹出窗口</string>
     <string name="shortcuts_folders_enable">启用应用弹出窗口</string>
     <string name="popup_swipe_left_first">左滑打开第一项</string>
     <string name="popup_swipe_left_first_summary">打开弹出窗口中的第一个快捷方式、应用或小组件所属应用</string>

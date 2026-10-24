@@ -11,7 +11,7 @@ import com.galaxyrio.gracelauncher.platform.PrivateSpaceState
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherScreen
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
-import com.galaxyrio.gracelauncher.ui.overlays.FavoritesScreen
+import com.galaxyrio.gracelauncher.ui.overlays.HomepageEditorScreen
 import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
 import org.junit.Assert.*
 import org.junit.Rule
@@ -35,7 +35,7 @@ class ProfileFavoritesTest {
         var state by mutableStateOf(LauncherUiState(isLoadingApps = false))
         compose.setContent {
             GraceLauncherTheme(dynamicColor = false) {
-                FavoritesScreen(state, LauncherActions(), onToggle = { app ->
+                HomepageEditorScreen(state, LauncherActions(), onToggle = { app ->
                     val order = if (app.key in state.favoriteKeys) state.favoriteOrder - app.key else state.favoriteOrder + app.key
                     state = state.copy(favoriteKeys = order.toSet(), favoriteOrder = order)
                 }, onReorder = { state = state.copy(favoriteOrder = it) }, onDone = {})

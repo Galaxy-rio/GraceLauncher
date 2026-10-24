@@ -396,7 +396,7 @@ fun HomeScreen(
                 onChange = { layout, save -> selectedWidget?.let { updateWidget(it, layout, save) } }, onDone = finishEditing)
         }
         if (editingLayout) HomeEditHandle(
-            label = stringResource(R.string.widget_move_home), changed = topOffset != 0f, tag = "home_position_handle",
+            label = stringResource(R.string.homepage_adjust_height), changed = topOffset != 0f, tag = "home_position_handle",
             onReset = { topOffset = 0f; onTopOffsetChange(0f) },
             onDelta = { delta ->
                 val anchorOffset = if (baselineIndex >= 0) baselineOffset ?: 0f else 0f

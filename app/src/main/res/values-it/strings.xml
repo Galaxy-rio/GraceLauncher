@@ -81,7 +81,7 @@
     <string name="shortcut_error">Impossibile caricare o aprire la scorciatoia</string>
     <string name="no_shortcuts">Quest\'app non ha scorciatoie.</string>
     <string name="retry">Riprova</string>
-    <string name="edit_favorites">Modifica preferiti</string>
+    <string name="edit_homepage">Modifica schermata iniziale</string>
     <string name="app_info">Info app</string>
     <string name="screen_time">Tempo di utilizzo</string>
     <string name="add_to_category">Aggiungi a una categoria</string>

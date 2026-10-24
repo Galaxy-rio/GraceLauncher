@@ -29,7 +29,7 @@ internal fun ShortcutsFoldersSettingsScreen(uiState: LauncherUiState, actions: L
     fun update(change: (ShortcutsFoldersSettings) -> ShortcutsFoldersSettings) =
         actions.updateSettings { it.copy(shortcutsFolders = change(it.shortcutsFolders)) }
 
-    SettingsScaffold(stringResource(R.string.shortcuts_folders_title), "shortcuts_folders_settings", onBack) { padding ->
+    SettingsScaffold(stringResource(R.string.popups_title), "shortcuts_folders_settings", onBack) { padding ->
         SettingsList(padding) {
             item {
                 SettingsFeatureBanner(stringResource(R.string.shortcuts_folders_enable), settings.enabled, "shortcuts_folders_enabled") { value ->

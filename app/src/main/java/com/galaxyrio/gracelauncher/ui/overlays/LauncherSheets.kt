@@ -63,7 +63,7 @@ sealed interface LauncherOverlay {
     data class Categories(val app: LauncherApp, val fromAppList: Boolean = false) : LauncherOverlay
     data class CategoryApps(val name: String) : LauncherOverlay
     data object Agenda : LauncherOverlay
-    data class Favorites(val initialAppKey: String? = null) : LauncherOverlay
+    data class Homepage(val initialAppKey: String? = null) : LauncherOverlay
     data object Settings : LauncherOverlay
     data class SettingsDestination(val page: String, val returnToSearch: Boolean = false) : LauncherOverlay
     data object HomeWidgetMenu : LauncherOverlay
@@ -127,8 +127,8 @@ internal fun LauncherOverlays(
         LaunchedEffect(overlay) { onChange(null) }
         return
     }
-    if (overlay is LauncherOverlay.Favorites) {
-        FavoritesScreen(uiState, actions, onToggleFavorite, actions.reorderFavorites, initialAppKey = overlay.initialAppKey) { onChange(null) }
+    if (overlay is LauncherOverlay.Homepage) {
+        HomepageEditorScreen(uiState, actions, onToggleFavorite, actions.reorderFavorites, initialAppKey = overlay.initialAppKey) { onChange(null) }
         return
     }
     if (overlay is LauncherOverlay.IconDesigner) {
@@ -270,7 +270,7 @@ internal fun LauncherOverlays(
                 is LauncherOverlay.Categories -> CategoryPicker(overlay.app, uiState, actions) { onChange(LauncherOverlay.AppDetails(overlay.app, fromAppList = overlay.fromAppList)) }
                 is LauncherOverlay.CategoryApps -> CategoryAppsSheet(overlay.name, uiState) { onChange(null); onLaunchApp(it) }
                 LauncherOverlay.Settings, LauncherOverlay.Search, is LauncherOverlay.Shortcuts,
-                is LauncherOverlay.Favorites, is LauncherOverlay.IconDesigner, is LauncherOverlay.EditPopup,
+                is LauncherOverlay.Homepage, is LauncherOverlay.IconDesigner, is LauncherOverlay.EditPopup,
                 is LauncherOverlay.Folder, is LauncherOverlay.FolderSettings, is LauncherOverlay.SettingsDestination -> Unit
             }
           }
@@ -334,8 +334,8 @@ private fun AppDetailsSheet(app: LauncherApp, actions: LauncherActions, onChange
                     iconColumnWidth = DetailsIconColumnWidth, iconTextSpacing = DetailsIconTextSpacing,
                     trailing = { Switch(shown, onCheckedChange = null) }) { actions.showShortcutInAppList(app, !shown) }
             }
-            if (!privateRestricted) DetailsAction(LauncherSymbol.Star, stringResource(R.string.edit_favorites), "edit_favorites") {
-                onChange(LauncherOverlay.Favorites(initialAppKey = app.key.takeIf { fromAppList && folder == null }))
+            if (!privateRestricted) DetailsAction(LauncherSymbol.Home, stringResource(R.string.edit_homepage), "edit_favorites") {
+                onChange(LauncherOverlay.Homepage(initialAppKey = app.key.takeIf { fromAppList && folder == null }))
             }
             if (folder != null) {
                 DetailsAction(LauncherSymbol.Folder, stringResource(R.string.settings_folder_placement)) { placement = true }

@@ -129,7 +129,7 @@
     <string name="shortcut_error">Не удалось загрузить или открыть этот ярлык</string>
     <string name="no_shortcuts">Это приложение не предоставляет ярлыков.</string>
     <string name="retry">Повторить</string>
-    <string name="edit_favorites">Изменить избранное</string>
+    <string name="edit_homepage">Изменить главный экран</string>
     <string name="app_info">О приложении</string>
     <string name="screen_time">Экранное время</string>
     <string name="add_to_category">Добавить в категорию</string>

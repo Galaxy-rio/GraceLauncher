@@ -11,6 +11,7 @@
     <string name="media_idle_summary">Tap play to resume</string>
     <string name="settings_none">None</string>
     <string name="settings_grace_button">Grace button</string>
+    <string name="settings_grace_button_summary">Floating action button</string>
     <string name="grace_button_position_size">Position and size</string>
     <string name="grace_button_alignment">Alignment</string>
     <string name="grace_button_show_on">Show on</string>
@@ -129,7 +130,8 @@
     <string name="shortcut_error">Couldn’t load or open this shortcut</string>
     <string name="no_shortcuts">This app hasn’t provided any shortcuts.</string>
     <string name="retry">Try again</string>
-    <string name="edit_favorites">Edit favorites</string>
+    <string name="edit_homepage">Edit homepage</string>
+    <string name="homepage_adjust_height">Adjust height</string>
     <string name="app_info">App info</string>
     <string name="screen_time">Screen time</string>
     <string name="add_to_category">Add to category</string>
@@ -696,6 +698,7 @@
     <string name="list_left_alphabet">Use alphabet from the left</string>
     <string name="list_left_alphabet_summary">Slide along the left edge to control the alphabet on the right</string>
     <string name="shortcuts_folders_title">Shortcuts &amp; folders</string>
+    <string name="popups_title">Pop-ups</string>
     <string name="shortcuts_folders_enable">Enable app pop-ups</string>
     <string name="popup_swipe_left_first">Swipe left to open the first item</string>
     <string name="popup_swipe_left_first_summary">Open the first shortcut, app, or widget’s app in the pop-up</string>

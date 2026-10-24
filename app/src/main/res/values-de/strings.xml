@@ -54,7 +54,7 @@
     <string name="shortcut_error">Diese Verknüpfung konnte nicht geladen oder geöffnet werden</string>
     <string name="no_shortcuts">Diese App stellt keine Verknüpfungen bereit.</string>
     <string name="retry">Erneut versuchen</string>
-    <string name="edit_favorites">Favoriten bearbeiten</string>
+    <string name="edit_homepage">Startbildschirm bearbeiten</string>
     <string name="app_info">App-Info</string>
     <string name="screen_time">Bildschirmzeit</string>
     <string name="add_to_category">Zur Kategorie hinzufügen</string>

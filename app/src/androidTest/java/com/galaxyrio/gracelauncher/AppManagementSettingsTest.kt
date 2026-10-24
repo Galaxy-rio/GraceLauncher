@@ -69,7 +69,7 @@ class AppManagementSettingsTest {
             }
         }
         compose.onNodeWithTag("edit_favorites").performClick()
-        compose.runOnIdle { assertEquals(LauncherOverlay.Favorites(apps[0].key), requested) }
+        compose.runOnIdle { assertEquals(LauncherOverlay.Homepage(apps[0].key), requested) }
     }
 
     @Test fun advancedHideActionPrecedesThePackageRowAndHidesTheCurrentApp() {

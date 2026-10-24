@@ -115,7 +115,7 @@
     <string name="shortcut_error">No se pudo cargar ni abrir este acceso directo</string>
     <string name="no_shortcuts">Esta aplicación no ha proporcionado ningún acceso directo.</string>
     <string name="retry">Intentar otra vez</string>
-    <string name="edit_favorites">Editar favoritos</string>
+    <string name="edit_homepage">Editar pantalla de inicio</string>
     <string name="app_info">Información de la aplicación</string>
     <string name="screen_time">tiempo de pantalla</string>
     <string name="add_to_category">Añadir a la categoría</string>

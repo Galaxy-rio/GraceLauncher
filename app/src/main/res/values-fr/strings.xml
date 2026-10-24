@@ -125,7 +125,7 @@
     <string name="shortcut_error">Impossible de charger ou d\'ouvrir ce raccourci</string>
     <string name="no_shortcuts">Cette application ne propose aucun raccourci.</string>
     <string name="retry">Essayer à nouveau</string>
-    <string name="edit_favorites">Modifier les favoris</string>
+    <string name="edit_homepage">Modifier l’écran d’accueil</string>
     <string name="app_info">Informations sur l\'application</string>
     <string name="screen_time">Temps d\'écran</string>
     <string name="add_to_category">Ajouter à une catégorie</string>
