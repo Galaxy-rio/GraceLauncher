@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.2.1
+
+- Icon Designer now applies global changes to options that have not been explicitly customized for an individual icon. For example, an icon with a custom symbol still inherits global color changes while keeping its symbol.
+- Added an opt-in setting to automatically apply Icon Designer settings to shortcuts.
+- Home screen apps can now display notifications from multiple apps in their Pop-ups.
+- Updated how widgets are added and apps are launched to improve compatibility with widgets and apps that previously could not be added or opened.
+- Added a home screen layout lock to prevent accidental movement.
+- Added app usage time display.
+- Refined interactions and animations, with related settings available in Lab.
+
 ## 1.2.0
 
 - Added Widget Screen to the right of the home screen. Open it by swiping on empty space or using a Grace Button gesture, and arrange widgets in a traditional grid.
