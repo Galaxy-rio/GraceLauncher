@@ -23,6 +23,11 @@ internal fun widgetConfigurationOptions(): Bundle = ActivityOptions.makeBasic().
     }
 }.toBundle()
 
+internal fun AppWidgetProviderInfo.hasOptionalConfiguration(): Boolean =
+    Build.VERSION.SDK_INT >= 31 &&
+        widgetFeatures and AppWidgetProviderInfo.WIDGET_FEATURE_CONFIGURATION_OPTIONAL != 0 &&
+        widgetFeatures and AppWidgetProviderInfo.WIDGET_FEATURE_RECONFIGURABLE != 0
+
 internal fun AppWidgetProviderInfo.widthBounds(padding: Float, unit: Float, capacity: Int, minimum: Int = 1) =
     widgetAxisBounds(minWidth, minResizeWidth, if (Build.VERSION.SDK_INT >= 31) maxResizeWidth else 0,
         resizeMode and AppWidgetProviderInfo.RESIZE_HORIZONTAL != 0, padding, unit, capacity, minimum)

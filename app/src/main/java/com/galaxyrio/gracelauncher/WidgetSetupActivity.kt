@@ -4,7 +4,9 @@ import android.app.Activity
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.content.Intent
+import android.content.ActivityNotFoundException
 import android.os.Bundle
+import android.os.Process
 import android.os.UserManager
 import android.util.Log
 import android.widget.Toast
@@ -19,14 +21,18 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.Lifecycle
 import com.galaxyrio.gracelauncher.data.LauncherDatabase
 import com.galaxyrio.gracelauncher.data.LauncherSettingsRepository
 import com.galaxyrio.gracelauncher.data.LauncherItemsRepository
 import com.galaxyrio.gracelauncher.data.HomeLayout
 import com.galaxyrio.gracelauncher.data.PopupItem
 import com.galaxyrio.gracelauncher.platform.HomeWidgetHost
+import com.galaxyrio.gracelauncher.platform.hasOptionalConfiguration
 import com.galaxyrio.gracelauncher.platform.initialWidgetOptions
 import com.galaxyrio.gracelauncher.platform.widgetConfigurationOptions
+import com.galaxyrio.gracelauncher.platform.WidgetReconfigurationRoute
+import com.galaxyrio.gracelauncher.platform.widgetReconfigurationRoute
 import com.galaxyrio.gracelauncher.ui.LauncherAppTheme
 import com.galaxyrio.gracelauncher.ui.LauncherViewModel
 import com.galaxyrio.gracelauncher.ui.widgets.WidgetPicker
@@ -49,6 +55,7 @@ class WidgetSetupActivity : ComponentActivity() {
     private var pendingId = -1
     private var expectedProvider: String? = null
     private var configuringExisting = false
+    private var reconfigurationReady = false
     private var gridColumns = 4
     private var homeSidePadding = 44
     private var stage = "loading"
@@ -88,7 +95,8 @@ class WidgetSetupActivity : ComponentActivity() {
                 if (pendingId >= 0) {
                     if ((current.widgetId == pendingId || pendingId in popupWidgets) && !configuringExisting) { host.untrackPendingId(pendingId); pendingId = -1; finish() }
                     else if (savedInstanceState?.getBoolean("saving", false) == true) finishAdding()
-                    // Otherwise the restored platform activity will deliver its result.
+                    else if (configuringExisting && stage == "configuration_queued") configure()
+                    // Already launched configurations wait for their restored activity result.
                     return@launch
                 }
                 val configureId = intent.getIntExtra(EXTRA_CONFIGURE_ID, -1)
@@ -150,10 +158,18 @@ class WidgetSetupActivity : ComponentActivity() {
             fail(R.string.widget_unavailable); return
         }
         expectedProvider = info.provider.flattenToString()
-        // Even optional configuration is shown: adding a widget is an explicit setup action.
-        // Existing widgets use the same provider page without requiring a reconfigurable flag.
-        if (info.configure == null) {
+        // Optional initial configuration can be deferred until the user opens Settings.
+        // Explicit reconfiguration must still open the provider's page.
+        if (info.configure == null || (!configuringExisting && info.hasOptionalConfiguration())) {
             if (configuringExisting) fail(R.string.widget_no_configuration) else finishAdding()
+            return
+        }
+        if (configuringExisting) {
+            // The Settings trampoline may still be in onCreate, without a visible window.
+            // Persist the queued stage so recreation before launch can resume it exactly once.
+            stage = "configuration_queued"
+            reconfigurationReady = true
+            launchReconfigurationWhenReady()
             return
         }
         try {
@@ -161,6 +177,61 @@ class WidgetSetupActivity : ComponentActivity() {
             Log.i(TAG, "configure id=$pendingId provider=${info.provider} existing=$configuringExisting")
             host.startAppWidgetConfigureActivityForResult(this, pendingId, 0, REQUEST_CONFIGURE, widgetConfigurationOptions())
         } catch (error: Exception) { fail(R.string.widget_configuration_launch_error, error) }
+    }
+
+    override fun onPostResume() {
+        super.onPostResume()
+        launchReconfigurationWhenReady()
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) launchReconfigurationWhenReady()
+    }
+
+    private fun launchReconfigurationWhenReady() {
+        if (!reconfigurationReady || !configuringExisting || pendingId < 0 || isFinishing || isDestroyed) return
+        try {
+            val info = manager.getAppWidgetInfo(pendingId)
+            if (info == null || info.provider.flattenToString() != expectedProvider) {
+                fail(R.string.widget_unavailable)
+                return
+            }
+            val configuration = info.configure ?: return fail(R.string.widget_no_configuration)
+            val route = widgetReconfigurationRoute(
+                queued = stage == "configuration_queued",
+                resumed = lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED),
+                focused = window.decorView.hasWindowFocus(),
+                sameProfile = info.profile == Process.myUserHandle(),
+            )
+            if (route == WidgetReconfigurationRoute.Wait) return
+            // Consume before starting: focus/resume callbacks must not reopen a page after Back.
+            reconfigurationReady = false
+            stage = "configuration"
+            if (route == WidgetReconfigurationRoute.Direct) {
+                // Standard explicit configuration preserves the foreground Activity caller and
+                // avoids the system-created IntentSender for same-profile reconfiguration.
+                // No NEW_TASK flag: keep the result attached to this existing widget ID.
+                val configureIntent = Intent(AppWidgetManager.ACTION_APPWIDGET_CONFIGURE)
+                    .setComponent(configuration)
+                    .putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID, pendingId)
+                try {
+                    Log.i(TAG, "reconfigure route=direct id=$pendingId provider=${info.provider}")
+                    startActivityForResult(configureIntent, REQUEST_CONFIGURE)
+                    return
+                } catch (error: ActivityNotFoundException) {
+                    Log.w(TAG, "direct configure unavailable id=$pendingId; trying host", error)
+                } catch (error: SecurityException) {
+                    Log.w(TAG, "direct configure denied id=$pendingId; trying host", error)
+                }
+            }
+            // Keep the host's permission-checked path for cross-profile/non-exported providers.
+            // A cancelled result is never retried: Back must not reopen the configuration page.
+            Log.i(TAG, "reconfigure route=host id=$pendingId provider=${info.provider}")
+            host.startAppWidgetConfigureActivityForResult(this, pendingId, 0, REQUEST_CONFIGURE, widgetConfigurationOptions())
+        } catch (error: Exception) {
+            fail(R.string.widget_configuration_launch_error, error)
+        }
     }
 
     @Deprecated("Platform AppWidgetHost configuration uses request codes")
@@ -208,6 +279,7 @@ class WidgetSetupActivity : ComponentActivity() {
     }
 
     private fun cancelSetup() {
+        reconfigurationReady = false
         Log.i(TAG, "cancel stage=$stage id=$pendingId existing=$configuringExisting")
         if (!configuringExisting && pendingId >= 0) runCatching { host.deleteAppWidgetId(pendingId) }
         host.untrackPendingId(pendingId)
