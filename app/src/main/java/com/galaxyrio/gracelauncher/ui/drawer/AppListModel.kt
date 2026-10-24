@@ -39,7 +39,8 @@ sealed interface DrawerItem {
 class AppListModel(apps: List<LauncherApp>, folders: List<LauncherFolder> = emptyList(),
     privateFolder: LauncherFolder? = null, privateExpanded: Boolean = false, privateApps: List<LauncherApp> = emptyList(),
     recentlyInstalledFolder: LauncherFolder? = null,
-    workFolder: LauncherFolder? = null, workExpanded: Boolean = false, workApps: List<LauncherApp> = emptyList()) {
+    workFolder: LauncherFolder? = null, workExpanded: Boolean = false, workApps: List<LauncherApp> = emptyList(),
+    usageRanking: Map<String, Long> = emptyMap()) {
     private val settingsApp = apps.firstOrNull(LauncherApp::isLauncherSettings)
     private val inlineFolders = folders.filter { it.placement.inAppList && !it.appListAtBottom }.associateBy(LauncherFolder::key)
     // Use exactly the same name/pinyin ordering and alphabet sections as apps.
@@ -52,7 +53,12 @@ class AppListModel(apps: List<LauncherApp>, folders: List<LauncherFolder> = empt
     val items: List<DrawerItem> = buildList {
         appLetters.forEach { letter ->
             add(DrawerItem.Header(letter))
-            grouped.getValue(letter).forEach { app ->
+            val original = grouped.getValue(letter)
+            // Leave inline folders, profile apps and shortcuts in their existing slots.
+            // Sort only eligible personal apps inside this letter; ties retain name order.
+            fun eligible(app: LauncherApp) = app.user == null && app.folderId == null && app.shortcut == null
+            val sorted = original.filter(::eligible).sortedByDescending { usageRanking[it.packageName] ?: 0 }.iterator()
+            original.map { if (eligible(it)) sorted.next() else it }.forEach { app ->
                 val folder = inlineFolders[app.key]
                 add(if (folder == null) DrawerItem.App(app) else DrawerItem.Folder(folder, letter))
             }

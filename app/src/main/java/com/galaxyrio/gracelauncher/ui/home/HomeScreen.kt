@@ -98,6 +98,7 @@ import com.galaxyrio.gracelauncher.ui.components.observeListGestures
 import com.galaxyrio.gracelauncher.ui.components.rememberLauncherListGestureConnection
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
+import com.galaxyrio.gracelauncher.ui.components.favoriteUsageLabel
 import com.galaxyrio.gracelauncher.ui.components.FolderRow
 import com.galaxyrio.gracelauncher.ui.components.AppStack
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
@@ -378,6 +379,7 @@ fun HomeScreen(
                                 onSwipeLeft = rowGestures.onOpenFirst?.let { open -> { bounds -> open(app, bounds) } },
                                 showLabel = uiState.settings.listAppearance.showNames(favorites = true))
                             else LauncherAppRow(app, onClick = { onLaunchApp(app) }, onLongClick = { onAppDetails(app) },
+                                usageText = favoriteUsageLabel(app, uiState),
                                 onSwipeRight = { onAppShortcuts(app, it) }, gestures = rowGestures,
                                 highlighted = highlightedAppKey == app.key,
                                 notifications = uiState.notificationPreviewsFor(app),

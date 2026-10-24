@@ -377,6 +377,8 @@ fun LauncherRoute(
             runCatching { homeRoleLauncher.launch(DefaultHome.requestIntent(context)) }
                 .onFailure { openSystemApp(Intent(Settings.ACTION_HOME_SETTINGS)) }
         },
+        requestUsageAccess = { openSystemApp(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) },
+        refreshUsageRanking = { viewModel.refreshUsage(forceRanking = true) },
         openHome = {
             // Target Grace explicitly: this must neither resolve to another HOME
             // app nor request/change the system's default launcher preference.
@@ -575,8 +577,12 @@ internal fun LauncherScreen(
         uiState.settings.listAppearance.showRecentlyInstalled) {
         uiState.recentlyInstalledFolder(recentFolderName).takeIf { uiState.settings.listAppearance.showRecentlyInstalled }
     }
-    val model = remember(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps, recentFolder, workFolder, workExpanded, workApps) {
-        AppListModel(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps, recentFolder, workFolder, workExpanded, workApps)
+    val usageRanking = uiState.usage.ranking.takeIf {
+        uiState.settings.digitalWellbeing.enabled && uiState.settings.digitalWellbeing.sortApps && uiState.usage.hasAccess
+    }.orEmpty()
+    val model = remember(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps, recentFolder, workFolder, workExpanded, workApps, usageRanking) {
+        AppListModel(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps, recentFolder, workFolder, workExpanded, workApps,
+            usageRanking = usageRanking)
     }
     val drawerState = rememberLazyListState()
     val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons,

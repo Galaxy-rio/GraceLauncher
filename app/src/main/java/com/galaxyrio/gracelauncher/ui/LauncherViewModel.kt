@@ -121,6 +121,7 @@ data class LauncherUiState(
     val isDefaultHome: Boolean? = null,
     val media: MediaSnapshot = MediaSnapshot(),
     val notifications: Map<String, List<AppNotification>> = emptyMap(),
+    val usage: com.galaxyrio.gracelauncher.data.UsageSnapshot = com.galaxyrio.gracelauncher.data.UsageSnapshot(),
     val favoriteOrder: List<String> = emptyList(),
     val weather: WeatherState = WeatherState(),
     val shortcutApps: List<LauncherApp> = emptyList(),
@@ -320,6 +321,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     private var privateAppLoadJob: Job? = null
     private var scheduleLoadJob: Job? = null
     private var weatherLoadJob: Job? = null
+    private val usageRepository = com.galaxyrio.gracelauncher.data.UsageRepository.get(application)
+    private var usageLoadJob: Job? = null
     private var lastWeatherRefresh = 0L
     private val dateReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent?) { refreshApps() }
@@ -440,6 +443,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         previous.settings.paletteStyle != snapshot.settings.paletteStyle ||
                         previous.folders != snapshot.folders) refreshApps()
                     if (previous.settings.privateSpace != snapshot.settings.privateSpace) refreshPrivateApps()
+                    if (previous.isLoadingSettings || previous.settings.digitalWellbeing != snapshot.settings.digitalWellbeing) {
+                        usageLoadJob?.cancel()
+                        usageLoadJob = null
+                        refreshUsage()
+                    }
                     if (previous.isLoadingSettings || previous.settings.weatherEnabled != snapshot.settings.weatherEnabled ||
                         previous.settings.weatherLocationId != snapshot.settings.weatherLocationId
                     ) refreshWeather()
@@ -464,6 +472,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun refreshOnResume() {
+        refreshUsage()
         mediaRepository.refresh()
         refreshWeather(force = false)
         val isDefaultHome = DefaultHome.isDefault(getApplication())
@@ -956,6 +965,23 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun setThemedIcons(enabled: Boolean) {
         preferences.themedIcons(enabled)
         _uiState.update { it.copy(themedIcons = enabled) }
+    }
+
+    fun refreshUsage(forceRanking: Boolean = false) {
+        val state = _uiState.value
+        if (state.isLoadingSettings || state.settingsLoadFailed) return
+        val settings = state.settings.digitalWellbeing
+        val access = usageRepository.hasAccess()
+        if (!settings.enabled || !access) {
+            usageLoadJob?.cancel()
+            _uiState.update { it.copy(usage = com.galaxyrio.gracelauncher.data.UsageSnapshot(hasAccess = access)) }
+        } else if (usageLoadJob?.isActive == true && !forceRanking) return
+        if (forceRanking) usageLoadJob?.cancel()
+        if (settings.enabled && access) _uiState.update { it.copy(usage = it.usage.copy(hasAccess = true, loading = true)) }
+        usageLoadJob = viewModelScope.launch {
+            val result = usageRepository.refresh(settings, forceRanking)
+            if (_uiState.value.settings.digitalWellbeing == settings) _uiState.update { it.copy(usage = result) }
+        }
     }
 
     fun updateSettings(transform: (LauncherSettings) -> LauncherSettings) = persistSettings {

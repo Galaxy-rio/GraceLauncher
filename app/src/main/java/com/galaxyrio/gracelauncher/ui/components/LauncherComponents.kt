@@ -60,6 +60,9 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -204,6 +207,7 @@ fun LauncherAppRow(
     highlighted: Boolean = false,
     notifications: List<AppNotification> = emptyList(),
     showLabel: Boolean = true,
+    usageText: String? = null,
 ) {
     val display = app.effectiveDisplay(LocalLauncherAppearance.current)
     LauncherRow(
@@ -222,6 +226,7 @@ fun LauncherAppRow(
         modifier = modifier,
         highlighted = highlighted,
         notifications = if (app.shortcut == null && app.user == null) notifications else emptyList(),
+        usageText = usageText,
         showLabel = showLabel,
         animationComponents = listOf(app.componentName),
         hiddenIcon = display.style == IconDisplayStyle.Hidden,
@@ -294,6 +299,7 @@ private fun LauncherRow(
     animationComponents: List<android.content.ComponentName> = emptyList(),
     animationFolder: Boolean = false,
     hiddenIcon: Boolean? = null,
+    usageText: String? = null,
     icon: @Composable (Modifier) -> Unit,
 ) {
     val appearance = LocalLauncherAppearance.current
@@ -418,6 +424,7 @@ private fun LauncherRow(
                         Modifier.launcherAnimationTarget(animationComponents, animationFolder) else Modifier)
                 else Modifier)) {
                 AppNotificationLabel(label, notifications, labelVisible,
+                    usageText = usageText,
                     labelModifier = Modifier.testTag("$rowKey:label"),
                     notificationBodyLines = if (popupSettings.singleLineNotificationPreviews) 1 else 2)
             }
@@ -449,14 +456,29 @@ internal fun AppNotificationLabel(
     onWallpaper: Boolean = true,
     maxLines: Int = 1,
     notificationBodyLines: Int = 1,
+    usageText: String? = null,
 ) {
     val style = listLabelStyle(onWallpaper)
     val list = LocalListAppearance.current
     Column(modifier) {
-        if (showLabel) Text(
-            text = label + (notifications.firstOrNull()?.let { " · ${notificationAge(it.postedAt)}" } ?: ""),
-            modifier = labelModifier, style = style, maxLines = maxLines, overflow = TextOverflow.Ellipsis,
-        )
+        if (showLabel) {
+            val notificationAgeText = notifications.firstOrNull()?.let { " · ${notificationAge(it.postedAt)}" }.orEmpty()
+            if (usageText == null) {
+                Text(label + notificationAgeText, modifier = labelModifier, style = style,
+                    maxLines = maxLines, overflow = TextOverflow.Ellipsis)
+            } else Box(Modifier.testTag("favorite_usage")) {
+                Text(buildAnnotatedString {
+                    append(label)
+                    withStyle(SpanStyle(fontSize = (list.fontSize - 3).sp)) {
+                        withStyle(SpanStyle(color = style.color.copy(alpha = style.color.alpha * 0.65f))) {
+                            append(" · $usageText")
+                        }
+                        append(notificationAgeText)
+                    }
+                }, modifier = labelModifier, style = style,
+                    maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+            }
+        }
         notifications.forEachIndexed { index, notification ->
             key(notification.key) {
                 if (index > 0) Spacer(Modifier.height(6.dp))

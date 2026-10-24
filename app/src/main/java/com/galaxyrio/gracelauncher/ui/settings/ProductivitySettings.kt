@@ -164,6 +164,11 @@ internal fun ProductivitySettings(
                 SettingsActionItem(stringResource(R.string.private_space_title), stringResource(R.string.private_space_summary),
                     4, 5, "settings_open_private_space", leading = { LauncherIcon(LauncherSymbol.Lock) }) { navigate(SettingsPage.PrivateSpace) }
             }
+            item {
+                Spacer(Modifier.height(24.dp))
+                SettingsActionItem(stringResource(R.string.digital_wellbeing), null, 0, 1, "settings_digital_wellbeing",
+                    leading = { LauncherIcon(LauncherSymbol.Hourglass) }) { navigate(SettingsPage.DigitalWellbeing) }
+            }
             item { SettingsHeading(stringResource(R.string.settings_advanced)) }
             item {
                 SettingsActionItem(stringResource(R.string.settings_gestures), null, 0, 2, "settings_gestures",

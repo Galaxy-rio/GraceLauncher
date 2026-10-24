@@ -67,7 +67,7 @@ class LauncherSettingsPersistenceTest {
                 LauncherDatabase.Migration18To19, LauncherDatabase.Migration19To20,
                 LauncherDatabase.Migration20To21, LauncherDatabase.Migration21To22,
                 LauncherDatabase.Migration22To23, LauncherDatabase.Migration23To24,
-                LauncherDatabase.Migration24To25).build()
+                LauncherDatabase.Migration24To25, LauncherDatabase.Migration25To26).build()
         database = reopened
         return LauncherSettingsRepository(reopened)
     }
@@ -217,6 +217,10 @@ class LauncherSettingsPersistenceTest {
             wallpaperDimAmount = 35,
             blurWallpaper = false,
             wallpaperBlurRadius = 24,
+            digitalWellbeing = com.galaxyrio.gracelauncher.data.DigitalWellbeingSettings(enabled = true,
+                display = setOf(com.galaxyrio.gracelauncher.data.UsageDisplay.Month,
+                    com.galaxyrio.gracelauncher.data.UsageDisplay.Percentage),
+                refresh = com.galaxyrio.gracelauncher.data.UsageRefresh.Never),
             listAppearance = ListAppearance(alphabet = AlphabetAppearance(fontId = "system", fontSize = 20,
                 fontColor = IconColor(0xFFABCDEF.toInt()), indicatorShape = IconShape.Pebble, pebbleRoundness = 60,
                 topPercent = 25, bottomPercent = 75, freeMovement = true)),

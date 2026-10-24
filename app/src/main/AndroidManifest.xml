@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <uses-permission android:name="android.permission.PACKAGE_USAGE_STATS" tools:ignore="ProtectedPermissions" />
     <!-- Requested only when the user explicitly enables local contact search. -->
     <uses-permission android:name="android.permission.READ_CONTACTS" />
     <!-- Ordinary permission for the opt-in Lab status-bar API path; no accessibility access. -->
