@@ -686,4 +686,11 @@
     <string name="popup_multiple_app_previews">Notificacións de varias aplicacións</string>
     <string name="popup_multiple_app_previews_summary">Consulta a última notificación de cada aplicación nun cartafol ou nunha fiestra emerxente da aplicación</string>
     <string name="favorites_lock_editing">Bloquear a edición</string>
+    <string name="choose_default_launcher">Escolle o lanzador predeterminado</string>
+    <string name="lab_accessibility">Accesibilidade</string>
+    <string name="lab_prefer_non_accessibility">Evitar o acceso de accesibilidade cando sexa posible</string>
+    <string name="lab_prefer_non_accessibility_summary">Proba as API do sistema para notificacións e centro de control sen acceso de accesibilidade. Os resultados varían segundo o dispositivo. Non hai unha alternativa automática; desactiva isto ti mesmo se non funciona. O bloqueo da pantalla aínda require acceso de accesibilidade. Non se utiliza ningún acceso de administrador de dispositivos nin root.</string>
+    <string name="settings_debug">Depurar</string>
+    <string name="settings_open_home">Ir directamente ao inicio</string>
+    <string name="settings_open_home_summary">Ir directamente ao inicio sen configurar Grace como lanzador predeterminado</string>
 </resources>

@@ -688,4 +688,14 @@
     <string name="lab_degrees">±%1$d°</string>
     <string name="grace_widgets_title">Widget Grace</string>
     <string name="grace_widget_baseline">Base (invisibile)</string>
+    <string name="choose_default_launcher">Seleziona launcher predefinito</string>
+    <string name="lab_accessibility">Accessibilità</string>
+    <string name="lab_prefer_non_accessibility">Evita accesso all\'accessibilità quando possibile</string>
+    <string name="lab_prefer_non_accessibility_summary">Prova le API di sistema per le notifiche e il centro di controllo senza gli accessi all\'accessibilità. I risultati variano in base al dispositivo. Non è previsto un ripristino automatico; disattiva questa opzione manualmente se non funziona. Il blocco dello schermo richiede comunque i permessi di accessibilità. Non viene utilizzato alcun accesso root o di amministratore del dispositivo.</string>
+    <string name="settings_debug">Debug</string>
+    <string name="popup_single_line_previews">Anteprima delle notifiche su una riga</string>
+    <string name="popup_single_line_previews_summary">Mostra il testo della notifica su una riga, ignorando le interruzioni di riga</string>
+    <string name="popup_multiple_app_previews">Notifiche da più app</string>
+    <string name="popup_multiple_app_previews_summary">Mostra l\'anteprima dell\'ultima notifica di ciascuna app in una cartella o pop-up dell\'app</string>
+    <string name="favorites_lock_editing">Blocca modifica</string>
 </resources>
