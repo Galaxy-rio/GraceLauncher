@@ -661,7 +661,6 @@
     <string name="settings_folder_auto_hide">Masquer automatiquement les applications dans</string>
     <string name="settings_folder_auto_hide_summary">Masquer les applications actuelles et futures de ce dossier dans la liste des applications. Les masquages manuels sont conservés lorsque des applications quittent ce dossier.</string>
     <string name="hidden_from_folder">Masquée par un dossier</string>
-    <string name="settings_additional_screen">Écran supplémentaire</string>
     <string name="widget_screen_title">Écran des widgets</string>
     <string name="widget_screen_enable">Activer l\'écran des widgets</string>
     <string name="widget_screen_swipe">Glisser vers la gauche sur l\'écran d\'accueil</string>

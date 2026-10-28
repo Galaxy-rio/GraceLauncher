@@ -702,7 +702,6 @@
     <string name="settings_folder_auto_hide">Ocultar automaticamente aplicativos internamente</string>
     <string name="settings_folder_auto_hide_summary">Ocultar elementos atuais e futuros da lista de aplicativos. Ocultados manualmente são mantidos quando os aplicativos deixam esta pasta.</string>
     <string name="hidden_from_folder">Ocultar via pasta</string>
-    <string name="settings_additional_screen">Tela adicional</string>
     <string name="widget_screen_title">Tela de \"widget\"</string>
     <string name="widget_screen_enable">Habilitar a tela de \"widgets\"</string>
     <string name="widget_screen_swipe">Deslizar para esquerda na tela inicial</string>

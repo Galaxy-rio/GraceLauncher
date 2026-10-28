@@ -44,7 +44,6 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.ThemeMode
-import com.galaxyrio.gracelauncher.data.WallpaperTextMode
 import com.galaxyrio.gracelauncher.data.icons.IconPackStatus
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
@@ -60,7 +59,7 @@ import kotlin.math.roundToInt
 internal fun ThemeSettings(
     uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
     onClockStyle: () -> Unit, onIconPacks: () -> Unit, onFonts: () -> Unit, onListAppearance: () -> Unit, onAlphabet: () -> Unit,
-    onGraceButton: () -> Unit = {}, onCalendar: () -> Unit = {}, onWeather: () -> Unit = {}, onMediaPlayer: () -> Unit = {},
+    onGraceButton: () -> Unit = {}, onAgenda: () -> Unit = {}, onSearch: () -> Unit = {}, onMediaPlayer: () -> Unit = {},
 ) {
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     val settings = uiState.settings
@@ -79,12 +78,6 @@ internal fun ThemeSettings(
             onSelect = { mode -> actions.updateSettings { current -> current.copy(darkMode = mode) }; dialog = null },
             onDismiss = { dialog = null },
         )
-        "text" -> SettingsSelectionDialog(
-            title = stringResource(R.string.settings_wallpaper_text),
-            items = WallpaperTextMode.entries, selectedItem = uiState.textMode,
-            tag = "wallpaper_text", itemKey = { it.name }, itemLabel = { it.label() },
-            onSelect = { actions.textMode(it); dialog = null }, onDismiss = { dialog = null },
-        )
     }
     SettingsScaffold(stringResource(R.string.settings_themes), "settings_themes", onBack) { padding ->
         SettingsList(padding) {
@@ -97,29 +90,23 @@ internal fun ThemeSettings(
             item {
                 SettingsToggleItem(
                     stringResource(R.string.settings_dynamic_colors), stringResource(R.string.settings_dynamic_colors_summary),
-                    settings.useDynamicColors, 1, 6, "settings_dynamic_colors",
+                    settings.useDynamicColors, 1, 5, "settings_dynamic_colors",
                 ) { value -> actions.updateSettings { current -> current.copy(useDynamicColors = value) } }
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_palette_style), settings.paletteStyle.label(), 2, 6,
+                SettingsActionItem(stringResource(R.string.settings_palette_style), settings.paletteStyle.label(), 2, 5,
                     "settings_palette_style") { dialog = "palette" }
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_theme_mode), settings.darkMode.label(), 3, 6, "settings_theme_mode") { dialog = "theme" }
+                SettingsActionItem(stringResource(R.string.settings_theme_mode), settings.darkMode.label(), 3, 5, "settings_theme_mode") { dialog = "theme" }
             }
             item {
                 SettingsToggleItem(
                     stringResource(R.string.settings_amoled_mode), stringResource(R.string.settings_amoled_mode_summary),
-                    settings.amoledMode, 4, 6, "settings_amoled_mode",
+                    settings.amoledMode, 4, 5, "settings_amoled_mode",
                 ) { value -> actions.updateSettings { it.copy(amoledMode = value) } }
             }
-            item {
-                SettingsActionItem(stringResource(R.string.settings_wallpaper_text), uiState.textMode.label(), 5, 6, "settings_wallpaper_text") { dialog = "text" }
-            }
             item { SettingsHeading(stringResource(R.string.settings_personalization)) }
-            item {
-                SettingsActionItem(stringResource(R.string.settings_clock_style), uiState.settings.clockStyle.layout.label(), 0, 9, "settings_clock_style", onClick = onClockStyle)
-            }
             item {
                 val packs = settings.enabledIconPackPackages
                 val packNames = packs.map { pkg -> uiState.iconPacks.firstOrNull { it.packageName == pkg }?.label ?: pkg }
@@ -128,38 +115,43 @@ internal fun ThemeSettings(
                     uiState.iconPackStatus == IconPackStatus.Unavailable -> stringResource(R.string.icon_pack_unavailable)
                     else -> packNames.joinToString(" → ")
                 }
-                SettingsActionItem(stringResource(R.string.settings_icons), summary, 1, 9, "settings_icon_pack") {
+                SettingsActionItem(stringResource(R.string.settings_icons), summary, 0, 2, "settings_icon_pack") {
                     onIconPacks()
                     actions.refreshIconPacks()
                 }
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_favorites_app_list), null, 2, 9, "settings_list_appearance", onClick = onListAppearance)
-            }
-            item {
-                SettingsActionItem(stringResource(R.string.settings_alphabet), null, 3, 9, "settings_alphabet", onClick = onAlphabet)
-            }
-            item {
                 val fonts = settings.fontLibrary.selected.map { appFontLabel(it) }
                 val systemFont = appFontLabel("system")
                 SettingsActionItem(stringResource(R.string.settings_font), fonts.joinToString(" → ").ifEmpty { systemFont },
-                    4, 9, "settings_font", onClick = onFonts)
+                    1, 2, "settings_font", onClick = onFonts)
+            }
+            item { SettingsHeading(stringResource(R.string.settings_components)) }
+            item {
+                SettingsActionItem(stringResource(R.string.settings_clock_style), uiState.settings.clockStyle.layout.label(),
+                    0, 7, "settings_clock_style", onClick = onClockStyle)
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_grace_button), null, 5, 9,
+                SettingsActionItem(stringResource(R.string.settings_agenda), null, 1, 7,
+                    "settings_agenda_appearance", onClick = onAgenda)
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.settings_media_player), null, 2, 7,
+                    "settings_media_appearance", onClick = onMediaPlayer)
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.settings_search), null, 3, 7,
+                    "settings_search_appearance", onClick = onSearch)
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.settings_grace_button), null, 4, 7,
                     "settings_grace_button_appearance", onClick = onGraceButton)
             }
             item {
-                SettingsActionItem(stringResource(R.string.widget_calendar), null, 6, 9,
-                    "settings_calendar_appearance", onClick = onCalendar)
+                SettingsActionItem(stringResource(R.string.settings_alphabet), null, 5, 7, "settings_alphabet", onClick = onAlphabet)
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_weather), null, 7, 9,
-                    "settings_weather_appearance", onClick = onWeather)
-            }
-            item {
-                SettingsActionItem(stringResource(R.string.settings_media_player), null, 8, 9,
-                    "settings_media_appearance", onClick = onMediaPlayer)
+                SettingsActionItem(stringResource(R.string.settings_favorites_app_list), null, 6, 7, "settings_list_appearance", onClick = onListAppearance)
             }
             item { SettingsHeading(stringResource(R.string.settings_misc)) }
             item {
@@ -173,7 +165,7 @@ internal fun ThemeSettings(
 }
 
 @Composable
-internal fun AppearancePlaceholder(title: String, tag: String, onBack: () -> Unit) {
+internal fun SettingsPlaceholder(title: String, tag: String, onBack: () -> Unit) {
     SettingsScaffold(title, tag, onBack) { padding ->
         SettingsList(padding) {
             item {
@@ -190,7 +182,7 @@ private fun AccentColorItem(isDynamic: Boolean, selectedColor: Int, style: Palet
     val initialPage = (AccentColors.indexOfFirst { it.toArgb() == selectedColor }.coerceAtLeast(0) / 5)
     val pager = rememberPagerState(initialPage = initialPage, pageCount = { pages.size })
     SegmentedListItem(
-        shapes = ListItemDefaults.segmentedShapes(0, 6),
+        shapes = ListItemDefaults.segmentedShapes(0, 5),
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
         modifier = Modifier.testTag("settings_accent_color"),
         content = {
@@ -360,13 +352,6 @@ private fun ThemeMode.label(): String = stringResource(when (this) {
     ThemeMode.System -> R.string.settings_follow_system
     ThemeMode.Light -> R.string.settings_light_mode
     ThemeMode.Dark -> R.string.settings_dark_mode
-})
-
-@Composable
-private fun WallpaperTextMode.label(): String = stringResource(when (this) {
-    WallpaperTextMode.Auto -> R.string.settings_text_auto
-    WallpaperTextMode.Light -> R.string.settings_text_light
-    WallpaperTextMode.Dark -> R.string.settings_text_dark
 })
 
 internal val AccentColors = listOf(

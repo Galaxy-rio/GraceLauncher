@@ -675,7 +675,6 @@
     <string name="settings_folder_auto_hide">Enthaltende Apps automatisch verstecken</string>
     <string name="settings_folder_auto_hide_summary">Aktuellen und zukünftigen Inhalt in der App-Liste verstecken. Manuell versteckte Apps bleiben auch nach Entfernen aus dem Ordner versteckt.</string>
     <string name="hidden_from_folder">Durch Ordner versteckt</string>
-    <string name="settings_additional_screen">Zusätzliche Seite</string>
     <string name="widget_screen_title">Widget-Seite</string>
     <string name="widget_screen_enable">Widget-Seite aktivieren</string>
     <string name="widget_screen_swipe">Auf dem Startbildschirm nach links wischen</string>

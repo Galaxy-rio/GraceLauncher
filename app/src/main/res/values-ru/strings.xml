@@ -696,7 +696,6 @@
     <string name="settings_folder_auto_hide">Автоматически скрывать приложения внутри</string>
     <string name="settings_folder_auto_hide_summary">Скрывать из списка текущие и будущие приложения этой папки. Приложения, скрытые вручную, останутся скрытыми после удаления из папки.</string>
     <string name="hidden_from_folder">Скрыто папкой</string>
-    <string name="settings_additional_screen">Дополнительный экран</string>
     <string name="widget_screen_title">Экран виджетов</string>
     <string name="widget_screen_enable">Включить экран виджетов</string>
     <string name="widget_screen_swipe">Свайп влево на главном экране</string>

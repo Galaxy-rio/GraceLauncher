@@ -288,7 +288,7 @@
     <string name="settings_open_home">直接进入桌面</string>
     <string name="settings_open_home_summary">直接进入桌面而不设置为默认启动器</string>
     <string name="settings_instant_access">即时访问</string>
-    <string name="settings_calendar_agenda">日历日程</string>
+    <string name="settings_calendar_agenda">日历与日程</string>
     <string name="settings_calendar_agenda_summary">在主屏幕显示下一项日程</string>
     <string name="settings_weather">天气</string>
     <string name="settings_media_player">媒体播放器</string>
@@ -346,7 +346,9 @@
     <string name="settings_light_mode">浅色</string>
     <string name="settings_dark_mode">深色</string>
     <string name="settings_personalization">个性化</string>
-    <string name="settings_clock_style">时钟样式</string>
+    <string name="settings_components">组件</string>
+    <string name="settings_agenda">日程</string>
+    <string name="settings_clock_style">时钟与日历</string>
     <string name="settings_icon_pack">图标包</string>
     <string name="settings_icons">图标</string>
     <string name="settings_font">字体</string>
@@ -715,7 +717,10 @@
     <string name="settings_folder_auto_hide">自动隐藏内部的应用</string>
     <string name="settings_folder_auto_hide_summary">从应用列表隐藏当前和今后加入的应用。移出后仍会保留手动设置的隐藏状态。</string>
     <string name="hidden_from_folder">从文件夹隐藏</string>
-    <string name="settings_additional_screen">附加页面</string>
+    <string name="settings_screens">页面</string>
+    <string name="settings_home_screen">首页</string>
+    <string name="settings_feed_screen">信息流页面</string>
+    <string name="settings_status_screen">状态页面</string>
     <string name="widget_screen_title">小组件页面</string>
     <string name="widget_screen_enable">启用小组件页面</string>
     <string name="widget_screen_swipe">左滑桌面进入</string>

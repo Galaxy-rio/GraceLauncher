@@ -287,7 +287,7 @@
     <string name="settings_open_home">Go directly to home</string>
     <string name="settings_open_home_summary">Go directly to home without setting Grace as the default launcher</string>
     <string name="settings_instant_access">Instant access</string>
-    <string name="settings_calendar_agenda">Calendar agenda</string>
+    <string name="settings_calendar_agenda">Calendar &amp; agenda</string>
     <string name="settings_calendar_agenda_summary">Show the next event on your home screen</string>
     <string name="settings_weather">Weather</string>
     <string name="settings_media_player">Media player</string>
@@ -349,7 +349,9 @@
     <string name="settings_light_mode">Light</string>
     <string name="settings_dark_mode">Dark</string>
     <string name="settings_personalization">Personalization</string>
-    <string name="settings_clock_style">Clock style</string>
+    <string name="settings_components">Components</string>
+    <string name="settings_agenda">Agenda</string>
+    <string name="settings_clock_style">Clock &amp; calendar</string>
     <string name="settings_icon_pack">Icon pack</string>
     <string name="settings_icons">Icons</string>
     <string name="settings_font">Font</string>
@@ -733,7 +735,10 @@
     <string name="settings_folder_auto_hide">Automatically hide apps inside</string>
     <string name="settings_folder_auto_hide_summary">Hide current and future members from the app list. Manual hides are kept when apps leave this folder.</string>
     <string name="hidden_from_folder">Hidden by folder</string>
-    <string name="settings_additional_screen">Additional screen</string>
+    <string name="settings_screens">Screens</string>
+    <string name="settings_home_screen">Home screen</string>
+    <string name="settings_feed_screen">Feed screen</string>
+    <string name="settings_status_screen">Status screen</string>
     <string name="widget_screen_title">Widget screen</string>
     <string name="widget_screen_enable">Enable widget screen</string>
     <string name="widget_screen_swipe">Swipe left on home</string>

@@ -34,7 +34,7 @@ import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.weather.WeatherAttribution
 
 @Composable
-internal fun WeatherSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit, onAppearance: () -> Unit = {}) {
+internal fun WeatherSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit) {
     val settings = uiState.settings
     val weather = uiState.weather
     val status = if (settings.weatherEnabled) weather.status else WeatherStatus.Disabled
@@ -71,8 +71,7 @@ internal fun WeatherSettings(uiState: LauncherUiState, actions: LauncherActions,
         )
     }
 
-    SettingsScaffold(stringResource(R.string.settings_weather), "settings_weather_page", onBack,
-        actions = { SettingsAppearanceAction(onAppearance) }) { padding ->
+    SettingsScaffold(stringResource(R.string.settings_weather), "settings_weather_page", onBack) { padding ->
         SettingsList(padding) {
             item {
                 SettingsFeatureBanner(

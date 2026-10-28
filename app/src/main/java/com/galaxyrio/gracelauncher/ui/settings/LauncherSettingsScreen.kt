@@ -78,8 +78,8 @@ internal enum class SettingsPage {
     Changelog, Licenses, AppLicense, IconPacks, IconDesigner, IconDesignerApp, PrivateSpace, PrivateSpaceEditor, Search,
     MediaPlayer, GraceButton, GraceAction, GraceApp, GraceShortcut, GraceFolder, Gestures, WorkProfile, WorkProfileEditor,
     LabGraceButton, LabGesture, LabPopup, LabAccessibility, LabDismiss, Fonts, ListAppearance, Alphabet, ShortcutsFolders, AppStacks,
-    GraceButtonAppearance, GraceButtonPosition, CalendarAppearance, WeatherAppearance, MediaPlayerAppearance,
-    WidgetScreen, WidgetScreenEditor, Homepage, DigitalWellbeing,
+    GraceButtonAppearance, GraceButtonPosition, AgendaAppearance, SearchAppearance, MediaPlayerAppearance,
+    WidgetScreen, WidgetScreenEditor, Homepage, AppList, FeedScreen, StatusScreen, DigitalWellbeing,
 }
 
 /** Navigation owns each page's saved state and seekable predictive-back transition. */
@@ -198,6 +198,9 @@ fun LauncherSettingsScreen(
                     SettingsPage.DigitalWellbeing -> DigitalWellbeingSettingsScreen(uiState, actions, back)
                     SettingsPage.Homepage -> com.galaxyrio.gracelauncher.ui.overlays.HomepageEditorScreen(
                         uiState, actions, actions.toggleFavorite, actions.reorderFavorites, onDone = back)
+                    SettingsPage.AppList -> SettingsPlaceholder(stringResource(R.string.settings_folder_app_list), "app_list_settings", back)
+                    SettingsPage.FeedScreen -> SettingsPlaceholder(stringResource(R.string.settings_feed_screen), "feed_screen_settings", back)
+                    SettingsPage.StatusScreen -> SettingsPlaceholder(stringResource(R.string.settings_status_screen), "status_screen_settings", back)
                     SettingsPage.Clock -> ClockSettings(uiState, actions, back) { navigate(SettingsPage.ClockStyle) }
                     SettingsPage.Search -> SearchSettingsScreen(uiState, actions, back)
                     SettingsPage.ShortcutsFolders -> ShortcutsFoldersSettingsScreen(uiState, actions, back)
@@ -267,19 +270,19 @@ fun LauncherSettingsScreen(
                                 }
                             })
                     }
-                    SettingsPage.Weather -> WeatherSettings(uiState, actions, back) { navigate(SettingsPage.WeatherAppearance) }
+                    SettingsPage.Weather -> WeatherSettings(uiState, actions, back)
                     SettingsPage.Themes -> ThemeSettings(uiState, actions, back,
                         onClockStyle = { navigate(SettingsPage.ClockStyle) }, onIconPacks = { navigate(SettingsPage.IconPacks) },
                         onFonts = { navigate(SettingsPage.Fonts) }, onListAppearance = { navigate(SettingsPage.ListAppearance) },
                         onAlphabet = { navigate(SettingsPage.Alphabet) }, onGraceButton = { navigate(SettingsPage.GraceButtonAppearance) },
-                        onCalendar = { navigate(SettingsPage.CalendarAppearance) }, onWeather = { navigate(SettingsPage.WeatherAppearance) },
+                        onAgenda = { navigate(SettingsPage.AgendaAppearance) }, onSearch = { navigate(SettingsPage.SearchAppearance) },
                         onMediaPlayer = { navigate(SettingsPage.MediaPlayerAppearance) })
                     SettingsPage.GraceButtonAppearance -> IconDesignerSettings(uiState, actions, GraceButtonIcon.key, back,
                         onChooseApp = {}, onSelectApp = {}, onPositionAndSize = { navigate(SettingsPage.GraceButtonPosition) })
                     SettingsPage.GraceButtonPosition -> GraceButtonPositionSettings(uiState, actions, back)
-                    SettingsPage.CalendarAppearance -> AppearancePlaceholder(stringResource(R.string.widget_calendar), "calendar_appearance", back)
-                    SettingsPage.WeatherAppearance -> AppearancePlaceholder(stringResource(R.string.settings_weather), "weather_appearance", back)
-                    SettingsPage.MediaPlayerAppearance -> AppearancePlaceholder(stringResource(R.string.settings_media_player), "media_appearance", back)
+                    SettingsPage.AgendaAppearance -> SettingsPlaceholder(stringResource(R.string.settings_agenda), "agenda_appearance", back)
+                    SettingsPage.SearchAppearance -> SettingsPlaceholder(stringResource(R.string.settings_search), "search_appearance", back)
+                    SettingsPage.MediaPlayerAppearance -> SettingsPlaceholder(stringResource(R.string.settings_media_player), "media_appearance", back)
                     SettingsPage.ClockStyle -> ClockStyleSettings(uiState, actions, back) { navigate(SettingsPage.Fonts) }
                     SettingsPage.Fonts -> FontSettings(uiState, actions, back)
                     SettingsPage.ListAppearance -> ListAppearanceSettings(uiState, actions, back) { navigate(SettingsPage.Fonts) }
@@ -302,7 +305,7 @@ fun LauncherSettingsScreen(
                             }
                         },
                     )
-                    SettingsPage.Calendar -> CalendarSettings(uiState, actions, back) { navigate(SettingsPage.CalendarAppearance) }
+                    SettingsPage.Calendar -> CalendarSettings(uiState, actions, back) { navigate(SettingsPage.ClockStyle) }
                     SettingsPage.Advanced -> AdvancedSettings(back, navigate,
                         onChooseDefaultHome = { if (isCurrent()) actions.requestDefaultHome() })
                     SettingsPage.LabGraceButton -> LabGraceButtonSettings(uiState, actions, back)

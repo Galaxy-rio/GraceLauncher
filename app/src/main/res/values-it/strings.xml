@@ -649,7 +649,6 @@
     <string name="icon_designer_saturation">Saturazione</string>
     <string name="icon_designer_brightness">Luminosità</string>
     <string name="icon_color_relative_summary">Con 0 la sorgente resta invariata. Le regolazioni si adattano ai futuri cambi di colore; saturazione e luminosità sono espresse in punti percentuali.</string>
-    <string name="settings_additional_screen">Schermo aggiuntivo</string>
     <string name="widget_screen_title">Schermata dei widget</string>
     <string name="widget_screen_enable">Abilita schermata dei widget</string>
     <string name="widget_screen_swipe">Scorri a sinistra nella schermata home</string>

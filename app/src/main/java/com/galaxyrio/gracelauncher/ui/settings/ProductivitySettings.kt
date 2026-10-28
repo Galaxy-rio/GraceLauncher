@@ -123,15 +123,26 @@ internal fun ProductivitySettings(
                 SettingsActionItem(stringResource(R.string.popups_title), stringResource(R.string.shortcuts_folders_title), 6, 7, "settings_shortcuts_folders",
                     leading = { LauncherIcon(LauncherSymbol.Outbound) }) { navigate(SettingsPage.ShortcutsFolders) }
             }
+            item { SettingsHeading(stringResource(R.string.settings_screens)) }
             item {
-                Spacer(Modifier.height(12.dp))
-                SettingsActionItem(stringResource(R.string.edit_homepage), null, 0, 1, "settings_edit_homepage",
+                SettingsActionItem(stringResource(R.string.settings_home_screen), null, 0, 5, "settings_edit_homepage",
                     leading = { LauncherIcon(LauncherSymbol.Home) }) { navigate(SettingsPage.Homepage) }
             }
-            item { SettingsHeading(stringResource(R.string.settings_additional_screen)) }
             item {
-                SettingsActionItem(stringResource(R.string.widget_screen_title), null, 0, 1, "settings_widget_screen",
+                SettingsActionItem(stringResource(R.string.settings_folder_app_list), null, 1, 5, "settings_app_list",
+                    leading = { LauncherIcon(LauncherSymbol.Apps) }) { navigate(SettingsPage.AppList) }
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.widget_screen_title), null, 2, 5, "settings_widget_screen",
                     leading = { LauncherIcon(LauncherSymbol.Widgets) }) { navigate(SettingsPage.WidgetScreen) }
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.settings_feed_screen), null, 3, 5, "settings_feed_screen",
+                    leading = { LauncherIcon(LauncherSymbol.Category) }) { navigate(SettingsPage.FeedScreen) }
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.settings_status_screen), null, 4, 5, "settings_status_screen",
+                    leading = { LauncherIcon(LauncherSymbol.Notifications) }) { navigate(SettingsPage.StatusScreen) }
             }
             item { SettingsHeading(stringResource(R.string.settings_app_organization)) }
             item {

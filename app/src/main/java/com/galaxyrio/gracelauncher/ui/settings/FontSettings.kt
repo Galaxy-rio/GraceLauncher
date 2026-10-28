@@ -113,6 +113,7 @@ internal fun FontSettings(uiState: LauncherUiState, actions: LauncherActions, on
     var deleting by rememberSaveable { mutableStateOf(false) }
     var deletion by rememberSaveable { mutableStateOf(emptyList<String>()) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
+    var showTextColor by rememberSaveable { mutableStateOf(false) }
     val enabled = LocalSettingsStorageState.current.canEdit && !busy && loaded
     val commit by rememberUpdatedState<(List<String>) -> Unit>({ order ->
         actions.updateSettings { it.copy(fontLibrary = it.fontLibrary.reorder(order)) }
@@ -166,6 +167,13 @@ internal fun FontSettings(uiState: LauncherUiState, actions: LauncherActions, on
             }
         }) { Text(stringResource(R.string.font_delete)) } },
         dismissButton = { TextButton(enabled = !busy, onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } })
+    if (showTextColor && enabled) SettingsSelectionDialog(
+        title = stringResource(R.string.settings_wallpaper_text),
+        items = WallpaperTextMode.entries, selectedItem = uiState.textMode,
+        tag = "wallpaper_text", itemKey = { it.name }, itemLabel = { it.label() },
+        onSelect = { if (enabled) actions.textMode(it); showTextColor = false },
+        onDismiss = { showTextColor = false },
+    )
     val names = remember(labels) { labels.mapValues { SearchNames(it.value) } }
     val searchQuery = SearchQuery(query.text.toString(), fuzzy = false)
     val filtered = reorder.keys.filter { names[it]?.matches(searchQuery) == true }
@@ -182,9 +190,12 @@ internal fun FontSettings(uiState: LauncherUiState, actions: LauncherActions, on
                 userScrollEnabled = reorder.draggingKey == null) {
                 item("settings") {
                     SettingsToggleItem(stringResource(R.string.font_apply_settings), stringResource(R.string.font_apply_settings_summary),
-                        uiState.settings.applyFontToSettings, 0, 1, "apply_font_to_settings", enabled = enabled) { value ->
+                        uiState.settings.applyFontToSettings, 0, 2, "apply_font_to_settings", enabled = enabled) { value ->
                         actions.updateSettings { it.copy(applyFontToSettings = value) }
                     }
+                    Spacer(Modifier.height(ListItemDefaults.SegmentedGap))
+                    SettingsActionItem(stringResource(R.string.settings_wallpaper_text), uiState.textMode.label(),
+                        1, 2, "settings_wallpaper_text", enabled = enabled) { showTextColor = true }
                     Spacer(Modifier.height(16.dp))
                 }
                 item("add") {
@@ -243,3 +254,10 @@ internal fun FontSettings(uiState: LauncherUiState, actions: LauncherActions, on
         }
     }
 }
+
+@Composable
+private fun WallpaperTextMode.label(): String = stringResource(when (this) {
+    WallpaperTextMode.Auto -> R.string.settings_text_auto
+    WallpaperTextMode.Light -> R.string.settings_text_light
+    WallpaperTextMode.Dark -> R.string.settings_text_dark
+})

@@ -127,7 +127,11 @@ class SettingsRefinementTest {
         compose.onNodeWithTag("theme_mode:Dark").performClick()
         compose.runOnIdle { assertEquals(1, edits) }
         compose.onNodeWithTag("theme_mode:Dark").assertDoesNotExist()
-        clickSetting("settings_wallpaper_text")
+        clickSetting("settings_font")
+        compose.waitUntil(5_000) {
+            compose.onAllNodes(hasTestTag("settings_wallpaper_text") and isEnabled()).fetchSemanticsNodes().isNotEmpty()
+        }
+        compose.onNodeWithTag("settings_wallpaper_text").performClick()
         assertRadioRows("wallpaper_text", listOf("Auto", "Light", "Dark"))
         screenshot("settings-standard-text-color-dialog-dark.png")
         compose.onNodeWithText(context.getString(R.string.settings_cancel)).performClick()

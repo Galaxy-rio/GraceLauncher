@@ -641,7 +641,6 @@
     <string name="hidden_from_folder">Oculto polo cartafol</string>
     <string name="hide_recently_installed">Agochar as instalacións recentes</string>
     <string name="settings_recently_installed_summary">Amosar as 8 aplicacións instaladas máis recentemente na lista de aplicacións</string>
-    <string name="settings_additional_screen">Pantalla adicional</string>
     <string name="widget_screen_title">Pantalla de widgets</string>
     <string name="widget_screen_enable">Activar a pantalla de widgets</string>
     <string name="widget_screen_swipe">Esvara cara á esquerda na pantalla de inicio</string>
