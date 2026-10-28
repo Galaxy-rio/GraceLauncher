@@ -221,7 +221,7 @@
     <string name="settings_about">Acerca de</string>
     <string name="settings_about_summary">Grace Launcher, actualizacións e licenzas</string>
     <string name="settings_instant_access">Acceso inmediato</string>
-    <string name="settings_calendar_agenda">Axenda do calendario</string>
+    <string name="settings_calendar_agenda">Calendario e axenda</string>
     <string name="settings_calendar_agenda_summary">Amosa o seguinte evento na pantalla de inicio</string>
     <string name="settings_weather">O tempo</string>
     <string name="settings_media_player">Reprodutor multimedia</string>
@@ -282,7 +282,7 @@
     <string name="settings_light_mode">Claro</string>
     <string name="settings_dark_mode">Escuro</string>
     <string name="settings_personalization">Personalización</string>
-    <string name="settings_clock_style">Estilo do reloxo</string>
+    <string name="settings_clock_style">Reloxo e calendario</string>
     <string name="settings_icon_pack">Paquete de iconas</string>
     <string name="settings_icons">Iconas</string>
     <string name="settings_font">Fonte</string>
@@ -731,4 +731,11 @@
     <string name="lab_dismiss_threshold">Limiar de avance</string>
     <string name="lab_dismiss_threshold_summary">Distancia antes de que ceda a resistencia. Compartido polas notificacións e o reprodutor multimedia; limitado pola anchura dispoñible.</string>
     <string name="widget_bind_error">Non foi posible vincular este widget. Téntao de novo.</string>
+    <string name="settings_tablets_foldables">Tabletas e plegables</string>
+    <string name="settings_components">Compoñentes</string>
+    <string name="settings_agenda">Axenda</string>
+    <string name="settings_screens">Pantallas</string>
+    <string name="settings_home_screen">Pantalla de inicio</string>
+    <string name="settings_feed_screen">Pantalla do feed</string>
+    <string name="settings_status_screen">Pantalla de estado</string>
 </resources>
