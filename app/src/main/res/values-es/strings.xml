@@ -221,7 +221,7 @@
     <string name="settings_about">Acerca de</string>
     <string name="settings_about_summary">Grace Launcher, actualizaciones y licencias</string>
     <string name="settings_instant_access">Acceso inmediato</string>
-    <string name="settings_calendar_agenda">Agenda del calendario</string>
+    <string name="settings_calendar_agenda">Calendario y agenda</string>
     <string name="settings_calendar_agenda_summary">Muestra el próximo evento en la pantalla de inicio</string>
     <string name="settings_weather">Clima</string>
     <string name="settings_media_player">Reproductor multimedia</string>
@@ -287,7 +287,7 @@
     <string name="settings_light_mode">Claro</string>
     <string name="settings_dark_mode">Oscuro</string>
     <string name="settings_personalization">Personalización</string>
-    <string name="settings_clock_style">Estilo del reloj</string>
+    <string name="settings_clock_style">Reloj y calendario</string>
     <string name="settings_icon_pack">Paquete de iconos</string>
     <string name="settings_icons">Iconos</string>
     <string name="settings_font">Tipografía</string>
@@ -739,4 +739,11 @@
     <string name="lab_dismiss_resistance_summary">Compartido por las notificaciones y el reproductor multimedia. Los valores más altos generan mayor resistencia; el 0 % sigue el movimiento de tu dedo.</string>
     <string name="lab_dismiss_threshold">Umbral de avance</string>
     <string name="lab_dismiss_threshold_summary">Distancia antes de que ceda la resistencia. Compartido por las notificaciones y el reproductor multimedia; limitado por el ancho disponible.</string>
+    <string name="settings_tablets_foldables">Tabletas y plegables</string>
+    <string name="settings_components">Componentes</string>
+    <string name="settings_agenda">Agenda</string>
+    <string name="settings_screens">Pantallas</string>
+    <string name="settings_home_screen">Pantalla de inicio</string>
+    <string name="settings_feed_screen">Pantalla del feed</string>
+    <string name="settings_status_screen">Pantalla de estado</string>
 </resources>
