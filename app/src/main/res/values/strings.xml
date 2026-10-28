@@ -185,6 +185,8 @@
     <!-- Search and app drawer -->
     <string name="search_apps">Search apps</string>
     <string name="search_no_results">No matching apps</string>
+    <string name="drawer_search_apps">Search apps by name</string>
+    <string name="drawer_search_no_results">No apps found</string>
     <string name="launcher_fab_description">Search apps. Touch and hold for settings.</string>
     <string name="drawer_folders">Folders</string>
     <string name="recently_installed">Recently Installed</string>

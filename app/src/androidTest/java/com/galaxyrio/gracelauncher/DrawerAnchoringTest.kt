@@ -22,6 +22,8 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.galaxyrio.gracelauncher.data.LauncherApp
+import com.galaxyrio.gracelauncher.data.LauncherSettings
+import com.galaxyrio.gracelauncher.data.ListAppearance
 import com.galaxyrio.gracelauncher.data.WallpaperTextMode
 import com.galaxyrio.gracelauncher.ui.LauncherScreen
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
@@ -42,13 +44,13 @@ class DrawerAnchoringTest {
     // the three single-app tail groups are too short to reach the same anchor.
     private val apps = ('A'..'Z').flatMap { letter ->
         val count = when (letter) {
-            'M' -> 14
+            'M' -> 40
             in 'X'..'Z' -> 1
             else -> 2
         }
         (1..count).map { index ->
             val packageName = "test.anchor.${letter.lowercaseChar()}$index"
-            LauncherApp(ComponentName(packageName, "$packageName.MainActivity"), "$letter app $index", null)
+            LauncherApp(ComponentName(packageName, "$packageName.MainActivity"), "$letter app ${index.toString().padStart(2, '0')}", null)
         }
     }
 
@@ -104,8 +106,8 @@ class DrawerAnchoringTest {
             section('Z').assertIsDisplayed()
             app('Z').assertIsDisplayed()
             assertEquals(
-                "The final app should leave only the normal 24dp bottom inset",
-                24f * density(), viewport.bottom - bounds(app('Z')).bottom, 2f,
+                "The final app should leave room for the fixed bottom search field",
+                80f * density(), viewport.bottom - bounds(app('Z')).bottom, 2f,
             )
             saveScreenshot("drawer-released-end.png")
         }
@@ -130,7 +132,7 @@ class DrawerAnchoringTest {
 
     @Test
     fun catalogueThatAlreadyFitsNeverMovesItsSelectedGroupOnHoldOrRelease() {
-        val shortCatalogue = apps.filter { it.section in listOf("A", "B", "C") && it.label.endsWith(" 1") }
+        val shortCatalogue = apps.filter { it.section in listOf("A", "B", "C") && it.label.endsWith(" 01") }
         showDrawer(shortCatalogue)
         app('A').assertIsDisplayed()
         app('B').assertIsDisplayed()
@@ -184,7 +186,7 @@ class DrawerAnchoringTest {
             val heldApp = bounds(app('M'))
             assertEquals(firstHeader.top, heldHeader.top, 1f)
             section('L').assertIsNotDisplayed()
-            app('M', 14).assertIsNotDisplayed()
+            app('M', 40).assertIsNotDisplayed()
             finish(false)
             assertPositionUnchanged(heldHeader, bounds(section('M')), "Long M header after UP")
             assertPositionUnchanged(heldApp, bounds(app('M')), "Long M app after UP")
@@ -194,7 +196,7 @@ class DrawerAnchoringTest {
         // One header for every letter up to and including this app's section.
         val indexInFullList = apps.indexOf(lastM) + ('M' - 'A' + 1)
         drawer().performScrollToIndex(indexInFullList)
-        app('M', 14).assertIsDisplayed()
+        app('M', 40).assertIsDisplayed()
         section('N').assertIsDisplayed()
         app('N').assertIsDisplayed()
     }
@@ -206,6 +208,7 @@ class DrawerAnchoringTest {
                     LauncherScreen(
                         uiState = LauncherUiState(
                             apps = catalogue,
+                            settings = LauncherSettings(listAppearance = ListAppearance(showRecentlyInstalled = false)),
                             favoriteKeys = catalogue.take(2).mapTo(linkedSetOf(), LauncherApp::key),
                             isLoadingApps = false,
                             scheduleStatus = ScheduleStatus.Ready,
@@ -224,7 +227,7 @@ class DrawerAnchoringTest {
     private fun section(letter: Char) = drawerChild("section:$letter")
 
     private fun app(letter: Char, number: Int = 1): SemanticsNodeInteraction {
-        val app = apps.single { it.label == "$letter app $number" }
+        val app = apps.single { it.label == "$letter app ${number.toString().padStart(2, '0')}" }
         return drawerChild("app:${app.key}")
     }
 

@@ -68,6 +68,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -550,6 +552,11 @@ internal fun LauncherScreen(
     val searchTransition = buttonTransition?.takeIf { it.action == GraceButtonAction.Search }
     val drawerTransition = buttonTransition?.takeIf { it.action == GraceButtonAction.AppList }
     val searchQuery = rememberTextFieldState()
+    val drawerSearchQuery = rememberTextFieldState()
+    var drawerSearchExpanded by rememberSaveable { mutableStateOf(false) }
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    var drawerWasOpen by remember { mutableStateOf(drawerOpen) }
     var editingHome by rememberSaveable { mutableStateOf(false) }
     var privateListOpen by remember { mutableStateOf(false) }
     var workListOpen by remember { mutableStateOf(false) }
@@ -639,6 +646,20 @@ internal fun LauncherScreen(
     }
     val haptics = rememberLauncherHaptics(uiState.settings.allowHapticFeedback)
     val searching = overlay == LauncherOverlay.Search
+    LaunchedEffect(drawerOpen, overlay) {
+        val drawerJustClosed = drawerWasOpen && !drawerOpen
+        if (drawerJustClosed) {
+            drawerSearchExpanded = false
+            drawerSearchQuery.edit { replace(0, length, "") }
+            // A retained drawer can share the same activity with global search.
+            // Only clear input focus when returning to the underlying page.
+            if (overlay == null) {
+                focusManager.clearFocus()
+                keyboardController?.hide()
+            }
+        }
+        drawerWasOpen = drawerOpen
+    }
     val searchAlpha by animateFloatAsState(if (searching) 1f else 0f,
         if (instantButtonEntrance || searchTransition != null) androidx.compose.animation.core.snap() else tween(210), label = "searchFade")
     LaunchedEffect(searching, drawerOpen) { if (!searching && !drawerOpen) instantButtonEntrance = false }
@@ -735,10 +756,16 @@ internal fun LauncherScreen(
     }
     PredictiveBackHandler(enabled = buttonTransition == null && (overlay == LauncherOverlay.Search || (overlay == null && drawerOpen))) { events ->
         val fromSearch = overlay == LauncherOverlay.Search
+        val closeDrawerSearch = !fromSearch && drawerSearchExpanded
         try {
-            events.collect { backProgress.snapTo(it.progress) }
-            backProgress.animateTo(1f, tween(180))
-            if (fromSearch) overlay = null else {
+            events.collect { event -> if (!closeDrawerSearch) backProgress.snapTo(event.progress) }
+            if (!closeDrawerSearch) backProgress.animateTo(1f, tween(180))
+            if (fromSearch) overlay = null else if (drawerSearchExpanded) {
+                drawerSearchExpanded = false
+                drawerSearchQuery.edit { replace(0, length, "") }
+                focusManager.clearFocus()
+                keyboardController?.hide()
+            } else {
                 // The predictive gesture already completed the same upward exit.
                 homeListMotion.snapTo(drawerOpen = false)
                 drawerOpen = false
@@ -746,7 +773,7 @@ internal fun LauncherScreen(
             selectedLetter = null
             backProgress.snapTo(0f)
         } catch (cancelled: CancellationException) {
-            withContext(NonCancellable) { backProgress.animateTo(0f, tween(180)) }
+            if (!closeDrawerSearch) withContext(NonCancellable) { backProgress.animateTo(0f, tween(180)) }
             throw cancelled
         }
     }
@@ -1126,6 +1153,18 @@ internal fun LauncherScreen(
             onRetryPrivateSpace = { actions.requestPrivateSpace(true, actions.refreshApps) },
             workExpanded = workExpanded,
             onWorkProfileSettings = actions.openWorkProfileSettings,
+            searchState = drawerSearchQuery,
+            searchExpanded = drawerSearchExpanded,
+            searchAnimationDurationMillis = uiState.settings.graceButton.searchAnimationDurationMs,
+            searchAnimationsEnabled = uiState.settings.graceButton.animationsEnabled,
+            onSearchExpandedChange = { expanded ->
+                drawerSearchExpanded = expanded
+                if (!expanded) {
+                    drawerSearchQuery.edit { replace(0, length, "") }
+                    focusManager.clearFocus()
+                    keyboardController?.hide()
+                }
+            },
             modifier = Modifier.retainedPage(visible = drawerOpen || drawerVisibility > 0f)
                 .then(if (!drawerOpen) Modifier.clearAndSetSemantics {} else Modifier)
                 .graphicsLayer {
@@ -1152,7 +1191,7 @@ internal fun LauncherScreen(
             tween(if (homePager.isScrollInProgress || editingWidgetScreen || editingHomeContent) 90 else 180), label = "pagingAlphabet",
         )
         if (!editingHome) AlphabetRail(
-            enabled = !homePager.isScrollInProgress && !editingWidgetScreen && !editingHomeContent,
+            enabled = !homePager.isScrollInProgress && !editingWidgetScreen && !editingHomeContent && !drawerSearchExpanded,
             alphabet = alphabet,
             leftTouchEnabled = uiState.settings.listAppearance.leftAlphabet,
             letters = model.letters,

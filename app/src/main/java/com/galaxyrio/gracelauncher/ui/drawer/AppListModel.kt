@@ -98,4 +98,27 @@ class AppListModel(apps: List<LauncherApp>, folders: List<LauncherFolder> = empt
     /** Every index refers to the same complete list, even while other groups are hidden. */
     fun indexOfSection(letter: String): Int =
         sectionIndices[letter] ?: 0
+
+    /** Filters only rows already present in this model; hidden profiles never become searchable. */
+    fun filterApps(query: String): List<DrawerItem> {
+        val needle = query.trim()
+        if (needle.isEmpty()) return items
+        val matchingKeys = items.mapNotNull { item ->
+            when (item) {
+                is DrawerItem.App -> item.key.takeIf { item.app.label.contains(needle, ignoreCase = true) }
+                is DrawerItem.PrivateApp -> item.key.takeIf { item.app.label.contains(needle, ignoreCase = true) }
+                else -> null
+            }
+        }.toSet()
+        return items.mapIndexedNotNull { index, item ->
+            when (item) {
+                is DrawerItem.Header -> item.takeIf {
+                    items.drop(index + 1).takeWhile { it !is DrawerItem.Header }
+                        .any { it.key in matchingKeys }
+                }
+                is DrawerItem.App, is DrawerItem.PrivateApp -> item.takeIf { it.key in matchingKeys }
+                else -> null
+            }
+        }
+    }
 }

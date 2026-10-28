@@ -179,6 +179,8 @@
     <string name="no_upcoming_events">Nenhum evento nos próximos 14 dias</string>
     <string name="search_apps">Pesquisar aplicativos</string>
     <string name="search_no_results">Sem aplicativos correspondentes</string>
+    <string name="drawer_search_apps">Buscar aplicativos pelo nome</string>
+    <string name="drawer_search_no_results">Nenhum aplicativo encontrado</string>
     <string name="launcher_fab_description">Procure aplicativos. Toque e segure para configurá-los.</string>
     <string name="drawer_folders">Pastas</string>
     <string name="recently_installed">Instalados recentemente</string>
