@@ -79,7 +79,7 @@ internal enum class SettingsPage {
     MediaPlayer, GraceButton, GraceAction, GraceApp, GraceShortcut, GraceFolder, Gestures, WorkProfile, WorkProfileEditor,
     LabGraceButton, LabGesture, LabPopup, LabAccessibility, LabDismiss, Fonts, ListAppearance, Alphabet, ShortcutsFolders, AppStacks,
     GraceButtonAppearance, GraceButtonPosition, AgendaAppearance, SearchAppearance, MediaPlayerAppearance,
-    WidgetScreen, WidgetScreenEditor, Homepage, AppList, FeedScreen, StatusScreen, DigitalWellbeing,
+    WidgetScreen, WidgetScreenEditor, Homepage, AppList, FeedScreen, StatusScreen, DigitalWellbeing, TabletsFoldables,
 }
 
 /** Navigation owns each page's saved state and seekable predictive-back transition. */
@@ -196,6 +196,7 @@ fun LauncherSettingsScreen(
                         onOpenHome = { if (isCurrent()) actions.openHome() }, onBack = back, navigate = navigate)
                     SettingsPage.Productivity -> ProductivitySettings(uiState, actions, back, navigate)
                     SettingsPage.DigitalWellbeing -> DigitalWellbeingSettingsScreen(uiState, actions, back)
+                    SettingsPage.TabletsFoldables -> SettingsPlaceholder(stringResource(R.string.settings_tablets_foldables), "tablets_foldables_settings", back)
                     SettingsPage.Homepage -> com.galaxyrio.gracelauncher.ui.overlays.HomepageEditorScreen(
                         uiState, actions, actions.toggleFavorite, actions.reorderFavorites, onDone = back)
                     SettingsPage.AppList -> SettingsPlaceholder(stringResource(R.string.settings_folder_app_list), "app_list_settings", back)

@@ -147,3 +147,7 @@ Media controls added 2026-09-27 (same official Outlined 24px style):
 - `ms_palette.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/palette/materialsymbolsoutlined/palette_24px.svg
 - `ms_home.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/home/materialsymbolsoutlined/home_24px.svg
 - `ms_search.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/web/search/materialsymbolsoutlined/search_24px.svg
+
+Settings icon added 2026-10-28 (same official Outlined 24px style; original path and 960px viewport retained, tint supplied by Compose):
+
+- `ms_splitscreen_landscape.xml`: https://raw.githubusercontent.com/google/material-design-icons/master/symbols/android/splitscreen_landscape/materialsymbolsoutlined/splitscreen_landscape_24px.xml

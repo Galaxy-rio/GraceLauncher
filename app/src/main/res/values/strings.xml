@@ -269,6 +269,7 @@
     <string name="settings_themes">Appearance</string>
     <string name="settings_themes_summary">Colors, appearance, and personalization</string>
     <string name="settings_advanced">Advanced</string>
+    <string name="settings_tablets_foldables">Tablets &amp; foldables</string>
     <string name="settings_lab">Lab</string>
     <string name="lab_accessibility">Accessibility</string>
     <string name="lab_prefer_non_accessibility">Avoid accessibility access when possible</string>
