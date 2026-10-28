@@ -6,9 +6,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.input.rememberTextFieldState
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -42,18 +39,15 @@ class DrawerSearchInsetsTest {
             LauncherApp(ComponentName("test.insets", "test.insets.App$index"), "App ${index.toString().padStart(2, '0')}", null)
         }
         val model = AppListModel(apps)
-        var searchExpanded by mutableStateOf(false)
         compose.setContent {
             GraceLauncherTheme(dynamicColor = false) {
                 AppDrawerScreen(
                     model = model,
                     listState = rememberLazyListState(),
                     selectedLetter = null,
-                    topSpace = 0.dp,
+                    topSpace = 120.dp,
                     onLaunchApp = {}, onAppDetails = {}, onAppShortcuts = { _, _ -> },
                     searchState = rememberTextFieldState(),
-                    searchExpanded = searchExpanded,
-                    onSearchExpandedChange = { searchExpanded = it },
                 )
             }
         }
@@ -62,11 +56,10 @@ class DrawerSearchInsetsTest {
         fun assertListAndSearchFit() {
             compose.onNodeWithTag("app_drawer").performScrollToIndex(model.items.lastIndex)
             val lastApp = compose.onNodeWithTag("app:${apps.last().key}").fetchSemanticsNode().boundsInRoot
-            val search = compose.onNodeWithTag(if (searchExpanded) "drawer_search" else "drawer_search_button").fetchSemanticsNode().boundsInRoot
-            if (searchExpanded) {
-                assertTrue("Search must be at the top", search.center.y < drawerBottom() / 2)
-                assertTrue("Last app must stay below the top search bar", lastApp.top >= search.bottom)
-            } else assertTrue("Last app must scroll above search button", lastApp.bottom <= search.top)
+            val search = compose.onNodeWithTag("drawer_search").fetchSemanticsNode().boundsInRoot
+            assertTrue("Search must be at the top", search.center.y < drawerBottom() / 2)
+            assertTrue("Last app must stay below the top search bar", lastApp.top >= search.bottom)
+            assertTrue("Last app must remain in the drawer viewport", lastApp.bottom <= drawerBottom())
             assertTrue("Search must fit in the safe viewport", search.bottom <= drawerBottom())
         }
         val decor = compose.activity.window.decorView
@@ -77,8 +70,7 @@ class DrawerSearchInsetsTest {
         assertTrue("Drawer must avoid system navigation", closedBottom <= decor.height - navigation + 1f)
         assertListAndSearchFit()
 
-        compose.onNodeWithTag("drawer_search_button").performClick()
-        compose.onNodeWithTag("drawer_search").assertIsFocused()
+        compose.onNodeWithTag("drawer_search").performClick().assertIsFocused()
         compose.waitUntil(timeoutMillis = 5_000) {
             compose.runOnIdle {
                 WindowInsetsCompat.toWindowInsetsCompat(decor.rootWindowInsets).isVisible(WindowInsetsCompat.Type.ime())
@@ -86,10 +78,12 @@ class DrawerSearchInsetsTest {
         }
         compose.waitForIdle()
         assertTrue("Drawer viewport must shrink above the keyboard", drawerBottom() < closedBottom)
-        val keyboard = compose.runOnIdle {
-            WindowInsetsCompat.toWindowInsetsCompat(decor.rootWindowInsets).getInsets(WindowInsetsCompat.Type.ime()).bottom
+        compose.waitUntil(timeoutMillis = 5_000) {
+            val keyboard = compose.runOnIdle {
+                WindowInsetsCompat.toWindowInsetsCompat(decor.rootWindowInsets).getInsets(WindowInsetsCompat.Type.ime()).bottom
+            }
+            drawerBottom() <= decor.height - keyboard + 1f
         }
-        assertTrue("Drawer must avoid the keyboard", drawerBottom() <= decor.height - keyboard + 1f)
         assertListAndSearchFit()
 
         compose.runOnIdle {

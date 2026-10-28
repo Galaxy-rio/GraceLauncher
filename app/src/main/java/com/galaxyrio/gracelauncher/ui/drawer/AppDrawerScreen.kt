@@ -15,9 +15,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.input.TextFieldState
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextButton
@@ -36,13 +33,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.layout
-import androidx.compose.ui.layout.boundsInRoot
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
@@ -50,7 +43,6 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.data.LauncherApp
-import com.galaxyrio.gracelauncher.data.GraceButtonAction
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
@@ -65,12 +57,8 @@ import com.galaxyrio.gracelauncher.ui.components.endPadding
 import com.galaxyrio.gracelauncher.ui.components.listLabelStyle
 import com.galaxyrio.gracelauncher.ui.components.stableStatusBarInset
 import com.galaxyrio.gracelauncher.ui.components.LauncherSearchBar
-import com.galaxyrio.gracelauncher.ui.components.GraceButtonOrigin
-import com.galaxyrio.gracelauncher.ui.components.GraceButtonTransition
-import com.galaxyrio.gracelauncher.ui.components.GraceButtonTransitionOverlay
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.delay
 
 @Composable
 fun AppDrawerScreen(
@@ -100,29 +88,13 @@ fun AppDrawerScreen(
     workExpanded: Boolean = false,
     onWorkProfileSettings: () -> Unit = {},
     searchState: TextFieldState,
-    searchExpanded: Boolean,
-    onSearchExpandedChange: (Boolean) -> Unit,
-    searchAnimationDurationMillis: Int = 500,
-    searchAnimationsEnabled: Boolean = true,
 ) {
     val appearance = LocalLauncherAppearance.current
     val listAppearance = LocalListAppearance.current
     val labelStyle = listLabelStyle()
     val density = LocalDensity.current
     val searchTop = stableStatusBarInset() + 12.dp
-    var searchBarHeight by remember { mutableStateOf(56.dp) }
-    var searchButtonBounds by remember { mutableStateOf(Rect.Zero) }
-    var searchTransition by remember { mutableStateOf<GraceButtonTransition?>(null) }
-    var requestKeyboard by remember { mutableStateOf(false) }
-    val listTopPadding = if (searchExpanded) searchBarHeight / 2 + 16.dp else topSpace
-    LaunchedEffect(searchExpanded, searchTransition) {
-        if (!searchExpanded) searchTransition = null
-        else searchTransition?.let { it.animate(); searchTransition = null }
-    }
-    LaunchedEffect(searchExpanded) {
-        if (searchExpanded && searchTransition != null) delay(100)
-        requestKeyboard = searchExpanded
-    }
+    val listTopPadding = topSpace
     val safeTop = with(density) { (stableStatusBarInset() + 12.dp)
         .coerceAtLeast(LauncherLayout.TopFadeHeight).roundToPx() }
     val currentModel by rememberUpdatedState(model)
@@ -131,7 +103,7 @@ fun AppDrawerScreen(
     val visibleItems = remember(model, query) { model.filterApps(query) }
     val currentQueryActive by rememberUpdatedState(query.isNotBlank())
     LaunchedEffect(query) {
-        if (listState.layoutInfo.totalItemsCount > 0) listState.scrollToItem(0)
+        if (query.isNotBlank() && listState.layoutInfo.totalItemsCount > 0) listState.scrollToItem(0)
     }
     var lastSelectedLetter by remember { mutableStateOf(selectedLetter) }
     SideEffect { if (selectedLetter != null) lastSelectedLetter = selectedLetter }
@@ -165,25 +137,21 @@ fun AppDrawerScreen(
             ?: with(density) { LauncherLayout.RowMinHeight.roundToPx() }
         val blockSize = 1 + expandedModel.items.drop(index + 1).takeWhile { it.section == FolderSection && it !is DrawerItem.Folder }.size
         val blockHeight = rowHeight * blockSize
-        val desiredTop = (viewport - blockHeight - with(density) { 80.dp.roundToPx() }).coerceAtLeast(safeTop)
+        val desiredTop = (viewport - blockHeight - with(density) { 24.dp.roundToPx() }).coerceAtLeast(safeTop)
         // Short lists settle above the search field and system inset; tall lists
         // start with the profile row in view and continue below it in this LazyColumn.
         listState.animateScrollToItem(index, with(density) { listTopPadding.roundToPx() } - desiredTop)
     }
     // Share consumed insets so the list and search follow the keyboard together.
-    Box(modifier.fillMaxSize().navigationBarsPadding().imePadding()
-        .then(if (searchTransition != null) Modifier.clearAndSetSemantics {} else Modifier)) {
+    Box(modifier.fillMaxSize().navigationBarsPadding().imePadding()) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize()
-                .padding(top = if (searchExpanded) searchTop + searchBarHeight / 2 else 0.dp)
-                .graphicsLayer { alpha = searchTransition?.searchResultsAlpha ?: 1f }
-                .testTag("app_drawer"),
+            modifier = Modifier.fillMaxSize().testTag("app_drawer"),
             // Scrollable leading space, not padding on the viewport: earlier groups
             // may occupy this area after jumping to a later letter. Bottom padding
-            // leaves room for the search button inside the safe viewport.
+            // leaves room above the system navigation area.
             contentPadding = PaddingValues(start = listAppearance.startPadding, end = listAppearance.endPadding,
-                top = listTopPadding, bottom = if (searchExpanded) 24.dp else 80.dp),
+                top = listTopPadding, bottom = 24.dp),
             userScrollEnabled = selectedLetter == null,
         ) {
             if (query.isNotBlank() && visibleItems.isEmpty()) {
@@ -277,36 +245,14 @@ fun AppDrawerScreen(
                 }
             }
         }
-        if (searchExpanded) LauncherSearchBar(
+        LauncherSearchBar(
             textFieldState = searchState,
             placeholder = stringResource(R.string.drawer_search_apps),
             tag = "drawer_search",
-            autoFocus = requestKeyboard,
-            onBack = { onSearchExpandedChange(false) },
+            autoFocus = false,
             modifier = Modifier.align(Alignment.TopCenter)
-                .padding(start = 16.dp, end = 16.dp, top = searchTop)
-                .onSizeChanged { searchBarHeight = with(density) { it.height.toDp() } }
-                .onGloballyPositioned { searchTransition?.searchBounds = it.boundsInRoot() }
-                .graphicsLayer { alpha = searchTransition?.searchBarAlpha ?: 1f },
-        ) else FloatingActionButton(
-            onClick = {
-                if (searchAnimationsEnabled) searchTransition = GraceButtonTransition(
-                    GraceButtonAction.Search,
-                    GraceButtonOrigin(searchButtonBounds, glyphRes = R.drawable.ms_search),
-                    durationMillis = searchAnimationDurationMillis,
-                )
-                onSearchExpandedChange(true)
-            },
-            shape = CircleShape,
-            modifier = Modifier.align(Alignment.BottomEnd)
-                // Keep the button clear of the alphabet's edge touch strip.
-                .padding(end = LauncherLayout.End, bottom = 8.dp)
-                .testTag("drawer_search_button")
-                .onGloballyPositioned { searchButtonBounds = it.boundsInRoot() },
-        ) {
-            Icon(painterResource(R.drawable.ms_search), stringResource(R.string.search_apps))
-        }
-        searchTransition?.let { GraceButtonTransitionOverlay(it) }
+                .padding(start = 16.dp, end = 16.dp, top = searchTop),
+        )
     }
 }
 

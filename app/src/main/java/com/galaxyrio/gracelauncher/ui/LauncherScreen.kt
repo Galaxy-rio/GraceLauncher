@@ -553,7 +553,6 @@ internal fun LauncherScreen(
     val drawerTransition = buttonTransition?.takeIf { it.action == GraceButtonAction.AppList }
     val searchQuery = rememberTextFieldState()
     val drawerSearchQuery = rememberTextFieldState()
-    var drawerSearchExpanded by rememberSaveable { mutableStateOf(false) }
     val focusManager = LocalFocusManager.current
     val keyboardController = LocalSoftwareKeyboardController.current
     var drawerWasOpen by remember { mutableStateOf(drawerOpen) }
@@ -649,7 +648,6 @@ internal fun LauncherScreen(
     LaunchedEffect(drawerOpen, overlay) {
         val drawerJustClosed = drawerWasOpen && !drawerOpen
         if (drawerJustClosed) {
-            drawerSearchExpanded = false
             drawerSearchQuery.edit { replace(0, length, "") }
             // A retained drawer can share the same activity with global search.
             // Only clear input focus when returning to the underlying page.
@@ -756,16 +754,10 @@ internal fun LauncherScreen(
     }
     PredictiveBackHandler(enabled = buttonTransition == null && (overlay == LauncherOverlay.Search || (overlay == null && drawerOpen))) { events ->
         val fromSearch = overlay == LauncherOverlay.Search
-        val closeDrawerSearch = !fromSearch && drawerSearchExpanded
         try {
-            events.collect { event -> if (!closeDrawerSearch) backProgress.snapTo(event.progress) }
-            if (!closeDrawerSearch) backProgress.animateTo(1f, tween(180))
-            if (fromSearch) overlay = null else if (drawerSearchExpanded) {
-                drawerSearchExpanded = false
-                drawerSearchQuery.edit { replace(0, length, "") }
-                focusManager.clearFocus()
-                keyboardController?.hide()
-            } else {
+            events.collect { backProgress.snapTo(it.progress) }
+            backProgress.animateTo(1f, tween(180))
+            if (fromSearch) overlay = null else {
                 // The predictive gesture already completed the same upward exit.
                 homeListMotion.snapTo(drawerOpen = false)
                 drawerOpen = false
@@ -773,7 +765,7 @@ internal fun LauncherScreen(
             selectedLetter = null
             backProgress.snapTo(0f)
         } catch (cancelled: CancellationException) {
-            if (!closeDrawerSearch) withContext(NonCancellable) { backProgress.animateTo(0f, tween(180)) }
+            withContext(NonCancellable) { backProgress.animateTo(0f, tween(180)) }
             throw cancelled
         }
     }
@@ -1154,17 +1146,6 @@ internal fun LauncherScreen(
             workExpanded = workExpanded,
             onWorkProfileSettings = actions.openWorkProfileSettings,
             searchState = drawerSearchQuery,
-            searchExpanded = drawerSearchExpanded,
-            searchAnimationDurationMillis = uiState.settings.graceButton.searchAnimationDurationMs,
-            searchAnimationsEnabled = uiState.settings.graceButton.animationsEnabled,
-            onSearchExpandedChange = { expanded ->
-                drawerSearchExpanded = expanded
-                if (!expanded) {
-                    drawerSearchQuery.edit { replace(0, length, "") }
-                    focusManager.clearFocus()
-                    keyboardController?.hide()
-                }
-            },
             modifier = Modifier.retainedPage(visible = drawerOpen || drawerVisibility > 0f)
                 .then(if (!drawerOpen) Modifier.clearAndSetSemantics {} else Modifier)
                 .graphicsLayer {
@@ -1191,7 +1172,8 @@ internal fun LauncherScreen(
             tween(if (homePager.isScrollInProgress || editingWidgetScreen || editingHomeContent) 90 else 180), label = "pagingAlphabet",
         )
         if (!editingHome) AlphabetRail(
-            enabled = !homePager.isScrollInProgress && !editingWidgetScreen && !editingHomeContent && !drawerSearchExpanded,
+            enabled = !homePager.isScrollInProgress && !editingWidgetScreen && !editingHomeContent &&
+                (!drawerOpen || drawerSearchQuery.text.isBlank()),
             alphabet = alphabet,
             leftTouchEnabled = uiState.settings.listAppearance.leftAlphabet,
             letters = model.letters,

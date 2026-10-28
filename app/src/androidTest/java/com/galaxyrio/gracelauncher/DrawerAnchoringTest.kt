@@ -59,8 +59,10 @@ class DrawerAnchoringTest {
         showDrawer()
         val viewport = drawer().fetchSemanticsNode().boundsInRoot
         val firstHeader = bounds(section('A'))
+        val search = bounds(compose.onNodeWithTag("drawer_search"))
+        assertTrue("Search stays pinned near the top", search.top < viewport.top + 0.12f * viewport.height)
         val blankFraction = (firstHeader.top - viewport.top) / viewport.height
-        assertTrue("The initial group should start after roughly 30% top whitespace", blankFraction in 0.26f..0.36f)
+        assertTrue("The initial group should keep its original top anchor", blankFraction in 0.26f..0.36f)
         saveScreenshot("drawer-anchor-start.png")
 
         withHeldLetter('D') { _, finish ->
@@ -106,8 +108,8 @@ class DrawerAnchoringTest {
             section('Z').assertIsDisplayed()
             app('Z').assertIsDisplayed()
             assertEquals(
-                "The final app should leave room for the fixed bottom search field",
-                80f * density(), viewport.bottom - bounds(app('Z')).bottom, 2f,
+                "The final app should leave only the normal 24dp bottom inset",
+                24f * density(), viewport.bottom - bounds(app('Z')).bottom, 2f,
             )
             saveScreenshot("drawer-released-end.png")
         }

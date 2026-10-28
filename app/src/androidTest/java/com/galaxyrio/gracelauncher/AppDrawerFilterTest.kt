@@ -9,14 +9,12 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
@@ -77,9 +75,7 @@ class AppDrawerFilterTest {
             }
         }
 
-        compose.onNodeWithTag("drawer_search").assertDoesNotExist()
-        compose.onNodeWithTag("drawer_search_button").performClick()
-        compose.onNodeWithTag("drawer_search").assertIsFocused().performTextInput("cal")
+        compose.onNodeWithTag("drawer_search").assertIsDisplayed().performClick().assertIsFocused().performTextInput("cal")
         compose.onNodeWithTag("app:${apps[0].key}").assertIsDisplayed()
         compose.onNodeWithTag("app:${apps[1].key}").assertIsDisplayed()
         compose.onNodeWithTag("app:${apps[2].key}").assertDoesNotExist()
@@ -104,20 +100,13 @@ class AppDrawerFilterTest {
         compose.onNodeWithTag("app:${apps[2].key}").assertIsDisplayed()
 
         compose.onNodeWithTag("drawer_search").performTextInput("cam")
-        compose.onNodeWithContentDescription(InstrumentationRegistry.getInstrumentation().targetContext.getString(R.string.settings_back))
-            .performClick()
-        compose.onNodeWithTag("drawer_search").assertDoesNotExist()
-        compose.onNodeWithTag("drawer_search_button").assertIsDisplayed().performClick()
-        val reopenedSearch = compose.onNodeWithTag("drawer_search").assertIsFocused().fetchSemanticsNode()
-        assertEquals("", reopenedSearch.config[SemanticsProperties.EditableText].text)
-        apps.forEach { app ->
-            compose.onNodeWithTag("app_drawer").performScrollToNode(hasTestTag("app:${app.key}"))
-            compose.onNodeWithTag("app:${app.key}").assertIsDisplayed()
-        }
+        compose.onNodeWithTag("app:${apps[2].key}").assertIsDisplayed()
+        compose.onNodeWithTag("app:${apps[0].key}").assertDoesNotExist()
+        compose.onNodeWithTag("app:${apps[1].key}").assertDoesNotExist()
     }
 
     @Test
-    fun bottomSearchButtonMorphsIntoTopSearchAndKeepsLastAppReachable() {
+    fun searchBarStaysFixedAtTopAndKeepsAppsScrollable() {
         val apps = (1..30).map { app("App ${it.toString().padStart(2, '0')}") }
         compose.setContent {
             GraceLauncherTheme(dynamicColor = false) {
@@ -133,28 +122,19 @@ class AppDrawerFilterTest {
         }
 
         val drawer = compose.onNodeWithTag("app_drawer").fetchSemanticsNode().boundsInRoot
-        compose.onNodeWithTag("drawer_search").assertDoesNotExist()
-        val search = compose.onNodeWithTag("drawer_search_button").fetchSemanticsNode().boundsInRoot
-        assertTrue("Search button should be on the right", search.center.x > drawer.center.x)
-        assertTrue("Search should be positioned in the lower half of the drawer", search.center.y > drawer.center.y)
+        val search = compose.onNodeWithTag("drawer_search").assertIsDisplayed().fetchSemanticsNode().boundsInRoot
+        assertTrue("Search should stay at the top of the drawer", search.center.y < drawer.center.y)
         assertTrue("Search should remain inside the drawer viewport", search.bottom <= drawer.bottom)
 
+        compose.onNodeWithTag("app_drawer").performScrollToNode(hasTestTag("app:${apps.first().key}"))
+        val firstApp = compose.onNodeWithTag("app:${apps.first().key}").fetchSemanticsNode().boundsInRoot
+        assertTrue("The first app should appear below the fixed search bar", firstApp.top >= search.bottom)
         compose.onNodeWithTag("app_drawer").performScrollToNode(hasTestTag("app:${apps.last().key}"))
         compose.onNodeWithTag("app:${apps.last().key}").assertIsDisplayed()
         val lastApp = compose.onNodeWithTag("app:${apps.last().key}").fetchSemanticsNode().boundsInRoot
-        assertTrue("The last app should not be covered by search", lastApp.bottom <= search.top)
-
-        compose.mainClock.autoAdvance = false
-        compose.onNodeWithTag("drawer_search_button").performClick()
-        compose.mainClock.advanceTimeBy(80)
-        compose.onNodeWithTag("drawer_search").assertDoesNotExist()
-        compose.mainClock.advanceTimeBy(1_000)
-        compose.mainClock.autoAdvance = true
-        val expandedSearch = compose.onNodeWithTag("drawer_search").assertIsDisplayed().assertIsFocused()
-            .fetchSemanticsNode().boundsInRoot
-        assertTrue("Expanded search should finish at the top", expandedSearch.center.y < drawer.center.y)
-        assertTrue("The bar should expand wider than the button", expandedSearch.width > search.width)
-        compose.onNodeWithTag("drawer_search_button").assertDoesNotExist()
+        assertTrue("The last app should remain in the drawer viewport", lastApp.bottom <= drawer.bottom)
+        val searchAfterScroll = compose.onNodeWithTag("drawer_search").fetchSemanticsNode().boundsInRoot
+        assertEquals("Search should stay fixed while the list scrolls", search.top, searchAfterScroll.top, 1f)
     }
 
     @Test

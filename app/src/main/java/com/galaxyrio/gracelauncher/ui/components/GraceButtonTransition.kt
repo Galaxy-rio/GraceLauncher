@@ -43,8 +43,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.math.atan2
 
 /** Visual bounds, not the untransformed touch target. Velocity is in root px/s. */
-internal data class GraceButtonOrigin(val bounds: Rect, val velocity: Offset = Offset.Zero, val artwork: ImageBitmap? = null,
-    val glyphRes: Int = R.drawable.ic_grace_solid)
+internal data class GraceButtonOrigin(val bounds: Rect, val velocity: Offset = Offset.Zero, val artwork: ImageBitmap? = null)
 
 // Launcher-style fast-out/slow-in timing, with a longer travel phase than the
 // old spring. Keep geometry, timing and the wave's opacity independent.
@@ -148,8 +147,7 @@ internal fun GraceButtonTransitionOverlay(transition: GraceButtonTransition) {
     val buttonColor = MaterialTheme.colorScheme.primaryContainer
     val buttonInk = MaterialTheme.colorScheme.onPrimaryContainer
     val fieldColor = SearchBarDefaults.colors().containerColor
-    val glyph = painterResource(transition.origin.glyphRes)
-    val glyphScale = if (transition.origin.glyphRes == R.drawable.ms_search) 24f / 56f else 40f / 54f
+    val glyph = painterResource(R.drawable.ic_grace_solid)
     val artwork = remember(transition.origin.artwork) { transition.origin.artwork?.let { BitmapPainter(it) } }
     Canvas(Modifier.fillMaxSize().onGloballyPositioned { transition.viewport = it.boundsInRoot() }
         .clearAndSetSemantics {}
@@ -185,7 +183,7 @@ internal fun GraceButtonTransitionOverlay(transition: GraceButtonTransition) {
                         cornerRadius = CornerRadius(mix(width / 2f, height / 2f, morph), height / 2f))
                     if (artwork != null) drawGlyph(artwork, center, Size(width, height), null, 1f - appearanceFade)
                 }
-                if (artwork == null) drawGlyph(glyph, center, source.size * glyphScale, buttonInk, 1f - smoothStep(0.02f, 0.26f, p))
+                if (artwork == null) drawGlyph(glyph, center, source.size * (40f / 54f), buttonInk, 1f - smoothStep(0.02f, 0.26f, p))
             }
             GraceButtonAction.AppList -> {
                 val edge = transition.revealEdge(52.dp.toPx())
@@ -197,7 +195,7 @@ internal fun GraceButtonTransitionOverlay(transition: GraceButtonTransition) {
                 drawRect(revealBrush(center, radius, edge, buttonColor),
                     alpha = remainingFill * remainingFill * remainingFill)
                 if (artwork != null) drawGlyph(artwork, center, transition.origin.bounds.size, null, 1f - smoothStep(0f, 0.14f, p))
-                else drawGlyph(glyph, center, transition.origin.bounds.size * glyphScale, buttonInk,
+                else drawGlyph(glyph, center, transition.origin.bounds.size * (40f / 54f), buttonInk,
                     1f - smoothStep(0f, 0.14f, p))
             }
             GraceButtonAction.LockScreen -> {
