@@ -179,7 +179,7 @@
     <string name="settings_about">Info</string>
     <string name="settings_about_summary">Grace Launcher, aggiornamenti e licenze</string>
     <string name="settings_instant_access">Accesso rapido</string>
-    <string name="settings_calendar_agenda">Agenda</string>
+    <string name="settings_calendar_agenda">Calendario e agenda</string>
     <string name="settings_calendar_agenda_summary">Mostra il prossimo evento sulla schermata home</string>
     <string name="settings_weather">Meteo</string>
     <string name="settings_media_player">Riproduttore media</string>
@@ -245,7 +245,7 @@
     <string name="settings_light_mode">Chiara</string>
     <string name="settings_dark_mode">Scura</string>
     <string name="settings_personalization">Personalizzazione</string>
-    <string name="settings_clock_style">Stile orologio</string>
+    <string name="settings_clock_style">Orologio e calendario</string>
     <string name="settings_icon_pack">Pacchetto icone</string>
     <string name="settings_icons">Icone</string>
     <string name="settings_font">Font</string>
@@ -739,4 +739,11 @@
     <string name="lab_dismiss_resistance_summary">Condiviso dalle notifiche e dal lettore multimediale. Valori più alti generano più resistenza; 0% segue il tuo dito.</string>
     <string name="lab_dismiss_threshold">Soglia di sblocco</string>
     <string name="lab_dismiss_threshold_summary">Distanza prima del rilascio della resistenza. Condivisa da notifiche e lettore multimediale; limitata dalla larghezza disponibile.</string>
+    <string name="settings_tablets_foldables">Tablet e pieghevoli</string>
+    <string name="settings_components">Componenti</string>
+    <string name="settings_agenda">Agenda</string>
+    <string name="settings_home_screen">Schermata home</string>
+    <string name="settings_feed_screen">Schermata feed</string>
+    <string name="settings_status_screen">Schermata di stato</string>
+    <string name="settings_screens">Schermate</string>
 </resources>
