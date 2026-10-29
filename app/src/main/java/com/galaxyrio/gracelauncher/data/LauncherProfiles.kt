@@ -24,12 +24,14 @@ data class LauncherProfile(
     val isPublic: Boolean get() = type != LauncherProfileType.Private && type != LauncherProfileType.Unavailable
 }
 
-/** A partial snapshot is usable, but should be retried when the launcher resumes. */
+/** Partial discovery can be used immediately; the repository retries only the missing sections. */
 data class LauncherProfileSnapshot(
     val profiles: List<LauncherProfile>,
     val complete: Boolean,
     /** Optional cheap inventory for detecting OEM package changes without callbacks. */
     val launcherComponents: Map<UserHandle, Set<ComponentName>> = emptyMap(),
+    /** Missing users are authoritative only when both enumeration APIs succeeded. */
+    val discoveryComplete: Boolean = true,
 )
 
 /**
@@ -54,6 +56,7 @@ class LauncherProfiles(context: Context) {
         val current = Process.myUserHandle()
         val handles = linkedSetOf(current)
         var complete = true
+        var identitiesComplete = true
 
         // UserManager is important for OEM clone profiles. LauncherApps additionally exposes
         // hidden profiles while this application holds the HOME role and required permission.
@@ -79,6 +82,7 @@ class LauncherProfiles(context: Context) {
             } else null
             if (serial == null) {
                 complete = false
+                identitiesComplete = false
                 // A fabricated serial could merge two installations or restore a removed user's
                 // items into a new user. The current user keeps its existing unprefixed app keys.
                 if (user != current) return@mapNotNull null
@@ -98,7 +102,9 @@ class LauncherProfiles(context: Context) {
                 val knownPrivate = serial?.takeIf { synchronized(privateSerials) { it in privateSerials } }
                     ?.let { LauncherProfileType.Private }
                 val recognizedType = exactType ?: knownPrivate
-                if (recognizedType != null && serial != null && !knownTypes.remember(serial, recognizedType)) complete = false
+                // Failure to persist a type must not make a successfully read catalog incomplete.
+                // The in-memory observation is still valid and the store retries its dirty write.
+                if (recognizedType != null && serial != null) knownTypes.remember(serial, recognizedType)
                 recognizedType ?: serial?.let(knownTypes::get) ?: if (Build.VERSION.SDK_INT >= 35) {
                     // Missing metadata means inaccessible on Android. On first discovery it
                     // may also be Private Space: retry instead of guessing that it is public.
@@ -119,7 +125,8 @@ class LauncherProfiles(context: Context) {
             LauncherProfile(user, serial ?: -1L, type, quietMode, unlocked)
         }
         return LauncherProfileSnapshot(profiles.sortedWith(
-            compareBy<LauncherProfile> { it.user != current }.thenBy { it.serial }), complete)
+            compareBy<LauncherProfile> { it.user != current }.thenBy { it.serial }), complete,
+            discoveryComplete = userProfiles != null && launcherProfiles != null && identitiesComplete)
     }
 
     /** Nonzero dimensions also allow older platform versions to create a badge bitmap. */

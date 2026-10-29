@@ -145,7 +145,7 @@ class PinItemViewModel(application: Application) : AndroidViewModel(application)
             activity, user, serial)
         val app = LauncherApp(activity, shortcut.label, null, shortcut = shortcut, user = user, userSerial = serial)
         // Initialize the existing favorite order before adding the requested item.
-        val apps = AppRepository(context).loadApps()
+        val apps = AppRepository.get(context).loadApps()
         // Once Android acknowledges the request, finish saving even if the caller opens HOME.
         withContext(NonCancellable) {
             check(valid(pin) && pin.accept()) { "Request no longer valid" }

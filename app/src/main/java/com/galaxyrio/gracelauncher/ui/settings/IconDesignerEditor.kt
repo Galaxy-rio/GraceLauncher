@@ -63,8 +63,8 @@ internal fun IconDesignerSettings(
     onPositionAndSize: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
-    val repository = remember(context) { IconPackRepository(context) }
-    val store = remember(context) { ItemIconStore(context, repository) }
+    val repository = remember(context) { IconPackRepository.get(context) }
+    val store = remember(context) { ItemIconStore.get(context, repository) }
     val scope = rememberCoroutineScope()
     var pageName by rememberSaveable { mutableStateOf(if (selectedKey == null) DesignerPage.All.name else DesignerPage.Single.name) }
     val page = DesignerPage.entries.firstOrNull { it.name == pageName } ?: DesignerPage.Single

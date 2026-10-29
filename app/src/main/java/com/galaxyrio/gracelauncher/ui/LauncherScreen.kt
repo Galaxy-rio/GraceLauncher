@@ -188,7 +188,7 @@ fun LauncherRoute(
         contract = ActivityResultContracts.RequestPermission(),
     ) { viewModel.refreshSchedule() }
     val homeRoleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
-        viewModel.refreshApps()
+        viewModel.refreshProfiles()
     }
     val mediaAccessLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         viewModel.refreshApps()
