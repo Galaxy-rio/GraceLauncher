@@ -37,26 +37,22 @@ import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.*
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherAppearance
-import com.galaxyrio.gracelauncher.ui.theme.rememberWallpaperBlurAvailable
 import com.galaxyrio.gracelauncher.ui.theme.wallpaperTint
 import kotlin.math.roundToInt
 
 @Composable
 internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit, onManageFonts: () -> Unit) {
     val settings = uiState.settings
-    val defaults = remember { LauncherSettings() }
     var draft by remember(settings.listAppearance) { mutableStateOf(settings.listAppearance) }
     val savedSize = settings.iconDesign?.design?.iconSize ?: 100
     var iconSize by remember(savedSize) { mutableIntStateOf(savedSize) }
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
-    val colorPage = dialog?.takeIf { it == "font_color" || it == "dim_color" }
+    val colorPage = dialog?.takeIf { it == "font_color" }
     // Keep the source row in place while its color picker occupies the controls pane.
     val controlsState = rememberLazyListState()
     val enabled = LocalSettingsStorageState.current.canEdit
-    val blurAvailable = rememberWallpaperBlurAvailable()
     val wallpaper = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons, iconSize)
     val primary = MaterialTheme.colorScheme.primary
-    val automaticDimTint = remember(primary, wallpaper.darkText) { wallpaper.wallpaperTint(primary) }
     val heroSpec = MaterialTheme.motionScheme.slowSpatialSpec<Rect>()
     val heroBounds = remember(heroSpec) { BoundsTransform { _, _ -> heroSpec } }
     val heroShape = ListItemDefaults.segmentedShapes(0, 1).shape
@@ -74,15 +70,9 @@ internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherA
         }
     }
     fun closeColor() {
-        if (enabled) when (colorPage) {
-            "font_color" -> {
-                val color = draft.fontColor
-                change { it.copy(fontColor = color) }
-            }
-            "dim_color" -> {
-                val color = draft.wallpaperDimColor
-                change { it.copy(wallpaperDimColor = color) }
-            }
+        if (enabled) {
+            val color = draft.fontColor
+            change { it.copy(fontColor = color) }
         }
         dialog = null
     }
@@ -121,14 +111,11 @@ internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherA
                                 boundsTransform = heroBounds, clipInOverlayDuringTransition = OverlayClip(heroShape))
                         }
                         if (activeColor != null) {
-                            val dim = activeColor == "dim_color"
-                            val fallback = if (dim) automaticDimTint else wallpaper.text
-                            IconDesignerColorPicker(stringResource(if (dim) R.string.settings_wallpaper_dim_color else R.string.list_font_color),
-                                if (dim) draft.wallpaperDimColor else draft.fontColor, primary.toArgb(), null,
+                            IconDesignerColorPicker(stringResource(R.string.list_font_color), draft.fontColor, primary.toArgb(), null,
                                 onChange = { if (enabled && activeColor == colorPage) {
-                                    draft = if (dim) draft.copy(wallpaperDimColor = it) else draft.copy(fontColor = it)
+                                    draft = draft.copy(fontColor = it)
                                 } }, onClose = { if (activeColor == colorPage) closeColor() },
-                                modifier = Modifier.padding(bottom = 16.dp).then(colorModifier(activeColor)), fallback = fallback.toArgb())
+                                modifier = Modifier.padding(bottom = 16.dp).then(colorModifier(activeColor)), fallback = wallpaper.text.toArgb())
                         } else LazyColumn(Modifier.fillMaxSize().testTag("list_appearance_controls"), state = controlsState,
                             contentPadding = PaddingValues(bottom = 24.dp + LocalSettingsBottomInset.current), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
                             item("icon_size") {
@@ -173,37 +160,13 @@ internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherA
                             item("misc") { SettingsHeading(stringResource(R.string.settings_misc)) }
                             item("recently_installed") {
                                 SettingsToggleItem(stringResource(R.string.recently_installed), stringResource(R.string.settings_recently_installed_summary),
-                                    draft.showRecentlyInstalled, 0, 1, "settings_recently_installed", enabled = enabled) { value ->
+                                    draft.showRecentlyInstalled, 0, 2, "settings_recently_installed", enabled = enabled) { value ->
                                     change { it.copy(showRecentlyInstalled = value) }
                                 }
                             }
                             item("alphabet") {
                                 SettingsToggleItem(stringResource(R.string.settings_hide_alphabet), stringResource(R.string.settings_hide_alphabet_summary),
-                                    settings.hideAlphabet, 0, 3, "settings_hide_alphabet") { value -> actions.updateSettings { it.copy(hideAlphabet = value) } }
-                            }
-                            item("dim") {
-                                WallpaperEffectItem(stringResource(R.string.settings_dim_wallpaper), stringResource(R.string.settings_dim_wallpaper_summary),
-                                    settings.dimWallpaper, settings.wallpaperDimAmount, 0..100,
-                                    stringResource(R.string.settings_wallpaper_opacity), 1, "settings_dim_wallpaper",
-                                    defaultAmount = defaults.wallpaperDimAmount,
-                                    onToggle = { value -> actions.updateSettings { it.copy(dimWallpaper = value) } },
-                                    onAmount = { value -> actions.updateSettings { it.copy(wallpaperDimAmount = value) } }) {
-                                    SettingsActionItem(stringResource(R.string.settings_wallpaper_dim_color),
-                                        if (draft.wallpaperDimColor == null) stringResource(R.string.settings_wallpaper_dim_color_auto) else null,
-                                        0, 1, "settings_dim_wallpaper_color", modifier = colorModifier("dim_color"), trailing = {
-                                            Surface(Modifier.size(24.dp), shape = MaterialTheme.shapes.small,
-                                                color = draft.wallpaperDimColor?.resolve(primary.toArgb())?.let(::Color) ?: automaticDimTint) {}
-                                        }, onClick = { dialog = "dim_color" })
-                                }
-                            }
-                            item("blur") {
-                                WallpaperEffectItem(stringResource(R.string.settings_blur_wallpaper),
-                                    stringResource(if (blurAvailable) R.string.settings_blur_wallpaper_summary else R.string.settings_blur_unavailable),
-                                    settings.blurWallpaper, settings.wallpaperBlurRadius, 0..48,
-                                    stringResource(R.string.settings_wallpaper_blur_amount), 2, "settings_blur_wallpaper", amountEnabled = blurAvailable,
-                                    defaultAmount = defaults.wallpaperBlurRadius, suffix = "dp",
-                                    onToggle = { value -> actions.updateSettings { it.copy(blurWallpaper = value) } },
-                                    onAmount = { value -> actions.updateSettings { it.copy(wallpaperBlurRadius = value) } })
+                                    settings.hideAlphabet, 1, 2, "settings_hide_alphabet") { value -> actions.updateSettings { it.copy(hideAlphabet = value) } }
                             }
                         }
                     }

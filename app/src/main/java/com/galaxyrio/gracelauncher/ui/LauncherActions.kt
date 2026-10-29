@@ -20,6 +20,7 @@ import com.galaxyrio.gracelauncher.data.media.MediaCommand
 data class LauncherActions(
     val requestDefaultHome: () -> Unit = {},
     val openHome: () -> Unit = {},
+    val chooseWallpaper: () -> Unit = {},
     val requestUsageAccess: () -> Unit = {},
     val refreshUsageRanking: () -> Unit = {},
     val requestPrivateSpace: (Boolean, () -> Unit) -> Unit = { _, _ -> },

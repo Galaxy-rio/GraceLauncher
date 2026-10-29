@@ -80,6 +80,7 @@ internal enum class SettingsPage {
     LabGraceButton, LabGesture, LabPopup, LabAccessibility, LabDismiss, Fonts, ListAppearance, Alphabet, ShortcutsFolders, AppStacks,
     GraceButtonAppearance, GraceButtonPosition, AgendaAppearance, SearchAppearance, MediaPlayerAppearance,
     WidgetScreen, WidgetScreenEditor, Homepage, AppList, FeedScreen, StatusScreen, DigitalWellbeing, TabletsFoldables,
+    Wallpaper, WallpaperDesigner,
 }
 
 /** Navigation owns each page's saved state and seekable predictive-back transition. */
@@ -275,6 +276,7 @@ fun LauncherSettingsScreen(
                     SettingsPage.Themes -> ThemeSettings(uiState, actions, back,
                         onClockStyle = { navigate(SettingsPage.ClockStyle) }, onIconPacks = { navigate(SettingsPage.IconPacks) },
                         onFonts = { navigate(SettingsPage.Fonts) }, onListAppearance = { navigate(SettingsPage.ListAppearance) },
+                        onWallpaper = { navigate(SettingsPage.Wallpaper) },
                         onAlphabet = { navigate(SettingsPage.Alphabet) }, onGraceButton = { navigate(SettingsPage.GraceButtonAppearance) },
                         onAgenda = { navigate(SettingsPage.AgendaAppearance) }, onSearch = { navigate(SettingsPage.SearchAppearance) },
                         onMediaPlayer = { navigate(SettingsPage.MediaPlayerAppearance) })
@@ -286,6 +288,11 @@ fun LauncherSettingsScreen(
                     SettingsPage.MediaPlayerAppearance -> SettingsPlaceholder(stringResource(R.string.settings_media_player), "media_appearance", back)
                     SettingsPage.ClockStyle -> ClockStyleSettings(uiState, actions, back) { navigate(SettingsPage.Fonts) }
                     SettingsPage.Fonts -> FontSettings(uiState, actions, back)
+                    SettingsPage.Wallpaper -> WallpaperSettings(uiState, actions, back,
+                        onDesigner = { navigate(SettingsPage.WallpaperDesigner) },
+                        onChooseWallpaper = { if (isCurrent()) actions.chooseWallpaper() })
+                    SettingsPage.WallpaperDesigner -> SettingsPlaceholder(stringResource(R.string.settings_wallpaper_designer),
+                        "wallpaper_designer", back)
                     SettingsPage.ListAppearance -> ListAppearanceSettings(uiState, actions, back) { navigate(SettingsPage.Fonts) }
                     SettingsPage.Alphabet -> AlphabetSettings(uiState, actions, back) { navigate(SettingsPage.Fonts) }
                     SettingsPage.IconPacks -> IconPackSettings(uiState, actions, back) { navigate(SettingsPage.IconDesigner) }

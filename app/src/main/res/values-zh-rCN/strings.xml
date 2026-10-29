@@ -347,6 +347,9 @@
     <string name="settings_light_mode">浅色</string>
     <string name="settings_dark_mode">深色</string>
     <string name="settings_personalization">个性化</string>
+    <string name="settings_wallpaper">壁纸</string>
+    <string name="settings_wallpaper_designer">壁纸设计器</string>
+    <string name="settings_choose_wallpaper">选择壁纸</string>
     <string name="settings_components">组件</string>
     <string name="settings_agenda">日程</string>
     <string name="settings_clock_style">时钟与日历</string>

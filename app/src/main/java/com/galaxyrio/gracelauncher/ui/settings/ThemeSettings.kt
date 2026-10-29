@@ -3,7 +3,6 @@
 package com.galaxyrio.gracelauncher.ui.settings
 
 import androidx.compose.foundation.background
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
@@ -11,7 +10,6 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -20,13 +18,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
@@ -53,12 +49,12 @@ import com.materialkolor.PaletteStyle
 import com.materialkolor.dynamiccolor.ColorSpec
 import com.materialkolor.ktx.toDynamicScheme
 import com.materialkolor.ktx.toneColor
-import kotlin.math.roundToInt
 
 @Composable
 internal fun ThemeSettings(
     uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
-    onClockStyle: () -> Unit, onIconPacks: () -> Unit, onFonts: () -> Unit, onListAppearance: () -> Unit, onAlphabet: () -> Unit,
+    onClockStyle: () -> Unit, onIconPacks: () -> Unit, onFonts: () -> Unit, onWallpaper: () -> Unit,
+    onListAppearance: () -> Unit, onAlphabet: () -> Unit,
     onGraceButton: () -> Unit = {}, onAgenda: () -> Unit = {}, onSearch: () -> Unit = {}, onMediaPlayer: () -> Unit = {},
 ) {
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
@@ -115,7 +111,7 @@ internal fun ThemeSettings(
                     uiState.iconPackStatus == IconPackStatus.Unavailable -> stringResource(R.string.icon_pack_unavailable)
                     else -> packNames.joinToString(" → ")
                 }
-                SettingsActionItem(stringResource(R.string.settings_icons), summary, 0, 2, "settings_icon_pack") {
+                SettingsActionItem(stringResource(R.string.settings_icons), summary, 0, 3, "settings_icon_pack") {
                     onIconPacks()
                     actions.refreshIconPacks()
                 }
@@ -124,7 +120,11 @@ internal fun ThemeSettings(
                 val fonts = settings.fontLibrary.selected.map { appFontLabel(it) }
                 val systemFont = appFontLabel("system")
                 SettingsActionItem(stringResource(R.string.settings_font), fonts.joinToString(" → ").ifEmpty { systemFont },
-                    1, 2, "settings_font", onClick = onFonts)
+                    1, 3, "settings_font", onClick = onFonts)
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.settings_wallpaper), null, 2, 3,
+                    "settings_wallpaper", onClick = onWallpaper)
             }
             item { SettingsHeading(stringResource(R.string.settings_components)) }
             item {
@@ -208,54 +208,6 @@ private fun AccentColorItem(isDynamic: Boolean, selectedColor: Int, style: Palet
                         Box(Modifier.size(8.dp).clip(CircleShape).background(
                             if (pager.settledPage == page) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceContainerHighest,
                         ))
-                    }
-                }
-            }
-        },
-    )
-}
-
-/** Keep the toggle and its expanding controls in one unchanged segmented outline. */
-@Composable
-internal fun WallpaperEffectItem(
-    title: String, summary: String, checked: Boolean, amount: Int, range: IntRange,
-    sliderLabel: String, index: Int, tag: String, defaultAmount: Int,
-    count: Int = 3, amountEnabled: Boolean = true, suffix: String = "%",
-    onToggle: (Boolean) -> Unit, onAmount: (Int) -> Unit,
-    extraContent: @Composable ColumnScope.() -> Unit = {},
-) {
-    val enabled = LocalSettingsStorageState.current.canEdit
-    var draft by remember(amount) { mutableFloatStateOf(amount.coerceIn(range).toFloat()) }
-    SegmentedListItem(
-        shapes = ListItemDefaults.segmentedShapes(index, count),
-        colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
-        content = {
-            Column(Modifier.fillMaxWidth()) {
-                Row(
-                    Modifier.fillMaxWidth().testTag(tag)
-                        .toggleable(value = checked, enabled = enabled, role = Role.Switch, onValueChange = onToggle),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(title)
-                        Text(summary, Modifier.padding(top = 4.dp), style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
-                    Switch(checked = checked, onCheckedChange = null, enabled = enabled,
-                        modifier = Modifier.testTag("${tag}_switch"))
-                }
-                AnimatedVisibility(visible = checked) {
-                    Column {
-                        DesignerSlider(
-                            label = sliderLabel, value = draft, default = defaultAmount.coerceIn(range).toFloat(),
-                            // Do not enqueue a Room transaction for every drag frame.
-                            onFinished = { onAmount(it.roundToInt().coerceIn(range)) },
-                            range = range.first.toFloat()..range.last.toFloat(),
-                            enabled = enabled && amountEnabled, tag = "${tag}_amount", suffix = suffix,
-                            onChange = { draft = it },
-                        )
-                        extraContent()
                     }
                 }
             }

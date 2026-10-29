@@ -350,6 +350,9 @@
     <string name="settings_light_mode">Light</string>
     <string name="settings_dark_mode">Dark</string>
     <string name="settings_personalization">Personalization</string>
+    <string name="settings_wallpaper">Wallpaper</string>
+    <string name="settings_wallpaper_designer">Wallpaper designer</string>
+    <string name="settings_choose_wallpaper">Choose wallpaper</string>
     <string name="settings_components">Components</string>
     <string name="settings_agenda">Agenda</string>
     <string name="settings_clock_style">Clock &amp; calendar</string>

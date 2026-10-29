@@ -378,6 +378,7 @@ fun LauncherRoute(
                 .onFailure { openSystemApp(Intent(Settings.ACTION_HOME_SETTINGS)) }
         },
         requestUsageAccess = { openSystemApp(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) },
+        chooseWallpaper = { openSystemApp(Intent(Intent.ACTION_SET_WALLPAPER)) },
         refreshUsageRanking = { viewModel.refreshUsage(forceRanking = true) },
         openHome = {
             // Target Grace explicitly: this must neither resolve to another HOME
