@@ -684,7 +684,7 @@
     <string name="lab_popup_angle_summary">Scostamento massimo, verso l\'alto o verso il basso, rispetto alla direzione orizzontale verso destra. Valori più bassi richiedono uno scorrimento più dritto.</string>
     <string name="lab_dp">%1$d dp</string>
     <string name="lab_degrees">±%1$d°</string>
-    <string name="grace_widgets_title">Widget Grace</string>
+    <string name="grace_widgets_title">Widget di Grace</string>
     <string name="grace_widget_baseline">Base (invisibile)</string>
     <string name="choose_default_launcher">Seleziona launcher predefinito</string>
     <string name="lab_accessibility">Accessibilità</string>
@@ -745,4 +745,30 @@
     <string name="settings_feed_screen">Schermata feed</string>
     <string name="settings_status_screen">Schermata di stato</string>
     <string name="settings_screens">Schermate</string>
+    <string name="homepage_widgets">Widget</string>
+    <string name="homepage_app_group">Aggiungi gruppo</string>
+    <string name="homepage_add_categories">Aggiungi categorie</string>
+    <string name="homepage_edit_item">Modifica %1$s</string>
+    <string name="homepage_empty">Nessun elemento selezionato</string>
+    <string name="app_categories_title">Categorie delle app</string>
+    <string name="app_category_create">Crea categoria</string>
+    <string name="app_category_name">Nome della categoria</string>
+    <string name="app_category_music">Musica</string>
+    <string name="app_category_condition">Mostra quando</string>
+    <string name="app_category_always">Sempre</string>
+    <string name="app_category_headphones">Le cuffie sono connesse</string>
+    <string name="app_category_time">Fascia oraria giornaliera</string>
+    <string name="app_category_start">Ora di inizio</string>
+    <string name="app_category_end">Ora di fine</string>
+    <string name="app_category_delete">Elimina categoria</string>
+    <string name="app_category_delete_confirmation">Eliminare “%1$s”? App, cartelle, pile e scorciatoie assegnate verranno conservate.</string>
+    <string name="app_category_unavailable">Questa categoria non è più disponibile.</string>
+    <plurals name="app_category_item_count">
+        <item quantity="one">%1$d elemento</item>
+        <item quantity="many">%1$d elementi</item>
+        <item quantity="other">%1$d elementi</item>
+    </plurals>
+    <string name="settings_wallpaper">Sfondo</string>
+    <string name="settings_wallpaper_designer">Creatore di sfondi</string>
+    <string name="settings_choose_wallpaper">Scegli sfondo</string>
 </resources>
