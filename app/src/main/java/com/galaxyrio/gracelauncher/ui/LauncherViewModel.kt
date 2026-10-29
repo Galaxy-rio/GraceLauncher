@@ -14,6 +14,7 @@ import android.os.UserHandle
 import android.os.Process
 import android.graphics.Rect
 import android.os.Bundle
+import android.os.Build
 import android.os.SystemClock
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -21,6 +22,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.galaxyrio.gracelauncher.data.AppRepository
 import com.galaxyrio.gracelauncher.data.LauncherAppCache
+import com.galaxyrio.gracelauncher.data.LauncherProfileSnapshot
 import com.galaxyrio.gracelauncher.data.CalendarRepository
 import com.galaxyrio.gracelauncher.data.CatalogRefreshState
 import com.galaxyrio.gracelauncher.data.FavoritesStore
@@ -196,7 +198,7 @@ data class LauncherUiState(
                 else if (owner.folderId == null) defaults.map { it.key }
                 else folders.firstOrNull { it.id == owner.folderId }?.appKeys.orEmpty()).distinct().map { PopupItem(it) }
         return if (owner.folderId != PrivateSpaceFolderId && !settings.privateSpace.exposesApps)
-            items.filterNot { it.key.startsWith("profile:") && findItem(it.key)?.isWorkProfile != true } else items
+            items.filterNot { it.key.startsWith("profile:") && findItem(it.key)?.isPrivateSpace != false } else items
     }
 
     fun ownNotificationsFor(app: LauncherApp, expanded: Boolean): List<AppNotification> =
@@ -315,8 +317,12 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     val returnHomeRequests = _returnHomeRequests.asSharedFlow()
 
     private var appLoadJob: Job? = null
+    private var profileRefreshJob: Job? = null
+    private var profileRefreshPending = false
+    private var appProfiles = LauncherProfileSnapshot(emptyList(), complete = false)
     private data class CatalogInputs(val configuration: Configuration, val day: LocalDate,
-        val renames: Map<String, String>, val themedIcons: Boolean, val shortcutAccess: Boolean)
+        val renames: Map<String, String>, val themedIcons: Boolean, val shortcutAccess: Boolean,
+        val profiles: LauncherProfileSnapshot)
     private val catalogRefresh = CatalogRefreshState<CatalogInputs>()
     private var privateAppLoadJob: Job? = null
     private var scheduleLoadJob: Job? = null
@@ -403,6 +409,18 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             addAction(Intent.ACTION_MANAGED_PROFILE_AVAILABLE)
             addAction(Intent.ACTION_MANAGED_PROFILE_UNAVAILABLE)
             addAction(Intent.ACTION_MANAGED_PROFILE_UNLOCKED)
+            if (Build.VERSION.SDK_INT >= 31) {
+                addAction(Intent.ACTION_PROFILE_ACCESSIBLE)
+                addAction(Intent.ACTION_PROFILE_INACCESSIBLE)
+            }
+            if (Build.VERSION.SDK_INT >= 34) {
+                addAction(Intent.ACTION_PROFILE_ADDED)
+                addAction(Intent.ACTION_PROFILE_REMOVED)
+            }
+            if (Build.VERSION.SDK_INT >= 35) {
+                addAction(Intent.ACTION_PROFILE_AVAILABLE)
+                addAction(Intent.ACTION_PROFILE_UNAVAILABLE)
+            }
         }, ContextCompat.RECEIVER_NOT_EXPORTED)
         viewModelScope.launch {
             settingsRepository.snapshots
@@ -461,7 +479,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     private fun catalogInputs() = CatalogInputs(Configuration(getApplication<Application>().resources.configuration),
-        LocalDate.now(), preferences.renames(), preferences.themedIcons, shortcutRepository.hasAccess())
+        LocalDate.now(), preferences.renames(), preferences.themedIcons, shortcutRepository.hasAccess(), appProfiles)
 
     /** Explicit changes/retries invalidate the catalog; ordinary resumes only check its inputs. */
     fun refreshApps() {
@@ -484,6 +502,28 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             categories = preferences.categories(), textMode = preferences.textMode,
             favoriteKeys = favorites?.toSet() ?: it.favoriteKeys, favoriteOrder = favorites ?: it.favoriteOrder) }
         // Wait for the stored pack choice: do not flash system icons on cold start.
+        if (!itemsReady || _uiState.value.isLoadingSettings || _uiState.value.settingsLoadFailed) return
+        // Some OEMs omit package/profile callbacks when a clone is created or removed.
+        // Check identity and availability on resume without reloading unchanged icons.
+        profileRefreshPending = true
+        if (profileRefreshJob?.isActive == true) return
+        profileRefreshJob = viewModelScope.launch {
+            while (profileRefreshPending) {
+                profileRefreshPending = false
+                try {
+                    appProfiles = appRepository.profileSnapshot()
+                    refreshCatalog()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    Log.w("LauncherViewModel", "Unable to discover launcher profiles", error)
+                    _uiState.update { it.copy(isLoadingApps = false, appLoadFailed = true) }
+                }
+            }
+        }
+    }
+
+    private fun refreshCatalog() {
         if (!itemsReady || _uiState.value.isLoadingSettings || _uiState.value.settingsLoadFailed) return
         if (appLoadJob?.isActive == true || catalogRefresh.pending(catalogInputs()) == null) return
         appLoadJob = viewModelScope.launch {
@@ -543,18 +583,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     else -> IconPackStatus.Unavailable
                 }
                 try {
-                    val workProfiles = try { appRepository.workProfiles() } catch (error: Exception) {
-                        if (error is CancellationException) throw error
-                        incomplete = true
-                        _uiState.value.workProfiles
-                    }
-                    val apps = appRepository.loadApps(selectedPacks) + workProfiles.flatMap { profile ->
-                        try { appRepository.loadWorkApps(profile, selectedPacks) } catch (error: Exception) {
-                            if (error is CancellationException) throw error
-                            incomplete = true
-                            emptyList()
-                        }
-                    }
+                    val catalog = appRepository.loadCatalog(inputs.profiles, selectedPacks)
+                    val workProfiles = catalog.workProfiles
+                    val apps = catalog.apps
+                    incomplete = incomplete || !catalog.complete
                     val renames = inputs.renames
                     suspend fun decorate(app: LauncherApp): LauncherApp = itemIcons.applyDesign(app, snapshot.icons[app.key], iconSettings.iconDesign, iconSettings, inputs.themedIcons)
                         .copy(label = renames[app.key] ?: app.originalLabel, showWorkIndicator = iconSettings.workProfile.showIndicator)

@@ -1,5 +1,7 @@
 package com.galaxyrio.gracelauncher.ui.components
 
+import android.os.Process
+import android.os.UserHandle
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -101,12 +103,20 @@ private val FallbackIconColors = listOf(
 private fun fallbackIconColor(key: String): Color =
     FallbackIconColors[(key.hashCode() and Int.MAX_VALUE) % FallbackIconColors.size]
 
+internal val LauncherApp.showsProfileBadge: Boolean
+    get() = (isPrivateSpace && showPrivateIndicator) || (isWorkProfile && showWorkIndicator) || isCloneProfile
+
 @Composable
 internal fun IconBadge(app: LauncherApp, badgeSize: Dp, modifier: Modifier = Modifier) {
-    Box(modifier.size(badgeSize).testTag("${if (app.isWorkProfile) "work" else "private"}_indicator:${app.key}")
+    val (profile, symbol) = when {
+        app.isWorkProfile -> "work" to LauncherSymbol.Work
+        app.isPrivateSpace -> "private" to LauncherSymbol.Encrypted
+        else -> "clone" to LauncherSymbol.SplitscreenLandscape
+    }
+    Box(modifier.size(badgeSize).testTag("${profile}_indicator:${app.key}")
         .background(MaterialTheme.colorScheme.surface, CircleShape)
         .border(1.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.2f), CircleShape), contentAlignment = Alignment.Center) {
-        LauncherIcon(if (app.isWorkProfile) LauncherSymbol.Work else LauncherSymbol.Encrypted,
+        LauncherIcon(symbol,
             Modifier.size(badgeSize * 0.68f), MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
@@ -117,8 +127,9 @@ fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp, a
     val appearance = LocalLauncherAppearance.current
     val displaySize = size * if (applyDisplaySize) appearance.iconSize / 100f else 1f
     val style = display.style
-    val iconModifier = if (app.folderId == null) modifier.launcherAnimationTarget(listOf(app.componentName)) else modifier
-    val showBadge = (app.isPrivateSpace && app.showPrivateIndicator) || (app.isWorkProfile && app.showWorkIndicator)
+    val iconModifier = if (app.folderId == null) modifier.launcherAnimationTarget(
+        listOf(app.componentName), user = app.user ?: Process.myUserHandle()) else modifier
+    val showBadge = app.showsProfileBadge
     Box(iconModifier.size(displaySize)) {
         when {
             style == IconDisplayStyle.Hidden -> Unit
@@ -229,6 +240,7 @@ fun LauncherAppRow(
         usageText = usageText,
         showLabel = showLabel,
         animationComponents = listOf(app.componentName),
+        animationUser = app.user ?: Process.myUserHandle(),
         hiddenIcon = display.style == IconDisplayStyle.Hidden,
     ) { iconModifier -> AppIcon(app, modifier = iconModifier, size = 40.dp, display = display) }
 }
@@ -249,6 +261,12 @@ fun FolderRow(
     notifications: List<AppNotification> = emptyList(),
 ) {
     val display = app.effectiveDisplay(LocalLauncherAppearance.current)
+    // Return contracts currently support the personal user only. A foreign installation must
+    // not make its folder a target for the personal installation of the same package.
+    val animationComponents = remember(folder.appKeys) {
+        folder.appKeys.filterNot { it.startsWith("profile:") }
+            .mapNotNull(android.content.ComponentName::unflattenFromString)
+    }
     LauncherRow(
         rowKey = "folder:${folder.id}",
         label = folder.name,
@@ -266,12 +284,12 @@ fun FolderRow(
         showLabel = showLabel,
         trailing = trailing,
         notifications = notifications,
-        animationComponents = folder.appKeys.mapNotNull(android.content.ComponentName::unflattenFromString),
+        animationComponents = animationComponents,
         animationFolder = true,
         hiddenIcon = display.style == IconDisplayStyle.Hidden,
     ) { iconModifier ->
         AppIcon(app, modifier = iconModifier.launcherAnimationTarget(
-            folder.appKeys.mapNotNull(android.content.ComponentName::unflattenFromString), folder = true),
+            animationComponents, folder = true),
             size = 40.dp, display = display)
     }
 }
@@ -298,6 +316,7 @@ private fun LauncherRow(
     trailing: (@Composable () -> Unit)? = null,
     animationComponents: List<android.content.ComponentName> = emptyList(),
     animationFolder: Boolean = false,
+    animationUser: UserHandle = Process.myUserHandle(),
     hiddenIcon: Boolean? = null,
     usageText: String? = null,
     icon: @Composable (Modifier) -> Unit,
@@ -421,7 +440,7 @@ private fun LauncherRow(
                 if (hideIcon) Modifier
                     .onGloballyPositioned { iconCoordinates = it }
                     .then(if (animationComponents.isNotEmpty())
-                        Modifier.launcherAnimationTarget(animationComponents, animationFolder) else Modifier)
+                        Modifier.launcherAnimationTarget(animationComponents, animationFolder, animationUser) else Modifier)
                 else Modifier)) {
                 AppNotificationLabel(label, notifications, labelVisible,
                     usageText = usageText,

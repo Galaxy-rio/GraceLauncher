@@ -3,7 +3,6 @@ package com.galaxyrio.gracelauncher.data
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.content.pm.LauncherApps
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
@@ -13,7 +12,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Process
 import android.os.UserHandle
-import android.os.UserManager
 import android.util.Log
 import android.graphics.drawable.Drawable
 import android.graphics.drawable.AdaptiveIconDrawable
@@ -31,20 +29,28 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.CancellationException
 import java.time.LocalDate
 
 data class WorkProfile(val user: UserHandle, val serial: Long)
 
+data class AppCatalog(
+    val apps: List<LauncherApp>,
+    val workProfiles: List<WorkProfile>,
+    val complete: Boolean,
+)
+
 class AppRepository(private val context: Context, private val iconPacks: IconPackRepository = IconPackRepository(context)) {
     private val packageManager = context.packageManager
-    private data class PersonalSourceSignature(val configuration: Configuration, val day: LocalDate,
+    private val launcherApps by lazy { context.getSystemService(LauncherApps::class.java) }
+    private val profiles by lazy { LauncherProfiles(context) }
+    private data class AppSourceSignature(val configuration: Configuration, val day: LocalDate,
         val label: String, val installedAt: Long, val updatedAt: Long, val version: Long,
-        val apkPaths: List<String>, val flags: Int, val iconResource: Int, val revision: Long)
-    private val personalSources = IconSnapshotCache<PersonalSourceSignature, LauncherApp>(
+        val apkPaths: List<String>, val flags: Int, val iconResource: Int, val revision: Long,
+        val profileType: LauncherProfileType)
+    private val personalSources = IconSnapshotCache<AppSourceSignature, LauncherApp>(
         maxBytes = 32 * 1024 * 1024, sizeOf = { iconBitmapBytes(it.icon, it.monochromeIcon) })
-    private data class ProfileSourceSignature(val configuration: Configuration, val day: LocalDate,
-        val label: String, val installedAt: Long, val apkPaths: List<String>, val flags: Int, val revision: Long)
-    private val profileSources = IconSnapshotCache<ProfileSourceSignature, LauncherApp>()
+    private val profileSources = IconSnapshotCache<AppSourceSignature, LauncherApp>()
     private data class PackSignature(val source: Any?,
         val packs: List<Any>, val day: LocalDate)
     private val packedIcons = IconSnapshotCache<PackSignature, Pair<String, PackIcon>>(maxBytes = 8 * 1024 * 1024,
@@ -63,113 +69,119 @@ class AppRepository(private val context: Context, private val iconPacks: IconPac
 
     /** Cheap startup validation; no labels, artwork, icon packs or foreign resources are loaded. */
     internal suspend fun launchableComponents(): Set<ComponentName> = withContext(Dispatchers.IO) {
-        queryLauncherActivities().map { ComponentName(it.activityInfo.packageName, it.activityInfo.name) }.toSet()
+        launcherApps.getActivityList(null, Process.myUserHandle()).map { it.componentName }.toSet()
     }
 
-    private fun queryLauncherActivities(): List<android.content.pm.ResolveInfo> {
-        val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_LAUNCHER)
-        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            packageManager.queryIntentActivities(intent, PackageManager.ResolveInfoFlags.of(0L))
-        } else {
-            @Suppress("DEPRECATION")
-            packageManager.queryIntentActivities(intent, 0)
+    suspend fun profileSnapshot(): LauncherProfileSnapshot = withContext(Dispatchers.IO) {
+        val snapshot = profiles.snapshot()
+        var complete = snapshot.complete
+        val components = mutableMapOf<UserHandle, Set<ComponentName>>()
+        for (profile in snapshot.profiles) {
+            currentCoroutineContext().ensureActive()
+            if (profile.user == Process.myUserHandle() || !profile.isPublic ||
+                (profile.type == LauncherProfileType.Work && (profile.quietMode == true || profile.unlocked == false))) continue
+            try {
+                // Adding a second clone often reuses the same profile. Comparing only users
+                // would miss that change on OEMs which omit the package-added callback.
+                components[profile.user] = launcherApps.getActivityList(null, profile.user)
+                    .map { it.componentName }.toSet()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                Log.w("AppRepository", "Unable to check launcher activities for ${profile.user}", error)
+                complete = false
+            }
         }
+        snapshot.copy(complete = complete, launcherComponents = components)
     }
 
-    suspend fun loadApps(iconPackPackages: List<String> = emptyList()): List<LauncherApp> = withContext(Dispatchers.IO) {
+    suspend fun loadApps(iconPackPackages: List<String> = emptyList()): List<LauncherApp> =
+        loadCatalog(profileSnapshot(), iconPackPackages).apps
+
+    /** Like Lawnchair, enumerate launcher activities separately for every visible user. */
+    suspend fun loadCatalog(snapshot: LauncherProfileSnapshot, iconPackPackages: List<String>): AppCatalog = withContext(Dispatchers.IO) {
+        val apps = mutableListOf<LauncherApp>()
+        var complete = snapshot.complete
+        for (profile in snapshot.profiles) {
+            currentCoroutineContext().ensureActive()
+            // Private Space retains its separate unlock/visibility and cache lifecycle.
+            if (!profile.isPublic) continue
+            if (profile.type == LauncherProfileType.Work &&
+                (profile.quietMode == true || profile.unlocked == false)) continue
+            try {
+                apps += loadProfileApps(profile, emptyList())
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                // Keep the current UI/default favorites intact when the main query fails.
+                if (profile.user == Process.myUserHandle()) throw error
+                // An unavailable OEM profile must not remove the other users' apps.
+                Log.w("AppRepository", "Unable to read launcher apps for ${profile.user}", error)
+                complete = false
+            }
+        }
+        AppCatalog(applyIconPacks(apps.distinctBy(LauncherApp::key).sortedWith(LauncherAppOrder), iconPackPackages),
+            snapshot.profiles.filter { it.type == LauncherProfileType.Work }.map { WorkProfile(it.user, it.serial) },
+            complete)
+    }
+
+    suspend fun loadPrivateApps(user: UserHandle, serial: Long, iconPackPackages: List<String>): List<LauncherApp> =
+        loadProfileApps(LauncherProfile(user, serial, LauncherProfileType.Private), iconPackPackages)
+
+    private suspend fun loadProfileApps(profile: LauncherProfile, iconPackPackages: List<String>): List<LauncherApp> = withContext(Dispatchers.IO) {
         val coroutine = currentCoroutineContext()
         val configuration = Configuration(context.resources.configuration)
         val day = LocalDate.now()
-        val resolved = queryLauncherActivities()
-
+        val personal = profile.user == Process.myUserHandle()
+        val sources = if (personal) personalSources else profileSources
         val englishLabels = EnglishLabelReader(context)
         val packages = mutableMapOf<String, PackageInfo?>()
-        val apps = resolved.asSequence()
-            .mapNotNull { resolveInfo ->
+        val apps = launcherApps.getActivityList(null, profile.user).asSequence()
+            .mapNotNull { activity ->
                 coroutine.ensureActive()
-                val activityInfo = resolveInfo.activityInfo ?: return@mapNotNull null
+                val component = activity.componentName
                 // Expose only our settings entry, never the launcher/HOME activity.
-                if (activityInfo.packageName == context.packageName &&
-                    activityInfo.name != SettingsActivity::class.java.name) return@mapNotNull null
-                val component = ComponentName(activityInfo.packageName, activityInfo.name)
-                val label = resolveInfo.loadLabel(packageManager)
-                    .toString()
-                    .trim()
-                    .ifBlank { activityInfo.name.substringAfterLast('.') }
-                val packageInfo = packages.getOrPut(activityInfo.packageName) {
+                if (component.packageName == context.packageName &&
+                    component.className != SettingsActivity::class.java.name) return@mapNotNull null
+                val label = runCatching { activity.label.toString().trim() }.getOrDefault("")
+                    .ifBlank { component.shortClassName }
+                val packageInfo = if (personal) packages.getOrPut(component.packageName) {
                     @Suppress("DEPRECATION")
-                    runCatching { packageManager.getPackageInfo(activityInfo.packageName, 0) }.getOrNull()
-                }
-                val info = activityInfo.applicationInfo
-                val revision = synchronized(packageRevisions) {
-                    packageRevisions[Process.myUserHandle() to activityInfo.packageName] ?: 0L
-                }
-                val signature = PersonalSourceSignature(configuration, day, label, packageInfo?.firstInstallTime ?: 0,
+                    runCatching { packageManager.getPackageInfo(component.packageName, 0) }.getOrNull()
+                } else null
+                val info = activity.applicationInfo
+                val revision = synchronized(packageRevisions) { packageRevisions[profile.user to component.packageName] ?: 0L }
+                val installedAt = runCatching { activity.firstInstallTime }.getOrDefault(packageInfo?.firstInstallTime ?: 0L)
+                val activityInfo = if (Build.VERSION.SDK_INT >= 31) runCatching { activity.activityInfo }.getOrNull() else if (personal) {
+                    @Suppress("DEPRECATION")
+                    runCatching { packageManager.getActivityInfo(component, 0) }.getOrNull()
+                } else null
+                val signature = AppSourceSignature(configuration, day, label, installedAt,
                     packageInfo?.lastUpdateTime ?: 0, packageInfo?.longVersionCode ?: 0,
-                    listOfNotNull(info.sourceDir) + info.splitSourceDirs.orEmpty(), info.flags, resolveInfo.iconResource, revision)
-                personalSources.get(component.flattenToString(), signature) ?: run {
-                    val drawable = runCatching { resolveInfo.loadIcon(packageManager) }.getOrNull()
-                    makeApp(component, label, drawable, info.flags).copy(
-                        firstInstallTime = signature.installedAt, isLauncherSettings = activityInfo.packageName == context.packageName,
-                        englishLabel = englishLabels.label(resolveInfo), iconSourceRevision = signature).also { app ->
+                    listOfNotNull(info.sourceDir) + info.splitSourceDirs.orEmpty(), info.flags,
+                    activityInfo?.iconResource ?: info.icon, revision, profile.type)
+                val key = if (personal) component.flattenToString() else "profile:${profile.serial}:${component.flattenToString()}"
+                sources.get(key, signature) ?: run {
+                    val drawable = runCatching { activity.getIcon(0) }.getOrNull()
+                    val source = if (personal) null else runCatching { drawable?.let(ProfileIconSource::fromDrawable) }.getOrNull()
+                    makeApp(component, label, drawable, info.flags).let { app -> app.copy(
+                        // Preserve existing personal favorites, renames and icon overrides.
+                        user = profile.user.takeUnless { personal }, userSerial = profile.serial.takeUnless { personal },
+                        isPrivateSpace = profile.type == LauncherProfileType.Private,
+                        isWorkProfile = profile.type == LauncherProfileType.Work,
+                        isCloneProfile = profile.type == LauncherProfileType.Clone,
+                        firstInstallTime = installedAt, isLauncherSettings = component.packageName == context.packageName,
+                        englishLabel = activityInfo?.let(englishLabels::label), iconSourceRevision = signature,
+                        profileIconSource = source, icon = source?.layers()?.original?.asImageBitmap() ?: app.icon)
+                    }.also { app ->
                         coroutine.ensureActive()
-                        if (app.icon != null) personalSources.put(app.key, signature, app)
+                        if (app.icon != null) sources.put(key, signature, app)
                     }
                 }
             }
             .distinctBy(LauncherApp::key)
             .sortedWith(LauncherAppOrder)
             .toList()
-        applyIconPacks(apps, iconPackPackages)
-    }
-
-    fun workProfiles(): List<WorkProfile> {
-        val launcher = context.getSystemService(LauncherApps::class.java)
-        val users = context.getSystemService(UserManager::class.java)
-        return launcher.profiles.filter { user ->
-            user != Process.myUserHandle() && (Build.VERSION.SDK_INT < 35 ||
-                launcher.getLauncherUserInfo(user)?.userType == UserManager.USER_TYPE_PROFILE_MANAGED)
-        }.mapNotNull { user -> users.getSerialNumberForUser(user).takeIf { it >= 0 }?.let { WorkProfile(user, it) } }
-    }
-
-    suspend fun loadWorkApps(profile: WorkProfile, iconPackPackages: List<String>): List<LauncherApp> {
-        val users = context.getSystemService(UserManager::class.java)
-        return if (users.isQuietModeEnabled(profile.user) || !users.isUserUnlocked(profile.user)) emptyList()
-        else loadProfileApps(profile.user, profile.serial, iconPackPackages, work = true)
-    }
-
-    suspend fun loadPrivateApps(user: UserHandle, serial: Long, iconPackPackages: List<String>): List<LauncherApp> =
-        loadProfileApps(user, serial, iconPackPackages, work = false)
-
-    private suspend fun loadProfileApps(user: UserHandle, serial: Long, iconPackPackages: List<String>, work: Boolean): List<LauncherApp> = withContext(Dispatchers.IO) {
-        val coroutine = currentCoroutineContext()
-        val configuration = Configuration(context.resources.configuration)
-        val day = LocalDate.now()
-        val englishLabels = EnglishLabelReader(context)
-        val apps = context.getSystemService(LauncherApps::class.java).getActivityList(null, user).map { activity ->
-            coroutine.ensureActive()
-            val component = activity.componentName
-            val label = activity.label.toString().trim().ifBlank { component.shortClassName }
-            val info = activity.applicationInfo
-            val revision = synchronized(packageRevisions) { packageRevisions[user to component.packageName] ?: 0L }
-            val signature = ProfileSourceSignature(configuration, day, label, activity.firstInstallTime,
-                listOfNotNull(info.sourceDir) + info.splitSourceDirs.orEmpty(), info.flags, revision)
-            val key = "profile:$serial:${component.flattenToString()}"
-            profileSources.get(key, signature) ?: run {
-                val drawable = runCatching { activity.getIcon(0) }.getOrNull()
-                val source = runCatching { drawable?.let(ProfileIconSource::fromDrawable) }.getOrNull()
-                makeApp(component, label, drawable, info.flags)
-                    .let { app -> app.copy(user = user, userSerial = serial, isPrivateSpace = !work, isWorkProfile = work,
-                        firstInstallTime = activity.firstInstallTime, profileIconSource = source, englishLabel = englishLabels.label(activity),
-                        // Share the bounded source bitmap instead of retaining a second raw copy.
-                        icon = source?.layers()?.original?.asImageBitmap() ?: app.icon) }
-                    .also { app ->
-                        coroutine.ensureActive()
-                        // A transient profile permission/availability failure must be retried.
-                        if (app.icon != null) profileSources.put(key, signature, app)
-                    }
-            }
-        }.distinctBy(LauncherApp::key).sortedWith(LauncherAppOrder)
         applyIconPacks(apps, iconPackPackages)
     }
 

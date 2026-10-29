@@ -7,7 +7,6 @@ import android.content.Intent
 import android.content.ActivityNotFoundException
 import android.os.Bundle
 import android.os.Process
-import android.os.UserManager
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -25,6 +24,8 @@ import androidx.lifecycle.Lifecycle
 import com.galaxyrio.gracelauncher.data.LauncherDatabase
 import com.galaxyrio.gracelauncher.data.LauncherSettingsRepository
 import com.galaxyrio.gracelauncher.data.LauncherItemsRepository
+import com.galaxyrio.gracelauncher.data.LauncherProfiles
+import com.galaxyrio.gracelauncher.data.LauncherProfileType
 import com.galaxyrio.gracelauncher.data.HomeLayout
 import com.galaxyrio.gracelauncher.data.PopupItem
 import com.galaxyrio.gracelauncher.platform.HomeWidgetHost
@@ -107,14 +108,19 @@ class WidgetSetupActivity : ComponentActivity() {
                     configure()
                 } else {
                     providers = withContext(Dispatchers.IO) {
-                        getSystemService(UserManager::class.java).userProfiles.filter { profile ->
-                            if (android.os.Build.VERSION.SDK_INT < 35 || profile == android.os.Process.myUserHandle()) true
-                            else runCatching {
-                                val type = getSystemService(android.content.pm.LauncherApps::class.java).getLauncherUserInfo(profile)?.userType
-                                type != null && type != UserManager.USER_TYPE_PROFILE_PRIVATE
-                            }.getOrDefault(false)
+                        LauncherProfiles(this@WidgetSetupActivity).snapshot().profiles.filter { profile ->
+                            profile.isPublic &&
+                                (profile.type != LauncherProfileType.Work ||
+                                    (profile.quietMode != true && profile.unlocked != false))
                         }.flatMap { profile ->
-                            runCatching { manager.getInstalledProvidersForProfile(profile) }.getOrDefault(emptyList())
+                            // OEM clone profiles may not support widgets. Keep the other profiles
+                            // available even when optional profile state queries are unsupported.
+                            try { manager.getInstalledProvidersForProfile(profile.user) }
+                            catch (cancelled: CancellationException) { throw cancelled }
+                            catch (error: Exception) {
+                                Log.w(TAG, "Unable to load widget providers for ${profile.user}", error)
+                                emptyList()
+                            }
                         }.distinctBy { it.provider.flattenToString() to it.profile }
                     }
                     busy = false
@@ -133,8 +139,8 @@ class WidgetSetupActivity : ComponentActivity() {
         try {
             pendingId = host.allocateAppWidgetId().also(host::trackPendingId)
             expectedProvider = info.provider.flattenToString()
-            expectedProfile = getSystemService(UserManager::class.java).getSerialNumberForUser(info.profile)
-                .takeIf { it >= 0 }
+            expectedProfile = LauncherProfiles.serialNumber(this, info.profile)
+                ?: error("Unknown widget profile")
             val options = initialWidgetOptions(this, info, popupOwner, gridColumns, homeSidePadding)
             Log.i(TAG, "bind id=$pendingId provider=$expectedProvider profile=$expectedProfile " +
                 "min=${info.minWidth}x${info.minHeight} resizeMode=${info.resizeMode} configure=${info.configure} " +
@@ -154,7 +160,7 @@ class WidgetSetupActivity : ComponentActivity() {
         val info = runCatching { manager.getAppWidgetInfo(pendingId) }
             .getOrElse { fail(R.string.widget_unavailable, it); return }
         if (info == null || (expectedProvider != null && info.provider.flattenToString() != expectedProvider) ||
-            (expectedProfile != null && expectedProfile != getSystemService(UserManager::class.java).getSerialNumberForUser(info.profile))) {
+            (expectedProfile != null && expectedProfile != LauncherProfiles.serialNumber(this, info.profile))) {
             fail(R.string.widget_unavailable); return
         }
         expectedProvider = info.provider.flattenToString()

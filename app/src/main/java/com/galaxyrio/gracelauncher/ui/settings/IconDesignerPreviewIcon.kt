@@ -49,6 +49,7 @@ import com.galaxyrio.gracelauncher.data.icons.drawDesignedIcon
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AppIcon
 import com.galaxyrio.gracelauncher.ui.components.IconBadge
+import com.galaxyrio.gracelauncher.ui.components.showsProfileBadge
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import kotlin.math.abs
 import kotlin.math.cos
@@ -147,7 +148,7 @@ internal fun DesignerDisplayedIcon(app: LauncherApp, layers: IconLayers?, design
         // every slider tick, even though the large preview already draws the layers.
         Box(modifier.size(size)) {
             DesignerPreviewIcon(app, layers, design, dynamicColors, size, themeColors = themeColors, appColors = appColors)
-            if ((app.isPrivateSpace && app.showPrivateIndicator) || (app.isWorkProfile && app.showWorkIndicator)) {
+            if (app.showsProfileBadge) {
                 IconBadge(app, size * .42f, Modifier.align(Alignment.BottomEnd))
             }
         }

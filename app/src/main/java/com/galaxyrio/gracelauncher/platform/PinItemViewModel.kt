@@ -6,7 +6,6 @@ import android.appwidget.AppWidgetProviderInfo
 import android.content.Intent
 import android.content.pm.LauncherApps
 import android.os.Process
-import android.os.UserManager
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -138,7 +137,7 @@ class PinItemViewModel(application: Application) : AndroidViewModel(application)
         val info = pin.shortcutInfo ?: error("Missing shortcut")
         val user = info.userHandle
         val serial = if (user == Process.myUserHandle()) null else
-            context.getSystemService(UserManager::class.java).getSerialNumberForUser(user).takeIf { it >= 0 }
+            com.galaxyrio.gracelauncher.data.LauncherProfiles.serialNumber(context, user)
                 ?: error("Unknown profile")
         val activity = info.activity ?: launcher.getActivityList(info.`package`, user).firstOrNull()?.componentName
             ?: error("Missing shortcut activity")
