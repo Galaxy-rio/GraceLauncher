@@ -205,6 +205,27 @@
     <string name="favorites_reorder">调整%1$s的顺序</string>
     <string name="favorites_move_up">上移</string>
     <string name="favorites_move_down">下移</string>
+    <string name="homepage_widgets">小组件</string>
+    <string name="homepage_app_group">应用分组</string>
+    <string name="homepage_add_categories">添加类别</string>
+    <string name="homepage_edit_item">编辑%1$s</string>
+    <string name="homepage_empty">尚未选择项目</string>
+    <string name="app_categories_title">应用类别</string>
+    <string name="app_category_create">创建类别</string>
+    <string name="app_category_name">类别名称</string>
+    <string name="app_category_music">音乐</string>
+    <string name="app_category_condition">显示条件</string>
+    <string name="app_category_always">始终显示</string>
+    <string name="app_category_headphones">连接耳机时</string>
+    <string name="app_category_time">每日时间段</string>
+    <string name="app_category_start">开始时间</string>
+    <string name="app_category_end">结束时间</string>
+    <string name="app_category_delete">删除类别</string>
+    <string name="app_category_delete_confirmation">删除“%1$s”？其中的应用、文件夹、应用堆叠和快捷方式会保留。</string>
+    <string name="app_category_unavailable">此类别已不可用。</string>
+    <plurals name="app_category_item_count">
+        <item quantity="other">%1$d 个项目</item>
+    </plurals>
 
     <!-- 文件夹 -->
     <string name="open_folder">打开文件夹</string>

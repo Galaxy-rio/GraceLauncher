@@ -150,7 +150,11 @@ class PinItemViewModel(application: Application) : AndroidViewModel(application)
         withContext(NonCancellable) {
             check(valid(pin) && pin.accept()) { "Request no longer valid" }
             LauncherItemsRepository(database).rememberShortcut(app, showInAppList = true)
-            FavoritesStore(context).add(app.key, apps)
+            val legacyFavorites = FavoritesStore(context).favoritesFor(apps)
+            LauncherSettingsRepository(database).mutateAppCategories(legacyFavorites) { categories ->
+                categories.map { category -> if (category.id != com.galaxyrio.gracelauncher.data.FavoritesCategoryId) category
+                    else category.copy(itemKeys = (category.itemKeys + app.key).distinct(), showOnHome = true) }
+            }
             withContext(Dispatchers.Main) { complete() }
         }
     }

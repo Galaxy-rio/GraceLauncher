@@ -7,8 +7,8 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import org.json.JSONArray
 
 /**
- * New launcher data lives in Room; legacy favorites, renames, categories and
- * appearance preferences remain in their existing stores without being reset.
+ * Launcher settings and app categories live in Room. Legacy favorites migrate
+ * once; profile pins, renames and appearance preferences keep their existing stores.
  * All reads are observable Room queries and every write is a suspending DAO
  * operation, so no database access blocks the main thread.
  */
@@ -88,6 +88,7 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
             shortcutsFoldersJson = settings.shortcutsFolders.encode(),
             digitalWellbeingJson = settings.digitalWellbeing.encode(),
             widgetScreenJson = settings.widgetScreen.encode(),
+            appCategoriesJson = settings.appCategories?.let(AppCategory::encode),
             preferNonAccessibility = settings.preferNonAccessibility,
         ))
     }
@@ -99,6 +100,19 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
             updateSettings(synchronizeGraceWidgetOrder(current, transform(current)))
         }
     }
+
+    suspend fun migrateAppCategories(favorites: List<String>) = database.withTransaction {
+        val current = dao.readSettings()?.toSettings() ?: LauncherSettings()
+        if (current.appCategories == null) updateSettings(migrateHomeCategories(current, favorites))
+    }
+
+    suspend fun mutateAppCategories(favorites: List<String>, transform: (List<AppCategory>) -> List<AppCategory>) =
+        database.withTransaction {
+            val current = migrateHomeCategories(dao.readSettings()?.toSettings() ?: LauncherSettings(), favorites)
+            val categories = transform(requireNotNull(current.appCategories)).map(AppCategory::normalized).distinctBy { it.id }
+            require(categories.any { it.id == FavoritesCategoryId })
+            updateSettings(current.copy(appCategories = categories))
+        }
 
     /** Move the old single widget into the mixed home collection without rebinding it. */
     suspend fun migrateLegacyHomeWidget() = database.withTransaction {
@@ -171,6 +185,10 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
         }
         itemsDao.resetIcon(key)
         dao.deleteFolder(id)
+        val settings = dao.readSettings()?.toSettings()
+        if (settings?.appCategories != null) updateSettings(settings.copy(appCategories = settings.appCategories.map {
+            it.copy(itemKeys = it.itemKeys - key)
+        }))
         widgets
     }
 }
@@ -220,6 +238,7 @@ private fun LauncherSettingsEntity.toSettings() = LauncherSettings(
     shortcutsFolders = ShortcutsFoldersSettings.decode(shortcutsFoldersJson),
     digitalWellbeing = DigitalWellbeingSettings.decode(digitalWellbeingJson),
     widgetScreen = WidgetScreenSettings.decode(widgetScreenJson),
+    appCategories = AppCategory.decode(appCategoriesJson),
     preferNonAccessibility = preferNonAccessibility,
 )
 

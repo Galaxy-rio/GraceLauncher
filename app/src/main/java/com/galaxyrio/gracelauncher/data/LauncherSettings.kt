@@ -58,6 +58,8 @@ data class LauncherSettings(
     val graceButton: GraceButtonSettings = GraceButtonSettings(),
     val homeGestures: GraceButtonSettings = GraceButtonSettings.homeDefaults(),
     val widgetScreen: WidgetScreenSettings = WidgetScreenSettings(),
+    /** Null until the legacy favorite order has been migrated. */
+    val appCategories: List<AppCategory>? = null,
     val preferNonAccessibility: Boolean = false,
 ) {
     /** Icon designer overrides precede this order; system icons always follow it. */

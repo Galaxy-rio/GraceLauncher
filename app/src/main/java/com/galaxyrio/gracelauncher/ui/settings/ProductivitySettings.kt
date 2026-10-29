@@ -148,28 +148,32 @@ internal fun ProductivitySettings(
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_hide_apps), pluralStringResource(R.plurals.settings_hidden_count, uiState.effectiveHiddenAppKeys.size, uiState.effectiveHiddenAppKeys.size),
-                    0, 5, "settings_open_hidden_apps",
+                    0, 6, "settings_open_hidden_apps",
                     leading = { LauncherIcon(LauncherSymbol.VisibilityOff) },
                 ) { navigate(SettingsPage.HiddenApps) }
             }
             item {
+                SettingsActionItem(stringResource(R.string.app_categories_title), null, 1, 6, "settings_app_categories",
+                    leading = { LauncherIcon(LauncherSymbol.Category) }) { navigate(SettingsPage.AppCategories) }
+            }
+            item {
                 SettingsActionItem(
                     stringResource(R.string.settings_folders), pluralStringResource(R.plurals.settings_folder_count, uiState.folders.count { !it.isAppStack }, uiState.folders.count { !it.isAppStack }),
-                    1, 5, "settings_open_folders",
+                    2, 6, "settings_open_folders",
                     leading = { LauncherIcon(LauncherSymbol.Folder) },
                 ) { navigate(SettingsPage.Folders) }
             }
             item {
-                SettingsActionItem(stringResource(R.string.app_stacks_title), null, 2, 5, "settings_app_stacks",
+                SettingsActionItem(stringResource(R.string.app_stacks_title), null, 3, 6, "settings_app_stacks",
                     leading = { LauncherIcon(LauncherSymbol.Steppers) }) { navigate(SettingsPage.AppStacks) }
             }
             item {
                 SettingsActionItem(stringResource(R.string.work_profile_title), stringResource(R.string.work_profile_summary),
-                    3, 5, "settings_open_work_profile", leading = { LauncherIcon(LauncherSymbol.Work) }) { navigate(SettingsPage.WorkProfile) }
+                    4, 6, "settings_open_work_profile", leading = { LauncherIcon(LauncherSymbol.Work) }) { navigate(SettingsPage.WorkProfile) }
             }
             item {
                 SettingsActionItem(stringResource(R.string.private_space_title), stringResource(R.string.private_space_summary),
-                    4, 5, "settings_open_private_space", leading = { LauncherIcon(LauncherSymbol.Lock) }) { navigate(SettingsPage.PrivateSpace) }
+                    5, 6, "settings_open_private_space", leading = { LauncherIcon(LauncherSymbol.Lock) }) { navigate(SettingsPage.PrivateSpace) }
             }
             item { SettingsHeading(stringResource(R.string.settings_advanced)) }
             item {

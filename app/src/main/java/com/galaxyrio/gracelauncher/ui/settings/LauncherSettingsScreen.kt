@@ -81,6 +81,7 @@ internal enum class SettingsPage {
     GraceButtonAppearance, GraceButtonPosition, AgendaAppearance, SearchAppearance, MediaPlayerAppearance,
     WidgetScreen, WidgetScreenEditor, Homepage, AppList, FeedScreen, StatusScreen, DigitalWellbeing, TabletsFoldables,
     Wallpaper, WallpaperDesigner,
+    AppCategories, CategoryEditor,
 }
 
 /** Navigation owns each page's saved state and seekable predictive-back transition. */
@@ -95,13 +96,15 @@ fun LauncherSettingsScreen(
     handleRootBack: Boolean = true,
     initialIconDesignerApp: LauncherApp? = null,
     closePrivateSpaceOnDispose: Boolean = true,
+    initialCategoryId: String? = null,
 ) {
     val navController = rememberNavController()
     val closePrivateSpace by rememberUpdatedState(actions.closePrivateSpace)
     DisposableEffect(closePrivateSpaceOnDispose) { onDispose { if (closePrivateSpaceOnDispose) closePrivateSpace() } }
-    val startDestination = remember(initialPage, initialFolderId) {
+    val startDestination = remember(initialPage, initialFolderId, initialCategoryId) {
         when {
             initialFolderId != null -> "FolderEditor/${Uri.encode(initialFolderId)}"
+            initialCategoryId != null -> "CategoryEditor/${Uri.encode(initialCategoryId)}"
             initialPage == "folders" -> SettingsPage.Folders.name
             initialPage == "Favorites" -> SettingsPage.Homepage.name
             initialPage != null -> SettingsPage.entries.firstOrNull { it.name == initialPage }?.name ?: SettingsPage.Root.name
@@ -169,10 +172,12 @@ fun LauncherSettingsScreen(
         SettingsPage.entries.forEach { page ->
             val isEditor = page == SettingsPage.FolderEditor
             val isGraceAction = page in listOf(SettingsPage.GraceAction, SettingsPage.GraceApp, SettingsPage.GraceShortcut, SettingsPage.GraceFolder)
+            val isCategoryEditor = page == SettingsPage.CategoryEditor
             composable(
-                route = when { isEditor -> "FolderEditor/{folderId}"; isGraceAction -> "${page.name}/{gesture}?home={home}"; else -> page.name },
+                route = when { isEditor -> "FolderEditor/{folderId}"; isCategoryEditor -> "CategoryEditor/{categoryId}"; isGraceAction -> "${page.name}/{gesture}?home={home}"; else -> page.name },
                 arguments = when {
                     isEditor -> listOf(navArgument("folderId") { type = NavType.StringType })
+                    isCategoryEditor -> listOf(navArgument("categoryId") { type = NavType.StringType })
                     isGraceAction -> listOf(navArgument("gesture") { type = NavType.StringType }, navArgument("home") { type = NavType.BoolType; defaultValue = false })
                     else -> emptyList()
                 },
@@ -196,6 +201,10 @@ fun LauncherSettingsScreen(
                     SettingsPage.Root -> SettingsHome(uiState.isDefaultHome, actions.requestDefaultHome,
                         onOpenHome = { if (isCurrent()) actions.openHome() }, onBack = back, navigate = navigate)
                     SettingsPage.Productivity -> ProductivitySettings(uiState, actions, back, navigate)
+                    SettingsPage.AppCategories -> AppCategoriesSettings(uiState, actions, back, onEdit = { id ->
+                        if (isCurrent()) navController.navigate("CategoryEditor/${Uri.encode(id)}") { launchSingleTop = true }
+                    })
+                    SettingsPage.CategoryEditor -> AppCategoryEditorSettings(entry.arguments?.getString("categoryId"), uiState, actions, back)
                     SettingsPage.DigitalWellbeing -> DigitalWellbeingSettingsScreen(uiState, actions, back)
                     SettingsPage.TabletsFoldables -> SettingsPlaceholder(stringResource(R.string.settings_tablets_foldables), "tablets_foldables_settings", back)
                     SettingsPage.Homepage -> com.galaxyrio.gracelauncher.ui.overlays.HomepageEditorScreen(

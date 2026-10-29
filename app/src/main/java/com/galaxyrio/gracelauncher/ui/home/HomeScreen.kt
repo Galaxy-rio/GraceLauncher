@@ -148,10 +148,13 @@ fun HomeScreen(
     onWidgetEditingChange: (Boolean) -> Unit = {},
 ) {
     val now by rememberHomeTime()
+    val headphones by rememberHeadphonesConnected()
+    val localTime = now.atZone(java.time.ZoneId.systemDefault()).toLocalTime()
+    val homeContent = uiState.visibleHomeContent(headphones, localTime.hour * 60 + localTime.minute)
     val event = if (uiState.settings.calendarAgenda) nextVisibleEvent(uiState.events, now) else null
-    val entries = uiState.homeItems
+    val entries = homeContent.items
     val entriesByKey = entries.associateBy { it.key }
-    val favoriteFolders = uiState.favoriteFolders.associateBy { it.id }
+    val favoriteFolders = (uiState.folders + uiState.favoriteFolders).associateBy { it.id }
     var idleMediaDismissed by rememberSaveable(uiState.settings.mediaAlwaysVisible, uiState.settings.mediaPlayer) { mutableStateOf(false) }
     LaunchedEffect(uiState.homeMedia?.sessionId, uiState.homeMedia?.revision) {
         if (uiState.homeMedia != null) idleMediaDismissed = false
@@ -171,7 +174,10 @@ fun HomeScreen(
     val density = LocalDensity.current
     val context = LocalContext.current
     val haptics by rememberUpdatedState(LocalHapticFeedback.current)
-    val saveOrder by rememberUpdatedState(actions.reorderFavorites)
+    val saveOrder by rememberUpdatedState<(List<String>) -> Unit>({ keys ->
+        // A category remains one sortable homepage item even though it renders several rows.
+        actions.reorderFavorites(keys.map { homeContent.owners[it] ?: it }.distinct())
+    })
     val reorder = remember(listState) {
         FavoritesReorderState(listState, entries.map { it.key }, { saveOrder(it) }) {
             haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)

@@ -17,6 +17,9 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.galaxyrio.gracelauncher.data.AppRepository
+import com.galaxyrio.gracelauncher.data.AppCategory
+import com.galaxyrio.gracelauncher.data.FavoritesCategoryId
+import com.galaxyrio.gracelauncher.data.migrateHomeCategories
 import com.galaxyrio.gracelauncher.data.LauncherAppCache
 import com.galaxyrio.gracelauncher.data.LauncherCatalogMemory
 import com.galaxyrio.gracelauncher.data.LauncherProfileSnapshot
@@ -274,8 +277,21 @@ data class LauncherUiState(
             return (favoriteOrder + items.keys).distinct().mapNotNull(items::get)
         }
 
-    val homeItems: List<PopupItem> get() = com.galaxyrio.gracelauncher.data.orderedHomeItems(
-        settings, favoriteItems.map(LauncherApp::key), popups[com.galaxyrio.gracelauncher.data.HomeContentKey].orEmpty())
+    val appCategories: List<AppCategory> get() = settings.appCategories
+        ?: requireNotNull(migrateHomeCategories(settings, favoriteOrder.ifEmpty { favoriteKeys.toList() }).appCategories)
+
+    val homeItems: List<PopupItem> get() {
+        val migrated = migrateHomeCategories(settings, favoriteOrder.ifEmpty { favoriteKeys.toList() })
+        return com.galaxyrio.gracelauncher.data.orderedHomeItems(migrated,
+            (if (isLoadingSettings || settingsLoadFailed) emptyList() else appCategories.filter { it.showOnHome }.map { it.key }) +
+                favoriteFolders.map { it.key },
+            popups[com.galaxyrio.gracelauncher.data.HomeContentKey].orEmpty())
+    }
+
+    internal fun visibleHomeContent(headphones: Boolean, minuteOfDay: Int) =
+        com.galaxyrio.gracelauncher.data.expandHomeCategories(homeItems, appCategories, headphones, minuteOfDay) { key ->
+            findItem(key)?.let { !it.isPrivateSpace || (settings.privateSpace.exposesApps && privateContentVisible) } == true
+        }
 }
 
 class LauncherViewModel(application: Application) : AndroidViewModel(application) {
@@ -401,10 +417,16 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                 }
                 .collect { snapshot ->
                     val previous = _uiState.value
+                    val legacyFavorites = favoritesStore.savedFavorites()
+                    if (snapshot.settings.appCategories == null && legacyFavorites != null) {
+                        persistSettings { settingsRepository.migrateAppCategories(legacyFavorites) }
+                    }
+                    val favorites = categoryFavoriteOrder(snapshot.settings, legacyFavorites ?: previous.favoriteOrder)
                     privateSpaceController.configure(snapshot.settings.privateSpace)
                     _uiState.update {
                         it.copy(
                             settings = snapshot.settings,
+                            favoriteKeys = favorites.toSet(), favoriteOrder = favorites,
                             apps = it.apps.map { app -> if (app.isWorkProfile) app.copy(showWorkIndicator = snapshot.settings.workProfile.showIndicator) else app },
                             shortcutApps = it.shortcutApps.map { app -> if (app.isWorkProfile) app.copy(showWorkIndicator = snapshot.settings.workProfile.showIndicator) else app },
                             themedIcons = snapshot.settings.iconDesign?.design?.withThemeDefaults(IconDesign.defaults(preferences.themedIcons))?.themeIcons
@@ -476,7 +498,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         privateSpaceController.refresh()
         if (_uiState.value.privateAppsFailed) refreshPrivateApps()
         val favorites = _uiState.value.takeUnless { it.isLoadingApps || it.appLoadFailed }
-            ?.let { favoritesStore.favoritesFor(it.apps) }
+            ?.let { categoryFavoriteOrder(it.settings, favoritesStore.favoritesFor(it.apps)) }
         _uiState.update { it.copy(isDefaultHome = isDefaultHome, hasShortcutAccess = shortcutRepository.hasAccess(),
             categories = preferences.categories(), textMode = preferences.textMode,
             favoriteKeys = favorites?.toSet() ?: it.favoriteKeys, favoriteOrder = favorites ?: it.favoriteOrder) }
@@ -548,7 +570,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         }
         val apps = preview.filter { it.folderId == null && !it.isGraceButton &&
             (it.shortcut == null || it.key in state.shownShortcutKeys) }.sortedWith(LauncherAppOrder)
-        val favorites = favoritesStore.savedFavorites().orEmpty()
+        val favorites = categoryFavoriteOrder(state.settings, favoritesStore.savedFavorites().orEmpty())
         _uiState.update { it.copy(apps = apps,
             shortcutApps = preview.filter { app -> app.shortcut != null } + it.shortcutApps.filter(LauncherApp::isPrivateSpace),
             folderApps = preview.filter { app -> app.folderId != null &&
@@ -700,7 +722,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         GraceButtonIcon.choice(snapshot.icons[GraceButtonIcon.key]), iconSettings)
                     // Do not publish a theme/package revision superseded while IO was running.
                     if (!catalogRefresh.isCurrent(request, catalogInputs())) continue
-                    val favorites = favoritesStore.favoritesFor(displayedApps)
+                    val legacyFavorites = favoritesStore.favoritesFor(displayedApps)
+                    val favorites = categoryFavoriteOrder(_uiState.value.settings, legacyFavorites)
                     _uiState.update {
                         it.copy(
                             apps = displayedApps,
@@ -721,6 +744,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                             iconPackStatus = status,
                             isLoadingApps = false,
                         )
+                    }
+                    if (_uiState.value.settings.appCategories == null) {
+                        persistSettings { settingsRepository.migrateAppCategories(legacyFavorites) }
                     }
                     // Optional profile failures are retried by the shared repository. Successful
                     // personal/public rows still become a valid UI revision and disk preview.
@@ -1274,14 +1300,11 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             persistSettings { settingsRepository.setFolderFavorites(mapOf(folder.id to favorite)) }
             return favorite
         }
-        if (app.shortcut != null && app.key !in _uiState.value.favoriteKeys) {
-            viewModelScope.launch {
-                if (rememberShortcut(app)) {
-                    val updated = favoritesStore.toggle(app.key, currentFavoriteOrder())
-                    _uiState.update { it.copy(favoriteKeys = updated.toSet(), favoriteOrder = updated) }
-                }
-            }
-            return true
+        if (profileAvailable == null) {
+            val selected = app.key !in state.favoriteKeys
+            toggleCategoryItem(FavoritesCategoryId, app)
+            if (selected && app.shortcut == null) prepareShortcuts(app)
+            return selected
         }
         val updated = favoritesStore.toggle(app.key, currentFavoriteOrder())
         _uiState.update { it.copy(favoriteKeys = updated.toSet(), favoriteOrder = updated) }
@@ -1290,14 +1313,43 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun reorderFavorites(keys: List<String>) {
-        val updated = favoritesStore.reorder(keys, currentFavoriteOrder())
-        _uiState.update { it.copy(favoriteOrder = updated) }
         val visibleOrder = _uiState.value.homeItems.map { it.key }
         persistSettings {
             settingsRepository.mutateSettings { current -> current.copy(homeLayout = current.homeLayout.copy(
                 homeOrder = com.galaxyrio.gracelauncher.data.mergeHomeOrder(keys, current.homeLayout.homeOrder ?: visibleOrder))) }
         }
     }
+
+    fun saveAppCategory(category: AppCategory) = persistSettings {
+        settingsRepository.mutateAppCategories(currentFavoriteOrder()) { categories ->
+            if (categories.any { it.id == category.id }) categories else categories + category
+        }
+    }
+
+    fun updateAppCategory(id: String, transform: (AppCategory) -> AppCategory) = persistSettings {
+        settingsRepository.mutateAppCategories(currentFavoriteOrder()) { categories ->
+            categories.map { if (it.id == id) transform(it).copy(id = id) else it }
+        }
+    }
+
+    fun deleteAppCategory(id: String) {
+        if (id == FavoritesCategoryId) return
+        persistSettings { settingsRepository.mutateAppCategories(currentFavoriteOrder()) { it.filterNot { category -> category.id == id } } }
+    }
+
+    fun toggleCategoryItem(id: String, app: LauncherApp) = persistSettings {
+        rememberPopupItems(listOf(app))
+        if (app.shortcut != null) _uiState.update { it.copy(shortcutApps = it.shortcutApps.filterNot { item -> item.key == app.key } + app) }
+        settingsRepository.mutateAppCategories(currentFavoriteOrder()) { categories -> categories.map { category ->
+            if (category.id != id) category else category.copy(itemKeys =
+                if (app.key in category.itemKeys) category.itemKeys - app.key else category.itemKeys + app.key)
+        } }
+    }
+
+    private fun categoryFavoriteOrder(settings: LauncherSettings, legacy: List<String>): List<String> =
+        settings.appCategories?.firstOrNull { it.id == FavoritesCategoryId }?.let { category ->
+            (category.itemKeys + legacy.filter { it == PrivateSpaceFolderKey || it == WorkProfileFolderKey }).distinct()
+        } ?: legacy
 
     private fun currentFavoriteOrder(): List<String> = _uiState.value.let { state ->
         (state.favoriteOrder + state.favoriteItems.map(LauncherApp::key)).distinct()

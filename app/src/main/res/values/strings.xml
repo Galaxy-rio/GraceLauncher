@@ -204,6 +204,28 @@
     <string name="favorites_reorder">Reorder %1$s</string>
     <string name="favorites_move_up">Move up</string>
     <string name="favorites_move_down">Move down</string>
+    <string name="homepage_widgets">Widgets</string>
+    <string name="homepage_app_group">App group</string>
+    <string name="homepage_add_categories">Add categories</string>
+    <string name="homepage_edit_item">Edit %1$s</string>
+    <string name="homepage_empty">No items selected</string>
+    <string name="app_categories_title">App categories</string>
+    <string name="app_category_create">Create category</string>
+    <string name="app_category_name">Category name</string>
+    <string name="app_category_music">Music</string>
+    <string name="app_category_condition">Show when</string>
+    <string name="app_category_always">Always</string>
+    <string name="app_category_headphones">Headphones are connected</string>
+    <string name="app_category_time">Daily time range</string>
+    <string name="app_category_start">Start time</string>
+    <string name="app_category_end">End time</string>
+    <string name="app_category_delete">Delete category</string>
+    <string name="app_category_delete_confirmation">Delete “%1$s”? Its apps, folders, stacks, and shortcuts will be kept.</string>
+    <string name="app_category_unavailable">This category is no longer available.</string>
+    <plurals name="app_category_item_count">
+        <item quantity="one">%1$d item</item>
+        <item quantity="other">%1$d items</item>
+    </plurals>
 
     <!-- Folders -->
     <string name="open_folder">Open folder</string>
@@ -658,7 +680,7 @@
     <string name="widget_remove">Remove</string>
     <string name="widget_move_home">Move the clock and app list</string>
     <string name="widget_resize">Resize widget</string>
-    <string name="grace_widgets_title">Grace widget</string>
+    <string name="grace_widgets_title">Grace widgets</string>
     <string name="grace_widget_baseline">Baseline (invisible)</string>
     <string name="popup_widget_full_width">Full width</string>
     <string name="popup_widget_background">Background</string>
