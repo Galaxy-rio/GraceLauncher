@@ -666,7 +666,7 @@
     <string name="favorites_add_folder">Engadir cartafol</string>
     <string name="favorites_add_app_stack">Engadir pila de aplicacións</string>
     <string name="home_gesture_alphabet_double_tap">Dobre premido na lista da A a Z</string>
-    <string name="grace_widgets_title">Widget de Grace</string>
+    <string name="grace_widgets_title">Widgets de Grace</string>
     <string name="grace_widget_baseline">Liña base (invisible)</string>
     <string name="popup_widget_full_width">Ancho completo</string>
     <string name="popup_widget_background">Fondo</string>
@@ -737,4 +737,29 @@
     <string name="settings_home_screen">Pantalla de inicio</string>
     <string name="settings_feed_screen">Pantalla do feed</string>
     <string name="settings_status_screen">Pantalla de estado</string>
+    <string name="homepage_widgets">Widgets</string>
+    <string name="homepage_app_group">Grupo de aplicacións</string>
+    <string name="homepage_add_categories">Engadir categorías</string>
+    <string name="homepage_edit_item">Editar %1$s</string>
+    <string name="homepage_empty">Non se seleccionaron elementos</string>
+    <string name="app_categories_title">Categorías de aplicacións</string>
+    <string name="app_category_create">Crear categoría</string>
+    <string name="app_category_name">Nome da categoría</string>
+    <string name="app_category_music">Música</string>
+    <string name="app_category_condition">Amosar cando</string>
+    <string name="app_category_always">Sempre</string>
+    <string name="app_category_headphones">Os auriculares están conectados</string>
+    <string name="app_category_time">Intervalo de horario diario</string>
+    <string name="app_category_start">Hora de inicio</string>
+    <string name="app_category_end">Hora de finalización</string>
+    <string name="app_category_delete">Eliminar categoría</string>
+    <string name="app_category_delete_confirmation">Queres eliminar “%1$s”? Conservaranse as súas aplicacións, cartafoles, pilas e atallos.</string>
+    <string name="app_category_unavailable">Esta categoría xa non está dispoñible.</string>
+    <plurals name="app_category_item_count">
+        <item quantity="one">%1$d elemento</item>
+        <item quantity="other">%1$d elementos</item>
+    </plurals>
+    <string name="settings_wallpaper">Fondo da pantalla</string>
+    <string name="settings_wallpaper_designer">Deseñador de fondos da pantalla</string>
+    <string name="settings_choose_wallpaper">Escoller o fondo da pantalla</string>
 </resources>
