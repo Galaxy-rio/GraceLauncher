@@ -5,14 +5,10 @@ package com.galaxyrio.gracelauncher.ui.settings
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
-import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.selection.selectableGroup
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -21,17 +17,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.IconColor
@@ -298,25 +288,17 @@ internal fun IconDesignerSettings(
                     }
                 }
             }
-            if (colorPicker == null && onPositionAndSize == null) HorizontalFloatingToolbar(expanded = true,
-                colors = FloatingToolbarDefaults.standardFloatingToolbarColors(toolbarContainerColor = MaterialTheme.colorScheme.surfaceBright),
-                expandedShadowElevation = 3.dp,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = FloatingToolbarDefaults.ScreenOffset + LocalSettingsBottomInset.current)
-                    .testTag("icon_designer_toolbar").selectableGroup()) {
-                val indicator by animateDpAsState(88.dp * page.ordinal, MaterialTheme.motionScheme.defaultSpatialSpec(), label = "designerToolbarIndicator")
-                Box {
-                    Box(Modifier.offset(x = indicator).size(88.dp, 48.dp).background(MaterialTheme.colorScheme.primaryContainer, CircleShape))
-                    Row {
-                        DesignerPage.entries.forEach { destination ->
-                            DesignerMode(stringResource(when (destination) {
-                                DesignerPage.Single -> R.string.icon_designer_single; DesignerPage.All -> R.string.icon_designer_all
-                                DesignerPage.Data -> R.string.icon_designer_data
-                            }), page == destination, !saving, "icon_designer_${destination.name.lowercase()}") {
-                                if (page != destination) request("page:${destination.name}")
-                            }
-                        }
-                    }
-                }
+            if (colorPicker == null && onPositionAndSize == null) SettingsModeToolbar(
+                labels = DesignerPage.entries.map { destination -> stringResource(when (destination) {
+                    DesignerPage.Single -> R.string.icon_designer_single; DesignerPage.All -> R.string.icon_designer_all
+                    DesignerPage.Data -> R.string.icon_designer_data
+                }) },
+                selectedIndex = page.ordinal, enabled = !saving, tag = "icon_designer_toolbar",
+                itemTags = DesignerPage.entries.map { "icon_designer_${it.name.lowercase()}" },
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = FloatingToolbarDefaults.ScreenOffset + LocalSettingsBottomInset.current),
+            ) { index ->
+                val destination = DesignerPage.entries[index]
+                if (page != destination) request("page:${destination.name}")
             }
         }
     }
@@ -376,16 +358,6 @@ private fun DesignerControlsPane(all: Boolean, choice: ItemIcon, layered: Boolea
                         boundsTransform = heroBounds, clipInOverlayDuringTransition = OverlayClip(shape)))
             }
         }
-    }
-}
-
-@Composable
-private fun DesignerMode(label: String, selected: Boolean, enabled: Boolean, tag: String, onClick: () -> Unit) {
-    TextButton(onClick, enabled = enabled, modifier = Modifier.width(88.dp).heightIn(min = 48.dp).testTag(tag)
-        .semantics { this.selected = selected; role = Role.Tab },
-        colors = ButtonDefaults.textButtonColors(containerColor = Color.Transparent,
-            contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface)) {
-        Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 

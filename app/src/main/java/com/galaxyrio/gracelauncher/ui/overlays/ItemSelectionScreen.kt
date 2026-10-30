@@ -59,15 +59,13 @@ private data class SelectionEntry(val key: String, val label: String, val app: L
 
 @Composable
 private fun graceWidgetLabel(widget: GraceWidget): String = stringResource(when (widget) {
-    GraceWidget.Clock -> R.string.settings_clock
-    GraceWidget.Calendar -> R.string.widget_calendar
+    GraceWidget.ClockCalendar -> R.string.settings_clock_style
     GraceWidget.Media -> R.string.settings_media_player
     GraceWidget.Baseline -> R.string.grace_widget_baseline
 })
 
 private fun GraceWidget.symbol() = when (this) {
-    GraceWidget.Clock -> LauncherSymbol.Clock
-    GraceWidget.Calendar -> LauncherSymbol.Calendar
+    GraceWidget.ClockCalendar -> LauncherSymbol.Clock
     GraceWidget.Media -> LauncherSymbol.Music
     GraceWidget.Baseline -> LauncherSymbol.Move
 }

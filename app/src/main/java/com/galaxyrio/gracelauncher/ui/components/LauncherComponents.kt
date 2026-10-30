@@ -144,7 +144,8 @@ fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp, a
                     }
                 }
                 // Decorative only; rows keep their own label semantics.
-                val dotColor = Color(display.color.resolve(MaterialTheme.colorScheme.primary.toArgb(), app.originalIconColor))
+                val dotColor = Color(display.color.resolve(MaterialTheme.colorScheme.primary.toArgb(), app.originalIconColor,
+                    colorScheme = MaterialTheme.colorScheme))
                 Box(Modifier.align(Alignment.Center).size(dotSize)) {
                     Box(Modifier.fillMaxSize().background(dotColor, dotShape))
                     if (showBadge) IconBadge(app, (dotSize * 0.55f).coerceAtLeast(9.dp), Modifier.align(Alignment.BottomEnd))

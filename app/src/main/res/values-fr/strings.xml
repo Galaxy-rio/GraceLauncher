@@ -310,7 +310,6 @@
     <string name="font_apply_settings">Appliquer la police aux paramètres</string>
     <string name="font_apply_settings_summary">Utiliser les polices dans les paramètres de Grace</string>
     <string name="font_import_error">Impossible d\'importer cette police. Choisissez un fichier TTF, OTF ou TTC valide, de 20 Mo maximum.</string>
-    <string name="settings_wallpaper_text">Couleur du texte</string>
     <string name="settings_text_auto">Automatique</string>
     <string name="settings_text_light">Texte clair</string>
     <string name="settings_text_dark">Texte sombre</string>

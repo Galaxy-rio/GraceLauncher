@@ -59,6 +59,9 @@ internal data class SettingsStorageState(val loading: Boolean = false, val loadF
 
 internal val LocalSettingsStorageState = staticCompositionLocalOf { SettingsStorageState() }
 
+/** The current navigation entry owns the guarded route to shared font colors. */
+internal val LocalOpenFontColors = staticCompositionLocalOf<(() -> Unit)?> { null }
+
 /** Scrollable content includes this inset; fixed bottom controls stay above it. */
 internal val LocalSettingsBottomInset = staticCompositionLocalOf { 0.dp }
 

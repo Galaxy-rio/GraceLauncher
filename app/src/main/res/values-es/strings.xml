@@ -297,7 +297,6 @@
     <string name="font_apply_settings">Aplicar tipografía a configuración</string>
     <string name="font_apply_settings_summary">Utiliza la combinación de tipografía en la configuración de Grace</string>
     <string name="font_import_error">No se pudo importar esta tipografía. Elige una TTF, OTF o archivo válido, hasta 20 MB.</string>
-    <string name="settings_wallpaper_text">Color del texto</string>
     <string name="settings_text_auto">Automático</string>
     <string name="settings_text_light">Color claro</string>
     <string name="settings_text_dark">Color oscuro</string>

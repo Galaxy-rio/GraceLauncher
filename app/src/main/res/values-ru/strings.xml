@@ -333,7 +333,6 @@
     <string name="font_apply_settings">Применять шрифт в настройках</string>
     <string name="font_apply_settings_summary">Использовать выбранную комбинацию шрифтов в настройках Grace</string>
     <string name="font_import_error">Не удалось импортировать шрифт. Выберите корректный файл TTF, OTF или TTC размером до 20 МБ.</string>
-    <string name="settings_wallpaper_text">Цвет текста</string>
     <string name="settings_text_auto">Автоматически</string>
     <string name="settings_text_light">Светлый текст</string>
     <string name="settings_text_dark">Тёмный текст</string>

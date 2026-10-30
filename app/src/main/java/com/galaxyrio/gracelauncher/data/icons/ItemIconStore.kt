@@ -15,6 +15,9 @@ import android.net.Uri
 import android.os.Build
 import android.util.LruCache
 import android.util.Log
+import androidx.compose.material3.ColorScheme
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.ImageBitmap
@@ -25,7 +28,9 @@ import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
 import com.galaxyrio.gracelauncher.data.LauncherSettings
 import com.galaxyrio.gracelauncher.data.ThemeMode
 import com.galaxyrio.gracelauncher.data.launcherIconColors
+import com.galaxyrio.gracelauncher.data.launcherColorScheme
 import com.galaxyrio.gracelauncher.data.launcherThemeSeed
+import com.galaxyrio.gracelauncher.data.MaterialColorRole
 import com.materialkolor.PaletteStyle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
@@ -43,9 +48,12 @@ class ItemIconStore(context: Context, private val packs: IconPackRepository) {
     private val images = LruCache<String, Bitmap>(12)
     private val themePalettes = LruCache<Triple<Int, Boolean, PaletteStyle>, Pair<Int, Int>>(8)
     private val appPalettes = LruCache<Triple<Int, Boolean, PaletteStyle>, Pair<Int, Int>>(256)
+    private data class SchemeKey(val seed: Int, val dark: Boolean, val style: PaletteStyle, val amoled: Boolean)
+    private val colorSchemes = LruCache<SchemeKey, ColorScheme>(8)
     private data class RenderSignature(val source: Any?, val choice: ItemIcon,
         val packs: List<Any?>, val theme: Pair<Int, Int>, val dynamic: Pair<Int, Int>,
-        val fromApp: Pair<Int, Int>?, val configuration: IconResourceConfiguration, val calendarDay: Int?)
+        val fromApp: Pair<Int, Int>?, val materialColors: List<Int>?,
+        val configuration: IconResourceConfiguration, val calendarDay: Int?)
     private val renderedIcons = IconSnapshotCache<RenderSignature, ImageBitmap>(maxBytes = 16 * 1024 * 1024,
         sizeOf = { iconBitmapBytes(it) })
     // Activities and live editors share this store. Serialize matching icon work,
@@ -89,6 +97,17 @@ class ItemIconStore(context: Context, private val packs: IconPackRepository) {
         return paletteColors(seed, isDark(settings), settings.paletteStyle)
     }
 
+    internal fun colorScheme(settings: LauncherSettings): ColorScheme {
+        val dark = isDark(settings)
+        val key = SchemeKey(launcherThemeSeed(context.resources, settings.useDynamicColors, settings.themeColor),
+            dark, settings.paletteStyle, dark && settings.amoledMode)
+        return colorSchemes[key] ?: launcherColorScheme(key.seed, key.dark, key.style).let { scheme ->
+            if (key.amoled) scheme.copy(background = Color.Black, surface = Color.Black, surfaceDim = Color.Black,
+                surfaceContainerLowest = Color.Black, surfaceContainerLow = Color.Black, surfaceContainer = Color.Black)
+            else scheme
+        }.also { colorSchemes.put(key, it) }
+    }
+
     private fun paletteColors(seed: Int, dark: Boolean, style: PaletteStyle): Pair<Int, Int> {
         val key = Triple(seed, dark, style)
         return themePalettes[key] ?: launcherIconColors(seed, dark, style).also { themePalettes.put(key, it) }
@@ -121,7 +140,9 @@ class ItemIconStore(context: Context, private val packs: IconPackRepository) {
                 })
                     ?.mutate() ?: return@withContext null
                 glyph.setTint(colors.second)
-                return@withContext iconLayers(AdaptiveIconDrawable(ColorDrawable(colors.first), InsetDrawable(glyph, 0.22f)), size, themed = true)
+                // Adaptive foreground bounds are 1.5 times the visible icon. These insets
+                // keep the symbol at 60% of the icon size, matching FolderIcon.
+                return@withContext iconLayers(AdaptiveIconDrawable(ColorDrawable(colors.first), InsetDrawable(glyph, 0.3f)), size, themed = true)
             }
             val packed = when (choice.kind) {
                 "theme" -> if (app.shortcut == null) settings.enabledIconPackPackages.firstNotNullOfOrNull {
@@ -165,7 +186,7 @@ class ItemIconStore(context: Context, private val packs: IconPackRepository) {
                 val fromApp = if (design.background?.fromApp == true || design.foreground?.fromApp == true)
                     appColors(app.originalIconColor, settings) else null
                 return@safelyRender app.copy(icon = renderDesignedIcon(original, design, colors.first, colors.second,
-                    theme.first, theme.second, fromApp).asImageBitmap(),
+                    theme.first, theme.second, fromApp, colorScheme(settings)).asImageBitmap(),
                     monochromeIcon = null, iconPackPackage = when (choice.kind) {
                         "theme" -> app.themeIconPackPackage
                         "pack" -> choice.source
@@ -234,6 +255,8 @@ class ItemIconStore(context: Context, private val packs: IconPackRepository) {
                 loadedPacks.map { it?.cacheKey }, themeColors(settings), dynamicColors(settings),
                 if (choice.design?.background?.fromApp == true || choice.design?.foreground?.fromApp == true)
                     appColors(app.originalIconColor, settings) else null,
+                if (choice.design?.background?.materialRole != null || choice.design?.foreground?.materialRole != null)
+                    colorScheme(settings).let { scheme -> MaterialColorRole.entries.map { it.color(scheme).toArgb() } } else null,
                 IconResourceConfiguration.read(context), LocalDate.now().dayOfMonth.takeIf { usesCalendar })
             // A successful design produces only a bitmap. All metadata comes from the
             // current app/choice, so a cache hit cannot restore old labels or badges.

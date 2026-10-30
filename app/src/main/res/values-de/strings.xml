@@ -219,7 +219,6 @@
     <string name="font_apply_settings">Schriftart auf Einstellungen anwenden</string>
     <string name="font_apply_settings_summary">Ausgewählte Schriftart in den Grace-Einstellungen verwenden</string>
     <string name="font_import_error">Diese Schriftart konnte nicht importiert werden. Wähle eine gültige TTF-, OTF- oder TTC-Datei mit maximal 20 MB aus.</string>
-    <string name="settings_wallpaper_text">Textfarbe</string>
     <string name="settings_text_auto">Automatisch</string>
     <string name="settings_text_light">Heller Text</string>
     <string name="settings_text_dark">Dunkler Text</string>

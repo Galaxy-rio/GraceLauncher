@@ -77,7 +77,7 @@ internal enum class SettingsPage {
     Root, Productivity, Clock, ClockStyle, Calendar, Weather, Themes, Advanced, About, HiddenApps, Folders, FolderEditor,
     Changelog, Licenses, AppLicense, IconPacks, IconDesigner, IconDesignerApp, PrivateSpace, PrivateSpaceEditor, Search,
     MediaPlayer, GraceButton, GraceAction, GraceApp, GraceShortcut, GraceFolder, Gestures, WorkProfile, WorkProfileEditor,
-    LabGraceButton, LabGesture, LabPopup, LabAccessibility, LabDismiss, Fonts, ListAppearance, Alphabet, ShortcutsFolders, AppStacks,
+    LabGraceButton, LabGesture, LabPopup, LabAccessibility, LabDismiss, Fonts, FontColors, ListAppearance, Alphabet, ShortcutsFolders, AppStacks,
     GraceButtonAppearance, GraceButtonPosition, AgendaAppearance, SearchAppearance, MediaPlayerAppearance,
     WidgetScreen, WidgetScreenEditor, Homepage, AppList, FeedScreen, StatusScreen, DigitalWellbeing, TabletsFoldables,
     Wallpaper, WallpaperDesigner,
@@ -194,6 +194,7 @@ fun LauncherSettingsScreen(
                         else closeRoot()
                     }
                 }
+                CompositionLocalProvider(LocalOpenFontColors provides { navigate(SettingsPage.FontColors) }) {
                 // Never initialize an editable draft before Room's first snapshot.
                 if (!storage.canEdit) {
                     SettingsScaffold(stringResource(R.string.settings_title), "settings_storage_blocked", back) { }
@@ -296,7 +297,8 @@ fun LauncherSettingsScreen(
                     SettingsPage.SearchAppearance -> SettingsPlaceholder(stringResource(R.string.settings_search), "search_appearance", back)
                     SettingsPage.MediaPlayerAppearance -> SettingsPlaceholder(stringResource(R.string.settings_media_player), "media_appearance", back)
                     SettingsPage.ClockStyle -> ClockStyleSettings(uiState, actions, back) { navigate(SettingsPage.Fonts) }
-                    SettingsPage.Fonts -> FontSettings(uiState, actions, back)
+                    SettingsPage.Fonts -> FontSettings(uiState, actions, back) { navigate(SettingsPage.FontColors) }
+                    SettingsPage.FontColors -> FontColorSettings(uiState, actions, back)
                     SettingsPage.Wallpaper -> WallpaperSettings(uiState, actions, back,
                         onDesigner = { navigate(SettingsPage.WallpaperDesigner) },
                         onChooseWallpaper = { if (isCurrent()) actions.chooseWallpaper() })
@@ -363,6 +365,7 @@ fun LauncherSettingsScreen(
                     SettingsPage.Changelog -> ChangelogSettings(back)
                     SettingsPage.Licenses -> LicenseSettings(back, navigate)
                     SettingsPage.AppLicense -> AppLicenseSettings(back)
+                }
                 }
             }
         }

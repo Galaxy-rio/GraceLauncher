@@ -51,7 +51,7 @@ class HomeContentPersistenceTest {
             val settings = LauncherSettingsRepository(db)
             val items = LauncherItemsRepository(db)
             val original = HomeLayout(widgetId = 41, widgetProvider = "example/.Provider", widgetLabel = "Existing",
-                widgetHeightDp = 240, topOffsetDp = 38f, baselineOffsetDp = 85f)
+                widgetHeightDp = 240, topOffsetDp = 38f, baselineOffsetDp = 85f, clockCalendarEnabled = false)
             settings.updateSettings(LauncherSettings(homeLayout = original))
             items.updatePopup(HomeContentKey, emptyList()) { it + PopupItem("widget:42", HomeLayout(widgetId = 42)) }
             settings.migrateLegacyHomeWidget()
@@ -63,6 +63,7 @@ class HomeContentPersistenceTest {
             assertFalse(home.hasWidget)
             assertEquals(38f, home.topOffsetDp)
             assertEquals(85f, home.baselineOffsetDp)
+            assertFalse(home.clockCalendarEnabled)
             assertTrue("widget:41" in home.homeOrder.orEmpty())
             assertEquals(listOf(41), items.updatePopup(HomeContentKey, emptyList()) { it.filterNot { item -> item.key == "widget:41" } })
             assertTrue(items.updatePopup(HomeContentKey, emptyList()) { it }.isEmpty())
@@ -70,10 +71,20 @@ class HomeContentPersistenceTest {
     }
 
     @Test fun homeMetadataRoundTripsWithoutChangingWidgetPresentation() {
-        val layout = HomeLayout(homeOrder = listOf("grace:calendar", "grace:baseline", "widget:8"),
-            baselineEnabled = false, baselineOffsetDp = 90f, popupContentScale = 120, popupFullWidth = true)
+        val layout = HomeLayout(homeOrder = listOf(GraceWidget.ClockCalendar.key, "grace:baseline", "widget:8"),
+            baselineEnabled = false, clockCalendarEnabled = false, baselineOffsetDp = 90f, popupContentScale = 120, popupFullWidth = true)
         assertEquals(layout, HomeLayout.decode(layout.encode()))
         assertTrue(HomeLayout.decode("{}").baselineEnabled)
+        assertTrue(HomeLayout.decode("{}").clockCalendarEnabled)
         assertNull(HomeLayout.decode("{}").homeOrder)
+    }
+
+    @Test fun oldStoredClockCalendarOrderCollapsesWithoutRestoringHiddenWidgets() {
+        val old = """{"homeOrder":["app:a","grace:calendar","widget:8","grace:clock","grace:clock-calendar"],"clockCalendarEnabled":false,"topOffsetDp":38}"""
+        val migrated = HomeLayout.decode(old)
+        assertEquals(listOf("app:a", GraceWidget.ClockCalendar.key, "widget:8"), migrated.homeOrder)
+        assertFalse(migrated.clockCalendarEnabled)
+        assertEquals(38f, migrated.topOffsetDp)
+        assertEquals(migrated, HomeLayout.decode(migrated.encode()))
     }
 }

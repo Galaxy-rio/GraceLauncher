@@ -446,6 +446,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     if (previous.isLoadingSettings || previous.settings.enabledIconPackPackages != snapshot.settings.enabledIconPackPackages ||
                         previous.settings.iconDesign != snapshot.settings.iconDesign ||
                         previous.settings.darkMode != snapshot.settings.darkMode ||
+                        previous.settings.amoledMode != snapshot.settings.amoledMode ||
                         previous.settings.useDynamicColors != snapshot.settings.useDynamicColors ||
                         previous.settings.themeColor != snapshot.settings.themeColor ||
                         previous.settings.paletteStyle != snapshot.settings.paletteStyle ||
@@ -535,7 +536,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val settings = _uiState.value.settings
         return LauncherAppCache.key(listOf(
             "public-preview-4", settings.enabledIconPackPackages, settings.iconDesign, settings.darkMode,
-            settings.useDynamicColors, settings.themeColor, settings.paletteStyle,
+            settings.useDynamicColors, settings.themeColor, settings.paletteStyle, settings.amoledMode,
             preferences.themedIcons, catalogConfiguration(),
             launcherThemeSeed(getApplication<Application>().resources, true, settings.themeColor),
         ).joinToString("\n"))
@@ -925,7 +926,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val settings = _uiState.value.settings
         val resources = getApplication<Application>().resources
         return listOf(result, app, settings.iconDesign, settings.enabledIconPackPackages,
-            settings.darkMode, settings.useDynamicColors, settings.themeColor, settings.paletteStyle,
+            settings.darkMode, settings.useDynamicColors, settings.themeColor, settings.paletteStyle, settings.amoledMode,
             result.shortcuts.map { itemsSnapshot.icons[it.key] }, preferences.themedIcons,
             Configuration(resources.configuration), LocalDate.now(), launcherThemeSeed(resources, true, settings.themeColor))
     }

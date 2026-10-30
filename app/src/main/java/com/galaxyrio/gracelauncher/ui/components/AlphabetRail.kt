@@ -69,6 +69,7 @@ import com.galaxyrio.gracelauncher.data.icons.iconShapePath
 import com.galaxyrio.gracelauncher.ui.drawer.GraceSection
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.rememberAppFontFamily
+import com.galaxyrio.gracelauncher.ui.theme.resolvedFontColor
 import kotlin.math.exp
 import kotlin.math.min
 import kotlin.math.roundToInt
@@ -108,9 +109,7 @@ fun AlphabetRail(
 ) {
     if (letters.isEmpty()) return
     val appearance = LocalLauncherAppearance.current
-    val defaultTextColor = if (onWallpaper) appearance.text else MaterialTheme.colorScheme.onSurface
-    val textColor = alphabet?.fontColor?.resolve(MaterialTheme.colorScheme.primary.toArgb())
-        ?.let(::Color) ?: defaultTextColor
+    val textColor = resolvedFontColor(alphabet?.fontColor, onWallpaper = onWallpaper)
     val fontSize = (alphabet?.fontSize ?: 14).sp
     val fontFamily = if (alphabet != null) rememberAppFontFamily(alphabet.fontId) else MaterialTheme.typography.bodyLarge.fontFamily
     val freeMovement by rememberUpdatedState(alphabet?.freeMovement == true)

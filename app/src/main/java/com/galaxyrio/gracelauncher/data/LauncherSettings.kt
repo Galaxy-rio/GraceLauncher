@@ -48,6 +48,7 @@ data class LauncherSettings(
     /** Legacy selection, used only when migrating to the ordered font library. */
     val appFontId: String? = null,
     val fontLibrary: FontLibrary = FontLibrary(),
+    val fontColors: FontColors = FontColors(),
     val listAppearance: ListAppearance = ListAppearance(),
     val applyFontToSettings: Boolean = true,
     val privateSpace: ProfileSettings = ProfileSettings(),

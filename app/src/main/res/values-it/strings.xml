@@ -255,7 +255,6 @@
     <string name="font_apply_settings">Applica il font alle impostazioni</string>
     <string name="font_apply_settings_summary">Usa i font combinati nelle impostazioni di Grace</string>
     <string name="font_import_error">Impossibile importare il font. Scegli un file TTF, OTF o TTC valido, fino a 20 MB.</string>
-    <string name="settings_wallpaper_text">Colore del testo</string>
     <string name="settings_text_auto">Automatico</string>
     <string name="settings_text_light">Testo chiaro</string>
     <string name="settings_text_dark">Testo scuro</string>

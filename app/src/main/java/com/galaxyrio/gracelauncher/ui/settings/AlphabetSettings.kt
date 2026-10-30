@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.AbsoluteRoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.ui.AbsoluteAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -40,14 +41,20 @@ import com.galaxyrio.gracelauncher.ui.drawer.AppListModel
 import com.galaxyrio.gracelauncher.ui.theme.LocalFontLibrary
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherAppearance
+import com.galaxyrio.gracelauncher.ui.theme.resolvedFontColor
 import com.galaxyrio.gracelauncher.ui.theme.wallpaperTint
 import kotlin.math.roundToInt
+import org.json.JSONObject
+
+private val AlphabetAppearanceDraftSaver = Saver<AlphabetAppearance, String>(
+    save = { it.json().toString() }, restore = { runCatching { AlphabetAppearance.decode(JSONObject(it)) }.getOrNull() },
+)
 
 @Composable
 internal fun AlphabetSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit, onManageFonts: () -> Unit) = BoxWithConstraints(Modifier.fillMaxSize()) {
     val saved = uiState.settings.listAppearance.alphabet
     val defaults = remember { AlphabetAppearance() }
-    var draft by remember(saved) { mutableStateOf(saved.normalized()) }
+    var draft by rememberSaveable(saved, stateSaver = AlphabetAppearanceDraftSaver) { mutableStateOf(saved.normalized()) }
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     val controls = rememberLazyListState()
     val enabled = LocalSettingsStorageState.current.canEdit
@@ -100,7 +107,8 @@ internal fun AlphabetSettings(uiState: LauncherUiState, actions: LauncherActions
                             primary.toArgb(), null,
                             onChange = { if (enabled && dialog == "color") draft = draft.copy(fontColor = it) },
                             onClose = { if (dialog == "color") closeColor() },
-                            modifier = Modifier.padding(bottom = 8.dp).then(colorModifier), fallback = wallpaper.text.toArgb())
+                            modifier = Modifier.padding(bottom = 8.dp).then(colorModifier), fallback = wallpaper.text.toArgb(),
+                            fontColors = uiState.settings.fontColors)
                     } else LazyColumn(Modifier.fillMaxSize().testTag("alphabet_controls"), state = controls,
                         contentPadding = PaddingValues(bottom = 24.dp + LocalSettingsBottomInset.current),
                         verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
@@ -109,10 +117,10 @@ internal fun AlphabetSettings(uiState: LauncherUiState, actions: LauncherActions
                                 0, 7, "alphabet_font", enabled = enabled, onClick = { dialog = "font" })
                         }
                         item("color") {
-                            SettingsActionItem(stringResource(R.string.alphabet_letter_color), null,
+                            SettingsActionItem(stringResource(R.string.alphabet_letter_color), fontColorSummary(draft.fontColor, onWallpaper = true),
                                 1, 7, "alphabet_color", enabled = enabled, modifier = colorModifier, trailing = {
                                     Surface(Modifier.size(24.dp), shape = MaterialTheme.shapes.small,
-                                        color = draft.fontColor?.resolve(primary.toArgb())?.let(::Color) ?: wallpaper.text) {}
+                                        color = resolvedFontColor(draft.fontColor, onWallpaper = true)) {}
                                 }, onClick = { dialog = "color" })
                         }
                         item("font_size") {
@@ -181,8 +189,9 @@ private fun AlphabetPreview(uiState: LauncherUiState, draft: AlphabetAppearance,
     val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons, 100)
     val settings = uiState.settings
     val primary = MaterialTheme.colorScheme.primary
-    val tint = remember(primary, appearance.darkText, settings.listAppearance.wallpaperDimColor) {
-        appearance.wallpaperTint(primary, settings.listAppearance.wallpaperDimColor)
+    val colorScheme = MaterialTheme.colorScheme
+    val tint = remember(colorScheme, appearance.darkText, settings.listAppearance.wallpaperDimColor) {
+        appearance.wallpaperTint(primary, settings.listAppearance.wallpaperDimColor, colorScheme)
     }
     val dimAlpha = if (settings.dimWallpaper) settings.wallpaperDimAmount / 100f else 0f
     val shape = remember { AbsoluteRoundedCornerShape(topLeft = 24.dp, bottomLeft = 24.dp) }

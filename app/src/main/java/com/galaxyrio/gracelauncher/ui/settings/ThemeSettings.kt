@@ -246,13 +246,15 @@ private fun PaletteOption(seed: Color, style: PaletteStyle, selected: Boolean, i
 internal fun <T> SettingsSelectionDialog(
     title: String,
     items: List<T>,
-    selectedItem: T,
+    selectedItem: T?,
     tag: String,
     itemKey: (T) -> String,
     itemLabel: @Composable (T) -> String,
     onSelect: (T) -> Unit,
     onDismiss: () -> Unit,
     footer: @Composable () -> Unit = {},
+    itemLeading: (@Composable (T) -> Unit)? = null,
+    leadingButton: (@Composable () -> Unit)? = null,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -274,6 +276,7 @@ internal fun <T> SettingsSelectionDialog(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                         ) {
                             RadioButton(selected = item == selectedItem, onClick = null, enabled = enabled)
+                            itemLeading?.invoke(item)
                             Text(itemLabel(item), style = MaterialTheme.typography.bodyLarge)
                         }
                     }
@@ -281,8 +284,16 @@ internal fun <T> SettingsSelectionDialog(
                 footer()
             }
         },
-        confirmButton = {},
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_cancel)) } },
+        confirmButton = {
+            if (leadingButton != null) Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                leadingButton()
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_cancel)) }
+            }
+        },
+        dismissButton = if (leadingButton == null) ({
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_cancel)) }
+        }) else null,
     )
 }
 

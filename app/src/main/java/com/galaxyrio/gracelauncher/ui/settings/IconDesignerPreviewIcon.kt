@@ -19,6 +19,7 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -65,6 +66,7 @@ internal fun DesignerPreviewIcon(app: LauncherApp, layers: IconLayers?, design: 
     var gestureDraft by remember(layers) { mutableStateOf<IconDesign?>(null) }
     val currentDesign by rememberUpdatedState(design)
     val changeDesign by rememberUpdatedState(onChange)
+    val colorScheme = MaterialTheme.colorScheme
     val description = if (draggable) stringResource(R.string.icon_designer_drag_symbol, app.label) else app.label
     Box(modifier.size(size).semantics { contentDescription = description }
         .then(if (!draggable || layers == null) Modifier else Modifier.pointerInput(layers) {
@@ -131,7 +133,7 @@ internal fun DesignerPreviewIcon(app: LauncherApp, layers: IconLayers?, design: 
                 val checkpoint = canvas.save()
                 canvas.scale(this.size.width / layers.original.width, this.size.height / layers.original.height)
                 drawDesignedIcon(canvas, layers, gestureDraft ?: design, dynamicColors.first, dynamicColors.second,
-                    themeColors.first, themeColors.second, appColors)
+                    themeColors.first, themeColors.second, appColors, colorScheme = colorScheme)
                 canvas.restoreToCount(checkpoint)
             }
         } else AppIcon(app, size = size, applyDisplaySize = false)

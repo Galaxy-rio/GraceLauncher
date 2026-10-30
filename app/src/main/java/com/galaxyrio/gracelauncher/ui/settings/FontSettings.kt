@@ -65,7 +65,7 @@ internal fun appFontLabel(id: String?): String = when (id) {
     else -> ClockFontStore.displayName(id) ?: stringResource(R.string.clock_font_unavailable)
 }
 
-/** Component pickers only expose enabled fonts; adding/managing always uses the same page. */
+/** Show enabled fonts and the current choice; adding/managing always uses the same page. */
 @Composable
 internal fun FontPickerDialog(library: FontLibrary, selected: String?, onSelect: (String?) -> Unit,
     onManage: () -> Unit, onDismiss: () -> Unit, tag: String = "font_picker") {
@@ -73,11 +73,13 @@ internal fun FontPickerDialog(library: FontLibrary, selected: String?, onSelect:
     val store = remember(context) { ClockFontStore(context) }
     val files by produceState(emptyList<ClockFontFile>(), store) { value = store.list() }
     val available = FontLibrary.builtIns + files.map { it.id }
+    // A preset can select a built-in font without enabling it throughout the launcher.
+    val choices = (library.selected + listOfNotNull(selected)).distinct().filter { it in available }
     AlertDialog(onDismissRequest = onDismiss, title = { Text(stringResource(R.string.settings_font)) },
         text = {
             LazyColumn(Modifier.heightIn(max = 360.dp).selectableGroup().testTag(tag)) {
                 item("default") { FontOption(null, selected == null, onSelect) }
-                items(library.selected.filter { it in available }, key = { it }) { id -> FontOption(id, selected == id, onSelect) }
+                items(choices, key = { it }) { id -> FontOption(id, selected == id, onSelect) }
             }
         },
         confirmButton = { TextButton(onClick = onManage) { Text(stringResource(R.string.popup_add_new)) } },
@@ -95,7 +97,7 @@ private fun FontOption(id: String?, checked: Boolean, onSelect: (String?) -> Uni
 }
 
 @Composable
-internal fun FontSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit) {
+internal fun FontSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit, onFontColors: () -> Unit) {
     val context = LocalContext.current
     val store = remember(context) { ClockFontStore(context) }
     val scope = rememberCoroutineScope()
@@ -113,7 +115,6 @@ internal fun FontSettings(uiState: LauncherUiState, actions: LauncherActions, on
     var deleting by rememberSaveable { mutableStateOf(false) }
     var deletion by rememberSaveable { mutableStateOf(emptyList<String>()) }
     var confirmDelete by rememberSaveable { mutableStateOf(false) }
-    var showTextColor by rememberSaveable { mutableStateOf(false) }
     val enabled = LocalSettingsStorageState.current.canEdit && !busy && loaded
     val commit by rememberUpdatedState<(List<String>) -> Unit>({ order ->
         actions.updateSettings { it.copy(fontLibrary = it.fontLibrary.reorder(order)) }
@@ -167,13 +168,6 @@ internal fun FontSettings(uiState: LauncherUiState, actions: LauncherActions, on
             }
         }) { Text(stringResource(R.string.font_delete)) } },
         dismissButton = { TextButton(enabled = !busy, onClick = { confirmDelete = false }) { Text(stringResource(R.string.cancel)) } })
-    if (showTextColor && enabled) SettingsSelectionDialog(
-        title = stringResource(R.string.settings_wallpaper_text),
-        items = WallpaperTextMode.entries, selectedItem = uiState.textMode,
-        tag = "wallpaper_text", itemKey = { it.name }, itemLabel = { it.label() },
-        onSelect = { if (enabled) actions.textMode(it); showTextColor = false },
-        onDismiss = { showTextColor = false },
-    )
     val names = remember(labels) { labels.mapValues { SearchNames(it.value) } }
     val searchQuery = SearchQuery(query.text.toString(), fuzzy = false)
     val filtered = reorder.keys.filter { names[it]?.matches(searchQuery) == true }
@@ -194,8 +188,8 @@ internal fun FontSettings(uiState: LauncherUiState, actions: LauncherActions, on
                         actions.updateSettings { it.copy(applyFontToSettings = value) }
                     }
                     Spacer(Modifier.height(ListItemDefaults.SegmentedGap))
-                    SettingsActionItem(stringResource(R.string.settings_wallpaper_text), uiState.textMode.label(),
-                        1, 2, "settings_wallpaper_text", enabled = enabled) { showTextColor = true }
+                    SettingsActionItem(stringResource(R.string.list_font_color), null,
+                        1, 2, "font_colors", enabled = enabled, onClick = onFontColors)
                     Spacer(Modifier.height(16.dp))
                 }
                 item("add") {

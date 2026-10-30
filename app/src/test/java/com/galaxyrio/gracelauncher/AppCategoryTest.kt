@@ -31,7 +31,7 @@ class AppCategoryTest {
             listOf("a", "b", "shortcut:x", "missing", "folder:x", PrivateSpaceFolderKey))
         val categories = requireNotNull(migrated.appCategories)
         assertEquals(listOf("b", "a", "shortcut:x", "missing"), categories.first().itemKeys)
-        assertEquals(listOf("grace:clock", "category:favorites", "widget:7", "folder:x", "category:music"), migrated.homeLayout.homeOrder)
+        assertEquals(listOf("grace:clock-calendar", "category:favorites", "widget:7", "folder:x", "category:music"), migrated.homeLayout.homeOrder)
         assertEquals(layout.topOffsetDp, migrated.homeLayout.topOffsetDp)
         assertEquals(layout.baselineOffsetDp, migrated.homeLayout.baselineOffsetDp)
         assertTrue(migrated.homeLayout.editingLocked)

@@ -37,7 +37,7 @@ import com.galaxyrio.gracelauncher.platform.widgetReconfigurationRoute
 import com.galaxyrio.gracelauncher.ui.LauncherAppTheme
 import com.galaxyrio.gracelauncher.ui.LauncherViewModel
 import com.galaxyrio.gracelauncher.ui.widgets.WidgetPicker
-import com.galaxyrio.gracelauncher.ui.theme.LauncherAppearance
+import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -78,8 +78,8 @@ class WidgetSetupActivity : ComponentActivity() {
             LauncherAppTheme(viewModel) {
                 val state by viewModel.uiState.collectAsStateWithLifecycle()
                 BackHandler(enabled = saving) { }
-                CompositionLocalProvider(LocalLauncherAppearance provides LauncherAppearance(themedIcons = state.themedIcons,
-                    iconSize = state.settings.iconDesign?.design?.iconSize ?: 100)) {
+                CompositionLocalProvider(LocalLauncherAppearance provides rememberLauncherAppearance(state.textMode,
+                    themedIcons = state.themedIcons, iconSize = state.settings.iconDesign?.design?.iconSize ?: 100)) {
                     WidgetPicker(providers, busy, state, onBack = { if (!saving) cancelSetup() }, onSelect = ::select)
                 }
             }

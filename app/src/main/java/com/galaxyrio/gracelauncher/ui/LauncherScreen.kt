@@ -770,8 +770,9 @@ internal fun LauncherScreen(
         else homeListMotion.animateTo(drawerOpen)
     }
     val primary = MaterialTheme.colorScheme.primary
-    val wallpaperTint = remember(primary, appearance.darkText, uiState.settings.listAppearance.wallpaperDimColor) {
-        appearance.wallpaperTint(primary, uiState.settings.listAppearance.wallpaperDimColor)
+    val colorScheme = MaterialTheme.colorScheme
+    val wallpaperTint = remember(colorScheme, appearance.darkText, uiState.settings.listAppearance.wallpaperDimColor) {
+        appearance.wallpaperTint(primary, uiState.settings.listAppearance.wallpaperDimColor, colorScheme)
     }
 
     val finishScrubbing: () -> Unit = {
@@ -1061,6 +1062,7 @@ internal fun LauncherScreen(
                     overlay = LauncherOverlay.Agenda
                 },
                 onClockClick = onClockClick,
+                onWeatherClick = actions.openBreezyWeather,
                 onWidgetMenu = { overlay = LauncherOverlay.HomeWidgetMenu },
                 onCustomWidgetMenu = { overlay = LauncherOverlay.CustomWidgetMenu },
                 actions = actions,

@@ -44,10 +44,13 @@ class HomepageCategoriesTest {
         compose.onNodeWithTag("favorites_search").assertDoesNotExist()
         compose.onNodeWithTag("favorites_add_shortcut").assertDoesNotExist()
         compose.onNodeWithTag("favorite:${app.key}").assertDoesNotExist()
-        compose.onNodeWithTag("favorite:grace:clock").performScrollTo().performClick()
-        compose.runOnIdle { assertTrue(state.settings.clockEnabled) }
-        compose.onNodeWithTag("favorite:grace:clock").onChildren().filter(isToggleable()).onFirst().performClick()
-        compose.runOnIdle { assertFalse(state.settings.clockEnabled) }
+        compose.onNodeWithTag("favorite:grace:clock-calendar").performScrollTo().performClick()
+        compose.runOnIdle { assertTrue(state.settings.homeLayout.clockCalendarEnabled) }
+        compose.onNodeWithTag("favorite:grace:clock-calendar").onChildren().filter(isToggleable()).onFirst().performClick()
+        compose.runOnIdle {
+            assertFalse(state.settings.homeLayout.clockCalendarEnabled)
+            assertTrue("Hiding the widget preserves its clock setting", state.settings.clockEnabled)
+        }
         compose.onNodeWithTag("favorite:category:favorites").performScrollTo()
             .onChildren().filter(isToggleable()).onFirst().performClick()
         compose.runOnIdle {

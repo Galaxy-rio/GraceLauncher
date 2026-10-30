@@ -14,6 +14,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.saveable.Saver
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -38,12 +39,17 @@ import com.galaxyrio.gracelauncher.ui.components.*
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.wallpaperTint
+import com.galaxyrio.gracelauncher.ui.theme.resolvedFontColor
 import kotlin.math.roundToInt
+
+private val ListAppearanceDraftSaver = Saver<ListAppearance, String>(
+    save = { it.encode() }, restore = { ListAppearance.decode(it) },
+)
 
 @Composable
 internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit, onManageFonts: () -> Unit) {
     val settings = uiState.settings
-    var draft by remember(settings.listAppearance) { mutableStateOf(settings.listAppearance) }
+    var draft by rememberSaveable(settings.listAppearance, stateSaver = ListAppearanceDraftSaver) { mutableStateOf(settings.listAppearance) }
     val savedSize = settings.iconDesign?.design?.iconSize ?: 100
     var iconSize by remember(savedSize) { mutableIntStateOf(savedSize) }
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
@@ -115,7 +121,8 @@ internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherA
                                 onChange = { if (enabled && activeColor == colorPage) {
                                     draft = draft.copy(fontColor = it)
                                 } }, onClose = { if (activeColor == colorPage) closeColor() },
-                                modifier = Modifier.padding(bottom = 16.dp).then(colorModifier(activeColor)), fallback = wallpaper.text.toArgb())
+                                modifier = Modifier.padding(bottom = 16.dp).then(colorModifier(activeColor)), fallback = wallpaper.text.toArgb(),
+                                fontColors = settings.fontColors)
                         } else LazyColumn(Modifier.fillMaxSize().testTag("list_appearance_controls"), state = controlsState,
                             contentPadding = PaddingValues(bottom = 24.dp + LocalSettingsBottomInset.current), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
                             item("icon_size") {
@@ -145,10 +152,10 @@ internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherA
                             }
                             item("font_color") {
                                 SettingsActionItem(stringResource(R.string.list_font_color),
-                                    if (draft.fontColor == null) stringResource(R.string.list_color_default) else null,
+                                    fontColorSummary(draft.fontColor, onWallpaper = true),
                                     6, 9, "list_font_color", modifier = colorModifier("font_color"), trailing = {
                                         Surface(Modifier.size(24.dp), shape = MaterialTheme.shapes.small,
-                                            color = draft.fontColor?.resolve(MaterialTheme.colorScheme.primary.toArgb())?.let(::Color) ?: wallpaper.text) {}
+                                            color = resolvedFontColor(draft.fontColor, onWallpaper = true)) {}
                                     }, onClick = { dialog = "font_color" })
                             }
                             item("names") { SettingsActionItem(stringResource(R.string.list_show_names), draft.names.label(), 7, 9,
@@ -198,7 +205,8 @@ private fun AppNameVisibility.label(): String = stringResource(when (this) {
 private fun ListAppearancePreview(uiState: LauncherUiState, list: ListAppearance, iconSize: Int, modifier: Modifier) {
     val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons, iconSize)
     val primary = MaterialTheme.colorScheme.primary
-    val tint = remember(primary, appearance.darkText, list.wallpaperDimColor) { appearance.wallpaperTint(primary, list.wallpaperDimColor) }
+    val colorScheme = MaterialTheme.colorScheme
+    val tint = remember(colorScheme, appearance.darkText, list.wallpaperDimColor) { appearance.wallpaperTint(primary, list.wallpaperDimColor, colorScheme) }
     val dimAlpha = if (uiState.settings.dimWallpaper) uiState.settings.wallpaperDimAmount.coerceIn(0, 100) / 100f else 0f
     val shape = ListItemDefaults.segmentedShapes(0, 1).shape
     val example = stringResource(R.string.icon_designer_example)

@@ -67,7 +67,7 @@ internal fun migrateHomeCategories(settings: LauncherSettings, legacyFavorites: 
     if (settings.appCategories != null) return settings
     val members = legacyFavorites.filterNot { it.startsWith("folder:") }.distinct()
     val memberSet = members.toSet()
-    val previous = settings.homeLayout.homeOrder ?: (legacyHomeOrder(settings) + legacyFavorites)
+    val previous = normalizeHomeOrder(settings.homeLayout.homeOrder ?: (legacyHomeOrder(settings) + legacyFavorites))
     val orderedMembers = (previous.filter { it in memberSet } + members).distinct()
     val categories = AppCategory.defaults(orderedMembers)
     val order = (previous.map { if (it in memberSet) categories.first().key else it } + categories.map { it.key }).distinct()

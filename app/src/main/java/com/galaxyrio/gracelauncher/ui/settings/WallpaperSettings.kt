@@ -92,7 +92,8 @@ internal fun WallpaperSettings(
                                 if (dimColor == null) stringResource(R.string.settings_wallpaper_dim_color_auto) else null,
                                 0, 1, "settings_dim_wallpaper_color", modifier = colorModifier, trailing = {
                                     Surface(Modifier.size(24.dp), shape = MaterialTheme.shapes.small,
-                                        color = dimColor?.resolve(primary.toArgb())?.let(::Color) ?: automaticDimTint) {}
+                                        color = dimColor?.resolve(primary.toArgb(), colorScheme = MaterialTheme.colorScheme)
+                                            ?.let(::Color) ?: automaticDimTint) {}
                                 }, onClick = { colorOpen = true })
                         }
                     }
