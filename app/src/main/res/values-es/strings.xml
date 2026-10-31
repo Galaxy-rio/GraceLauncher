@@ -305,8 +305,6 @@
     <string name="settings_misc">Varios</string>
     <string name="settings_hide_status_bar">Ocultar barra de estado</string>
     <string name="settings_hide_status_bar_summary">Ocultar en la pantalla de inicio y en la lista de aplicaciones</string>
-    <string name="settings_hide_alphabet">Ocultar alfabeto</string>
-    <string name="settings_hide_alphabet_summary">Ocultar en la pantalla de inicio hasta que deslices el dedo por el alfabeto</string>
     <string name="settings_hide_favorite_names">Ocultar nombres de favoritos</string>
     <string name="settings_hide_favorite_names_summary">Mantener los nombres visibles en la lista de aplicaciones</string>
     <string name="settings_dim_wallpaper">Atenuar el fondo de pantalla</string>
@@ -575,9 +573,6 @@
     <string name="list_font_color">Color de la fuente</string>
     <string name="list_color_default">Seguir el color del texto del fondo de pantalla</string>
     <string name="list_show_names">Mostrar nombre de aplicaciones</string>
-    <string name="list_names_both">Favoritos y lista de aplicaciones</string>
-    <string name="list_names_favorites">Sólo favoritos</string>
-    <string name="list_names_app_list">Sólo lista de aplicaciones</string>
     <string name="list_left_alphabet">Utilizar el alfabeto a la izquierda</string>
     <string name="list_left_alphabet_summary">Desliza el dedo por el borde izquierdo para controlar el alfabeto de la derecha</string>
     <string name="search_settings_summary">Aplicaciones, contactos y sugerencias</string>
@@ -647,7 +642,6 @@
     <string name="settings_folder_auto_hide_summary">Ocultar los elementos actuales y futuros de la lista de aplicaciones. Las ocultaciones manuales se mantienen cuando las aplicaciones salen de esta carpeta.</string>
     <string name="hidden_from_folder">Oculto por la carpeta</string>
     <string name="hide_recently_installed">Ocultar recientemente instaladas</string>
-    <string name="settings_recently_installed_summary">Mostrar las 8 aplicaciones instaladas más recientemente en la lista de aplicaciones</string>
     <string name="widget_screen_title">Pantalla de widgets</string>
     <string name="widget_screen_enable">Habilitar la pantalla de widgets</string>
     <string name="widget_screen_swipe">Desliza hacia la izquierda en la página de inicio</string>
@@ -655,7 +649,6 @@
     <string name="widget_screen_columns">Celdas por fila</string>
     <string name="widget_screen_edit">Editar pantalla de widgets</string>
     <string name="widget_screen_open">Abrir pantalla de widgets</string>
-    <string name="list_names_neither">Ninguno</string>
     <string name="list_names_in_folders">Aplicar también dentro de las carpetas</string>
     <string name="app_stacks_title">Pilas de aplicaciones</string>
     <string name="app_stack_create">Crear pila de aplicaciones</string>

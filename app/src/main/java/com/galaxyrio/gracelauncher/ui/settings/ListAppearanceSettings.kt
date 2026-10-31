@@ -10,7 +10,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -29,7 +28,6 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.*
@@ -87,24 +85,11 @@ internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherA
         "font" -> FontPickerDialog(settings.fontLibrary, draft.fontId,
             onSelect = { id -> change { it.copy(fontId = id) }; dialog = null },
             onManage = { dialog = null; onManageFonts() }, onDismiss = { dialog = null }, tag = "list_font_picker")
-        "names" -> SettingsSelectionDialog(stringResource(R.string.list_show_names), AppNameVisibility.entries, draft.names,
-            "list_names", { it.name }, { it.label() }, { value -> change { it.copy(names = value) }; dialog = null }, { dialog = null },
-            footer = {
-                HorizontalDivider(Modifier.padding(vertical = 8.dp))
-                Row(Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag("list_names_in_folders")
-                    .toggleable(value = draft.applyNameVisibilityToFolders, enabled = enabled, role = Role.Switch,
-                        onValueChange = { value -> change { it.copy(applyNameVisibilityToFolders = value) } })
-                    .padding(horizontal = 4.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(stringResource(R.string.list_names_in_folders), Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
-                    Switch(draft.applyNameVisibilityToFolders, onCheckedChange = null, enabled = enabled)
-                }
-            })
     }
     SettingsScaffold(stringResource(R.string.settings_favorites_app_list), "list_appearance",
         { if (colorPage != null) closeColor() else onBack() }, fixedCollapsed = true) { padding ->
         BoxWithConstraints(Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()) {
-            val previewHeight by animateDpAsState(((40.dp * iconSize / 100f + draft.appSpacing.dp) * 3 + 32.dp)
+            val previewHeight by animateDpAsState(((40.dp * iconSize / 100f + draft.appSpacing.dp) * 3 + 76.dp)
                 .coerceIn(176.dp, ((maxHeight - LocalSettingsBottomInset.current) * .45f).coerceAtLeast(176.dp)), label = "listPreviewHeight")
             Column(Modifier.fillMaxSize().padding(horizontal = 16.dp)) {
                 ListAppearancePreview(uiState, draft, iconSize, Modifier.padding(top = 8.dp, bottom = 16.dp).height(previewHeight))
@@ -126,7 +111,7 @@ internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherA
                         } else LazyColumn(Modifier.fillMaxSize().testTag("list_appearance_controls"), state = controlsState,
                             contentPadding = PaddingValues(bottom = 24.dp + LocalSettingsBottomInset.current), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
                             item("icon_size") {
-                                DesignerSegment(0, 9, "list_icon_size") {
+                                DesignerSegment(0, 10, "list_icon_size") {
                                     Text(stringResource(R.string.icon_designer_icon_size_title))
                                     DesignerSlider(stringResource(R.string.icon_designer_icon_size), iconSize.toFloat(), 100f, 80f..150f,
                                         enabled, "list_icon_size_slider", onFinished = { saveSize() }) { iconSize = it.roundToInt() }
@@ -144,36 +129,57 @@ internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherA
                                 ListSpacingSlider(stringResource(R.string.list_icon_name_gap), draft.iconNameGap, 20, 0..64, 3, "list_icon_name_gap",
                                     { draft = draft.copy(iconNameGap = it) }) { value -> change { it.copy(iconNameGap = value) } }
                             }
+                            item("symbol_offset") {
+                                ListSpacingSlider(stringResource(R.string.list_symbol_horizontal_offset), draft.symbolHorizontalOffset,
+                                    0, -16..16, 4, "list_symbol_horizontal_offset", { draft = draft.copy(symbolHorizontalOffset = it) },
+                                    centered = true) { value -> change { it.copy(symbolHorizontalOffset = value) } }
+                            }
                             item("font") { SettingsActionItem(stringResource(R.string.settings_font), appFontLabel(draft.fontId),
-                                4, 9, "list_font", onClick = { dialog = "font" }) }
+                                5, 10, "list_font", onClick = { dialog = "font" }) }
                             item("font_size") {
-                                ListSpacingSlider(stringResource(R.string.clock_size), draft.fontSize, 16, 10..32, 5, "list_font_size",
+                                ListSpacingSlider(stringResource(R.string.clock_size), draft.fontSize, 16, 10..32, 6, "list_font_size",
                                     { draft = draft.copy(fontSize = it) }, suffix = "sp") { value -> change { it.copy(fontSize = value) } }
                             }
                             item("font_color") {
                                 SettingsActionItem(stringResource(R.string.list_font_color),
                                     fontColorSummary(draft.fontColor, onWallpaper = true),
-                                    6, 9, "list_font_color", modifier = colorModifier("font_color"), trailing = {
+                                    7, 10, "list_font_color", modifier = colorModifier("font_color"), trailing = {
                                         Surface(Modifier.size(24.dp), shape = MaterialTheme.shapes.small,
                                             color = resolvedFontColor(draft.fontColor, onWallpaper = true)) {}
                                     }, onClick = { dialog = "font_color" })
                             }
-                            item("names") { SettingsActionItem(stringResource(R.string.list_show_names), draft.names.label(), 7, 9,
-                                "list_show_names", onClick = { dialog = "names" }) }
-                            item("left_alphabet") {
-                                SettingsToggleItem(stringResource(R.string.list_left_alphabet), stringResource(R.string.list_left_alphabet_summary),
-                                    draft.leftAlphabet, 8, 9, "list_left_alphabet") { value -> change { it.copy(leftAlphabet = value) } }
-                            }
-                            item("misc") { SettingsHeading(stringResource(R.string.settings_misc)) }
-                            item("recently_installed") {
-                                SettingsToggleItem(stringResource(R.string.recently_installed), stringResource(R.string.settings_recently_installed_summary),
-                                    draft.showRecentlyInstalled, 0, 2, "settings_recently_installed", enabled = enabled) { value ->
-                                    change { it.copy(showRecentlyInstalled = value) }
+                            item("names") {
+                                DesignerSegment(8, 10, "list_show_names") {
+                                    Text(stringResource(R.string.list_show_names))
+                                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(top = 12.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
+                                        listOf(true, false).forEach { home ->
+                                            ToggleButton(checked = draft.showNames(favorites = home), enabled = enabled,
+                                                onCheckedChange = { checked -> change { current ->
+                                                    val homeNames = if (home) checked else current.showNames(favorites = true)
+                                                    val appListNames = if (!home) checked else current.showNames(favorites = false)
+                                                    current.copy(names = when {
+                                                        homeNames && appListNames -> AppNameVisibility.Both
+                                                        homeNames -> AppNameVisibility.Favorites
+                                                        appListNames -> AppNameVisibility.AppList
+                                                        else -> AppNameVisibility.Neither
+                                                    })
+                                                } }, shapes = if (home) ButtonGroupDefaults.connectedLeadingButtonShapes()
+                                                    else ButtonGroupDefaults.connectedTrailingButtonShapes(),
+                                                modifier = Modifier.weight(1f).fillMaxHeight().heightIn(min = 48.dp)
+                                                    .testTag(if (home) "list_names_home" else "list_names_app_list"),
+                                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp)) {
+                                                Text(stringResource(if (home) R.string.settings_home_screen else R.string.settings_folder_app_list))
+                                            }
+                                        }
+                                    }
                                 }
                             }
-                            item("alphabet") {
-                                SettingsToggleItem(stringResource(R.string.settings_hide_alphabet), stringResource(R.string.settings_hide_alphabet_summary),
-                                    settings.hideAlphabet, 1, 2, "settings_hide_alphabet") { value -> actions.updateSettings { it.copy(hideAlphabet = value) } }
+                            item("names_in_folders") {
+                                SettingsToggleItem(stringResource(R.string.list_names_in_folders), null,
+                                    draft.applyNameVisibilityToFolders, 9, 10, "list_names_in_folders", enabled = enabled) { value ->
+                                    change { it.copy(applyNameVisibilityToFolders = value) }
+                                }
                             }
                         }
                     }
@@ -185,21 +191,13 @@ internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherA
 
 @Composable
 private fun ListSpacingSlider(label: String, value: Int, default: Int, range: IntRange, index: Int, tag: String,
-    onPreview: (Int) -> Unit, suffix: String = "dp", onCommit: (Int) -> Unit) {
-    DesignerSegment(index, 9, tag) {
+    onPreview: (Int) -> Unit, suffix: String = "dp", centered: Boolean = false, onCommit: (Int) -> Unit) {
+    DesignerSegment(index, 10, tag) {
         DesignerSlider(label, value.toFloat(), default.toFloat(), range.first.toFloat()..range.last.toFloat(),
-            LocalSettingsStorageState.current.canEdit, "${tag}_slider", suffix,
+            LocalSettingsStorageState.current.canEdit, "${tag}_slider", suffix, centered = centered,
             onFinished = { onCommit(it.roundToInt()) }, onChange = { onPreview(it.roundToInt()) })
     }
 }
-
-@Composable
-private fun AppNameVisibility.label(): String = stringResource(when (this) {
-    AppNameVisibility.Both -> R.string.list_names_both
-    AppNameVisibility.Favorites -> R.string.list_names_favorites
-    AppNameVisibility.AppList -> R.string.list_names_app_list
-    AppNameVisibility.Neither -> R.string.list_names_neither
-})
 
 @Composable
 private fun ListAppearancePreview(uiState: LauncherUiState, list: ListAppearance, iconSize: Int, modifier: Modifier) {
@@ -219,15 +217,16 @@ private fun ListAppearancePreview(uiState: LauncherUiState, list: ListAppearance
         drawOutline(outline, tint.copy(alpha = dimAlpha))
         drawContent()
     }.clip(shape), contentAlignment = Alignment.Center) {
-        // Large accessibility text or row spacing should still show all three examples.
+        // Keep the section marker and all three examples visible at large text or spacing sizes.
         val lineHeight = (list.fontSize * 1.5f * LocalDensity.current.fontScale).dp
         val rowHeight = (maxOf(40.dp * iconSize / 100f, lineHeight) + list.appSpacing.dp).coerceAtLeast(48.dp)
-        val scale = (maxHeight / (rowHeight * 3)).coerceAtMost(1f)
+        val scale = (maxHeight / (rowHeight * 3 + 44.dp)).coerceAtMost(1f)
         CompositionLocalProvider(LocalLauncherAppearance provides appearance, LocalListAppearance provides list,
             LocalLauncherInputEnabled provides false) {
             Column(Modifier.fillMaxWidth().wrapContentHeight(unbounded = true).graphicsLayer { scaleX = scale; scaleY = scale }
                 .padding(start = list.startPadding, end = list.endPadding), verticalArrangement = Arrangement.Center) {
-                rows.forEach { app -> LauncherAppRow(app, {}, {}, showLabel = list.showNames(favorites = true)) }
+                AppListSectionHeader("A", Modifier.testTag("list_preview_section"))
+                rows.forEach { app -> LauncherAppRow(app, {}, {}, showLabel = list.showNames(favorites = false)) }
             }
         }
     }

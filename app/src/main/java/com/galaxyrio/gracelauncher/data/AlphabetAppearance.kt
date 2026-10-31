@@ -15,7 +15,12 @@ data class AlphabetAppearance(
     val topPercent: Int? = null,
     val bottomPercent: Int = 85,
     val freeMovement: Boolean = true,
+    /** null preserves the legacy home-screen Hide alphabet preference. */
+    val showOnHome: Boolean? = null,
+    val showInAppList: Boolean = true,
 ) {
+    fun showsOnHome(legacyHideAlphabet: Boolean): Boolean = showOnHome ?: !legacyHideAlphabet
+
     fun normalized(): AlphabetAppearance {
         val top = topPercent?.coerceIn(0, 99)
         return copy(fontSize = fontSize.coerceIn(10, 28), topPercent = top,
@@ -42,6 +47,7 @@ data class AlphabetAppearance(
         put("pebbleRoundness", value.pebbleRoundness); put("squareCornerRadius", value.squareCornerRadius)
         put("cookieSides", value.cookieSides); put("topPercent", value.topPercent ?: JSONObject.NULL)
         put("bottomPercent", value.bottomPercent); put("freeMovement", value.freeMovement)
+        put("showOnHome", value.showOnHome ?: JSONObject.NULL); put("showInAppList", value.showInAppList)
     } }
 
     companion object {
@@ -64,6 +70,8 @@ data class AlphabetAppearance(
                     topPercent = top,
                     bottomPercent = bottom,
                     freeMovement = it.optBoolean("freeMovement", defaults.freeMovement),
+                    showOnHome = if (it.isNull("showOnHome")) null else it.optBoolean("showOnHome", true),
+                    showInAppList = it.optBoolean("showInAppList", defaults.showInAppList),
                 ).normalized()
             } ?: defaults
         }

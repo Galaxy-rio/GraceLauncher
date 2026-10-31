@@ -1,6 +1,7 @@
 package com.galaxyrio.gracelauncher
 
 import android.content.ComponentName
+import android.os.Process
 import android.os.UserHandle
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.galaxyrio.gracelauncher.data.AppCategory
@@ -8,13 +9,19 @@ import com.galaxyrio.gracelauncher.data.AppListBlock
 import com.galaxyrio.gracelauncher.data.AppListLayout
 import com.galaxyrio.gracelauncher.data.CategoryCondition
 import com.galaxyrio.gracelauncher.data.CategoryIcon
+import com.galaxyrio.gracelauncher.data.CategoryInclusion
+import com.galaxyrio.gracelauncher.data.CategoryNotificationLevel
 import com.galaxyrio.gracelauncher.data.CategoryPlacement
 import com.galaxyrio.gracelauncher.data.FolderPlacement
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
+import com.galaxyrio.gracelauncher.data.LauncherSettings
+import com.galaxyrio.gracelauncher.data.ListAppearance
 import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
 import com.galaxyrio.gracelauncher.data.RecentlyInstalledFolderId
 import com.galaxyrio.gracelauncher.data.WorkProfileFolderId
+import com.galaxyrio.gracelauncher.data.notifications.NotificationAppId
+import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.drawer.AppListModel
 import com.galaxyrio.gracelauncher.ui.drawer.DrawerItem
 import com.galaxyrio.gracelauncher.ui.drawer.FolderSection
@@ -96,6 +103,45 @@ class AppListCategoryModelTest {
         assertEquals(listOf(folder, stack), model.items.filterIsInstance<DrawerItem.Folder>()
             .filter { it.section == FolderSection }.map { it.folder })
         assertEquals(model.items.size, model.items.map { it.key }.distinct().size)
+    }
+
+    @Test fun manualAndNotificationCategoriesRestoreHeadersAndTargetsAtTheirSavedPositions() {
+        val alpha = app("Alpha")
+        val beta = app("Beta")
+        val manual = category("manual")
+        val notifications = category("notifications").copy(inclusion = CategoryInclusion.Dynamic)
+        val savedOrder = listOf(notifications.key, AppListBlock.AllApps.key, manual.key, AppListBlock.BottomFolders.key)
+        val layout = AppListLayout(order = savedOrder, showGraceLauncher = false)
+        val initial = LauncherUiState(apps = listOf(alpha, beta), isLoadingApps = false,
+            settings = LauncherSettings(appCategories = listOf(manual, notifications),
+                listAppearance = ListAppearance(appList = layout)))
+        fun model(state: LauncherUiState) = AppListModel(state.appListApps,
+            appList = state.settings.listAppearance.appList, categories = state.appCategories,
+            categoryItems = state.appCategories.associate { category ->
+                category.key to state.categoryItems(category).mapNotNull(state::findItem)
+            })
+
+        assertEquals(listOf("A", "B"), model(initial).letters)
+        val selected = initial.copy(settings = initial.settings.copy(appCategories = listOf(
+            manual.copy(itemKeys = listOf(beta.key)), notifications)))
+        assertEquals(listOf("A", "B", manual.key), model(selected).letters)
+        val populated = selected.copy(categoryNotifications = mapOf(
+            NotificationAppId(alpha.packageName, Process.myUserHandle()) to setOf(CategoryNotificationLevel.Normal)))
+        val visible = model(populated)
+        assertEquals(listOf(notifications.key, "A", "B", manual.key), visible.letters)
+        assertEquals(setOf(notifications.key, manual.key), visible.categorySections.keys)
+        visible.letters.forEach { section ->
+            assertEquals(DrawerItem.Header(section), visible.items[visible.indexOfSection(section)])
+        }
+
+        val cleared = populated.copy(settings = initial.settings, categoryNotifications = emptyMap())
+        assertEquals(listOf("A", "B"), model(cleared).letters)
+        val restored = model(cleared.copy(settings = populated.settings,
+            categoryNotifications = populated.categoryNotifications))
+        assertEquals(visible.items, restored.items)
+        assertEquals(visible.letters, restored.letters)
+        assertEquals(savedOrder, cleared.settings.listAppearance.appList.order)
+        assertEquals(savedOrder, cleared.settings.listAppearance.appList.orderedKeys(cleared.appCategories))
     }
 
     @Test fun hidingGraceGroupOrItsSettingsRowReturnsSettingsToAllApps() {

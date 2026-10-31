@@ -300,8 +300,6 @@
     <string name="settings_misc">Varios</string>
     <string name="settings_hide_status_bar">Agochar a barra de estado</string>
     <string name="settings_hide_status_bar_summary">Ocultar na pantalla de inicio e na lista de aplicacións</string>
-    <string name="settings_hide_alphabet">Agochar o alfabeto</string>
-    <string name="settings_hide_alphabet_summary">Ocultar na pantalla de inicio ata que deslices o dedo polo alfabeto</string>
     <string name="settings_hide_favorite_names">Ocultar nomes dos favoritos</string>
     <string name="settings_hide_favorite_names_summary">Manter os nomes visibles na lista de aplicacións</string>
     <string name="settings_dim_wallpaper">Atenuar fondos da pantalla</string>
@@ -572,9 +570,6 @@
     <string name="list_font_color">Cor da fonte</string>
     <string name="list_color_default">Seguir a cor do texto do fondo da pantalla</string>
     <string name="list_show_names">Amosar os nomes das aplicacións</string>
-    <string name="list_names_both">Favoritos e lista de aplicacións</string>
-    <string name="list_names_favorites">Só favoritos</string>
-    <string name="list_names_app_list">Só lista de aplicacións</string>
     <string name="list_left_alphabet">Usa o alfabeto na esquerda</string>
     <string name="list_left_alphabet_summary">Esvara o dedo polo bordo esquerdo para controlar o alfabeto da dereita</string>
     <string name="shortcuts_folders_title">Atallos e cartafoles</string>
@@ -639,7 +634,6 @@
     <string name="settings_folder_auto_hide_summary">Oculta os elementos actuais e futuros da lista de aplicacións. As ocultacións manuais mantéñense cando as aplicacións saen deste cartafol.</string>
     <string name="hidden_from_folder">Oculto polo cartafol</string>
     <string name="hide_recently_installed">Agochar as instalacións recentes</string>
-    <string name="settings_recently_installed_summary">Amosar as 8 aplicacións instaladas máis recentemente na lista de aplicacións</string>
     <string name="widget_screen_title">Pantalla de widgets</string>
     <string name="widget_screen_enable">Activar a pantalla de widgets</string>
     <string name="widget_screen_swipe">Esvara cara á esquerda na pantalla de inicio</string>
@@ -647,7 +641,6 @@
     <string name="widget_screen_columns">Celas por fila</string>
     <string name="widget_screen_edit">Editar a pantalla de widgets</string>
     <string name="widget_screen_open">Abrir a pantalla de widgets</string>
-    <string name="list_names_neither">Ningún</string>
     <string name="list_names_in_folders">Aplicar tamén dentro dos cartafoles</string>
     <string name="app_stacks_title">Pilas de aplicacións</string>
     <string name="app_stack_create">Crear pila de aplicacións</string>

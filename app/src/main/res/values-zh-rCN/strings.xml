@@ -190,7 +190,6 @@
     <string name="drawer_folders">文件夹</string>
     <string name="recently_installed">最近安装</string>
     <string name="hide_recently_installed">隐藏最近安装</string>
-    <string name="settings_recently_installed_summary">在应用列表中显示最近安装的 8 个应用</string>
     <string name="add_to_folder">添加到文件夹</string>
     <string name="create_app_folder">在应用列表中新建文件夹</string>
 
@@ -391,8 +390,6 @@
     <string name="settings_misc">其他</string>
     <string name="settings_hide_status_bar">隐藏状态栏</string>
     <string name="settings_hide_status_bar_summary">在主页和应用列表隐藏系统状态栏</string>
-    <string name="settings_hide_alphabet">隐藏字母表</string>
-    <string name="settings_hide_alphabet_summary">在主页自动收起字母表，滑动时显示</string>
     <string name="settings_hide_favorite_names">隐藏收藏名称</string>
     <string name="settings_hide_favorite_names_summary">应用列表中的名称仍然显示</string>
     <string name="settings_dim_wallpaper">壁纸遮罩</string>
@@ -698,12 +695,8 @@
     <string name="list_font_color">字体颜色</string>
     <string name="list_color_default">跟随默认字体颜色</string>
     <string name="list_show_names">显示应用名称</string>
-    <string name="list_names_both">收藏与应用列表</string>
-    <string name="list_names_favorites">仅收藏</string>
-    <string name="list_names_app_list">仅应用列表</string>
-    <string name="list_names_neither">均不显示</string>
     <string name="list_names_in_folders">同时影响文件夹内部</string>
-    <string name="list_left_alphabet">从左侧使用字母表</string>
+    <string name="list_left_alphabet">从左侧使用</string>
     <string name="list_left_alphabet_summary">沿左侧边缘滑动，操作右侧的字母表</string>
     <string name="shortcuts_folders_title">快捷方式与文件夹</string>
     <string name="popups_title">弹出窗口</string>
@@ -884,4 +877,6 @@
     <string name="app_list_edit">编辑应用列表</string>
     <string name="app_list_grace_settings">Grace 设置</string>
     <string name="app_list_add_grace">Grace 启动器</string>
+    <string name="alphabet_show_in">显示在</string>
+    <string name="list_symbol_horizontal_offset">符号水平偏移</string>
 </resources>

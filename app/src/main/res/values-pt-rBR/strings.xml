@@ -183,7 +183,6 @@
     <string name="drawer_folders">Pastas</string>
     <string name="recently_installed">Instalados recentemente</string>
     <string name="hide_recently_installed">Ocultar instalados recentemente</string>
-    <string name="settings_recently_installed_summary">Mostrar os 8 aplicativos mais recentemente instalados na lista de aplicativos</string>
     <string name="add_to_folder">Adicionar à pasta</string>
     <string name="create_app_folder">Nova pasta na lista de aplicativos</string>
     <string name="favorites_selected">Selecionado(s)</string>
@@ -330,8 +329,6 @@
     <string name="settings_misc">Vários</string>
     <string name="settings_hide_status_bar">Esconder a barra superior</string>
     <string name="settings_hide_status_bar_summary">Ocultar na tela inicial e na lista de aplicativos</string>
-    <string name="settings_hide_alphabet">Ocultar alfabeto</string>
-    <string name="settings_hide_alphabet_summary">Ocultar na tela inicial até deslizar o alfabeto</string>
     <string name="settings_hide_favorite_names">Ocultar nomes dos favoritos</string>
     <string name="settings_hide_favorite_names_summary">Manter os nomes visíveis na lista de aplicativos</string>
     <string name="settings_dim_wallpaper">Acentuar papel de parede</string>
@@ -658,10 +655,6 @@
     <string name="list_font_color">Cor da fonte</string>
     <string name="list_color_default">Seguir a cor do texto do papel de parede</string>
     <string name="list_show_names">Mostrar nomes de aplicativos</string>
-    <string name="list_names_both">Favoritos e lista de aplicativos</string>
-    <string name="list_names_favorites">Apenas favoritos</string>
-    <string name="list_names_app_list">Apenas a lista de aplicativos</string>
-    <string name="list_names_neither">Nenhum</string>
     <string name="list_names_in_folders">Aplicar também dentro das pastas</string>
     <string name="list_left_alphabet">Utilizar o alfabeto na esquerda</string>
     <string name="list_left_alphabet_summary">Deslize o dedo pela borda esquerda para controlar o alfabeto à direita</string>

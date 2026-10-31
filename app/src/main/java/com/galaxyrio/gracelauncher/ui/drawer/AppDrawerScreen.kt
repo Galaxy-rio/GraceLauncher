@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.safeDrawing
@@ -37,30 +36,21 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
-import androidx.compose.ui.unit.constrainHeight
-import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
-import com.galaxyrio.gracelauncher.ui.components.CategoryIndicator
+import com.galaxyrio.gracelauncher.ui.components.AppListSectionHeader
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
 import com.galaxyrio.gracelauncher.ui.components.FolderRow
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
 import com.galaxyrio.gracelauncher.ui.components.LocalListAppearance
 import com.galaxyrio.gracelauncher.ui.components.startPadding
 import com.galaxyrio.gracelauncher.ui.components.endPadding
-import com.galaxyrio.gracelauncher.ui.components.listLabelStyle
 import com.galaxyrio.gracelauncher.ui.components.stableStatusBarInset
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.settings.categoryLabel
@@ -96,15 +86,6 @@ fun AppDrawerScreen(
 ) {
     val appearance = LocalLauncherAppearance.current
     val listAppearance = LocalListAppearance.current
-    val labelStyle = listLabelStyle()
-    val sectionStyle = TextStyle(
-        fontFamily = labelStyle.fontFamily,
-        fontSize = 18.sp,
-        lineHeight = 24.sp,
-        fontWeight = FontWeight.Normal,
-        shadow = appearance.textShadow,
-    )
-    val sectionLetterSize = rememberTextMeasurer().measure("C", style = sectionStyle, maxLines = 1).size
     val density = LocalDensity.current
     val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
     val safeTop = with(density) { (stableStatusBarInset() + 12.dp)
@@ -170,35 +151,18 @@ fun AppDrawerScreen(
                     alpha = if (selectedLetter == null && item.section != lastSelectedLetter) releasedItemsAlpha.value else 1f
                 }) {
                 when (item) {
-                    is DrawerItem.Header -> if (item.section in model.categorySections) {
-                        val category = model.categorySections.getValue(item.section)
-                        Box(Modifier.height(44.dp)
-                            .padding(start = LauncherLayout.ContentInset, end = LauncherLayout.ContentInset, top = 12.dp)
-                            .testTag("section:${item.section}").semantics { heading() }) {
-                            // Anchor the symbol to the existing letter column, including font scaling.
-                            CategoryIndicator(category.icon, Modifier.layout { measurable, constraints ->
-                                val symbol = measurable.measure(constraints)
-                                val width = constraints.constrainWidth(sectionLetterSize.width)
-                                val height = constraints.constrainHeight(sectionLetterSize.height)
-                                layout(width, height) {
-                                    symbol.placeRelative((width - symbol.width) / 2, (height - symbol.height) / 2)
-                                }
-                            }.size(24.dp), tint = labelStyle.color,
-                                contentDescription = categoryLabel(category))
-                        }
-                    } else Text(
-                        text = when (item.section) {
-                            FolderSection -> stringResource(R.string.drawer_folders)
-                            GraceSection -> stringResource(R.string.app_name)
-                            else -> item.section
-                        },
-                        modifier = Modifier
-                            .height(44.dp)
-                            .padding(start = LauncherLayout.ContentInset, end = LauncherLayout.ContentInset, top = 12.dp)
-                            .testTag("section:${item.section}"),
-                        color = labelStyle.color,
-                        style = sectionStyle,
-                    )
+                    is DrawerItem.Header -> {
+                        val category = model.categorySections[item.section]
+                        AppListSectionHeader(
+                            label = if (category != null) categoryLabel(category) else when (item.section) {
+                                FolderSection -> stringResource(R.string.drawer_folders)
+                                GraceSection -> stringResource(R.string.app_name)
+                                else -> item.section
+                            },
+                            modifier = Modifier.testTag("section:${item.section}"), icon = category?.icon,
+                            symbol = item.section != FolderSection && item.section != GraceSection,
+                        )
+                    }
                     is DrawerItem.App -> LauncherAppRow(
                         showLabel = listAppearance.showNames(favorites = false, insideFolder = item.section == FolderSection),
                         app = item.app,

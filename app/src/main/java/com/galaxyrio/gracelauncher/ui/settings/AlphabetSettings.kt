@@ -117,17 +117,17 @@ internal fun AlphabetSettings(uiState: LauncherUiState, actions: LauncherActions
                         verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
                         item("font") {
                             SettingsActionItem(stringResource(R.string.settings_font), appFontLabel(draft.fontId),
-                                0, 7, "alphabet_font", enabled = enabled, onClick = { dialog = "font" })
+                                0, 9, "alphabet_font", enabled = enabled, onClick = { dialog = "font" })
                         }
                         item("color") {
                             SettingsActionItem(stringResource(R.string.alphabet_letter_color), fontColorSummary(draft.fontColor, onWallpaper = true),
-                                1, 7, "alphabet_color", enabled = enabled, modifier = colorModifier, trailing = {
+                                1, 9, "alphabet_color", enabled = enabled, modifier = colorModifier, trailing = {
                                     Surface(Modifier.size(24.dp), shape = MaterialTheme.shapes.small,
                                         color = resolvedFontColor(draft.fontColor, onWallpaper = true)) {}
                                 }, onClick = { dialog = "color" })
                         }
                         item("font_size") {
-                            DesignerSegment(2, 7, "alphabet_font_size_control") {
+                            DesignerSegment(2, 9, "alphabet_font_size_control") {
                                 DesignerSlider(stringResource(R.string.clock_size), draft.fontSize.toFloat(), defaults.fontSize.toFloat(),
                                     10f..28f, enabled, "alphabet_font_size", suffix = "sp",
                                     onFinished = { value -> change { it.copy(fontSize = value.roundToInt()) } }) {
@@ -136,7 +136,7 @@ internal fun AlphabetSettings(uiState: LauncherUiState, actions: LauncherActions
                             }
                         }
                         item("shape") {
-                            DesignerSegment(3, 7, "alphabet_shape") {
+                            DesignerSegment(3, 9, "alphabet_shape") {
                                 Text(stringResource(R.string.alphabet_indicator_shape))
                                 val design = IconDesign(shape = draft.indicatorShape, cookieSides = draft.cookieSides,
                                     pebbleRoundness = draft.pebbleRoundness, squareCornerRadius = draft.squareCornerRadius)
@@ -150,7 +150,7 @@ internal fun AlphabetSettings(uiState: LauncherUiState, actions: LauncherActions
                             }
                         }
                         item("top") {
-                            DesignerSegment(4, 7, "alphabet_top_control") {
+                            DesignerSegment(4, 9, "alphabet_top_control") {
                                 if (draft.topPercent == null) Text(
                                     stringResource(R.string.alphabet_automatic_spacing, AlphabetAppearance.DefaultStepDp.roundToInt()),
                                     Modifier.testTag("alphabet_top_automatic"), style = MaterialTheme.typography.labelMedium,
@@ -166,7 +166,7 @@ internal fun AlphabetSettings(uiState: LauncherUiState, actions: LauncherActions
                             }
                         }
                         item("bottom") {
-                            DesignerSegment(5, 7, "alphabet_bottom_control") {
+                            DesignerSegment(5, 9, "alphabet_bottom_control") {
                                 DesignerSlider(stringResource(R.string.alphabet_bottom), draft.bottomPercent.toFloat(),
                                     maxOf(defaults.bottomPercent, (draft.topPercent ?: 0) + 1).toFloat(),
                                     ((draft.topPercent ?: 0) + 1f)..100f, enabled, "alphabet_bottom",
@@ -177,7 +177,35 @@ internal fun AlphabetSettings(uiState: LauncherUiState, actions: LauncherActions
                         }
                         item("free") {
                             SettingsToggleItem(stringResource(R.string.alphabet_free_movement), stringResource(R.string.alphabet_free_movement_summary),
-                                draft.freeMovement, 6, 7, "alphabet_free_movement", enabled = enabled) { value -> change { it.copy(freeMovement = value) } }
+                                draft.freeMovement, 6, 9, "alphabet_free_movement", enabled = enabled) { value -> change { it.copy(freeMovement = value) } }
+                        }
+                        item("left") {
+                            SettingsToggleItem(stringResource(R.string.list_left_alphabet), stringResource(R.string.list_left_alphabet_summary),
+                                uiState.settings.listAppearance.leftAlphabet, 7, 9, "list_left_alphabet", enabled = enabled) { value ->
+                                actions.updateSettings { current -> current.copy(listAppearance = current.listAppearance.copy(leftAlphabet = value)) }
+                            }
+                        }
+                        item("show_in") {
+                            DesignerSegment(8, 9, "alphabet_show_in") {
+                                Text(stringResource(R.string.alphabet_show_in))
+                                Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min),
+                                    horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
+                                    ToggleButton(checked = draft.showsOnHome(uiState.settings.hideAlphabet),
+                                        onCheckedChange = { value -> change { it.copy(showOnHome = value) } }, enabled = enabled,
+                                        shapes = ButtonGroupDefaults.connectedLeadingButtonShapes(),
+                                        modifier = Modifier.weight(1f).fillMaxHeight().testTag("alphabet_show_home"),
+                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 10.dp)) {
+                                        Text(stringResource(R.string.settings_home_screen))
+                                    }
+                                    ToggleButton(checked = draft.showInAppList,
+                                        onCheckedChange = { value -> change { it.copy(showInAppList = value) } }, enabled = enabled,
+                                        shapes = ButtonGroupDefaults.connectedTrailingButtonShapes(),
+                                        modifier = Modifier.weight(1f).fillMaxHeight().testTag("alphabet_show_app_list"),
+                                        contentPadding = PaddingValues(horizontal = 6.dp, vertical = 10.dp)) {
+                                        Text(stringResource(R.string.settings_folder_app_list))
+                                    }
+                                }
+                            }
                         }
                     }
                 }

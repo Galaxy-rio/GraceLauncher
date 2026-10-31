@@ -187,7 +187,6 @@
     <string name="drawer_folders">Папки</string>
     <string name="recently_installed">Недавно установленные</string>
     <string name="hide_recently_installed">Скрыть недавно установленные</string>
-    <string name="settings_recently_installed_summary">Показывать 8 последних установленных приложений в списке</string>
     <string name="add_to_folder">Добавить в папку</string>
     <string name="create_app_folder">Новая папка в списке приложений</string>
 
@@ -341,8 +340,6 @@
     <string name="settings_misc">Разное</string>
     <string name="settings_hide_status_bar">Скрыть строку состояния</string>
     <string name="settings_hide_status_bar_summary">Скрывать на главном экране и в списке приложений</string>
-    <string name="settings_hide_alphabet">Скрыть алфавит</string>
-    <string name="settings_hide_alphabet_summary">Скрывать на главном экране до свайпа по алфавиту</string>
     <string name="settings_hide_favorite_names">Скрыть названия в избранном</string>
     <string name="settings_hide_favorite_names_summary">Оставлять названия видимыми в списке приложений</string>
     <string name="settings_dim_wallpaper">Затемнять обои</string>
@@ -657,10 +654,6 @@
     <string name="list_font_color">Цвет шрифта</string>
     <string name="list_color_default">Как у текста на обоях</string>
     <string name="list_show_names">Показывать названия приложений</string>
-    <string name="list_names_both">Избранное и список приложений</string>
-    <string name="list_names_favorites">Только избранное</string>
-    <string name="list_names_app_list">Только список приложений</string>
-    <string name="list_names_neither">Нигде</string>
     <string name="list_names_in_folders">Применять и внутри папок</string>
     <string name="list_left_alphabet">Управлять алфавитом слева</string>
     <string name="list_left_alphabet_summary">Проводите вдоль левого края, чтобы управлять алфавитом справа</string>

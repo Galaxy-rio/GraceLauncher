@@ -230,7 +230,6 @@
     <string name="lab_percentage">%1$d%%</string>
     <string name="settings_advanced_summary">Plus d\'options pour votre lanceur</string>
     <string name="hide_recently_installed">Masquer les applications récemment installées</string>
-    <string name="settings_recently_installed_summary">Afficher les 8 applications les plus récemment installées dans la liste des applications</string>
     <string name="settings_about">À propos</string>
     <string name="settings_about_summary">Grace Launcher, mises à jour et licences</string>
     <string name="settings_instant_access">Accès rapide</string>
@@ -318,8 +317,6 @@
     <string name="settings_misc">Divers</string>
     <string name="settings_hide_status_bar">Masquer la barre d’état</string>
     <string name="settings_hide_status_bar_summary">Masquer la barre d\'état sur l\'écran d\'accueil et dans la liste des applications</string>
-    <string name="settings_hide_alphabet">Masquer l\'alphabet</string>
-    <string name="settings_hide_alphabet_summary">Masquer l\'alphabet sur l\'écran d\'accueil jusqu\'à ce que vous le fassiez défiler</string>
     <string name="settings_hide_favorite_names">Masquer les noms des favoris</string>
     <string name="settings_hide_favorite_names_summary">Conserver les noms visibles dans la liste des applications</string>
     <string name="settings_dim_wallpaper">Assombrir le fond d\'écran</string>
@@ -622,10 +619,6 @@
     <string name="list_font_color">Couleur de la police</string>
     <string name="list_color_default">Suivre la couleur du texte du fond d\'écran</string>
     <string name="list_show_names">Afficher les noms des applications</string>
-    <string name="list_names_both">Favoris et liste des applications</string>
-    <string name="list_names_favorites">Favoris uniquement</string>
-    <string name="list_names_app_list">Liste des applications uniquement</string>
-    <string name="list_names_neither">Aucun des deux</string>
     <string name="list_names_in_folders">Appliquer également dans les dossiers</string>
     <string name="list_left_alphabet">Utiliser l\'alphabet à gauche</string>
     <string name="list_left_alphabet_summary">Faites glisser le long du bord gauche pour contrôler l\'alphabet situé à droite</string>

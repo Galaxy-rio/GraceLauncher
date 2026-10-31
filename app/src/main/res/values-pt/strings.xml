@@ -185,7 +185,6 @@
     <string name="drawer_folders">Pastas</string>
     <string name="recently_installed">Instaladas recentemente</string>
     <string name="hide_recently_installed">Ocultar instaladas recentemente</string>
-    <string name="settings_recently_installed_summary">Mostrar, na lista de aplicações, as últimas 8 aplicações instaladas</string>
     <string name="add_to_folder">Adicionar à pasta</string>
     <string name="create_app_folder">Nova pasta na lista de aplicações</string>
     <string name="favorites_selected">Selecionadas</string>

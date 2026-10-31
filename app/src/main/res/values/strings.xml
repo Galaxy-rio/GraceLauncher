@@ -189,7 +189,6 @@
     <string name="drawer_folders">Folders</string>
     <string name="recently_installed">Recently Installed</string>
     <string name="hide_recently_installed">Hide Recently Installed</string>
-    <string name="settings_recently_installed_summary">Show the 8 most recently installed apps in the app list</string>
     <string name="add_to_folder">Add to folder</string>
     <string name="create_app_folder">New folder in app list</string>
 
@@ -395,8 +394,6 @@
     <string name="settings_misc">Misc</string>
     <string name="settings_hide_status_bar">Hide status bar</string>
     <string name="settings_hide_status_bar_summary">Hide on the home screen and app list</string>
-    <string name="settings_hide_alphabet">Hide alphabet</string>
-    <string name="settings_hide_alphabet_summary">Hide on the home screen until you swipe the alphabet</string>
     <string name="settings_hide_favorite_names">Hide names from favorites</string>
     <string name="settings_hide_favorite_names_summary">Keep names visible in the app list</string>
     <string name="settings_dim_wallpaper">Dim wallpaper</string>
@@ -717,12 +714,8 @@
     <string name="list_font_color">Font color</string>
     <string name="list_color_default">Follow default font color</string>
     <string name="list_show_names">Show app names</string>
-    <string name="list_names_both">Favorites and app list</string>
-    <string name="list_names_favorites">Favorites only</string>
-    <string name="list_names_app_list">App list only</string>
-    <string name="list_names_neither">Neither</string>
     <string name="list_names_in_folders">Also apply inside folders</string>
-    <string name="list_left_alphabet">Use alphabet from the left</string>
+    <string name="list_left_alphabet">Use from the left</string>
     <string name="list_left_alphabet_summary">Slide along the left edge to control the alphabet on the right</string>
     <string name="shortcuts_folders_title">Shortcuts &amp; folders</string>
     <string name="popups_title">Pop-ups</string>
@@ -903,4 +896,6 @@
     <string name="app_list_edit">Edit app list</string>
     <string name="app_list_grace_settings">Grace settings</string>
     <string name="app_list_add_grace">Grace launcher</string>
+    <string name="alphabet_show_in">Show in</string>
+    <string name="list_symbol_horizontal_offset">Symbol horizontal offset</string>
 </resources>

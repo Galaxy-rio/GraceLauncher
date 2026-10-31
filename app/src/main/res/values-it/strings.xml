@@ -263,8 +263,6 @@
     <string name="settings_misc">Altro</string>
     <string name="settings_hide_status_bar">Nascondi barra di stato</string>
     <string name="settings_hide_status_bar_summary">Nascondi nella schermata home e nell\'elenco app</string>
-    <string name="settings_hide_alphabet">Nascondi alfabeto</string>
-    <string name="settings_hide_alphabet_summary">Nascondi dalla schermata home finchè non scorri l\'alfabeto</string>
     <string name="settings_hide_favorite_names">Nascondi nomi dai preferiti</string>
     <string name="settings_hide_favorite_names_summary">Mantieni visibili i nomi nell\'elenco app</string>
     <string name="settings_dim_wallpaper">Scurisci sfondo</string>
@@ -597,9 +595,6 @@
     <string name="list_font_color">Colore font</string>
     <string name="list_color_default">Segui il colore del testo dello sfondo</string>
     <string name="list_show_names">Mostra nomi delle app</string>
-    <string name="list_names_both">Preferiti ed elenco app</string>
-    <string name="list_names_favorites">Solo preferiti</string>
-    <string name="list_names_app_list">Solo elenco app</string>
     <string name="list_left_alphabet">Usa l\'alfabeto da sinistra</string>
     <string name="list_left_alphabet_summary">Scorri lungo il bordo sinistro per controllare l\'alfabeto a destra</string>
     <string name="icon_suggestion_power">Accensione e spegnimento</string>
@@ -643,7 +638,6 @@
     <string name="settings_folder_auto_hide">Nascondi automaticamente le app dentro</string>
     <string name="settings_folder_auto_hide_summary">Nascondi dall\'elenco delle app quelle già presenti e quelle che verranno aggiunte. Le app nascoste manualmente restano nascoste anche quando escono da questa cartella.</string>
     <string name="hidden_from_folder">Nascosta dalla cartella</string>
-    <string name="settings_recently_installed_summary">Mostra nell\'elenco app le 8 app installate più di recente</string>
     <string name="icon_designer_square_aspect_ratio">Proporzioni</string>
     <string name="icon_designer_saturation">Saturazione</string>
     <string name="icon_designer_brightness">Luminosità</string>
@@ -656,7 +650,6 @@
     <string name="widget_screen_edit">Modifica schermata dei widget</string>
     <string name="widget_screen_open">Apri schermata dei widget</string>
     <string name="hide_recently_installed">Nascondi installate di recente</string>
-    <string name="list_names_neither">Nessuno dei due</string>
     <string name="list_names_in_folders">Applica anche nelle cartelle</string>
     <string name="app_stacks_title">Pile di app</string>
     <string name="app_stack_create">Crea pila di app</string>

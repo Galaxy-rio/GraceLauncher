@@ -1171,6 +1171,7 @@ internal fun LauncherScreen(
             if (homePager.isScrollInProgress || editingWidgetScreen || editingHomeContent) 0f else 1f,
             tween(if (homePager.isScrollInProgress || editingWidgetScreen || editingHomeContent) 90 else 180), label = "pagingAlphabet",
         )
+        val showHomeAlphabet = alphabet.showsOnHome(uiState.settings.hideAlphabet)
         if (!editingHome) AlphabetRail(
             enabled = !homePager.isScrollInProgress && !editingWidgetScreen && !editingHomeContent,
             alphabet = alphabet,
@@ -1196,7 +1197,7 @@ internal fun LauncherScreen(
             },
             modifier = Modifier.align(Alignment.TopEnd)
                 .graphicsLayer { alpha = pagingRailAlpha }
-                .graceReveal(drawerTransition.takeIf { uiState.settings.hideAlphabet }, reveal = true),
+                .graceReveal(drawerTransition.takeIf { !showHomeAlphabet }, reveal = true),
             onScrubFinished = finishScrubbing,
             doubleTapIntervalMs = uiState.settings.homeGestures.doubleTapIntervalMs,
             onDoubleTap = if (uiState.settings.homeGestures.enabled && uiState.settings.homeGestures.alphabetDoubleTap.active &&
@@ -1207,7 +1208,7 @@ internal fun LauncherScreen(
                 performGestureAction(uiState.settings.homeGestures.alphabetDoubleTap, origin, fromButton = false)
             } else null,
             // Widget screen always hides the idle glyphs; its edge touch areas stay active.
-            autoHide = (uiState.settings.hideAlphabet || homePager.currentPage == 1) && !drawerOpen,
+            autoHide = if (drawerOpen) !alphabet.showInAppList else !showHomeAlphabet || homePager.currentPage == 1,
         )
         if (!editingWidgetScreen && !editingHomeContent && ((!drawerOpen && editingHome) || uiState.settings.graceButton.isVisible(drawerOpen))) {
             val buttonBounds = uiState.settings.graceButton.layout.bounds(maxWidth.value, maxHeight.value,
