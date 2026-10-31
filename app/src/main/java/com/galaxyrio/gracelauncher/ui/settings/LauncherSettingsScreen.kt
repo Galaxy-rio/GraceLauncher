@@ -194,7 +194,8 @@ fun LauncherSettingsScreen(
                         else closeRoot()
                     }
                 }
-                CompositionLocalProvider(LocalOpenFontColors provides { navigate(SettingsPage.FontColors) }) {
+                CompositionLocalProvider(LocalOpenFontColors provides { navigate(SettingsPage.FontColors) },
+                    LocalOpenDigitalWellbeing provides { navigate(SettingsPage.DigitalWellbeing) }) {
                 // Never initialize an editable draft before Room's first snapshot.
                 if (!storage.canEdit) {
                     SettingsScaffold(stringResource(R.string.settings_title), "settings_storage_blocked", back) { }
@@ -210,7 +211,7 @@ fun LauncherSettingsScreen(
                     SettingsPage.TabletsFoldables -> SettingsPlaceholder(stringResource(R.string.settings_tablets_foldables), "tablets_foldables_settings", back)
                     SettingsPage.Homepage -> com.galaxyrio.gracelauncher.ui.overlays.HomepageEditorScreen(
                         uiState, actions, actions.toggleFavorite, actions.reorderFavorites, onDone = back)
-                    SettingsPage.AppList -> SettingsPlaceholder(stringResource(R.string.settings_folder_app_list), "app_list_settings", back)
+                    SettingsPage.AppList -> com.galaxyrio.gracelauncher.ui.overlays.AppListEditorScreen(uiState, actions, back)
                     SettingsPage.FeedScreen -> SettingsPlaceholder(stringResource(R.string.settings_feed_screen), "feed_screen_settings", back)
                     SettingsPage.StatusScreen -> SettingsPlaceholder(stringResource(R.string.settings_status_screen), "status_screen_settings", back)
                     SettingsPage.Clock -> ClockSettings(uiState, actions, back) { navigate(SettingsPage.ClockStyle) }

@@ -98,7 +98,7 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
     suspend fun mutateSettings(transform: (LauncherSettings) -> LauncherSettings) {
         database.withTransaction {
             val current = dao.readSettings()?.toSettings() ?: LauncherSettings()
-            updateSettings(synchronizeGraceWidgetOrder(current, transform(current)))
+            updateSettings(synchronizeGraceWidgetOrder(current, synchronizeCategoryPlacement(current, transform(current))))
         }
     }
 
@@ -110,9 +110,8 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
     suspend fun mutateAppCategories(favorites: List<String>, transform: (List<AppCategory>) -> List<AppCategory>) =
         database.withTransaction {
             val current = migrateHomeCategories(dao.readSettings()?.toSettings() ?: LauncherSettings(), favorites)
-            val categories = transform(requireNotNull(current.appCategories)).map(AppCategory::normalized).distinctBy { it.id }
-            require(categories.any { it.id == FavoritesCategoryId })
-            updateSettings(current.copy(appCategories = categories))
+            val categories = transform(requireNotNull(current.appCategories))
+            updateSettings(synchronizeCategoryPlacement(current, current.copy(appCategories = categories)))
         }
 
     /** Move the old single widget into the mixed home collection without rebinding it. */

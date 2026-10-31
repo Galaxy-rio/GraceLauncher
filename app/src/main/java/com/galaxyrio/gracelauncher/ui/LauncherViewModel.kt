@@ -70,6 +70,11 @@ import com.galaxyrio.gracelauncher.data.media.MediaCommand
 import com.galaxyrio.gracelauncher.data.media.MediaSessionRepository
 import com.galaxyrio.gracelauncher.data.media.MediaSnapshot
 import com.galaxyrio.gracelauncher.data.media.NowPlaying
+import com.galaxyrio.gracelauncher.data.CategoryInclusion
+import com.galaxyrio.gracelauncher.data.CategoryDynamicRule
+import com.galaxyrio.gracelauncher.data.CategoryNotificationLevel
+import com.galaxyrio.gracelauncher.data.BuiltInCategoryIds
+import com.galaxyrio.gracelauncher.data.notifications.NotificationAppId
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.data.notifications.appNotifications
 import com.galaxyrio.gracelauncher.data.weather.BreezyWeatherRepository
@@ -99,6 +104,11 @@ enum class ScheduleStatus {
     Error,
 }
 
+private fun recentInstallations(apps: List<LauncherApp>): List<LauncherApp> = apps.asSequence()
+        .filter { it.shortcut == null && it.folderId == null && !it.isPrivateSpace && !it.isLauncherSettings }
+        .sortedWith(compareByDescending<LauncherApp> { it.firstInstallTime }.then(LauncherAppOrder))
+        .distinctBy { it.userSerial to it.packageName }.take(8).toList()
+
 data class LauncherUiState(
     val apps: List<LauncherApp> = emptyList(),
     val favoriteKeys: Set<String> = emptySet(),
@@ -125,6 +135,7 @@ data class LauncherUiState(
     val isDefaultHome: Boolean? = null,
     val media: MediaSnapshot = MediaSnapshot(),
     val notifications: Map<String, List<AppNotification>> = emptyMap(),
+    val categoryNotifications: Map<NotificationAppId, Set<CategoryNotificationLevel>> = emptyMap(),
     val usage: com.galaxyrio.gracelauncher.data.UsageSnapshot = com.galaxyrio.gracelauncher.data.UsageSnapshot(),
     val favoriteOrder: List<String> = emptyList(),
     val weather: WeatherState = WeatherState(),
@@ -177,10 +188,7 @@ data class LauncherUiState(
 
     // Hidden apps remain available in folders. Profile-protected apps and saved
     // shortcuts are not installations in this personal-profile collection.
-    val recentlyInstalledApps: List<LauncherApp> get() = apps.asSequence()
-        .filter { it.shortcut == null && it.folderId == null && !it.isPrivateSpace && !it.isLauncherSettings }
-        .sortedWith(compareByDescending<LauncherApp> { it.firstInstallTime }.then(LauncherAppOrder))
-        .distinctBy { it.userSerial to it.packageName }.take(8).toList()
+    val recentlyInstalledApps: List<LauncherApp> get() = recentInstallations(apps)
 
     fun recentlyInstalledFolder(name: String) = LauncherFolder(
         RecentlyInstalledFolderId, settings.listAppearance.recentlyInstalledName ?: name,
@@ -288,8 +296,35 @@ data class LauncherUiState(
             popups[com.galaxyrio.gracelauncher.data.HomeContentKey].orEmpty())
     }
 
+    val needsCategoryOpenCounts: Boolean get() = appCategories.any {
+        it.inclusion == CategoryInclusion.Dynamic && it.dynamicRule == CategoryDynamicRule.FrequentlyOpened
+    }
+
+    /** Membership does not depend on placement or display conditions; editors show the same live result. */
+    fun categoryItems(category: AppCategory): List<String> {
+        if (isLoadingSettings || settingsLoadFailed) return emptyList()
+        fun available(app: LauncherApp) = !app.isPrivateSpace || (settings.privateSpace.exposesApps && privateContentVisible)
+        if (category.inclusion == CategoryInclusion.Manual) return category.itemKeys.filter { key ->
+            findItem(key)?.let(::available) == true
+        }
+        val candidates = allApps.filter { app -> available(app) && app.key !in effectiveHiddenAppKeys &&
+            app.shortcut == null && app.folderId == null && !app.isLauncherSettings }
+        return when (category.dynamicRule) {
+            CategoryDynamicRule.Notifications -> candidates.filter { app ->
+                categoryNotifications[NotificationAppId(app.packageName, app.user ?: android.os.Process.myUserHandle())]
+                    .orEmpty().any { it in category.notificationLevels }
+            }.sortedWith(LauncherAppOrder)
+            CategoryDynamicRule.RecentlyInstalled -> recentInstallations(candidates)
+            CategoryDynamicRule.FrequentlyOpened -> if (!settings.digitalWellbeing.enabled || !usage.hasAccess) emptyList() else
+                candidates.filter { it.user == null && (usage.openCounts[it.packageName] ?: 0) > 0 }
+                    .sortedWith(compareByDescending<LauncherApp> { usage.openCounts[it.packageName] ?: 0 }.then(LauncherAppOrder))
+                    .distinctBy { it.packageName }.take(category.appLimit)
+        }.map(LauncherApp::key)
+    }
+
     internal fun visibleHomeContent(headphones: Boolean, minuteOfDay: Int) =
-        com.galaxyrio.gracelauncher.data.expandHomeCategories(homeItems, appCategories, headphones, minuteOfDay) { key ->
+        com.galaxyrio.gracelauncher.data.expandHomeCategories(homeItems, appCategories, headphones, minuteOfDay,
+            categoryItems = ::categoryItems) { key ->
             findItem(key)?.let { !it.isPrivateSpace || (settings.privateSpace.exposesApps && privateContentVisible) } == true
         }
 }
@@ -399,6 +434,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         viewModelScope.launch {
             mediaRepository.state.collect { media -> _uiState.update { it.copy(media = media) } }
         }
+        viewModelScope.launch {
+            appNotifications.categoryState.collect { memberships -> _uiState.update { it.copy(categoryNotifications = memberships) } }
+        }
         ContextCompat.registerReceiver(application, dateReceiver, IntentFilter().apply {
             addAction(Intent.ACTION_DATE_CHANGED)
             addAction(Intent.ACTION_TIME_CHANGED)
@@ -452,7 +490,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                         previous.settings.paletteStyle != snapshot.settings.paletteStyle ||
                         previous.folders != snapshot.folders) refreshApps()
                     if (previous.settings.privateSpace != snapshot.settings.privateSpace) refreshPrivateApps()
-                    if (previous.isLoadingSettings || previous.settings.digitalWellbeing != snapshot.settings.digitalWellbeing) {
+                    if (previous.isLoadingSettings || previous.settings.digitalWellbeing != snapshot.settings.digitalWellbeing ||
+                        previous.needsCategoryOpenCounts != _uiState.value.needsCategoryOpenCounts) {
                         usageLoadJob?.cancel()
                         usageLoadJob = null
                         refreshUsage()
@@ -1121,6 +1160,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val state = _uiState.value
         if (state.isLoadingSettings || state.settingsLoadFailed) return
         val settings = state.settings.digitalWellbeing
+        val needOpenCounts = state.needsCategoryOpenCounts
         val access = usageRepository.hasAccess()
         if (!settings.enabled || !access) {
             usageLoadJob?.cancel()
@@ -1129,8 +1169,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         if (forceRanking) usageLoadJob?.cancel()
         if (settings.enabled && access) _uiState.update { it.copy(usage = it.usage.copy(hasAccess = true, loading = true)) }
         usageLoadJob = viewModelScope.launch {
-            val result = usageRepository.refresh(settings, forceRanking)
-            if (_uiState.value.settings.digitalWellbeing == settings) _uiState.update { it.copy(usage = result) }
+            val result = usageRepository.refresh(settings, forceRanking, needOpenCounts)
+            if (_uiState.value.settings.digitalWellbeing == settings && _uiState.value.needsCategoryOpenCounts == needOpenCounts)
+                _uiState.update { it.copy(usage = result) }
         }
     }
 
@@ -1334,7 +1375,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     }
 
     fun deleteAppCategory(id: String) {
-        if (id == FavoritesCategoryId) return
+        if (id in BuiltInCategoryIds) return
         persistSettings { settingsRepository.mutateAppCategories(currentFavoriteOrder()) { it.filterNot { category -> category.id == id } } }
     }
 
@@ -1342,7 +1383,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         rememberPopupItems(listOf(app))
         if (app.shortcut != null) _uiState.update { it.copy(shortcutApps = it.shortcutApps.filterNot { item -> item.key == app.key } + app) }
         settingsRepository.mutateAppCategories(currentFavoriteOrder()) { categories -> categories.map { category ->
-            if (category.id != id) category else category.copy(itemKeys =
+            if (category.id != id || category.inclusion != CategoryInclusion.Manual) category else category.copy(itemKeys =
                 if (app.key in category.itemKeys) category.itemKeys - app.key else category.itemKeys + app.key)
         } }
     }

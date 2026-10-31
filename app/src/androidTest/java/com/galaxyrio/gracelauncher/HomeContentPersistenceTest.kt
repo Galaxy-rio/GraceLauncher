@@ -32,7 +32,7 @@ class HomeContentPersistenceTest {
             assertEquals(migrated, repository.snapshots.first())
             repository.mutateAppCategories(emptyList()) { categories -> categories.map {
                 if (it.id != FavoritesCategoryId) it else it.copy(name = "Custom name", itemKeys = listOf("folder:x", "shortcut:x"),
-                    condition = CategoryCondition.Time, startMinute = 1320, endMinute = 420, showOnHome = false)
+                    condition = CategoryCondition.Time, startMinute = 1320, endMinute = 420, placement = CategoryPlacement.None)
             } }
             val saved = repository.snapshots.first().settings.appCategories!!.first()
             assertEquals(saved, AppCategory.decode(AppCategory.encode(listOf(saved)))!!.first())

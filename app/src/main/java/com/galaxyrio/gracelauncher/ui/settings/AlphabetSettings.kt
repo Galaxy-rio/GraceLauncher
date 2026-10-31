@@ -38,6 +38,8 @@ import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AlphabetRail
 import com.galaxyrio.gracelauncher.ui.drawer.AppListModel
+import com.galaxyrio.gracelauncher.ui.home.rememberHeadphonesConnected
+import com.galaxyrio.gracelauncher.ui.home.rememberHomeTime
 import com.galaxyrio.gracelauncher.ui.theme.LocalFontLibrary
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherAppearance
@@ -58,7 +60,8 @@ internal fun AlphabetSettings(uiState: LauncherUiState, actions: LauncherActions
     var dialog by rememberSaveable { mutableStateOf<String?>(null) }
     val controls = rememberLazyListState()
     val enabled = LocalSettingsStorageState.current.canEdit
-    val letters = rememberAlphabetPreviewLetters(uiState)
+    val previewModel = rememberAlphabetPreviewModel(uiState)
+    val letters = previewModel.letters
     val density = LocalDensity.current
     var viewportTop by remember { mutableFloatStateOf(0f) }
     // Measure before the scaffold takes out its app bar and navigation padding,
@@ -95,7 +98,7 @@ internal fun AlphabetSettings(uiState: LauncherUiState, actions: LauncherActions
             // Leave a useful controls column on small phones, and enough preview width
             // for both the wave and its indicator. The right edge has no outer margin.
             val previewWidth = (maxWidth * .42f).coerceIn(160.dp, 180.dp)
-            AlphabetPreview(uiState, draft, letters, railLayout, viewportTop, Modifier.align(AbsoluteAlignment.TopRight).width(previewWidth).fillMaxHeight()
+            AlphabetPreview(uiState, draft, previewModel, railLayout, viewportTop, Modifier.align(AbsoluteAlignment.TopRight).width(previewWidth).fillMaxHeight()
                 .padding(top = 8.dp, bottom = 8.dp + LocalSettingsBottomInset.current))
             SharedTransitionLayout(Modifier.fillMaxSize().absolutePadding(left = 12.dp, right = previewWidth + 8.dp, top = 8.dp).clipToBounds()) {
                 AnimatedContent(dialog == "color", Modifier.fillMaxSize(),
@@ -184,7 +187,7 @@ internal fun AlphabetSettings(uiState: LauncherUiState, actions: LauncherActions
 }
 
 @Composable
-private fun AlphabetPreview(uiState: LauncherUiState, draft: AlphabetAppearance, letters: List<String>, layout: AlphabetRailLayout,
+private fun AlphabetPreview(uiState: LauncherUiState, draft: AlphabetAppearance, model: AppListModel, layout: AlphabetRailLayout,
     viewportTop: Float, modifier: Modifier) {
     val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons, 100)
     val settings = uiState.settings
@@ -211,8 +214,9 @@ private fun AlphabetPreview(uiState: LauncherUiState, draft: AlphabetAppearance,
         CompositionLocalProvider(LocalLauncherAppearance provides appearance, LocalFontLibrary provides settings.fontLibrary) {
             // A window into the desktop, not another screen with a shorter coordinate
             // system. Preserve actual letter spacing, glyph sizes and indicator geometry.
-            if (positioned) AlphabetRail(letters, selected, layout.heightDp.dp,
+            if (positioned) AlphabetRail(model.letters, selected, layout.heightDp.dp,
                 onLetterSelected = { selected = it }, alphabet = draft,
+                categorySections = model.categorySections,
                 topOffset = (viewportTop + layout.topDp - previewTop).dp, touchHeight = maxHeight,
                 modifier = Modifier.align(AbsoluteAlignment.TopRight))
         }
@@ -220,7 +224,7 @@ private fun AlphabetPreview(uiState: LauncherUiState, draft: AlphabetAppearance,
 }
 
 @Composable
-private fun rememberAlphabetPreviewLetters(uiState: LauncherUiState): List<String> {
+private fun rememberAlphabetPreviewModel(uiState: LauncherUiState): AppListModel {
     val settings = uiState.settings
     val profilesReady = !uiState.isLoadingSettings && !uiState.settingsLoadFailed
     val privateFolder = uiState.privateFolder.takeIf { settings.privateSpace.enabled && uiState.privateSpace.supported &&
@@ -230,7 +234,17 @@ private fun rememberAlphabetPreviewLetters(uiState: LauncherUiState): List<Strin
     val apps = uiState.appListApps
     val recentFolder = uiState.recentlyInstalledFolder(stringResource(R.string.recently_installed))
         .takeIf { settings.listAppearance.showRecentlyInstalled }
-    return remember(apps, uiState.folders, privateFolder, workFolder, recentFolder) {
-        AppListModel(apps, uiState.folders, privateFolder, recentlyInstalledFolder = recentFolder, workFolder = workFolder).letters
+    val categories = uiState.appCategories
+    val members = remember(uiState, categories) {
+        categories.associate { category -> category.key to uiState.categoryItems(category).mapNotNull(uiState::findItem) }
+    }
+    val now by rememberHomeTime()
+    val headphones by rememberHeadphonesConnected()
+    val time = now.atZone(java.time.ZoneId.systemDefault()).toLocalTime()
+    val minute = time.hour * 60 + time.minute
+    return remember(apps, uiState.folders, privateFolder, workFolder, recentFolder, settings.listAppearance.appList, categories, members, headphones, minute) {
+        AppListModel(apps, uiState.folders, privateFolder, recentlyInstalledFolder = recentFolder, workFolder = workFolder,
+            appList = settings.listAppearance.appList, categories = categories, categoryItems = members,
+            headphones = headphones, minuteOfDay = minute)
     }
 }

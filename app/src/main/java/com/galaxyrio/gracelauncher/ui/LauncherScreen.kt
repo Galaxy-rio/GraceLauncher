@@ -132,6 +132,8 @@ import com.galaxyrio.gracelauncher.ui.components.AppStack
 import com.galaxyrio.gracelauncher.ui.drawer.AppDrawerScreen
 import com.galaxyrio.gracelauncher.ui.drawer.AppListModel
 import com.galaxyrio.gracelauncher.ui.home.HomeScreen
+import com.galaxyrio.gracelauncher.ui.home.rememberHeadphonesConnected
+import com.galaxyrio.gracelauncher.ui.home.rememberHomeTime
 import com.galaxyrio.gracelauncher.ui.home.WidgetScreen
 import com.galaxyrio.gracelauncher.ui.settings.LauncherSettingsScreen
 import com.galaxyrio.gracelauncher.ui.overlays.LauncherOverlay
@@ -585,9 +587,20 @@ internal fun LauncherScreen(
     val usageRanking = uiState.usage.ranking.takeIf {
         uiState.settings.digitalWellbeing.enabled && uiState.settings.digitalWellbeing.sortApps && uiState.usage.hasAccess
     }.orEmpty()
-    val model = remember(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps, recentFolder, workFolder, workExpanded, workApps, usageRanking) {
+    val appListLayout = uiState.settings.listAppearance.appList
+    val appCategories = uiState.appCategories
+    val categoryMembers = remember(uiState, appCategories) {
+        appCategories.associate { category -> category.key to uiState.categoryItems(category).mapNotNull(uiState::findItem) }
+    }
+    val categoryNow by rememberHomeTime()
+    val categoryHeadphones by rememberHeadphonesConnected()
+    val categoryTime = categoryNow.atZone(java.time.ZoneId.systemDefault()).toLocalTime()
+    val categoryMinute = categoryTime.hour * 60 + categoryTime.minute
+    val model = remember(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps, recentFolder, workFolder, workExpanded,
+        workApps, usageRanking, appListLayout, appCategories, categoryMembers, categoryHeadphones, categoryMinute) {
         AppListModel(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps, recentFolder, workFolder, workExpanded, workApps,
-            usageRanking = usageRanking)
+            usageRanking = usageRanking, appList = appListLayout, categories = appCategories, categoryItems = categoryMembers,
+            headphones = categoryHeadphones, minuteOfDay = categoryMinute)
     }
     val drawerState = rememberLazyListState()
     val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons,
@@ -1163,6 +1176,7 @@ internal fun LauncherScreen(
             alphabet = alphabet,
             leftTouchEnabled = uiState.settings.listAppearance.leftAlphabet,
             letters = model.letters,
+            categorySections = model.categorySections,
             selectedLetter = if (drawerOpen) selectedLetter else null,
             height = railLayout.heightDp.dp,
             topOffset = railLayout.topDp.dp,

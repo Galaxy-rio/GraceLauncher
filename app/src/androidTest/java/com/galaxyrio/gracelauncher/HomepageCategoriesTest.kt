@@ -24,7 +24,7 @@ class HomepageCategoriesTest {
         state = LauncherUiState(apps = listOf(app), isLoadingApps = false, folders = listOf(folder, stack),
             settings = LauncherSettings(calendarAgenda = false, mediaPlayer = false,
                 homeLayout = HomeLayout(baselineEnabled = false),
-                appCategories = AppCategory.defaults(listOf(app.key)).map { if (it.id == MusicCategoryId) it.copy(showOnHome = false) else it }))
+                appCategories = AppCategory.defaults(listOf(app.key)).map { if (it.id == MusicCategoryId) it.copy(placement = com.galaxyrio.gracelauncher.data.CategoryPlacement.None) else it }))
         val actions = LauncherActions(updateSettings = { state = state.copy(settings = it(state.settings)) },
             updateAppCategory = { id, change -> state = state.copy(settings = state.settings.copy(appCategories = state.appCategories.map {
                 if (it.id == id) change(it) else it

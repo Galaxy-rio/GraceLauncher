@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.safeDrawing
@@ -36,9 +37,14 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.constrainHeight
+import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.data.LauncherApp
@@ -47,6 +53,7 @@ import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
+import com.galaxyrio.gracelauncher.ui.components.CategoryIndicator
 import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
 import com.galaxyrio.gracelauncher.ui.components.FolderRow
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
@@ -56,6 +63,7 @@ import com.galaxyrio.gracelauncher.ui.components.endPadding
 import com.galaxyrio.gracelauncher.ui.components.listLabelStyle
 import com.galaxyrio.gracelauncher.ui.components.stableStatusBarInset
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
+import com.galaxyrio.gracelauncher.ui.settings.categoryLabel
 import kotlinx.coroutines.flow.first
 
 @Composable
@@ -89,6 +97,14 @@ fun AppDrawerScreen(
     val appearance = LocalLauncherAppearance.current
     val listAppearance = LocalListAppearance.current
     val labelStyle = listLabelStyle()
+    val sectionStyle = TextStyle(
+        fontFamily = labelStyle.fontFamily,
+        fontSize = 18.sp,
+        lineHeight = 24.sp,
+        fontWeight = FontWeight.Normal,
+        shadow = appearance.textShadow,
+    )
+    val sectionLetterSize = rememberTextMeasurer().measure("C", style = sectionStyle, maxLines = 1).size
     val density = LocalDensity.current
     val bottomInset = WindowInsets.safeDrawing.asPaddingValues().calculateBottomPadding()
     val safeTop = with(density) { (stableStatusBarInset() + 12.dp)
@@ -116,7 +132,9 @@ fun AppDrawerScreen(
                 listState.layoutInfo.viewportEndOffset > listState.layoutInfo.viewportStartOffset
         }.first { it }
         val expandedModel = currentModel
-        val index = expandedModel.items.indexOfFirst { it is DrawerItem.Folder && it.folder.id == expandedId }
+        val index = expandedModel.items.indexOfFirst {
+            it is DrawerItem.Folder && it.section == FolderSection && it.folder.id == expandedId
+        }
         if (index < 0) return@LaunchedEffect
         val viewport = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
         val rowHeight = listState.layoutInfo.visibleItemsInfo.firstOrNull { it.key == expandedModel.items[index].key }?.size
@@ -152,7 +170,23 @@ fun AppDrawerScreen(
                     alpha = if (selectedLetter == null && item.section != lastSelectedLetter) releasedItemsAlpha.value else 1f
                 }) {
                 when (item) {
-                    is DrawerItem.Header -> Text(
+                    is DrawerItem.Header -> if (item.section in model.categorySections) {
+                        val category = model.categorySections.getValue(item.section)
+                        Box(Modifier.height(44.dp)
+                            .padding(start = LauncherLayout.ContentInset, end = LauncherLayout.ContentInset, top = 12.dp)
+                            .testTag("section:${item.section}").semantics { heading() }) {
+                            // Anchor the symbol to the existing letter column, including font scaling.
+                            CategoryIndicator(category.icon, Modifier.layout { measurable, constraints ->
+                                val symbol = measurable.measure(constraints)
+                                val width = constraints.constrainWidth(sectionLetterSize.width)
+                                val height = constraints.constrainHeight(sectionLetterSize.height)
+                                layout(width, height) {
+                                    symbol.placeRelative((width - symbol.width) / 2, (height - symbol.height) / 2)
+                                }
+                            }.size(24.dp), tint = labelStyle.color,
+                                contentDescription = categoryLabel(category))
+                        }
+                    } else Text(
                         text = when (item.section) {
                             FolderSection -> stringResource(R.string.drawer_folders)
                             GraceSection -> stringResource(R.string.app_name)
@@ -163,13 +197,7 @@ fun AppDrawerScreen(
                             .padding(start = LauncherLayout.ContentInset, end = LauncherLayout.ContentInset, top = 12.dp)
                             .testTag("section:${item.section}"),
                         color = labelStyle.color,
-                        style = TextStyle(
-                            fontFamily = labelStyle.fontFamily,
-                            fontSize = 18.sp,
-                            lineHeight = 24.sp,
-                            fontWeight = FontWeight.Normal,
-                            shadow = appearance.textShadow,
-                        ),
+                        style = sectionStyle,
                     )
                     is DrawerItem.App -> LauncherAppRow(
                         showLabel = listAppearance.showNames(favorites = false, insideFolder = item.section == FolderSection),

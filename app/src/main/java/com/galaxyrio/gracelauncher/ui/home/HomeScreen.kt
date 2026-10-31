@@ -88,6 +88,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
+import com.galaxyrio.gracelauncher.data.CategoryIcon
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.data.ClockStyle
@@ -157,6 +158,7 @@ fun HomeScreen(
     val homeContent = uiState.visibleHomeContent(headphones, localTime.hour * 60 + localTime.minute)
     val event = if (uiState.settings.calendarAgenda) nextVisibleEvent(uiState.events, now) else null
     val entries = homeContent.items
+    val categoryIcons = uiState.appCategories.associate { it.key to it.icon }
     val entriesByKey = entries.associateBy { it.key }
     val favoriteFolders = (uiState.folders + uiState.favoriteFolders).associateBy { it.id }
     var idleMediaDismissed by rememberSaveable(uiState.settings.mediaAlwaysVisible, uiState.settings.mediaPlayer) { mutableStateOf(false) }
@@ -384,6 +386,7 @@ fun HomeScreen(
                                 if (!cancelled && !homeLayout.editingLocked) selectedWidget = entry.key
                             })
                         app != null -> {
+                            val categoryIcon = categoryIcons[homeContent.owners[entry.key]] ?: CategoryIcon.None
                             val folder = app.folderId?.let(favoriteFolders::get)
                             if (folder?.isAppStack == true) AppStack(folder, uiState,
                                 onLaunch = { item, bounds -> rowGestures.onLaunchAt?.invoke(item, bounds) ?: onLaunchApp(item) },
@@ -396,13 +399,15 @@ fun HomeScreen(
                                 onDrag = { bounds, expanded -> onFolderDrag(folder, bounds, expanded) },
                                 onDragEnd = onFolderDragEnd,
                                 onSwipeLeft = rowGestures.onOpenFirst?.let { open -> { bounds -> open(app, bounds) } },
-                                showLabel = uiState.settings.listAppearance.showNames(favorites = true))
+                                showLabel = uiState.settings.listAppearance.showNames(favorites = true),
+                                categoryIcon = categoryIcon)
                             else LauncherAppRow(app, onClick = { onLaunchApp(app) }, onLongClick = { onAppDetails(app) },
                                 usageText = favoriteUsageLabel(app, uiState),
                                 onSwipeRight = { onAppShortcuts(app, it) }, gestures = rowGestures,
                                 highlighted = highlightedAppKey == app.key,
                                 notifications = uiState.notificationPreviewsFor(app),
-                                showLabel = uiState.settings.listAppearance.showNames(favorites = true))
+                                showLabel = uiState.settings.listAppearance.showNames(favorites = true),
+                                categoryIcon = categoryIcon)
                         }
                     }
                 }

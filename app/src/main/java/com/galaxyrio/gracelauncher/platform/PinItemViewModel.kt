@@ -153,7 +153,8 @@ class PinItemViewModel(application: Application) : AndroidViewModel(application)
             val legacyFavorites = FavoritesStore(context).favoritesFor(apps)
             LauncherSettingsRepository(database).mutateAppCategories(legacyFavorites) { categories ->
                 categories.map { category -> if (category.id != com.galaxyrio.gracelauncher.data.FavoritesCategoryId) category
-                    else category.copy(itemKeys = (category.itemKeys + app.key).distinct(), showOnHome = true) }
+                    else category.copy(itemKeys = (category.itemKeys + app.key).distinct(),
+                        placement = com.galaxyrio.gracelauncher.data.CategoryPlacement.Home) }
             }
             withContext(Dispatchers.Main) { complete() }
         }

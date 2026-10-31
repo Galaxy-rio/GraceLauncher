@@ -77,6 +77,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.res.stringResource
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.ShortcutsFoldersSettings
+import com.galaxyrio.gracelauncher.data.CategoryIcon
 import com.galaxyrio.gracelauncher.data.IconDisplaySettings
 import com.galaxyrio.gracelauncher.data.IconDisplayStyle
 import com.galaxyrio.gracelauncher.data.IconShape
@@ -220,6 +221,7 @@ fun LauncherAppRow(
     notifications: List<AppNotification> = emptyList(),
     showLabel: Boolean = true,
     usageText: String? = null,
+    categoryIcon: CategoryIcon = CategoryIcon.None,
 ) {
     val display = app.effectiveDisplay(LocalLauncherAppearance.current)
     LauncherRow(
@@ -239,6 +241,7 @@ fun LauncherAppRow(
         highlighted = highlighted,
         notifications = if (app.shortcut == null && app.user == null) notifications else emptyList(),
         usageText = usageText,
+        categoryIcon = categoryIcon,
         showLabel = showLabel,
         animationComponents = listOf(app.componentName),
         animationUser = app.user ?: Process.myUserHandle(),
@@ -260,6 +263,7 @@ fun FolderRow(
     app: LauncherApp = folder.asApp(),
     trailing: (@Composable () -> Unit)? = null,
     notifications: List<AppNotification> = emptyList(),
+    categoryIcon: CategoryIcon = CategoryIcon.None,
 ) {
     val display = app.effectiveDisplay(LocalLauncherAppearance.current)
     // Return contracts currently support the personal user only. A foreign installation must
@@ -285,6 +289,7 @@ fun FolderRow(
         showLabel = showLabel,
         trailing = trailing,
         notifications = notifications,
+        categoryIcon = categoryIcon,
         animationComponents = animationComponents,
         animationFolder = true,
         hiddenIcon = display.style == IconDisplayStyle.Hidden,
@@ -320,6 +325,7 @@ private fun LauncherRow(
     animationUser: UserHandle = Process.myUserHandle(),
     hiddenIcon: Boolean? = null,
     usageText: String? = null,
+    categoryIcon: CategoryIcon = CategoryIcon.None,
     icon: @Composable (Modifier) -> Unit,
 ) {
     val appearance = LocalLauncherAppearance.current
@@ -446,7 +452,8 @@ private fun LauncherRow(
                 AppNotificationLabel(label, notifications, labelVisible,
                     usageText = usageText,
                     labelModifier = Modifier.testTag("$rowKey:label"),
-                    notificationBodyLines = if (popupSettings.singleLineNotificationPreviews) 1 else 2)
+                    notificationBodyLines = if (popupSettings.singleLineNotificationPreviews) 1 else 2,
+                    categoryIcon = if (showLabel) categoryIcon else CategoryIcon.None)
             }
             trailing?.invoke()
             if (notifications.isNotEmpty()) {
@@ -477,26 +484,37 @@ internal fun AppNotificationLabel(
     maxLines: Int = 1,
     notificationBodyLines: Int = 1,
     usageText: String? = null,
+    categoryIcon: CategoryIcon = CategoryIcon.None,
 ) {
     val style = listLabelStyle(onWallpaper)
     val list = LocalListAppearance.current
     Column(modifier) {
         if (showLabel) {
             val notificationAgeText = notifications.firstOrNull()?.let { " · ${notificationAge(it.postedAt)}" }.orEmpty()
-            if (usageText == null) {
-                Text(label + notificationAgeText, modifier = labelModifier, style = style,
-                    maxLines = maxLines, overflow = TextOverflow.Ellipsis)
-            } else Box(Modifier.testTag("favorite_usage")) {
-                Text(buildAnnotatedString {
-                    append(label)
-                    withStyle(SpanStyle(fontSize = (list.fontSize - 3).sp)) {
-                        withStyle(SpanStyle(color = style.color.copy(alpha = style.color.alpha * 0.65f))) {
-                            append(" · $usageText")
+            val labelContent: @Composable (Modifier) -> Unit = { contentModifier ->
+                if (usageText == null) {
+                    Text(label + notificationAgeText, modifier = contentModifier.then(labelModifier), style = style,
+                        maxLines = maxLines, overflow = TextOverflow.Ellipsis)
+                } else Box(contentModifier.testTag("favorite_usage")) {
+                    Text(buildAnnotatedString {
+                        append(label)
+                        withStyle(SpanStyle(fontSize = (list.fontSize - 3).sp)) {
+                            withStyle(SpanStyle(color = style.color.copy(alpha = style.color.alpha * 0.65f))) {
+                                append(" · $usageText")
+                            }
+                            append(notificationAgeText)
                         }
-                        append(notificationAgeText)
-                    }
-                }, modifier = labelModifier, style = style,
-                    maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                    }, modifier = labelModifier, style = style,
+                        maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
+                }
+            }
+            if (categoryIcon == CategoryIcon.None) labelContent(Modifier)
+            else Row(verticalAlignment = Alignment.CenterVertically) {
+                // Shrink to the label while reserving room for the small category symbol.
+                labelContent(Modifier.weight(1f, fill = false))
+                Spacer(Modifier.width(4.dp))
+                CategoryIndicator(categoryIcon,
+                    Modifier.size(16.dp).testTag("category_indicator:${categoryIcon.name}"), tint = style.color)
             }
         }
         notifications.forEachIndexed { index, notification ->

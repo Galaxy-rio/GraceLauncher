@@ -64,9 +64,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.AlphabetAppearance
+import com.galaxyrio.gracelauncher.data.AppCategory
 import com.galaxyrio.gracelauncher.data.IconShape
 import com.galaxyrio.gracelauncher.data.icons.iconShapePath
 import com.galaxyrio.gracelauncher.ui.drawer.GraceSection
+import com.galaxyrio.gracelauncher.ui.settings.categoryLabel
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.rememberAppFontFamily
 import com.galaxyrio.gracelauncher.ui.theme.resolvedFontColor
@@ -106,6 +108,7 @@ fun AlphabetRail(
     enabled: Boolean = true,
     onDoubleTap: ((Offset) -> Unit)? = null,
     doubleTapIntervalMs: Int? = null,
+    categorySections: Map<String, AppCategory> = emptyMap(),
 ) {
     if (letters.isEmpty()) return
     val appearance = LocalLauncherAppearance.current
@@ -251,10 +254,12 @@ fun AlphabetRail(
         ) {
             entries.forEachIndexed { index, letter ->
                 val isSelected = if (state.active) state.selectedIndex == index else selectedLetter == letter
+                val category = letter?.let(categorySections::get)
                 val description = when (letter) {
                     null -> homeDescription
                     GraceSection -> stringResource(R.string.jump_to_section, stringResource(R.string.app_name))
-                    else -> stringResource(if (includeHome) R.string.jump_to_letter else R.string.jump_to_section, letter)
+                    else -> if (category != null) stringResource(R.string.jump_to_section, categoryLabel(category))
+                        else stringResource(if (includeHome) R.string.jump_to_letter else R.string.jump_to_section, letter)
                 }
                 Box(
                     modifier = Modifier
@@ -292,6 +297,8 @@ fun AlphabetRail(
                         LauncherIcon(LauncherSymbol.Star, Modifier.size(18.dp), tint = color)
                     } else if (letter == GraceSection) {
                         Box(Modifier.size(8.dp).background(color, CircleShape))
+                    } else if (category != null) {
+                        CategoryIndicator(category.icon, Modifier.size(18.dp), tint = color)
                     } else {
                         Text(
                             text = letter,
@@ -337,6 +344,7 @@ fun AlphabetRail(
                     contentAlignment = Alignment.Center,
                 ) {
                     val letter = entries.getOrNull(state.selectedIndex)
+                    val category = letter?.let(categorySections::get)
                     if (letter == null) {
                         LauncherIcon(
                             LauncherSymbol.Star,
@@ -345,6 +353,9 @@ fun AlphabetRail(
                         )
                     } else if (letter == GraceSection) {
                         Box(Modifier.size(16.dp).background(MaterialTheme.colorScheme.onPrimary, CircleShape))
+                    } else if (category != null) {
+                        CategoryIndicator(category.icon, Modifier.size(28.dp).testTag("alphabet_indicator_category"),
+                            tint = MaterialTheme.colorScheme.onPrimary)
                     } else {
                         CenteredIndicatorGlyph(letter, MaterialTheme.colorScheme.onPrimary, fontFamily)
                     }

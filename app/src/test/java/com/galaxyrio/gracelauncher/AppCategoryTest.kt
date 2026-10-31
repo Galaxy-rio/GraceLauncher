@@ -5,6 +5,38 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class AppCategoryTest {
+    @Test fun builtInsHaveProtectedIdentityAndIndependentDefaultPlacementAndMembership() {
+        val defaults = AppCategory.defaults(listOf("app:a"))
+        assertEquals(listOf(FavoritesCategoryId, MusicCategoryId, PinnedCategoryId, NotificationCategoryId), defaults.map { it.id })
+        assertTrue(defaults.all { it.isBuiltIn })
+        assertFalse(AppCategory("custom").isBuiltIn)
+        assertEquals(listOf("app:a"), defaults.first().itemKeys)
+        assertEquals(listOf(CategoryPlacement.Home, CategoryPlacement.Home, CategoryPlacement.AppList, CategoryPlacement.None), defaults.map { it.placement })
+        assertEquals(listOf(CategoryIcon.None, CategoryIcon.MusicNote, CategoryIcon.Keep, CategoryIcon.NotificationsUnread), defaults.map { it.icon })
+        assertEquals(CategoryCondition.Headphones, defaults[1].condition)
+        assertEquals(CategoryCondition.Always, defaults[2].condition)
+        assertEquals(CategoryInclusion.Manual, defaults[2].inclusion)
+        assertEquals(CategoryInclusion.Dynamic, defaults[3].inclusion)
+        assertEquals(CategoryDynamicRule.Notifications, defaults[3].dynamicRule)
+        assertEquals(CategoryNotificationLevel.entries.toSet(), defaults[3].notificationLevels)
+    }
+
+    @Test fun normalizationRestoresDeletedBuiltInsWithoutResettingExistingCustomizationOrOrder() {
+        val favorite = AppCategory(FavoritesCategoryId, name = "Mine", itemKeys = listOf("app:a"), placement = CategoryPlacement.None)
+        val custom = AppCategory("custom", name = "Custom", inclusion = CategoryInclusion.Dynamic,
+            itemKeys = listOf("app:b", "folder:c", "shortcut:d", "app:b", "category:invalid", "widget:2"), appLimit = 100)
+        val repaired = AppCategory.normalize(listOf(custom, favorite, favorite.copy(name = "Duplicate")))
+        assertEquals(listOf("custom", FavoritesCategoryId, MusicCategoryId, PinnedCategoryId, NotificationCategoryId), repaired.map { it.id })
+        assertEquals(favorite, repaired[1])
+        assertEquals(listOf("app:b", "folder:c", "shortcut:d"), repaired.first().itemKeys)
+        assertEquals(30, repaired.first().appLimit)
+        assertEquals(1, custom.copy(appLimit = 0).normalized().appLimit)
+        assertEquals(CategoryIcon.Circle, custom.icon)
+        assertEquals(repaired, AppCategory.normalize(repaired))
+        assertEquals(CategoryIcon.Circle, favorite.copy(placement = CategoryPlacement.AppList).normalized().icon)
+        assertEquals(CategoryIcon.None, favorite.normalized().icon)
+    }
+
     @Test fun conditionsUseExclusiveEndAndSupportMidnight() {
         assertTrue(AppCategory("a").isVisible(false, 0))
         val music = AppCategory("music", condition = CategoryCondition.Headphones)
@@ -36,7 +68,8 @@ class AppCategoryTest {
         assertEquals(layout.baselineOffsetDp, migrated.homeLayout.baselineOffsetDp)
         assertTrue(migrated.homeLayout.editingLocked)
         assertEquals(CategoryCondition.Always, categories.first().condition)
-        assertEquals(CategoryCondition.Headphones, categories.last().condition)
+        assertEquals(CategoryCondition.Headphones, categories.first { it.id == MusicCategoryId }.condition)
+        assertTrue(categories.filter { it.placement == CategoryPlacement.AppList }.none { it.key in migrated.homeLayout.homeOrder.orEmpty() })
         assertEquals(migrated, migrateHomeCategories(migrated, listOf("different")))
     }
 
@@ -76,5 +109,23 @@ class AppCategoryTest {
         val result = expandHomeCategories(listOf(PopupItem(sleeping.key), PopupItem(always.key)), listOf(sleeping, always), false, 600) { true }
         assertEquals(listOf("a"), result.items.map { it.key })
         assertEquals(always.key, result.owners["a"])
+    }
+
+    @Test fun dynamicMembersAreResolvedOnlyForActiveCategoriesAndKeepFirstOccurrenceOwnership() {
+        val sleeping = AppCategory("sleeping", inclusion = CategoryInclusion.Dynamic, condition = CategoryCondition.Headphones)
+        val manual = AppCategory("manual", itemKeys = listOf("app:a"))
+        val dynamic = AppCategory("dynamic", inclusion = CategoryInclusion.Dynamic, itemKeys = listOf("saved-manual"))
+        val evaluated = mutableListOf<String>()
+        val result = expandHomeCategories(listOf(PopupItem(sleeping.key), PopupItem(manual.key), PopupItem(dynamic.key)),
+            listOf(sleeping, manual, dynamic), false, 600,
+            categoryItems = { category ->
+                evaluated += category.id
+                if (category.inclusion == CategoryInclusion.Dynamic) listOf("app:a", "app:b", "unavailable") else category.itemKeys
+            }, available = { it != "unavailable" })
+        assertEquals(listOf("manual", "dynamic"), evaluated)
+        assertEquals(listOf("app:a", "app:b"), result.items.map { it.key })
+        assertEquals(manual.key, result.owners["app:a"])
+        assertEquals(dynamic.key, result.owners["app:b"])
+        assertEquals(listOf("saved-manual"), dynamic.itemKeys)
     }
 }

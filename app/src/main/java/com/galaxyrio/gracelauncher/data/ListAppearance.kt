@@ -57,6 +57,7 @@ data class ListAppearance(
     val recentlyInstalledName: String? = null,
     /** Folder contents keep their labels unless explicitly linked to the outer list. */
     val applyNameVisibilityToFolders: Boolean = false,
+    val appList: AppListLayout = AppListLayout(),
 ) {
     fun showNames(favorites: Boolean, insideFolder: Boolean = false): Boolean =
         if (insideFolder && !applyNameVisibilityToFolders) true else when (names) {
@@ -68,7 +69,7 @@ data class ListAppearance(
 
     fun normalized() = copy(appSpacing = appSpacing.coerceIn(0, 64), sidePadding = sidePadding.coerceIn(8, 80),
         iconNameGap = iconNameGap.coerceIn(0, 64), fontSize = fontSize.coerceIn(10, 32), alphabet = alphabet.normalized(),
-        recentlyInstalledName = recentlyInstalledName?.trim()?.takeIf(String::isNotEmpty))
+        recentlyInstalledName = recentlyInstalledName?.trim()?.takeIf(String::isNotEmpty), appList = appList.normalized())
 
     fun encode(): String = normalized().let { safe -> JSONObject().apply {
         put("appSpacing", safe.appSpacing); put("sidePadding", safe.sidePadding); put("iconNameGap", safe.iconNameGap)
@@ -80,6 +81,7 @@ data class ListAppearance(
         put("applyNameVisibilityToFolders", safe.applyNameVisibilityToFolders)
         put("showRecentlyInstalled", safe.showRecentlyInstalled)
         put("recentlyInstalledName", safe.recentlyInstalledName ?: JSONObject.NULL)
+        put("appList", safe.appList.json())
     }.toString() }
 
     companion object {
@@ -98,6 +100,7 @@ data class ListAppearance(
                 applyNameVisibilityToFolders = value.optBoolean("applyNameVisibilityToFolders", false),
                 showRecentlyInstalled = value.optBoolean("showRecentlyInstalled", true),
                 recentlyInstalledName = if (value.isNull("recentlyInstalledName")) null else value.optString("recentlyInstalledName"),
+                appList = AppListLayout.decode(value.optJSONObject("appList")),
             ).normalized()
         }.getOrElse { ListAppearance() }
     }

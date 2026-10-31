@@ -102,6 +102,7 @@ internal fun AppSelectionRow(
     icon: (@Composable () -> Unit)? = null,
     annotation: String? = null,
     onCheckboxClick: (() -> Unit)? = null,
+    checkboxEnabled: Boolean = enabled,
     trailing: @Composable () -> Unit = {},
 ) {
     Row(
@@ -116,7 +117,7 @@ internal fun AppSelectionRow(
     ) {
         if (selectable) {
             if (singleChoice) RadioButton(selected, null, Modifier.size(24.dp), enabled = enabled)
-            else Checkbox(selected, if (onCheckboxClick == null) null else ({ onCheckboxClick() }), Modifier.size(24.dp), enabled = enabled)
+            else Checkbox(selected, if (onCheckboxClick == null) null else ({ onCheckboxClick() }), Modifier.size(24.dp), enabled = enabled && checkboxEnabled)
             Spacer(Modifier.width(16.dp))
         }
         if (icon != null) {

@@ -37,6 +37,7 @@ import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.AppIcon
 import com.galaxyrio.gracelauncher.ui.components.AppSelectionList
 import com.galaxyrio.gracelauncher.ui.components.AppSelectionRow
+import com.galaxyrio.gracelauncher.ui.components.CategoryIndicator
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import com.galaxyrio.gracelauncher.ui.components.ShortcutPickerScreen
@@ -49,13 +50,14 @@ import com.galaxyrio.gracelauncher.ui.settings.SettingsList
 import com.galaxyrio.gracelauncher.ui.settings.SettingsToggleItem
 import com.galaxyrio.gracelauncher.ui.settings.AppCategoriesSettings
 import com.galaxyrio.gracelauncher.ui.settings.LauncherSettingsScreen
+import com.galaxyrio.gracelauncher.ui.settings.LocalOpenDigitalWellbeing
 import com.galaxyrio.gracelauncher.ui.settings.categoryLabel
 import com.galaxyrio.gracelauncher.ui.widgets.WidgetPreview
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 
 private data class SelectionEntry(val key: String, val label: String, val app: LauncherApp? = null, val widget: HomeLayout? = null,
-    val graceWidget: GraceWidget? = null, val category: AppCategory? = null)
+    val graceWidget: GraceWidget? = null, val category: AppCategory? = null, val symbol: LauncherSymbol? = null)
 
 @Composable
 private fun graceWidgetLabel(widget: GraceWidget): String = stringResource(when (widget) {
@@ -120,7 +122,7 @@ internal fun HomepageEditorScreen(uiState: LauncherUiState, actions: LauncherAct
         BackHandler { choosingCategories = false }
         AppCategoriesSettings(uiState, actions, { choosingCategories = false },
             selectedIds = uiState.appCategories.filter { it.showOnHome }.map { it.id }.toSet(),
-            onToggle = { id -> actions.updateAppCategory(id) { it.copy(showOnHome = !it.showOnHome) } },
+            onToggle = { id -> actions.updateAppCategory(id) { it.copy(placement = if (it.showOnHome) CategoryPlacement.None else CategoryPlacement.Home) } },
             onEdit = { editingCategoryId = it })
         return
     }
@@ -171,7 +173,7 @@ internal fun HomepageEditorScreen(uiState: LauncherUiState, actions: LauncherAct
             val grace = GraceWidget.fromKey(key)
             val category = uiState.appCategories.firstOrNull { it.key == key }
             when {
-                category != null -> actions.updateAppCategory(category.id) { it.copy(showOnHome = false) }
+                category != null -> actions.updateAppCategory(category.id) { it.copy(placement = CategoryPlacement.None) }
                 grace != null -> actions.updateSettings { grace.setEnabled(it, false) }
                 uiState.homeItems.any { it.key == key && it.widget != null } ->
                     actions.updatePopup(homeContentOwner(), emptyList()) { it.filterNot { entry -> entry.key == key } }
@@ -189,6 +191,81 @@ internal fun HomepageEditorScreen(uiState: LauncherUiState, actions: LauncherAct
         onEditSelected = { entry -> when {
             entry.category != null -> ({ editingCategoryId = entry.category.id })
             entry.app?.folderId?.let { id -> uiState.folders.any { it.id == id } } == true -> ({ editingFolderId = entry.app.folderId })
+            else -> null
+        } },
+    )
+}
+
+@Composable
+internal fun AppListEditorScreen(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit) {
+    var choosingCategories by rememberSaveable { mutableStateOf(false) }
+    var editingCategoryId by rememberSaveable { mutableStateOf<String?>(null) }
+    var editingGrace by rememberSaveable { mutableStateOf(false) }
+    val appearance = uiState.settings.listAppearance
+    val layout = appearance.appList
+    if (editingCategoryId != null) {
+        LauncherSettingsScreen(uiState, actions, onBack = { editingCategoryId = null },
+            initialCategoryId = editingCategoryId, closePrivateSpaceOnDispose = false)
+        return
+    }
+    if (choosingCategories) {
+        BackHandler { choosingCategories = false }
+        AppCategoriesSettings(uiState, actions, { choosingCategories = false },
+            selectedIds = uiState.appCategories.filter { it.placement == CategoryPlacement.AppList }.map { it.id }.toSet(),
+            selectionPlacement = CategoryPlacement.AppList,
+            onToggle = { id -> actions.updateAppCategory(id) {
+                it.copy(placement = if (it.placement == CategoryPlacement.AppList) CategoryPlacement.None else CategoryPlacement.AppList).normalized()
+            } }, onEdit = { editingCategoryId = it })
+        return
+    }
+    if (editingGrace) {
+        BackHandler { editingGrace = false }
+        SettingsScaffold(stringResource(R.string.app_name), "app_list_grace", { editingGrace = false }) { padding ->
+            SettingsList(padding) {
+                item { Spacer(Modifier.height(24.dp)) }
+                item {
+                    SettingsToggleItem(stringResource(R.string.recently_installed), null, appearance.showRecentlyInstalled,
+                        0, 2, "app_list_recently_installed") { checked ->
+                        actions.updateSettings { it.copy(listAppearance = it.listAppearance.copy(showRecentlyInstalled = checked)) }
+                    }
+                }
+                item {
+                    SettingsToggleItem(stringResource(R.string.app_list_grace_settings), null, layout.showGraceSettings,
+                        1, 2, "app_list_grace_settings") { checked ->
+                        actions.updateSettings { it.copy(listAppearance = it.listAppearance.copy(
+                            appList = it.listAppearance.appList.copy(showGraceSettings = checked))) }
+                    }
+                }
+            }
+        }
+        return
+    }
+    ItemSelectionScreen(stringResource(R.string.app_list_edit), "app_list_editor",
+        selected = layout.orderedKeys(uiState.appCategories).mapNotNull { key ->
+            when (key) {
+                AppListBlock.AllApps.key -> SelectionEntry(key, stringResource(R.string.favorites_all_apps), symbol = LauncherSymbol.Apps)
+                AppListBlock.BottomFolders.key -> SelectionEntry(key, stringResource(R.string.app_list_bottom_folders), symbol = LauncherSymbol.Folder)
+                AppListBlock.GraceLauncher.key -> SelectionEntry(key, stringResource(R.string.app_name), symbol = LauncherSymbol.Settings)
+                else -> uiState.appCategories.firstOrNull { it.key == key }?.let { SelectionEntry(key, categoryLabel(it), category = it) }
+            }
+        }, apps = emptyList(), enabled = !uiState.isLoadingSettings && !uiState.settingsLoadFailed,
+        onToggle = {}, onRemove = { key ->
+            if (key == AppListBlock.GraceLauncher.key) actions.updateSettings { it.copy(listAppearance = it.listAppearance.copy(
+                appList = it.listAppearance.appList.copy(showGraceLauncher = false))) }
+            else uiState.appCategories.firstOrNull { it.key == key }?.let { category ->
+                actions.updateAppCategory(category.id) { it.copy(placement = CategoryPlacement.None) }
+            }
+        }, onReorder = { keys -> actions.updateSettings { it.copy(listAppearance = it.listAppearance.copy(
+            appList = it.listAppearance.appList.copy(order = keys))) } }, onDone = onBack,
+        showApps = false, checkboxOnly = true,
+        mandatoryKeys = setOf(AppListBlock.AllApps.key, AppListBlock.BottomFolders.key),
+        onAddCategory = { choosingCategories = true },
+        onAddGraceLauncher = if (layout.showGraceLauncher) null else ({ actions.updateSettings {
+            it.copy(listAppearance = it.listAppearance.copy(appList = it.listAppearance.appList.copy(showGraceLauncher = true)))
+        } }),
+        onEditSelected = { entry -> when {
+            entry.category != null -> ({ editingCategoryId = entry.category.id })
+            entry.key == AppListBlock.GraceLauncher.key -> ({ editingGrace = true })
             else -> null
         } },
     )
@@ -213,16 +290,43 @@ internal fun CategoryItemsEditor(category: AppCategory, uiState: LauncherUiState
             onSelect = { actions.toggleCategoryItem(category.id, it) })
         return
     }
+    val dynamic = category.inclusion == CategoryInclusion.Dynamic
+    val openDigitalWellbeing = LocalOpenDigitalWellbeing.current
+    val needsWellbeing = dynamic && category.dynamicRule == CategoryDynamicRule.FrequentlyOpened && !uiState.settings.digitalWellbeing.enabled
+    val needsUsageAccess = dynamic && category.dynamicRule == CategoryDynamicRule.FrequentlyOpened && !needsWellbeing && !uiState.usage.hasAccess
+    val needsNotifications = dynamic && category.dynamicRule == CategoryDynamicRule.Notifications && !uiState.media.hasAccess
     ItemSelectionScreen(categoryLabel(category), "category_editor",
-        selected = category.itemKeys.map { key ->
+        selected = (if (dynamic) uiState.categoryItems(category) else category.itemKeys).map { key ->
             val app = uiState.findItem(key)
             SelectionEntry(key, app?.label ?: stringResource(R.string.popup_item_unavailable), app)
         }, apps = uiState.allApps, enabled = !uiState.isLoadingSettings && !uiState.settingsLoadFailed,
         onToggle = { actions.toggleCategoryItem(category.id, it) },
         onRemove = { key -> actions.updateAppCategory(category.id) { it.copy(itemKeys = it.itemKeys - key) } },
         onReorder = { keys -> actions.updateAppCategory(category.id) { it.copy(itemKeys = mergeHomeOrder(keys, it.itemKeys)) } },
-        onDone = onBack, onAddShortcut = { choosingShortcut = true },
-        onAddFolder = { choosingGroup = false }, onAddStack = { choosingGroup = true }, header = header)
+        onDone = onBack, onAddShortcut = if (dynamic) null else ({ choosingShortcut = true }),
+        onAddFolder = if (dynamic) null else ({ choosingGroup = false }), onAddStack = if (dynamic) null else ({ choosingGroup = true }),
+        header = header, showApps = !dynamic, readOnlySelected = dynamic,
+        emptyMessage = stringResource(if (dynamic) R.string.search_no_results else R.string.homepage_empty),
+        selectedNotice = if (!needsWellbeing && !needsUsageAccess && !needsNotifications) null else ({
+            Column(Modifier.padding(horizontal = 8.dp).testTag("category_permission_notice")) {
+                Text(stringResource(when {
+                    needsWellbeing -> R.string.category_dw_disabled
+                    needsUsageAccess -> R.string.usage_access_required
+                    else -> R.string.media_access_required
+                }), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                TextButton(onClick = when {
+                    needsWellbeing -> openDigitalWellbeing ?: {}
+                    needsUsageAccess -> actions.requestUsageAccess
+                    else -> actions.requestMediaAccess
+                }, enabled = !needsWellbeing || openDigitalWellbeing != null, modifier = Modifier.testTag("category_permission_action")) {
+                    Text(stringResource(when {
+                        needsWellbeing -> R.string.category_open_dw
+                        needsUsageAccess -> R.string.usage_access
+                        else -> R.string.media_open_settings
+                    }))
+                }
+            }
+        }))
 }
 
 @Composable
@@ -314,9 +418,13 @@ private fun ItemSelectionScreen(
     onAddFolder: (() -> Unit)? = null,
     onAddStack: (() -> Unit)? = null,
     onAddGraceWidget: (() -> Unit)? = null,
+    onAddGraceLauncher: (() -> Unit)? = null,
     appGroupChoices: List<SelectionOption> = emptyList(),
     header: (@Composable () -> Unit)? = null,
+    selectedNotice: (@Composable () -> Unit)? = null,
     reorderOnly: Boolean = false,
+    readOnlySelected: Boolean = false,
+    mandatoryKeys: Set<String> = emptySet(),
     loading: Boolean = false,
     emptyMessage: String? = null,
     showApps: Boolean = true,
@@ -358,8 +466,9 @@ private fun ItemSelectionScreen(
         ) {
             if (header != null) item(key = "editor_header", contentType = "header") { header() }
             item(key = "selected_header", contentType = "header") { SelectionHeading(stringResource(R.string.favorites_selected), "${tag}_selected") }
+            if (selectedNotice != null) item(key = "selected_notice") { selectedNotice() }
             if (loading) item(key = "loading") { LinearProgressIndicator(Modifier.fillMaxWidth().padding(8.dp)) }
-            if (!loading && reorder.keys.isEmpty()) item(key = "empty") {
+            if (!loading && reorder.keys.isEmpty() && selectedNotice == null) item(key = "empty") {
                 Text(emptyMessage ?: stringResource(if (reorderOnly) R.string.private_space_empty else if (onAddWidget == null) R.string.favorites_empty else R.string.popup_empty), Modifier.padding(8.dp),
                     style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
@@ -377,19 +486,22 @@ private fun ItemSelectionScreen(
                     .clip(RoundedCornerShape(16.dp)).background(background)
                     .semantics {
                         customActions = buildList {
-                            if (index > 0) add(CustomAccessibilityAction(moveUp) { reorder.moveBy(entry.key, -1) })
-                            if (index < reorder.keys.lastIndex) add(CustomAccessibilityAction(moveDown) { reorder.moveBy(entry.key, 1) })
+                            if (enabled && !readOnlySelected && index > 0) add(CustomAccessibilityAction(moveUp) { reorder.moveBy(entry.key, -1) })
+                            if (enabled && !readOnlySelected && index < reorder.keys.lastIndex) add(CustomAccessibilityAction(moveDown) { reorder.moveBy(entry.key, 1) })
                         }
                     }) {
-                    val edit = onEditSelected(entry)
-                    SelectionChoice(entry, true, "favorite:${entry.key}", enabled && reorder.draggingKey == null, { onRemove(entry.key) },
-                        selectable = !reorderOnly, checkboxOnly = checkboxOnly, onRowClick = edit) {
+                    val edit = if (readOnlySelected) null else onEditSelected(entry)
+                    SelectionChoice(entry, true, "favorite:${entry.key}", enabled && reorder.draggingKey == null,
+                        { if (entry.key !in mandatoryKeys) onRemove(entry.key) },
+                        selectable = !reorderOnly && !readOnlySelected, checkboxEnabled = entry.key !in mandatoryKeys,
+                        checkboxOnly = checkboxOnly, onRowClick = edit) {
                         if (edit != null) IconButton(onClick = edit, enabled = enabled && reorder.draggingKey == null,
                             modifier = Modifier.testTag("favorite_edit:${entry.key}")) {
                             Icon(painterResource(R.drawable.ms_edit), stringResource(R.string.homepage_edit_item, entry.label))
                         }
-                        var menu by remember { mutableStateOf(false) }
-                        Box {
+                        if (!readOnlySelected) {
+                          var menu by remember { mutableStateOf(false) }
+                          Box {
                             IconButton(onClick = { menu = true }, enabled = enabled,
                                 modifier = Modifier.testTag("favorite_drag:${entry.key}").pointerInput(reorder, entry.key, enabled) {
                                     if (enabled) detectDragGestures(
@@ -403,6 +515,7 @@ private fun ItemSelectionScreen(
                                 DropdownMenuItem(text = { Text(moveUp) }, enabled = index > 0, onClick = { reorder.moveBy(entry.key, -1); menu = false })
                                 DropdownMenuItem(text = { Text(moveDown) }, enabled = index < reorder.keys.lastIndex, onClick = { reorder.moveBy(entry.key, 1); menu = false })
                             }
+                          }
                         }
                     }
                     entry.widget?.let { SelectedWidgetPreview(it) }
@@ -438,11 +551,14 @@ private fun ItemSelectionScreen(
                         stringResource(if (onAddGraceWidget != null) R.string.popup_custom_widget else R.string.popup_add_new))
                 }
             }
-            if (onAddCategory != null || onAddShortcut != null || onAddFolder != null || onAddStack != null || appGroupChoices.isNotEmpty()) item(key = "app_groups_header", contentType = "header") {
+            if (onAddCategory != null || onAddGraceLauncher != null || onAddShortcut != null || onAddFolder != null || onAddStack != null || appGroupChoices.isNotEmpty()) item(key = "app_groups_header", contentType = "header") {
                 SelectionHeading(stringResource(if (onAddCategory != null) R.string.homepage_app_group else R.string.favorites_shortcuts_app_group), "${tag}_app_groups")
             }
             if (onAddCategory != null) item(key = "add_category") {
                 AddSelectionContent("${tag}_add_category", enabled, onAddCategory, stringResource(R.string.homepage_add_categories))
+            }
+            if (onAddGraceLauncher != null) item(key = "add_grace_launcher") {
+                AddSelectionContent("${tag}_add_grace", enabled, onAddGraceLauncher, stringResource(R.string.app_list_add_grace))
             }
             if (onAddShortcut != null) {
                 item(key = "add_shortcut") {
@@ -499,13 +615,16 @@ private fun SelectionHeading(text: String, tag: String) {
 @Composable
 private fun SelectionChoice(entry: SelectionEntry, checked: Boolean, tag: String, enabled: Boolean, onToggle: () -> Unit,
     modifier: Modifier = Modifier, selectable: Boolean = true, checkboxOnly: Boolean = false,
+    checkboxEnabled: Boolean = true,
     onRowClick: (() -> Unit)? = null, trailing: @Composable () -> Unit = {}) {
     AppSelectionRow(entry.label, checked, if (checkboxOnly) onRowClick ?: {} else onToggle, modifier.testTag(tag), enabled = enabled,
-        selectable = selectable, trailing = trailing, onCheckboxClick = if (checkboxOnly) onToggle else null, icon = {
-            if (entry.category != null) LauncherIcon(LauncherSymbol.Category)
+        selectable = selectable, trailing = trailing, checkboxEnabled = checkboxEnabled, onCheckboxClick = if (checkboxOnly) onToggle else null, icon = {
+            if (entry.category != null) {
+                if (entry.category.icon == CategoryIcon.None) LauncherIcon(LauncherSymbol.Category) else CategoryIndicator(entry.category.icon)
+            }
             else if (entry.graceWidget != null) LauncherIcon(entry.graceWidget.symbol())
             else if (entry.app != null) AppIcon(entry.app, size = 36.dp)
-            else LauncherIcon(LauncherSymbol.Apps)
+            else LauncherIcon(entry.symbol ?: LauncherSymbol.Apps)
         })
 }
 
