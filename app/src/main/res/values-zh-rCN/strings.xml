@@ -543,6 +543,7 @@
     <string name="icon_color_source_theme">主题</string>
     <string name="icon_color_source_app">应用取色</string>
     <string name="icon_color_source_fixed">固定</string>
+    <string name="icon_color_source_transparent">透明</string>
     <string name="icon_color_from_app_summary">从各应用的原始图标取色，不受图标包影响。没有合适的颜色时使用主题色。</string>
     <string name="icon_dot_color_artwork">图标取色</string>
     <string name="icon_dot_color_theme">主题色</string>

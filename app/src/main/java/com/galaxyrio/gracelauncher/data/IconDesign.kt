@@ -6,13 +6,14 @@ import org.json.JSONObject
 
 enum class IconShape { None, Circle, Pebble, Square, Gem, Cookie }
 
-enum class IconColorSource { Theme, FromApp, Fixed }
+enum class IconColorSource { Theme, FromApp, Fixed, Transparent }
 
 /** Store a source, not a snapshot, for theme and original-app colors. */
 data class IconColor(
     val argb: Int,
     val theme: Boolean = false,
     val fromApp: Boolean = false,
+    val transparent: Boolean = false,
     /** Relative HSB offsets: degrees for hue, percentage points for S/B. */
     val hueShift: Int = 0,
     val saturationShift: Int = 0,
@@ -21,26 +22,29 @@ data class IconColor(
     val fontColorId: String? = null,
 ) {
     val source: IconColorSource get() = when {
+        transparent -> IconColorSource.Transparent
         theme || materialRole != null || fontColorId != null -> IconColorSource.Theme
         fromApp -> IconColorSource.FromApp
         else -> IconColorSource.Fixed
     }
     fun normalized(): IconColor = copy(
-        argb = if (materialRole != null || fontColorId != null) 0 else argb,
-        theme = theme && materialRole == null && fontColorId == null,
-        fromApp = fromApp && materialRole == null && fontColorId == null,
-        materialRole = materialRole.takeIf { fontColorId == null },
-        hueShift = if (source == IconColorSource.Fixed) 0 else hueShift.coerceIn(-180, 180),
-        saturationShift = if (source == IconColorSource.Fixed) 0 else saturationShift.coerceIn(-100, 100),
-        brightnessShift = if (source == IconColorSource.Fixed) 0 else brightnessShift.coerceIn(-100, 100),
+        argb = if (transparent || materialRole != null || fontColorId != null) 0 else argb,
+        theme = theme && !transparent && materialRole == null && fontColorId == null,
+        fromApp = fromApp && !transparent && materialRole == null && fontColorId == null,
+        materialRole = materialRole.takeIf { !transparent && fontColorId == null },
+        hueShift = if (source == IconColorSource.Fixed || source == IconColorSource.Transparent) 0 else hueShift.coerceIn(-180, 180),
+        saturationShift = if (source == IconColorSource.Fixed || source == IconColorSource.Transparent) 0 else saturationShift.coerceIn(-100, 100),
+        brightnessShift = if (source == IconColorSource.Fixed || source == IconColorSource.Transparent) 0 else brightnessShift.coerceIn(-100, 100),
     )
     internal fun json() = normalized().let {
         JSONObject().put("argb", it.argb).put("theme", it.theme).put("fromApp", it.fromApp)
+            .put("transparent", it.transparent)
             .put("hueShift", it.hueShift).put("saturationShift", it.saturationShift).put("brightnessShift", it.brightnessShift)
             .put("materialRole", it.materialRole?.name).put("fontColorId", it.fontColorId)
     }
     fun resolve(themeColor: Int, appColor: Int? = null, colorScheme: ColorScheme? = null,
         fontColors: FontColors? = null, wallpaperColor: Int? = null): Int = when {
+        transparent -> 0
         fontColorId != null -> adjustHsb(
             if (fontColorId == FontColors.WallpaperId && wallpaperColor != null) wallpaperColor
             else fontColors?.color(fontColorId)?.copy(fontColorId = null)?.resolve(themeColor, appColor, colorScheme) ?: themeColor,
@@ -54,9 +58,12 @@ data class IconColor(
     companion object {
         val Theme = IconColor(0, theme = true)
         val FromApp = IconColor(0, fromApp = true)
+        val Transparent = IconColor(0, transparent = true)
         internal fun fromStored(argb: Int, theme: Boolean = false, dynamic: Boolean = false, fromApp: Boolean = false,
             hueShift: Int = 0, saturationShift: Int = 0, brightnessShift: Int = 0,
-            materialRole: MaterialColorRole? = null, fontColorId: String? = null): IconColor = (when {
+            materialRole: MaterialColorRole? = null, fontColorId: String? = null,
+            transparent: Boolean = false): IconColor = (when {
+            transparent -> Transparent
             !fontColorId.isNullOrBlank() -> IconColor(0, fontColorId = fontColorId)
             materialRole != null -> IconColor(0, materialRole = materialRole)
             // Retire the old dynamic preset without requiring a database migration.
@@ -68,7 +75,8 @@ data class IconColor(
             fromStored(it.optInt("argb"), it.optBoolean("theme"), it.optBoolean("dynamic"), it.optBoolean("fromApp"),
                 it.optInt("hueShift"), it.optInt("saturationShift"), it.optInt("brightnessShift"),
                 MaterialColorRole.entries.firstOrNull { role -> role.name == it.optString("materialRole") },
-                it.optString("fontColorId").takeUnless { id -> id.isBlank() || id == "null" })
+                it.optString("fontColorId").takeUnless { id -> id.isBlank() || id == "null" },
+                it.optBoolean("transparent"))
         }
     }
 }

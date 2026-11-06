@@ -68,7 +68,7 @@ data class IconDisplaySettings(
     fun withColor(value: IconColor): IconDisplaySettings = when (value.source) {
         IconColorSource.Theme -> copy(dotColor = IconDotColor.Theme, customColor = value.takeUnless { it == IconColor.Theme })
         IconColorSource.FromApp -> copy(dotColor = IconDotColor.Artwork, customColor = value.takeUnless { it == IconColor.FromApp })
-        IconColorSource.Fixed -> copy(dotColor = IconDotColor.Custom, customColor = value)
+        IconColorSource.Fixed, IconColorSource.Transparent -> copy(dotColor = IconDotColor.Custom, customColor = value)
     }
 
     val dotDesign: IconDesign get() = IconDesign(shape = dotShape, cookieSides = dotCookieSides,

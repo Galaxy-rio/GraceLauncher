@@ -23,9 +23,19 @@ class IconColorSourceTest {
         assertEquals(app, IconColor.Theme.resolve(app, theme))
         assertEquals(app, IconColor.FromApp.resolve(theme, app))
         assertEquals(theme, IconColor.FromApp.resolve(theme))
+        assertEquals(0, IconColor.Transparent.resolve(theme, app))
+        assertEquals(IconColorSource.Transparent, IconColor.Transparent.source)
         val fixed = IconColor(0xFF123456.toInt())
         assertEquals(fixed.argb, fixed.resolve(theme, app))
         assertEquals(fixed.argb, fixed.resolve(app, theme))
+    }
+
+    @Test fun transparentSourcePersistsAndResolvesToZero() {
+        val restored = IconColor.fromStored(0, transparent = true)
+        assertEquals(IconColor.Transparent, restored)
+        assertEquals(IconColorSource.Transparent, restored.source)
+        assertEquals(0, restored.resolve(theme, app))
+        assertEquals(IconColor.Transparent, IconColor.Transparent.normalized())
     }
 
     @Test fun oldDynamicIsThemeAndFixedRgbIsPreserved() {

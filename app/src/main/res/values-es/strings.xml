@@ -620,6 +620,7 @@
     <string name="icon_color_source_theme">Tema</string>
     <string name="icon_color_source_app">Desde la aplicación</string>
     <string name="icon_color_source_fixed">Fijado</string>
+    <string name="icon_color_source_transparent">Transparente</string>
     <string name="icon_color_from_app_summary">Usa el icono original de cada aplicación, sin paquetes de iconos. Recurre al tema cuando no se encuentra un color adecuado.</string>
     <string name="icon_designer_square_aspect_ratio">Relación de aspecto</string>
     <string name="icon_designer_saturation">Saturación</string>

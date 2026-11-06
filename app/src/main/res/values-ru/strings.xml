@@ -427,6 +427,7 @@
     <string name="icon_color_source_theme">Тема</string>
     <string name="icon_color_source_app">Из приложения</string>
     <string name="icon_color_source_fixed">Фиксированный</string>
+    <string name="icon_color_source_transparent">Прозрачный</string>
     <string name="icon_color_from_app_summary">Используется исходный значок каждого приложения без наборов значков. Если подходящий цвет не найден, используется цвет темы.</string>
     <string name="icon_dot_color_artwork">Из значка приложения</string>
     <string name="icon_dot_color_theme">Цвет темы</string>

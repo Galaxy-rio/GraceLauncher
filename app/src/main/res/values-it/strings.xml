@@ -621,6 +621,7 @@
     <string name="icon_color_source_theme">Tema</string>
     <string name="icon_color_source_app">Dall\'app</string>
     <string name="icon_color_source_fixed">Fisso</string>
+    <string name="icon_color_source_transparent">Trasparente</string>
     <string name="icon_color_from_app_summary">Usa l\'icona originale di ogni app, senza pacchetti icona. Se non trova un colore adatto, usa quello del tema.</string>
     <string name="settings_palette_style">Stile palette</string>
     <string name="palette_tonal_spot">Tonale</string>

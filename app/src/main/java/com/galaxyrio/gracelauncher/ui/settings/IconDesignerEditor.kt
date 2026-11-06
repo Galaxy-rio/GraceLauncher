@@ -362,7 +362,7 @@ private fun DesignerControlsPane(all: Boolean, choice: ItemIcon, layered: Boolea
                     if (background) defaults.background else defaults.foreground,
                     onChange = { value -> if (enabled) onChange(if (background) design.copy(background = value)
                         else design.copy(foreground = value)) }, onClose = onCloseColor,
-                    allowFromApp = allowFromApp, appColor = if (background) appColors?.first else appColors?.second,
+                    allowFromApp = allowFromApp, allowTransparent = background, appColor = if (background) appColors?.first else appColors?.second,
                     modifier = Modifier.sharedBounds(rememberSharedContentState("color:$activeColor"), visibility,
                         boundsTransform = heroBounds, clipInOverlayDuringTransition = OverlayClip(shape)))
             }

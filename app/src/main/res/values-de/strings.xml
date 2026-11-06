@@ -556,6 +556,7 @@
     <string name="icon_color_source_app">Von der App</string>
     <string name="settings_folder_nowhere">Nicht anzeigen</string>
     <string name="icon_color_source_fixed">Festgelegt</string>
+    <string name="icon_color_source_transparent">Transparent</string>
     <string name="icon_color_from_app_summary">Nutzt die original App-Symbol-Farbe, ohne Symbolpaket. Falls keine nutzbare Farbe gefunden wird, wird das Theme genutzt.</string>
     <string name="icon_dot_color_artwork">Vom App-Symbol</string>
     <string name="icon_dot_color_theme">Theme-Farbe</string>

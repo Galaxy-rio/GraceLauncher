@@ -390,6 +390,7 @@
     <string name="icon_color_source_theme">Tema</string>
     <string name="icon_color_source_app">Para o aplicativo</string>
     <string name="icon_color_source_fixed">Fixo</string>
+    <string name="icon_color_source_transparent">Transparente</string>
     <string name="icon_color_from_app_summary">Usa o ícone original de cada aplicativo, sem pacotes de ícones. Retorna ao tema quando nenhuma cor adequada é encontrada.</string>
     <string name="icon_dot_color_artwork">Do ícone do aplicativo</string>
     <string name="icon_dot_color_theme">Cor do tema</string>

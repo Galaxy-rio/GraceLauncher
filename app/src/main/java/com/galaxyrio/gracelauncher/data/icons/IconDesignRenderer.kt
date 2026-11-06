@@ -121,15 +121,23 @@ internal fun drawDesignedIcon(canvas: Canvas, layers: IconLayers, design: IconDe
     val canTheme = style.themeIcons && (layers.monochrome != null || style.themeUnsupportedIcons)
     val background = style.background?.resolve(themeBackground, appColors?.first, colorScheme)
     val foreground = style.foreground?.resolve(themeForeground, appColors?.second, colorScheme)?.takeIf { canTheme }
+    val isTransparentBackground = style.background?.transparent == true
     if (layers.layered) {
-        if (canTheme && background != null) canvas.drawColor(background)
-        else layers.background?.let { canvas.drawBitmap(it, 0f, 0f, paint) }
+        if (isTransparentBackground) {
+            // Transparent tray: leave the background layer unpainted
+        } else if (canTheme && background != null) {
+            canvas.drawColor(background)
+        } else {
+            layers.background?.let { canvas.drawBitmap(it, 0f, 0f, paint) }
+        }
     } else if (style.addTray) {
-        background?.let(canvas::drawColor)
+        if (!isTransparentBackground) background?.let(canvas::drawColor)
     } else if (canTheme && layers.monochrome != null && background != null) {
         // A flat monochrome pack still has a themeable symbol and needs its theme tray.
-        if (style.shape == IconShape.None) canvas.clipPath(iconShapePath(IconShape.Circle, size = side.toFloat()))
-        canvas.drawColor(background)
+        if (!isTransparentBackground) {
+            if (style.shape == IconShape.None) canvas.clipPath(iconShapePath(IconShape.Circle, size = side.toFloat()))
+            canvas.drawColor(background)
+        }
     }
     val scale = style.size / 100f * if (style.addTray && !layers.layered) .8f else 1f
     val centerX = side * (0.5f + style.x / 100f)

@@ -45,7 +45,7 @@ import java.util.Locale
 @Composable
 internal fun IconDesignerColorPicker(title: String, choice: IconColor?, theme: Int, default: IconColor?,
     onChange: (IconColor?) -> Unit, onClose: () -> Unit, modifier: Modifier = Modifier, fallback: Int = theme,
-    allowFromApp: Boolean = false, appColor: Int? = null, fontColors: FontColors? = null,
+    allowFromApp: Boolean = false, allowTransparent: Boolean = false, appColor: Int? = null, fontColors: FontColors? = null,
     fromAppLabel: String? = null, fromAppSummary: String? = null) {
     val scheme = MaterialTheme.colorScheme
     // An inherited wallpaper text color is a live palette reference, not a fixed swatch.
@@ -93,7 +93,10 @@ internal fun IconDesignerColorPicker(title: String, choice: IconColor?, theme: I
                     Icon(painterResource(R.drawable.ms_close), stringResource(R.string.icon_designer_color_done))
                 }
             }
-            DesignerConnectedChoices(IconColorSource.entries.filter { allowFromApp || it != IconColorSource.FromApp },
+            DesignerConnectedChoices(IconColorSource.entries.filter {
+                (allowFromApp || it != IconColorSource.FromApp) &&
+                (allowTransparent || it != IconColorSource.Transparent)
+            },
                 source, true, "icon_designer_color_source", {
                     if (it == IconColorSource.FromApp && fromAppLabel != null) fromAppLabel else it.label()
                 }) { selected ->
@@ -105,6 +108,7 @@ internal fun IconDesignerColorPicker(title: String, choice: IconColor?, theme: I
                     }
                     IconColorSource.FromApp -> { showColor(appColor ?: theme); onChange(IconColor.FromApp) }
                     IconColorSource.Fixed -> setColor(initial)
+                    IconColorSource.Transparent -> onChange(IconColor.Transparent)
                 }
             }
             if (source == IconColorSource.Theme && fontColors != null) {
@@ -153,7 +157,7 @@ internal fun IconDesignerColorPicker(title: String, choice: IconColor?, theme: I
                             color = Color(AndroidColor.HSVToColor(floatArrayOf(hue, saturation, brightness)))) { }
                     }, keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters, keyboardType = KeyboardType.Ascii),
                     modifier = Modifier.fillMaxWidth().testTag("icon_designer_hex"))
-            } else {
+            } else if (source != IconColorSource.Transparent) {
                 Text(stringResource(R.string.icon_color_relative_summary), style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
                 DesignerSlider(stringResource(R.string.icon_designer_hue), automatic.hueShift.toFloat(), 0f,

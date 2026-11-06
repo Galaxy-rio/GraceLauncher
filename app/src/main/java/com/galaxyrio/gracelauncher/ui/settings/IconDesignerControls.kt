@@ -405,7 +405,7 @@ private fun DesignerColorRow(label: String, choice: IconColor?, default: IconCol
                 val radius = size.minDimension / 2 - 1.dp.toPx()
                 drawCircle(swatch, radius)
                 drawCircle(outline, radius, style = Stroke(1.dp.toPx()))
-                if (choice == null) drawLine(outline, Offset(size.width * .20f, size.height * .80f),
+                if (choice == null || choice.transparent) drawLine(outline, Offset(size.width * .20f, size.height * .80f),
                     Offset(size.width * .80f, size.height * .20f), strokeWidth = 1.5.dp.toPx())
             }
             Spacer(Modifier.width(12.dp))
@@ -451,6 +451,7 @@ internal fun IconColorSource.label(): String = stringResource(when (this) {
     IconColorSource.Theme -> R.string.icon_color_source_theme
     IconColorSource.FromApp -> R.string.icon_color_source_app
     IconColorSource.Fixed -> R.string.icon_color_source_fixed
+    IconColorSource.Transparent -> R.string.icon_color_source_transparent
 })
 
 @Composable

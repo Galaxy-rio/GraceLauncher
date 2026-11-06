@@ -495,6 +495,7 @@
     <string name="icon_color_source_theme">Theme</string>
     <string name="icon_color_source_app">From app</string>
     <string name="icon_color_source_fixed">Fixed</string>
+    <string name="icon_color_source_transparent">Transparent</string>
     <string name="icon_color_from_app_summary">Uses each app’s original icon, without icon packs. Falls back to the theme when no suitable color is found.</string>
     <string name="icon_dot_color_artwork">From the app icon</string>
     <string name="icon_dot_color_theme">Theme color</string>
