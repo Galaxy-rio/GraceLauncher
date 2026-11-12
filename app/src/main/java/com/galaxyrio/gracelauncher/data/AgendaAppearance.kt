@@ -7,9 +7,20 @@ const val AgendaWidgetKey = "com.galaxyrio.gracelauncher/agenda-widget"
 const val AgendaWidgetDraftKey = "com.galaxyrio.gracelauncher/agenda-widget-draft"
 
 enum class AgendaTitle { Time, Quote, Text }
+enum class AgendaCreateAction { Event, Task }
 enum class AgendaHeaderField { Date, Countdown, Weather }
-enum class AgendaDayWeatherField { Icon, HighLow, Description }
-enum class AgendaHourWeatherField { Time, Icon, Temperature, Description }
+enum class AgendaDayWeatherField {
+    Icon, Temperature, Description, FeelsLike, Humidity, Wind, AirQuality, UV, Location, HighLow, UpdatedAt;
+
+    val supportsLabel: Boolean get() = this !in setOf(Icon, Temperature, Description)
+}
+enum class AgendaHourWeatherField {
+    Icon, Chart, Temperature, FeelsLike, Description, PrecipitationProbability, Humidity, Wind, WindDirection,
+    AirQuality, UV, Gusts, Precipitation, Visibility, CloudCover, Pressure, DewPoint,
+    RainProbability, SnowProbability, IceProbability, ThunderstormProbability, Rain, Snow, Ice, Thunderstorm;
+
+    val supportsChart: Boolean get() = this in setOf(Temperature, FeelsLike, Humidity, WindDirection, AirQuality)
+}
 
 data class AgendaAppearance(
     val title: AgendaTitle = AgendaTitle.Text,
@@ -19,27 +30,36 @@ data class AgendaAppearance(
     val headerRightAligned: Set<AgendaHeaderField> = setOf(AgendaHeaderField.Weather),
     val dayWeatherOrder: List<AgendaDayWeatherField> = AgendaDayWeatherField.entries,
     val dayWeatherSelected: Set<AgendaDayWeatherField> = setOf(AgendaDayWeatherField.Icon, AgendaDayWeatherField.HighLow),
+    val dayWeatherLabeledFields: Set<AgendaDayWeatherField> = setOf(
+        AgendaDayWeatherField.FeelsLike, AgendaDayWeatherField.AirQuality, AgendaDayWeatherField.UV, AgendaDayWeatherField.UpdatedAt,
+    ),
     val calendarContent: ClockAgenda = defaultCalendarContent(),
+    val calendarPrimaryFields: Set<ClockAgendaField> = setOf(ClockAgendaField.Title),
     val taskContent: ClockTasks = defaultTaskContent(),
+    val taskPrimaryFields: Set<ClockTaskField> = setOf(ClockTaskField.Title),
     val tasksFirst: Boolean = true,
     val showHourlyWeather: Boolean = true,
     val hourWeatherOrder: List<AgendaHourWeatherField> = AgendaHourWeatherField.entries,
     val hourWeatherSelected: Set<AgendaHourWeatherField> = setOf(
-        AgendaHourWeatherField.Time, AgendaHourWeatherField.Icon, AgendaHourWeatherField.Temperature,
+        AgendaHourWeatherField.Icon, AgendaHourWeatherField.Temperature,
     ),
+    val hourWeatherChartFields: Set<AgendaHourWeatherField> = emptySet(),
+    val hourWeatherChartsExpanded: Boolean = true,
+    val hourWeatherChartHeight: Int = 120,
     val showUndatedTasks: Boolean = true,
-    val undatedTaskContent: ClockTasks = defaultTaskContent(),
-    val showNewEvent: Boolean = true,
-    val showNewTask: Boolean = true,
+    val lastCreateAction: AgendaCreateAction = AgendaCreateAction.Event,
 ) {
     fun normalized() = copy(
         titleText = titleText.take(500),
         headerOrder = (headerOrder + AgendaHeaderField.entries).distinct(),
         dayWeatherOrder = (dayWeatherOrder + AgendaDayWeatherField.entries).distinct(),
-        hourWeatherOrder = (hourWeatherOrder + AgendaHourWeatherField.entries).distinct(),
+        dayWeatherLabeledFields = dayWeatherLabeledFields.filter { it.supportsLabel }.toSet(),
+        hourWeatherOrder = normalizedHourWeatherOrder(hourWeatherOrder),
+        hourWeatherSelected = hourWeatherSelected - AgendaHourWeatherField.Chart,
+        hourWeatherChartFields = hourWeatherChartFields.filter { it.supportsChart }.toSet(),
+        hourWeatherChartHeight = hourWeatherChartHeight.coerceIn(60, 240),
         calendarContent = calendarContent.normalized(),
         taskContent = taskContent.normalized(),
-        undatedTaskContent = undatedTaskContent.normalized(),
     )
 
     fun encode(): String = normalized().let { value -> JSONObject().apply {
@@ -50,19 +70,41 @@ data class AgendaAppearance(
         put("headerRightAligned", JSONArray(value.headerRightAligned.map { it.name }))
         put("dayWeatherOrder", JSONArray(value.dayWeatherOrder.map { it.name }))
         put("dayWeatherSelected", JSONArray(value.dayWeatherSelected.map { it.name }))
+        put("dayWeatherLabeledFields", JSONArray(value.dayWeatherLabeledFields.map { it.name }))
         put("calendarContent", value.calendarContent.json())
+        put("calendarPrimaryFields", JSONArray(value.calendarPrimaryFields.map { it.name }))
         put("taskContent", value.taskContent.json())
+        put("taskPrimaryFields", JSONArray(value.taskPrimaryFields.map { it.name }))
         put("tasksFirst", value.tasksFirst)
         put("showHourlyWeather", value.showHourlyWeather)
         put("hourWeatherOrder", JSONArray(value.hourWeatherOrder.map { it.name }))
         put("hourWeatherSelected", JSONArray(value.hourWeatherSelected.map { it.name }))
+        put("hourWeatherChartFields", JSONArray(value.hourWeatherChartFields.map { it.name }))
+        put("hourWeatherChartsExpanded", value.hourWeatherChartsExpanded)
+        put("hourWeatherChartHeight", value.hourWeatherChartHeight)
         put("showUndatedTasks", value.showUndatedTasks)
-        put("undatedTaskContent", value.undatedTaskContent.json())
-        put("showNewEvent", value.showNewEvent)
-        put("showNewTask", value.showNewTask)
+        put("lastCreateAction", value.lastCreateAction.name)
     }.toString() }
 
     companion object {
+        private fun normalizedHourWeatherOrder(saved: List<AgendaHourWeatherField>): List<AgendaHourWeatherField> {
+            // Move unchanged legacy defaults to the useful-first order without overwriting custom ordering.
+            val legacy = listOf("Icon", "Temperature", "Description", "FeelsLike", "Humidity", "Wind", "Gusts", "AirQuality", "UV",
+                "PrecipitationProbability", "RainProbability", "SnowProbability", "IceProbability", "ThunderstormProbability",
+                "Precipitation", "Rain", "Snow", "Ice", "Thunderstorm", "DewPoint", "Pressure", "CloudCover", "Visibility")
+            if (saved.map { it.name } == legacy || saved.map { it.name } == legacy.take(3)) return AgendaHourWeatherField.entries
+            val order = saved.distinct().toMutableList()
+            if (AgendaHourWeatherField.Chart !in order) {
+                val anchor = listOf(order.indexOf(AgendaHourWeatherField.Icon), order.indexOf(AgendaHourWeatherField.Temperature))
+                    .filter { it >= 0 }.minOrNull() ?: -1
+                order.add(anchor + 1, AgendaHourWeatherField.Chart)
+            }
+            if (AgendaHourWeatherField.WindDirection !in order && AgendaHourWeatherField.Wind in order) {
+                order.add(order.indexOf(AgendaHourWeatherField.Wind) + 1, AgendaHourWeatherField.WindDirection)
+            }
+            return (order + AgendaHourWeatherField.entries).distinct()
+        }
+
         fun defaultCalendarContent() = ClockAgenda(
             selected = setOf(ClockAgendaField.Title, ClockAgendaField.Time, ClockAgendaField.Countdown),
             order = listOf(ClockAgendaField.Title, ClockAgendaField.Time, ClockAgendaField.Countdown) +
@@ -91,16 +133,22 @@ data class AgendaAppearance(
                 headerRightAligned = fields("headerRightAligned", AgendaHeaderField.entries)?.toSet() ?: defaults.headerRightAligned,
                 dayWeatherOrder = fields("dayWeatherOrder", AgendaDayWeatherField.entries) ?: defaults.dayWeatherOrder,
                 dayWeatherSelected = fields("dayWeatherSelected", AgendaDayWeatherField.entries)?.toSet() ?: defaults.dayWeatherSelected,
+                dayWeatherLabeledFields = fields("dayWeatherLabeledFields", AgendaDayWeatherField.entries)?.toSet()
+                    ?: defaults.dayWeatherLabeledFields,
                 calendarContent = data.optJSONObject("calendarContent")?.let { ClockAgenda.decode(it) } ?: defaults.calendarContent,
+                calendarPrimaryFields = fields("calendarPrimaryFields", ClockAgendaField.entries)?.toSet() ?: defaults.calendarPrimaryFields,
                 taskContent = data.optJSONObject("taskContent")?.let { ClockTasks.decode(it) } ?: defaults.taskContent,
+                taskPrimaryFields = fields("taskPrimaryFields", ClockTaskField.entries)?.toSet() ?: defaults.taskPrimaryFields,
                 tasksFirst = data.optBoolean("tasksFirst", defaults.tasksFirst),
                 showHourlyWeather = data.optBoolean("showHourlyWeather", defaults.showHourlyWeather),
                 hourWeatherOrder = fields("hourWeatherOrder", AgendaHourWeatherField.entries) ?: defaults.hourWeatherOrder,
                 hourWeatherSelected = fields("hourWeatherSelected", AgendaHourWeatherField.entries)?.toSet() ?: defaults.hourWeatherSelected,
+                hourWeatherChartFields = fields("hourWeatherChartFields", AgendaHourWeatherField.entries)?.toSet() ?: defaults.hourWeatherChartFields,
+                hourWeatherChartsExpanded = data.optBoolean("hourWeatherChartsExpanded", defaults.hourWeatherChartsExpanded),
+                hourWeatherChartHeight = data.optInt("hourWeatherChartHeight", defaults.hourWeatherChartHeight),
                 showUndatedTasks = data.optBoolean("showUndatedTasks", defaults.showUndatedTasks),
-                undatedTaskContent = data.optJSONObject("undatedTaskContent")?.let { ClockTasks.decode(it) } ?: defaults.undatedTaskContent,
-                showNewEvent = data.optBoolean("showNewEvent", defaults.showNewEvent),
-                showNewTask = data.optBoolean("showNewTask", defaults.showNewTask),
+                lastCreateAction = AgendaCreateAction.entries.firstOrNull { it.name == data.optString("lastCreateAction") }
+                    ?: defaults.lastCreateAction,
             ).normalized()
         }.getOrDefault(AgendaAppearance())
     }

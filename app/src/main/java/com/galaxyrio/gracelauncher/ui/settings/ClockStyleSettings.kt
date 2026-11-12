@@ -57,6 +57,7 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.ClockColorPart
 import com.galaxyrio.gracelauncher.data.ClockAgenda
 import com.galaxyrio.gracelauncher.data.ClockTasks
+import com.galaxyrio.gracelauncher.data.ClockWeather
 import com.galaxyrio.gracelauncher.data.ClockElement
 import com.galaxyrio.gracelauncher.data.ClockRegions
 import com.galaxyrio.gracelauncher.data.ClockRegion
@@ -328,7 +329,8 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
                                         } },
                                         onReset = { if (pageEnabled) updateRegions { current ->
                                             val defaults = ClockAgenda()
-                                            current.copy(agenda = current.agenda.copy(order = defaults.order, rightAligned = defaults.rightAligned))
+                                            current.copy(agenda = current.agenda.copy(order = defaults.order,
+                                                selected = defaults.selected, rightAligned = defaults.rightAligned))
                                         } },
                                     )
                                     ClockContentPage.Weather -> ClockContentPicker(
@@ -349,6 +351,9 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
                                             current.copy(weather = current.weather.copy(labeledFields = if (shown)
                                                 current.weather.labeledFields + field else current.weather.labeledFields - field))
                                         } },
+                                        onReset = { if (pageEnabled) updateRegions { current ->
+                                            current.copy(weather = ClockWeather())
+                                        } },
                                     )
                                     ClockContentPage.Task -> ClockContentPicker(
                                         stringResource(R.string.clock_task_contents), regions.tasks.order, regions.tasks.selected,
@@ -367,7 +372,8 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
                                         } },
                                         onReset = { if (pageEnabled) updateRegions { current ->
                                             val defaults = ClockTasks()
-                                            current.copy(tasks = current.tasks.copy(order = defaults.order, rightAligned = defaults.rightAligned))
+                                            current.copy(tasks = current.tasks.copy(order = defaults.order,
+                                                selected = defaults.selected, rightAligned = defaults.rightAligned))
                                         } },
                                     )
                                 }

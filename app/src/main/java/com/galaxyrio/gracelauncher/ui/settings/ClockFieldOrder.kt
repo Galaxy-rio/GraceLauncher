@@ -7,9 +7,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -39,6 +39,11 @@ import com.galaxyrio.gracelauncher.ui.overlays.rememberReorderTranslation
 import kotlinx.coroutines.isActive
 
 private const val ClockFieldAlignmentDivider = "alignment_divider"
+private const val ClockFieldPrimaryDivider = "primary_alignment_divider"
+private const val ClockFieldPrimaryHeading = "primary_heading"
+private const val ClockFieldSupportingHeading = "supporting_heading"
+private const val ClockFieldUnselectedHeading = "unselected_heading"
+private val ClockFieldHeadings = setOf(ClockFieldPrimaryHeading, ClockFieldSupportingHeading, ClockFieldUnselectedHeading)
 
 @Composable
 internal fun ClockTaskField.label(): String = stringResource(when (this) {
@@ -66,12 +71,18 @@ internal fun <T : Enum<T>> ClockContentPicker(
     onSelect: (T, Boolean) -> Unit,
     onReorder: (List<T>) -> Unit,
     onClose: () -> Unit,
+    onReset: () -> Unit,
     modifier: Modifier = Modifier,
     labelShown: (T) -> Boolean? = { null },
     onLabelChange: (T, Boolean) -> Unit = { _, _ -> },
     rightAligned: Set<T>? = null,
     onAlignedReorder: (List<T>, Set<T>) -> Unit = { _, _ -> },
-    onReset: (() -> Unit)? = null,
+    primaryLine: Set<T>? = null,
+    onLineReorder: (List<T>, Set<T>, Set<T>, Set<T>) -> Unit = { _, _, _, _ -> },
+    chartShown: (T) -> Boolean? = { null },
+    onChartChange: (T, Boolean) -> Unit = { _, _ -> },
+    positionIcons: Map<T, Int> = emptyMap(),
+    beforeFields: LazyListScope.() -> Unit = {},
 ) {
     Column(modifier.fillMaxSize().testTag("${tag}_picker")
         .clip(ListItemDefaults.segmentedShapes(0, 1).shape)
@@ -85,9 +96,10 @@ internal fun <T : Enum<T>> ClockContentPicker(
             }
         }
         ClockFieldOrder(order, selected, enabled, hapticsEnabled, tag, label, onSelect, onReorder,
-            Modifier.weight(1f), labelShown, onLabelChange, rightAligned, onAlignedReorder)
+            Modifier.weight(1f), labelShown, onLabelChange, rightAligned, onAlignedReorder, primaryLine, onLineReorder,
+            chartShown, onChartChange, positionIcons, beforeFields)
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-            if (onReset != null) TextButton(onReset, Modifier.testTag("${tag}_reset"), enabled = enabled) {
+            TextButton(onReset, Modifier.testTag("${tag}_reset"), enabled = enabled) {
                 Text(stringResource(R.string.reset))
             }
             Spacer(Modifier.weight(1f))
@@ -96,7 +108,7 @@ internal fun <T : Enum<T>> ClockContentPicker(
     }
 }
 
-/** Selection belongs to the checkbox; aligned content keeps selected and unselected fields apart. */
+/** Checkbox selection and drag ordering; optional lines share a list for cross-line moves. */
 @Composable
 internal fun <T : Enum<T>> ClockFieldOrder(
     order: List<T>,
@@ -112,14 +124,32 @@ internal fun <T : Enum<T>> ClockFieldOrder(
     onLabelChange: (T, Boolean) -> Unit = { _, _ -> },
     rightAligned: Set<T>? = null,
     onAlignedReorder: (List<T>, Set<T>) -> Unit = { _, _ -> },
+    primaryLine: Set<T>? = null,
+    onLineReorder: (List<T>, Set<T>, Set<T>, Set<T>) -> Unit = { _, _, _, _ -> },
+    chartShown: (T) -> Boolean? = { null },
+    onChartChange: (T, Boolean) -> Unit = { _, _ -> },
+    positionIcons: Map<T, Int> = emptyMap(),
+    beforeFields: LazyListScope.() -> Unit = {},
 ) {
     val list = rememberLazyListState()
     val fields by rememberUpdatedState(order.associateBy { it.name })
     val grouped = rightAligned != null
     val activeKeys = selected.map { it.name }.toSet() + ClockFieldAlignmentDivider
+    val primaryKeys = selected.filter { it in primaryLine.orEmpty() }.map { it.name }.toSet() + ClockFieldPrimaryDivider
+    val supportingKeys = activeKeys - primaryKeys
     val commit by rememberUpdatedState<(List<String>) -> Unit> { saved ->
         val updatedOrder = saved.mapNotNull { fields[it] }
-        if (rightAligned != null) {
+        if (primaryLine != null) {
+            fun between(start: String, end: String) = saved.subList(saved.indexOf(start) + 1, saved.indexOf(end))
+                .mapNotNull { fields[it] }.toSet()
+            val primary = between(ClockFieldPrimaryHeading, ClockFieldSupportingHeading)
+            val supporting = between(ClockFieldSupportingHeading, ClockFieldUnselectedHeading)
+            val visible = primary + supporting
+            val right = between(ClockFieldPrimaryDivider, ClockFieldSupportingHeading) +
+                between(ClockFieldAlignmentDivider, ClockFieldUnselectedHeading)
+            // Unselected fields keep their previous line and side for checkbox selection.
+            onLineReorder(updatedOrder, visible, (primaryLine - visible) + primary, (rightAligned.orEmpty() - visible) + right)
+        } else if (rightAligned != null) {
             val right = saved.drop(saved.indexOf(ClockFieldAlignmentDivider) + 1)
                 .mapNotNull { fields[it] }.filter { it in selected }.toSet()
             // Hidden fields retain their saved side when selection or visible ordering changes.
@@ -127,11 +157,24 @@ internal fun <T : Enum<T>> ClockFieldOrder(
         } else onReorder(updatedOrder)
     }
     val canMove by rememberUpdatedState<(String, String) -> Boolean> { from, to ->
-        !grouped || (from in activeKeys) == (to in activeKeys)
+        if (primaryLine != null) when (from) {
+            ClockFieldPrimaryDivider -> to in primaryKeys
+            ClockFieldAlignmentDivider -> to in supportingKeys
+            // Headings stay in order; fields may cross them to change their line or selection.
+            in fields -> to != ClockFieldPrimaryHeading
+            else -> false
+        } else !grouped || (from in activeKeys) == (to in activeKeys)
     }
     val haptics by rememberUpdatedState(LocalHapticFeedback.current)
     val feedbackEnabled by rememberUpdatedState(hapticsEnabled)
-    val keys = if (rightAligned != null) {
+    val keys = if (primaryLine != null) {
+        fun lineFields(primary: Boolean, right: Boolean) = order.filter {
+            it in selected && (it in primaryLine) == primary && (it in rightAligned.orEmpty()) == right
+        }.map { it.name }
+        listOf(ClockFieldPrimaryHeading) + lineFields(true, false) + ClockFieldPrimaryDivider + lineFields(true, true) +
+            ClockFieldSupportingHeading + lineFields(false, false) + ClockFieldAlignmentDivider + lineFields(false, true) +
+            ClockFieldUnselectedHeading + order.filterNot { it in selected }.map { it.name }
+    } else if (rightAligned != null) {
         order.filter { it in selected && it !in rightAligned }.map { it.name } + ClockFieldAlignmentDivider +
             order.filter { it in selected && it in rightAligned }.map { it.name } +
             order.filterNot { it in selected }.map { it.name }
@@ -161,11 +204,29 @@ internal fun <T : Enum<T>> ClockFieldOrder(
         userScrollEnabled = reorder.draggingKey == null,
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
+        beforeFields()
         fun fieldItems(itemKeys: List<String>) {
-            items(itemKeys, key = { FavoritesReorderState.itemKey(it) }) { key ->
+            itemsIndexed(itemKeys, key = { _, key -> FavoritesReorderState.itemKey(key) }) { rowIndex, key ->
+                if (primaryLine != null) {
+                    val heading = when (key) {
+                        ClockFieldPrimaryHeading -> R.string.agenda_primary_line
+                        ClockFieldSupportingHeading -> R.string.agenda_supporting_information
+                        ClockFieldUnselectedHeading -> R.string.clock_content_unselected
+                        else -> null
+                    }
+                    if (heading != null) {
+                        SettingsHeading(stringResource(heading))
+                        return@itemsIndexed
+                    }
+                }
                 val field = fields[key]
-                val divider = grouped && key == ClockFieldAlignmentDivider
-                if (field == null && !divider) return@items
+                val divider = (grouped && key == ClockFieldAlignmentDivider) ||
+                    (primaryLine != null && key in setOf(ClockFieldPrimaryDivider, ClockFieldAlignmentDivider))
+                if (field == null && !divider) return@itemsIndexed
+                val sectionStart = itemKeys.take(rowIndex).indexOfLast { it in ClockFieldHeadings } + 1
+                val sectionEnd = (rowIndex + 1 until itemKeys.size).firstOrNull { itemKeys[it] in ClockFieldHeadings }
+                    ?: itemKeys.size
+                val shape = ListItemDefaults.segmentedShapes(rowIndex - sectionStart, sectionEnd - sectionStart).shape
                 val index = reorder.keys.indexOf(key)
                 val title = if (divider) stringResource(R.string.clock_content_alignment_divider) else label(requireNotNull(field))
                 val up = stringResource(R.string.favorites_move_up)
@@ -182,7 +243,7 @@ internal fun <T : Enum<T>> ClockFieldOrder(
                     modifier = Modifier.then(if (dragging) Modifier else Modifier.animateItem())
                         .zIndex(if (dragging || reorder.drop?.key == key) 1f else 0f)
                         .graphicsLayer { translationY = offset }
-                        .fillMaxWidth().height(64.dp).clip(RoundedCornerShape(16.dp)).background(background)
+                        .fillMaxWidth().height(64.dp).clip(shape).background(background)
                         .testTag("$tag:$key")
                         .semantics {
                             customActions = buildList {
@@ -192,12 +253,16 @@ internal fun <T : Enum<T>> ClockFieldOrder(
                         }.padding(horizontal = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    if (field != null) Checkbox(
-                        checked = field in selected,
+                    val positionIcon = field?.let { positionIcons[it] }
+                    if (field != null && positionIcon == null) Checkbox(
+                        checked = if (primaryLine != null) index < reorder.keys.indexOf(ClockFieldUnselectedHeading) else field in selected,
                         onCheckedChange = { onSelect(field, it) },
                         enabled = enabled,
                         modifier = Modifier.testTag("${tag}_selected:$key").semantics { contentDescription = title },
-                    ) else Spacer(Modifier.width(48.dp))
+                    ) else Box(Modifier.size(48.dp), contentAlignment = Alignment.Center) {
+                        Icon(painterResource(positionIcon ?: R.drawable.ms_unfold_more), null, Modifier.size(24.dp),
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else .38f))
+                    }
                     Text(title, Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else .38f))
                     field?.let(labelShown)?.let { shown ->
@@ -209,6 +274,15 @@ internal fun <T : Enum<T>> ClockFieldOrder(
                         ) {
                             Icon(painterResource(if (shown) R.drawable.ms_label else R.drawable.ms_label_off),
                                 stringResource(if (shown) R.string.clock_hide_field_label else R.string.clock_show_field_label, title),
+                                Modifier.size(24.dp))
+                        }
+                    }
+                    field?.let(chartShown)?.let { shown ->
+                        IconToggleButton(checked = shown,
+                            onCheckedChange = { onChartChange(requireNotNull(field), it) }, enabled = enabled,
+                            modifier = Modifier.testTag("${tag}_chart:$key")) {
+                            Icon(painterResource(if (shown) R.drawable.ms_bar_chart else R.drawable.ms_bar_chart_off),
+                                stringResource(if (shown) R.string.weather_hide_chart else R.string.weather_show_chart, title),
                                 Modifier.size(24.dp))
                         }
                     }
@@ -239,7 +313,8 @@ internal fun <T : Enum<T>> ClockFieldOrder(
                 }
             }
         }
-        if (grouped) {
+        if (primaryLine != null) fieldItems(reorder.keys)
+        else if (grouped) {
             item("selected_heading") { SettingsHeading(stringResource(R.string.favorites_selected)) }
             fieldItems(reorder.keys.filter { it in activeKeys })
             val unselected = reorder.keys.filterNot { it in activeKeys }

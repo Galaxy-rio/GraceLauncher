@@ -38,8 +38,6 @@ import com.galaxyrio.gracelauncher.data.weather.WeatherConnectionMode
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.ScheduleStatus
-import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
-import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import com.galaxyrio.gracelauncher.ui.components.eventRemainingText
 import com.galaxyrio.gracelauncher.ui.components.taskRemainingText
 import com.galaxyrio.gracelauncher.ui.home.ClockAgendaContent
@@ -47,7 +45,6 @@ import com.galaxyrio.gracelauncher.ui.home.ClockTaskContent
 import com.galaxyrio.gracelauncher.ui.home.clockAgendaFields
 import com.galaxyrio.gracelauncher.ui.home.clockTaskFields
 import com.galaxyrio.gracelauncher.ui.weather.HourlyWeather
-import com.galaxyrio.gracelauncher.ui.weather.WeatherSourceNote
 import com.galaxyrio.gracelauncher.ui.weather.weatherAgendaDays
 import java.time.Instant
 import java.time.ZoneId
@@ -124,12 +121,11 @@ fun AgendaSheet(
             groups.forEach { (date, dayEntries) ->
                 item(key = "day:$date") {
                     AgendaDayHeader(date, today, forecasts[date], weather?.current.takeIf { date == today },
-                        appearance, weatherEnabled)
+                        appearance, weatherEnabled, weather)
                 }
                 if (date == today) {
                     if (appearance.showHourlyWeather && weather != null) item(key = "today_weather") {
-                        HourlyWeather(weather, now, fields = appearance.hourWeatherOrder.filter { it in appearance.hourWeatherSelected })
-                        WeatherSourceNote(weather, now, actions.openWeatherApp)
+                        HourlyWeather(weather, now, appearance = appearance, onOpenWeatherApp = actions.openWeatherApp)
                     }
                     else if (appearance.showHourlyWeather && weatherEnabled && uiState.weather.status != WeatherStatus.Loading) item(key = "weather_unavailable") {
                         WeatherConnectionNotice(uiState.weather.status, actions,
@@ -137,7 +133,8 @@ fun AgendaSheet(
                     }
                     if (appearance.showUndatedTasks && undatedTasks.isNotEmpty()) {
                         items(undatedTasks, key = { "undated_task:${it.id}" }) { task ->
-                            AgendaTask(task, now, appearance.undatedTaskContent, completing = task.id in uiState.completingTaskIds,
+                            AgendaTask(task, now, appearance.taskContent, appearance.taskPrimaryFields,
+                                completing = task.id in uiState.completingTaskIds,
                                 onComplete = { actions.completeTask(task) }, onClick = { actions.openTask(task) })
                         }
                         item(key = "space:undated_tasks") { Spacer(Modifier.height(12.dp)) }
@@ -160,18 +157,17 @@ fun AgendaSheet(
                             }
                             else -> Unit
                         }
-                        if (appearance.showNewEvent) item(key = "new_event") {
-                            NewAgendaEvent(actions.newEvent)
-                        }
                     }
-                    if (tasksEnabled && appearance.showNewTask) item(key = "new_task") {
-                        NewAgendaEvent(actions.newTask, stringResource(R.string.agenda_new_task), "new_task")
+                    if (uiState.settings.calendarAgenda || tasksEnabled) item(key = "agenda_create") {
+                        AgendaCreateButton(uiState, actions, Modifier.padding(horizontal = AgendaItemInset, vertical = 8.dp))
                     }
                 }
                 items(dayEntries, key = { "$date:${it.key}" }) { entry ->
                     when (entry) {
-                        is AgendaEntry.Calendar -> AgendaEvent(entry.event, now, appearance.calendarContent) { actions.openEvent(entry.event) }
-                        is AgendaEntry.Task -> AgendaTask(entry.task, now, appearance.taskContent, completing = entry.task.id in uiState.completingTaskIds,
+                        is AgendaEntry.Calendar -> AgendaEvent(entry.event, now, appearance.calendarContent,
+                            appearance.calendarPrimaryFields) { actions.openEvent(entry.event) }
+                        is AgendaEntry.Task -> AgendaTask(entry.task, now, appearance.taskContent, appearance.taskPrimaryFields,
+                            completing = entry.task.id in uiState.completingTaskIds,
                             onComplete = { actions.completeTask(entry.task) }, onClick = { actions.openTask(entry.task) })
                     }
                 }
@@ -229,28 +225,9 @@ private fun WeatherConnectionNotice(status: WeatherStatus, actions: LauncherActi
 }
 
 @Composable
-private fun NewAgendaEvent(
-    onClick: () -> Unit,
-    label: String = stringResource(R.string.new_event),
-    tag: String = "new_event",
+private fun AgendaTask(task: TaskItem, now: Instant, content: ClockTasks, primaryFields: Set<ClockTaskField>,
+    completing: Boolean, onComplete: () -> Unit, onClick: () -> Unit,
 ) {
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(tag)
-            .clip(RoundedCornerShape(16.dp))
-            .clickable(role = Role.Button, onClick = onClick)
-            .padding(horizontal = AgendaItemInset, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.width(AgendaLeadingWidth), contentAlignment = Alignment.Center) {
-            LauncherIcon(LauncherSymbol.Plus, modifier = Modifier.testTag("$tag:icon"), tint = MaterialTheme.colorScheme.primary)
-        }
-        Spacer(Modifier.width(AgendaContentGap))
-        Text(label, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
-private fun AgendaTask(task: TaskItem, now: Instant, content: ClockTasks, completing: Boolean, onComplete: () -> Unit, onClick: () -> Unit) {
     val locale = LocalConfiguration.current.locales[0]
     val zone = ZoneId.systemDefault()
     val clockPattern = if (DateFormat.is24HourFormat(LocalContext.current)) "HH:mm" else "h:mm a"
@@ -284,22 +261,31 @@ private fun AgendaTask(task: TaskItem, now: Instant, content: ClockTasks, comple
         Spacer(Modifier.width(AgendaContentGap))
         Column(Modifier.weight(1f).heightIn(min = 66.dp).clickable(role = Role.Button, onClick = onClick).padding(vertical = 8.dp),
             verticalArrangement = Arrangement.Center) {
-            if (ClockTaskField.Title in content.selected) Text(task.title, Modifier.fillMaxWidth(), fontSize = 16.sp,
-                textAlign = if (ClockTaskField.Title in content.rightAligned) TextAlign.Right else TextAlign.Left)
-            val requested = content.visibleFields.filterNot { it == ClockTaskField.Title }
+            val primary = clockTaskFields(task, content.visibleFields.filter { it in primaryFields })
+            if (primary == listOf(ClockTaskField.Title)) {
+                Text(task.title, Modifier.fillMaxWidth(), fontSize = 16.sp,
+                    textAlign = if (ClockTaskField.Title in content.rightAligned) TextAlign.Right else TextAlign.Left)
+            } else if (primary.isNotEmpty()) {
+                ClockTaskContent(task, now, primary, content.copy(typography = content.typography.copy(size = 16)),
+                    MaterialTheme.colorScheme.onSurface, modifier = Modifier.testTag("agenda_task_primary:${task.id}"))
+            }
+            val requested = content.visibleFields.filterNot { it in primaryFields }
             val defaultFields = AgendaAppearance.defaultTaskContent().visibleFields.filterNot { it == ClockTaskField.Title }
-            if (requested == defaultFields && requested.none { it in content.rightAligned }) {
+            if (primary.all { it == ClockTaskField.Title } && requested == defaultFields && requested.none { it in content.rightAligned }) {
                 Text(details, fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 val fields = clockTaskFields(task, requested)
-                if (fields.isNotEmpty()) ClockTaskContent(task, now, fields, content, MaterialTheme.colorScheme.onSurfaceVariant)
+                if (fields.isNotEmpty()) ClockTaskContent(task, now, fields, content, MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.testTag("agenda_task_supporting:${task.id}"))
             }
         }
     }
 }
 
 @Composable
-private fun AgendaEvent(event: ScheduleEvent, now: Instant, content: ClockAgenda, onClick: () -> Unit) {
+private fun AgendaEvent(event: ScheduleEvent, now: Instant, content: ClockAgenda,
+    primaryFields: Set<ClockAgendaField>, onClick: () -> Unit,
+) {
     val locale = LocalConfiguration.current.locales[0]
     val clockPattern = if (DateFormat.is24HourFormat(LocalContext.current)) "HH:mm" else "h:mm a"
     val timeFormat = remember(locale, clockPattern) { DateTimeFormatter.ofPattern(clockPattern, locale).withZone(ZoneId.systemDefault()) }
@@ -317,16 +303,24 @@ private fun AgendaEvent(event: ScheduleEvent, now: Instant, content: ClockAgenda
         }
         Spacer(Modifier.width(AgendaContentGap))
         Column(Modifier.weight(1f)) {
-            if (ClockAgendaField.Title in content.selected) Text(event.title, Modifier.fillMaxWidth(), fontSize = 16.sp,
-                textAlign = if (ClockAgendaField.Title in content.rightAligned) TextAlign.Right else TextAlign.Left)
-            val requested = content.visibleFields.filterNot { it == ClockAgendaField.Title }
+            val primary = clockAgendaFields(event, content.visibleFields.filter { it in primaryFields })
+            if (primary == listOf(ClockAgendaField.Title)) {
+                Text(event.title, Modifier.fillMaxWidth(), fontSize = 16.sp,
+                    textAlign = if (ClockAgendaField.Title in content.rightAligned) TextAlign.Right else TextAlign.Left)
+            } else if (primary.isNotEmpty()) {
+                ClockAgendaContent(event, now, primary, content.typography.copy(size = 16),
+                    modifier = Modifier.testTag("agenda_event_primary:${event.id}"),
+                    color = MaterialTheme.colorScheme.onSurface, rightAligned = content.rightAligned)
+            }
+            val requested = content.visibleFields.filterNot { it in primaryFields }
             val defaultFields = AgendaAppearance.defaultCalendarContent().visibleFields.filterNot { it == ClockAgendaField.Title }
-            if (requested == defaultFields && requested.none { it in content.rightAligned }) {
+            if (primary.all { it == ClockAgendaField.Title } && requested == defaultFields && requested.none { it in content.rightAligned }) {
                 if (!event.isAllDay) Text("${timeFormat.format(event.startsAt)}–${timeFormat.format(event.endsAt)} · ${eventRemainingText(event, now)}",
                     fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             } else {
                 val fields = clockAgendaFields(event, requested)
                 if (fields.isNotEmpty()) ClockAgendaContent(event, now, fields, content.typography,
+                    modifier = Modifier.testTag("agenda_event_supporting:${event.id}"),
                     color = MaterialTheme.colorScheme.onSurfaceVariant, rightAligned = content.rightAligned)
             }
         }

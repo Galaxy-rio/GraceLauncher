@@ -21,8 +21,10 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.*
 import com.galaxyrio.gracelauncher.data.weather.WeatherCurrent
 import com.galaxyrio.gracelauncher.data.weather.WeatherDay
+import com.galaxyrio.gracelauncher.data.weather.WeatherSnapshot
 import com.galaxyrio.gracelauncher.ui.home.ClockMetadataLayout
 import com.galaxyrio.gracelauncher.ui.weather.DailyWeather
+import com.galaxyrio.gracelauncher.ui.weather.dailyWeatherFields
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
@@ -30,6 +32,7 @@ import java.time.temporal.ChronoUnit
 @Composable
 internal fun AgendaDayHeader(date: LocalDate, today: LocalDate, forecast: WeatherDay?, current: WeatherCurrent?,
     appearance: AgendaAppearance, weatherEnabled: Boolean,
+    snapshot: WeatherSnapshot? = null,
 ) {
     val configuration = LocalConfiguration.current
     val locale = configuration.locales[0]
@@ -37,7 +40,7 @@ internal fun AgendaDayHeader(date: LocalDate, today: LocalDate, forecast: Weathe
     val compactDateFormat = remember(locale) { DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, "MMMd"), locale) }
     val numericDateFormat = remember(locale) { DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, "Md"), locale) }
     val weatherFields = appearance.dayWeatherOrder.filter { it in appearance.dayWeatherSelected }
-    val hasWeather = weatherEnabled && weatherFields.isNotEmpty() && (forecast != null || current != null)
+    val hasWeather = weatherEnabled && dailyWeatherFields(forecast, current, weatherFields, snapshot).isNotEmpty()
     val defaults = remember { AgendaAppearance() }
     val defaultHeader = appearance.headerOrder.filter { it in appearance.headerSelected } == defaults.headerOrder &&
         appearance.headerSelected == defaults.headerSelected && appearance.headerRightAligned == defaults.headerRightAligned &&
@@ -69,7 +72,8 @@ internal fun AgendaDayHeader(date: LocalDate, today: LocalDate, forecast: Weathe
             }
             if (hasWeather) {
                 Spacer(Modifier.width(10.dp))
-                DailyWeather(forecast, current, Modifier.testTag("agenda_weather:$date"), weatherFields)
+                DailyWeather(forecast, current, Modifier.testTag("agenda_weather:$date"), weatherFields,
+                    appearance.dayWeatherLabeledFields, snapshot)
             }
         } else {
             val fields = appearance.headerOrder.filter { it in appearance.headerSelected && (it != AgendaHeaderField.Weather || hasWeather) }
@@ -83,7 +87,8 @@ internal fun AgendaDayHeader(date: LocalDate, today: LocalDate, forecast: Weathe
                         maxLines = 1, overflow = TextOverflow.Ellipsis)
                     AgendaHeaderField.Countdown -> Text(relativeDay, fontSize = 13.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    AgendaHeaderField.Weather -> Box { DailyWeather(forecast, current, Modifier.testTag("agenda_weather:$date"), weatherFields) }
+                    AgendaHeaderField.Weather -> Box { DailyWeather(forecast, current, Modifier.testTag("agenda_weather:$date"), weatherFields,
+                        appearance.dayWeatherLabeledFields, snapshot) }
                 } }
             }
         }

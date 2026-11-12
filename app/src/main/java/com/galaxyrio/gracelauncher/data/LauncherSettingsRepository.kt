@@ -109,7 +109,9 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
         val selected = widget?.takeIf { it.hasWidget }
         require(selected == null || selected.widgetId in previous)
         val current = dao.readSettings()?.toSettings() ?: LauncherSettings()
-        updateSettings(current.copy(agendaAppearance = style.normalized()))
+        // An appearance draft must not reset the last action chosen on the agenda itself.
+        updateSettings(current.copy(agendaAppearance = style.normalized().copy(
+            lastCreateAction = current.agendaAppearance.lastCreateAction)))
         if (selected == null) items.deletePopup(AgendaWidgetKey)
         else items.savePopup(AppPopupEntity(AgendaWidgetKey,
             PopupItem.encode(listOf(PopupItem("widget:${selected.widgetId}", selected)))))

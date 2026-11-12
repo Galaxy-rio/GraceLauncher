@@ -408,7 +408,7 @@ internal fun LazyListScope.clockRegionSettings(
 }
 
 @Composable
-private fun ClockControlSegment(index: Int, count: Int, tag: String, content: @Composable () -> Unit) {
+internal fun ClockControlSegment(index: Int, count: Int, tag: String, content: @Composable () -> Unit) {
     SegmentedListItem(shapes = ListItemDefaults.segmentedShapes(index, count),
         colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
         modifier = Modifier.testTag(tag), content = content)
