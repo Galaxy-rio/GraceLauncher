@@ -1099,4 +1099,20 @@
     <string name="clock_rotate_all">旋转所有区域</string>
     <string name="home_pull_protection">意外滑动保护</string>
     <string name="home_pull_protection_summary">阻止划动时的意外激活。下划两次以激活。</string>
+    <string name="agenda_title">标题</string>
+    <string name="agenda_title_time">当前时间</string>
+    <string name="agenda_title_quote">名言</string>
+    <string name="agenda_title_text">自定义文本</string>
+    <string name="agenda_widget_region">小组件区域</string>
+    <string name="agenda_daily">每日</string>
+    <string name="agenda_calendar_content">日程内容</string>
+    <string name="agenda_tasks_first">优先显示任务</string>
+    <string name="agenda_hourly_weather">小时天气</string>
+    <string name="agenda_hourly_content">小时天气内容</string>
+    <string name="agenda_undated_tasks">无截止日期的任务</string>
+    <string name="agenda_undated_content">无截止日期的任务内容</string>
+    <string name="agenda_new_event_button">添加日程按钮</string>
+    <string name="agenda_new_task_button">添加任务按钮</string>
+    <string name="agenda_new_task">新建任务</string>
+    <string name="agenda_unsaved_message">日程页面的更改尚未保存。</string>
 </resources>

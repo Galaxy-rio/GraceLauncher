@@ -59,6 +59,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import com.galaxyrio.gracelauncher.data.AgendaDayWeatherField
+import com.galaxyrio.gracelauncher.data.AgendaHourWeatherField
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.ClockWeather
 import com.galaxyrio.gracelauncher.data.ClockWeatherField
@@ -312,7 +314,12 @@ fun DailyWeather(
     day: WeatherDay?,
     current: WeatherCurrent?,
     modifier: Modifier = Modifier,
+    fields: List<AgendaDayWeatherField> = listOf(
+        AgendaDayWeatherField.Icon,
+        AgendaDayWeatherField.HighLow,
+    ),
 ) {
+    if (fields.isEmpty()) return
     if (day == null && (current == null || (current.temperature == null &&
             current.condition == WeatherCondition.Unknown && current.description.isNullOrBlank()))) return
     val condition = day?.condition ?: current!!.condition
@@ -329,18 +336,30 @@ fun DailyWeather(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        WeatherIcon(condition, isDaylight = day != null || current?.isDaylight != false, modifier = Modifier.size(21.dp))
-        if (high != null || low != null) {
-            Text(high?.format() ?: "—", fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-            Text("/ ${low?.format() ?: "—"}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, maxLines = 1)
-        } else {
-            Text(current?.temperature?.format() ?: "—", fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
-        }
+        fields.forEach { field -> when (field) {
+            AgendaDayWeatherField.Icon ->
+                WeatherIcon(condition, isDaylight = day != null || current?.isDaylight != false, modifier = Modifier.size(21.dp))
+            AgendaDayWeatherField.HighLow -> if (high != null || low != null) {
+                Text(high?.format() ?: "—", fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                Text("/ ${low?.format() ?: "—"}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp, maxLines = 1)
+            } else {
+                Text(current?.temperature?.format() ?: "—", fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+            }
+            AgendaDayWeatherField.Description ->
+                Text(description, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        } }
     }
 }
 
 @Composable
-fun HourlyWeather(snapshot: WeatherSnapshot, now: Instant, modifier: Modifier = Modifier) {
+fun HourlyWeather(snapshot: WeatherSnapshot, now: Instant, modifier: Modifier = Modifier,
+    fields: List<AgendaHourWeatherField> = listOf(
+        AgendaHourWeatherField.Time,
+        AgendaHourWeatherField.Icon,
+        AgendaHourWeatherField.Temperature,
+    ),
+) {
+    if (fields.isEmpty()) return
     val locale = LocalConfiguration.current.locales[0]
     val use24Hour = DateFormat.is24HourFormat(LocalContext.current)
     val timeFormat = remember(locale, use24Hour, snapshot.location.timeZone) {
@@ -370,6 +389,7 @@ fun HourlyWeather(snapshot: WeatherSnapshot, now: Instant, modifier: Modifier = 
                 description = current.description,
                 temperature = current.temperature,
                 tag = "weather_hour:now",
+                fields = fields,
             )
         }
         items(hours, key = { it.at }) { hour ->
@@ -381,6 +401,7 @@ fun HourlyWeather(snapshot: WeatherSnapshot, now: Instant, modifier: Modifier = 
                 description = hour.description,
                 temperature = hour.temperature,
                 tag = "weather_hour:${hour.at}",
+                fields = fields,
             )
         }
     }
@@ -395,6 +416,7 @@ private fun HourlyWeatherCell(
     description: String?,
     temperature: WeatherTemperature?,
     tag: String,
+    fields: List<AgendaHourWeatherField>,
 ) {
     val descriptionText = weatherDescription(condition, description)
     val summary = stringResource(R.string.weather_hour_description, spokenTime, descriptionText, temperature.readableTemperature())
@@ -402,11 +424,18 @@ private fun HourlyWeatherCell(
         Modifier.width(72.dp).testTag(tag).clearAndSetSemantics { contentDescription = summary },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(time, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-        Spacer(Modifier.height(12.dp))
-        WeatherIcon(condition, isDaylight, Modifier.size(27.dp))
-        Spacer(Modifier.height(12.dp))
-        Text(temperature?.format() ?: "—", fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        fields.forEachIndexed { index, field ->
+            if (index > 0) Spacer(Modifier.height(12.dp))
+            when (field) {
+                AgendaHourWeatherField.Time ->
+                    Text(time, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+                AgendaHourWeatherField.Icon -> WeatherIcon(condition, isDaylight, Modifier.size(27.dp))
+                AgendaHourWeatherField.Temperature ->
+                    Text(temperature?.format() ?: "—", fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+                AgendaHourWeatherField.Description ->
+                    Text(descriptionText, fontSize = 13.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+        }
     }
 }
 

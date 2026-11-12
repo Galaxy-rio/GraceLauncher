@@ -73,6 +73,7 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
             weatherConnectionJson = settings.weatherConnection.encode(),
             clockAppKey = settings.clockAppKey,
             clockStyleJson = settings.clockStyle.encode(),
+            agendaAppearanceJson = settings.agendaAppearance.encode(),
             homeLayoutJson = settings.homeLayout.encode(),
             hideStatusBar = settings.hideStatusBar,
             hideAlphabet = settings.hideAlphabet,
@@ -97,6 +98,35 @@ class LauncherSettingsRepository(private val database: LauncherDatabase) {
             preferNonAccessibility = settings.preferNonAccessibility,
             calendarPreferencesJson = settings.calendar.encode(),
         ))
+    }
+
+    /** Commit presentation and its widget together; only then release IDs no surface still owns. */
+    suspend fun saveAgendaAppearance(style: AgendaAppearance, widget: HomeLayout?): List<Int> = database.withTransaction {
+        val items = database.itemsDao()
+        val previous = listOf(AgendaWidgetKey, AgendaWidgetDraftKey).flatMap { key ->
+            items.popup(key)?.let { PopupItem.decode(it.itemsJson) }.orEmpty()
+        }.mapNotNull { it.widget?.widgetId }.toSet()
+        val selected = widget?.takeIf { it.hasWidget }
+        require(selected == null || selected.widgetId in previous)
+        val current = dao.readSettings()?.toSettings() ?: LauncherSettings()
+        updateSettings(current.copy(agendaAppearance = style.normalized()))
+        if (selected == null) items.deletePopup(AgendaWidgetKey)
+        else items.savePopup(AppPopupEntity(AgendaWidgetKey,
+            PopupItem.encode(listOf(PopupItem("widget:${selected.widgetId}", selected)))))
+        items.deletePopup(AgendaWidgetDraftKey)
+        val retained = items.readPopups().flatMap { PopupItem.decode(it.itemsJson) }.mapNotNull { it.widget?.widgetId }.toSet() +
+            current.homeLayout.widgetId
+        previous.filterNot { it in retained }
+    }
+
+    suspend fun discardAgendaWidgetDraft(): List<Int> = database.withTransaction {
+        val items = database.itemsDao()
+        val removed = items.popup(AgendaWidgetDraftKey)?.let { PopupItem.decode(it.itemsJson) }.orEmpty()
+            .mapNotNull { it.widget?.widgetId }
+        items.deletePopup(AgendaWidgetDraftKey)
+        val retained = items.readPopups().flatMap { PopupItem.decode(it.itemsJson) }.mapNotNull { it.widget?.widgetId }.toSet() +
+            (dao.readSettings()?.toSettings()?.homeLayout?.widgetId ?: -1)
+        removed.filterNot { it in retained }
     }
 
     /** Read-modify-write is atomic even when a UI emission has not arrived yet. */
@@ -257,6 +287,7 @@ private fun LauncherSettingsEntity.toSettings() = LauncherSettings(
     weatherConnection = WeatherConnectionPreferences.decode(weatherConnectionJson),
     clockAppKey = clockAppKey,
     clockStyle = ClockStyle.decode(clockStyleJson, legacyShowBattery = showBatteryPercentage),
+    agendaAppearance = AgendaAppearance.decode(agendaAppearanceJson),
     homeLayout = HomeLayout.decode(homeLayoutJson),
     hideStatusBar = hideStatusBar,
     hideAlphabet = hideAlphabet,

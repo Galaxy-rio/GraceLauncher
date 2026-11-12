@@ -264,9 +264,11 @@ class WidgetSetupActivity : AppCompatActivity() {
                 val layout = HomeLayout(widgetId = id, widgetProvider = info.provider.flattenToString(),
                     widgetLabel = runCatching { info.loadLabel(packageManager) }.getOrDefault(info.provider.className))
                 val owner = popupOwner ?: com.galaxyrio.gracelauncher.data.HomeContentKey
-                itemsRepository.updatePopup(owner, emptyList()) { entries ->
-                    if (entries.any { it.widget?.widgetId == id }) entries else entries + PopupItem("widget:$id", layout)
+                val removed = itemsRepository.updatePopup(owner, emptyList()) { entries ->
+                    if (owner == com.galaxyrio.gracelauncher.data.AgendaWidgetDraftKey) listOf(PopupItem("widget:$id", layout))
+                    else if (entries.any { it.widget?.widgetId == id }) entries else entries + PopupItem("widget:$id", layout)
                 }
+                removed.forEach { removedId -> runCatching { host.deleteAppWidgetId(removedId) } }
                 host.untrackPendingId(pendingId)
                 Log.i(TAG, "saved id=$id provider=${info.provider}")
                 pendingId = -1 // The database owns it now; cancellation must not delete it.

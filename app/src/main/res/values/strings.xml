@@ -1135,4 +1135,20 @@
     <string name="clock_rotate_all">Rotate all regions</string>
     <string name="home_pull_protection">Accidental swipe protection</string>
     <string name="home_pull_protection_summary">Prevents accidental activation while scrolling. Pull again at the list edge, then release to activate.</string>
+    <string name="agenda_title">Title</string>
+    <string name="agenda_title_time">Current time</string>
+    <string name="agenda_title_quote">Quote</string>
+    <string name="agenda_title_text">Custom text</string>
+    <string name="agenda_widget_region">Widget region</string>
+    <string name="agenda_daily">Daily</string>
+    <string name="agenda_calendar_content">Calendar content</string>
+    <string name="agenda_tasks_first">Show tasks first</string>
+    <string name="agenda_hourly_weather">Hourly weather</string>
+    <string name="agenda_hourly_content">Hourly weather content</string>
+    <string name="agenda_undated_tasks">Tasks without a due date</string>
+    <string name="agenda_undated_content">Undated task content</string>
+    <string name="agenda_new_event_button">Add event button</string>
+    <string name="agenda_new_task_button">Add task button</string>
+    <string name="agenda_new_task">New task</string>
+    <string name="agenda_unsaved_message">Your agenda changes haven’t been saved.</string>
 </resources>

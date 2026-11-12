@@ -483,15 +483,35 @@ private fun ClockElementButtons(
     centered: Boolean = false,
     onSelect: (ClockElement, Boolean) -> Unit,
     onReorder: ((List<ClockElement?>) -> Unit)? = null,
+) = OrderedIconChoices(
+    tag = "clock_region:${region.name}", order = order, selected = selected,
+    enabled = enabled, hapticsEnabled = hapticsEnabled, disabledElements = disabledElements,
+    centered = centered, labelFor = { it.label() }, iconFor = { it.icon() },
+    onSelect = onSelect, onReorder = onReorder,
+)
+
+@Composable
+internal fun <T : Enum<T>> OrderedIconChoices(
+    tag: String,
+    order: List<T?>,
+    selected: Set<T>,
+    enabled: Boolean,
+    hapticsEnabled: Boolean,
+    disabledElements: Set<T> = emptySet(),
+    centered: Boolean = false,
+    labelFor: @Composable (T) -> String,
+    iconFor: (T) -> Int,
+    onSelect: (T, Boolean) -> Unit,
+    onReorder: ((List<T?>) -> Unit)? = null,
 ) {
     val latestOrder by rememberUpdatedState(order)
     val reorder by rememberUpdatedState(onReorder)
     val haptics = LocalHapticFeedback.current
-    val rects = remember(region) { mutableStateMapOf<String, Rect>() }
-    var dragging by remember(region) { mutableStateOf<String?>(null) }
-    var drop by remember(region) { mutableStateOf<ClockElementDrop?>(null) }
-    var center by remember(region) { mutableFloatStateOf(0f) }
-    var originalOrder by remember(region) { mutableStateOf<List<ClockElement?>?>(null) }
+    val rects = remember(tag) { mutableStateMapOf<String, Rect>() }
+    var dragging by remember(tag) { mutableStateOf<String?>(null) }
+    var drop by remember(tag) { mutableStateOf<ClockElementDrop?>(null) }
+    var center by remember(tag) { mutableFloatStateOf(0f) }
+    var originalOrder by remember(tag) { mutableStateOf<List<T?>?>(null) }
     val placementSpec = MaterialTheme.motionScheme.defaultSpatialSpec<Float>()
     fun feedback() { if (hapticsEnabled) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove) }
     fun move(key: String, to: Int): Boolean {
@@ -530,7 +550,7 @@ private fun ClockElementButtons(
                     animated
                 }
                 val currentPosition by rememberUpdatedState(position)
-                val label = element?.label() ?: stringResource(R.string.clock_alignment_divider)
+                val label = element?.let { labelFor(it) } ?: stringResource(R.string.clock_alignment_divider)
                 val left = stringResource(R.string.clock_move_left)
                 val right = stringResource(R.string.clock_move_right)
                 val side = stringResource(when {
@@ -544,7 +564,7 @@ private fun ClockElementButtons(
                         val position = coordinates.positionInParent()
                         rects[key] = Rect(position.x, position.y, position.x + coordinates.size.width, position.y + coordinates.size.height)
                     }
-                    .then(if (onReorder != null) Modifier.pointerInput(region, key, enabled) {
+                    .then(if (onReorder != null) Modifier.pointerInput(tag, key, enabled) {
                         if (!enabled) return@pointerInput
                         detectDragGesturesAfterLongPress(
                             onDragStart = {
@@ -603,7 +623,7 @@ private fun ClockElementButtons(
                             }
                             translationX = visible - target
                         }
-                        .testTag("clock_region:${region.name}:$key")
+                        .testTag("$tag:$key")
                         .semantics(mergeDescendants = element == null) {
                             if (element == null) contentDescription = label
                             if (onReorder != null) {
@@ -619,7 +639,7 @@ private fun ClockElementButtons(
                     } else ToggleButton(checked = element in selected, onCheckedChange = { onSelect(element, it) },
                         enabled = enabled && element !in disabledElements,
                         shapes = connectedShapes(index, order.size), contentPadding = PaddingValues(0.dp), modifier = control) {
-                        Icon(painterResource(element.icon()), label, Modifier.size(24.dp))
+                        Icon(painterResource(iconFor(element)), label, Modifier.size(24.dp))
                     }
                 }
             }

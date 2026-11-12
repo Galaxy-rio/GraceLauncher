@@ -10,6 +10,8 @@ import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.FolderPlacement
 import com.galaxyrio.gracelauncher.data.LauncherSettings
 import com.galaxyrio.gracelauncher.data.ClockStyle
+import com.galaxyrio.gracelauncher.data.AgendaAppearance
+import com.galaxyrio.gracelauncher.data.HomeLayout
 import com.galaxyrio.gracelauncher.data.MediaPlayerStyle
 import com.galaxyrio.gracelauncher.data.LauncherShortcut
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
@@ -48,6 +50,8 @@ data class LauncherActions(
     val copyPackageName: (LauncherApp) -> Unit = {},
     val storePage: (LauncherApp) -> Unit = {},
     val newEvent: () -> Unit = {},
+    val newTask: () -> Unit = {},
+    val addAgendaWidget: () -> Unit = {},
     val openEvent: (ScheduleEvent) -> Unit = {},
     val refreshAgenda: () -> Unit = {},
     val refreshCalendarSources: () -> Unit = {},
@@ -64,6 +68,8 @@ data class LauncherActions(
     val refreshApps: () -> Unit = {},
     val updateSettings: ((LauncherSettings) -> LauncherSettings) -> Unit = {},
     val applyClockStyle: suspend (ClockStyle) -> Boolean = { false },
+    val applyAgendaAppearance: suspend (AgendaAppearance, HomeLayout?) -> Boolean = { _, _ -> false },
+    val discardAgendaWidgetDraft: suspend () -> Boolean = { false },
     val applyMediaStyle: suspend (MediaPlayerStyle) -> Boolean = { false },
     val deleteFonts: suspend (Set<String>) -> Boolean = { false },
     val applyIconDesign: suspend (ItemIcon) -> Boolean = { false },

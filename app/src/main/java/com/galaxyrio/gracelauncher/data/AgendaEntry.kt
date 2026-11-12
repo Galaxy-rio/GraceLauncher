@@ -21,6 +21,7 @@ internal fun agendaDaysWithTasks(
     tasks: List<TaskItem>,
     zone: ZoneId = ZoneId.systemDefault(),
     deprioritizeAllDay: Boolean = true,
+    tasksFirst: Boolean = false,
 ): Map<LocalDate, List<AgendaEntry>> {
     val days = calendarDays.mapValues { (_, events) ->
         events.mapTo(mutableListOf<AgendaEntry>()) { AgendaEntry.Calendar(it) }
@@ -37,7 +38,8 @@ internal fun agendaDaysWithTasks(
             is AgendaEntry.Task -> it.task.dueAllDay
         }
     }.then(chronological) else chronological
-    days.values.forEach { it.sortWith(order) }
+    val groupedOrder = if (tasksFirst) compareBy<AgendaEntry> { it !is AgendaEntry.Task }.then(order) else order
+    days.values.forEach { it.sortWith(groupedOrder) }
     return days
 }
 

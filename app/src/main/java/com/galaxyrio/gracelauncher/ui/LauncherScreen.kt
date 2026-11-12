@@ -496,6 +496,17 @@ fun LauncherRoute(
                 .putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, System.currentTimeMillis())
                 .putExtra(CalendarContract.EXTRA_EVENT_END_TIME, System.currentTimeMillis() + 3_600_000))
         },
+        newTask = {
+            // Same exported activity and extra as Tasks.org's static_new_task shortcut.
+            val intent = Intent(Intent.ACTION_VIEW)
+                .setClassName(TasksRepository.Package, "com.todoroo.astrid.activity.MainActivity")
+                .putExtra("open_task", 0)
+            openSystemApp(intent)
+        },
+        addAgendaWidget = {
+            openSystemApp(Intent(context, WidgetSetupActivity::class.java)
+                .putExtra(WidgetSetupActivity.EXTRA_POPUP_OWNER, com.galaxyrio.gracelauncher.data.AgendaWidgetDraftKey))
+        },
         openEvent = {
             if (!openCalendarEvent(context, it, viewModel.uiState.value.settings.calendar.appPackage)) {
                 Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
@@ -537,6 +548,8 @@ fun LauncherRoute(
         refreshIconPacks = viewModel::refreshApps,
         refreshApps = viewModel::refreshApps,
         applyClockStyle = viewModel::applyClockStyle,
+        applyAgendaAppearance = viewModel::applyAgendaAppearance,
+        discardAgendaWidgetDraft = viewModel::discardAgendaWidgetDraft,
         applyMediaStyle = viewModel::applyMediaStyle,
         deleteFonts = viewModel::deleteFonts,
         applyIconDesign = viewModel::applyIconDesign,

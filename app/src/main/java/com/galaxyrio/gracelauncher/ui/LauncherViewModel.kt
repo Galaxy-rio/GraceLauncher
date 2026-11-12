@@ -1500,6 +1500,35 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         settingsRepository.mutateSettings(transform)
     }
 
+    suspend fun applyAgendaAppearance(style: com.galaxyrio.gracelauncher.data.AgendaAppearance,
+        widget: com.galaxyrio.gracelauncher.data.HomeLayout?): Boolean = settingsWriteMutex.withLock {
+        try {
+            val removed = settingsRepository.saveAgendaAppearance(style, widget)
+            val host = com.galaxyrio.gracelauncher.platform.HomeWidgetHost(getApplication())
+            removed.forEach { runCatching { host.deleteAppWidgetId(it) } }
+            _uiState.update { it.copy(settingsSaveFailed = false) }
+            true
+        } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            Log.e("LauncherViewModel", "Unable to save agenda appearance", error)
+            _uiState.update { it.copy(settingsSaveFailed = true) }
+            false
+        }
+    }
+
+    suspend fun discardAgendaWidgetDraft(): Boolean = settingsWriteMutex.withLock {
+        try {
+            val removed = settingsRepository.discardAgendaWidgetDraft()
+            val host = com.galaxyrio.gracelauncher.platform.HomeWidgetHost(getApplication())
+            removed.forEach { runCatching { host.deleteAppWidgetId(it) } }
+            true
+        } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            Log.e("LauncherViewModel", "Unable to discard agenda widget draft", error)
+            false
+        }
+    }
+
     suspend fun applyMediaStyle(style: MediaPlayerStyle): Boolean = settingsWriteMutex.withLock {
         try {
             settingsRepository.mutateSettings { it.copy(mediaStyle = style.normalized()) }

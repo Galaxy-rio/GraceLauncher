@@ -40,6 +40,7 @@ data class LauncherSettings(
     /** null delegates to Android's standard SHOW_ALARMS action. */
     val clockAppKey: String? = null,
     val clockStyle: ClockStyle = ClockStyle(),
+    val agendaAppearance: AgendaAppearance = AgendaAppearance(),
     val homeLayout: HomeLayout = HomeLayout(),
     val hideStatusBar: Boolean = true,
     val hideAlphabet: Boolean = false,
