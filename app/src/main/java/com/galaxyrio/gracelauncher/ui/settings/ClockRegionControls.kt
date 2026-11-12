@@ -284,11 +284,9 @@ internal fun LazyListScope.clockRegionSettings(
     }
     if (agenda.selected.isNotEmpty()) {
         val defaults = ClockRowTypography()
-        agendaControls += ClockControl("alignment") { index, count ->
-            ClockControlSegment(index, count, "clock_agenda_alignment") {
-                ClockChoices(ClockAlignment.entries, agenda.alignment, enabled, "clock_agenda_alignment",
-                    label = { it.label() }, onSelect = { alignment -> changeAgenda { it.copy(alignment = alignment) } })
-            }
+        agendaControls += ClockControl("centered") { index, count ->
+            SettingsToggleItem(stringResource(R.string.grace_button_align_center), null, agenda.centered,
+                index, count, "clock_agenda_centered", enabled) { value -> changeAgenda { it.copy(centered = value) } }
         }
         agendaControls += ClockControl("font") { index, count ->
             SettingsActionItem(stringResource(R.string.settings_font), appFontLabel(agenda.typography.fontId), index, count,
@@ -335,11 +333,9 @@ internal fun LazyListScope.clockRegionSettings(
     }
     if (tasks.selected.isNotEmpty()) {
         val defaults = ClockRowTypography()
-        taskControls += ClockControl("alignment") { index, count ->
-            ClockControlSegment(index, count, "clock_task_alignment") {
-                ClockChoices(ClockAlignment.entries, tasks.alignment, enabled, "clock_task_alignment",
-                    label = { it.label() }, onSelect = { alignment -> changeTasks { it.copy(alignment = alignment) } })
-            }
+        taskControls += ClockControl("centered") { index, count ->
+            SettingsToggleItem(stringResource(R.string.grace_button_align_center), null, tasks.centered,
+                index, count, "clock_task_centered", enabled) { value -> changeTasks { it.copy(centered = value) } }
         }
         taskControls += ClockControl("font") { index, count ->
             SettingsActionItem(stringResource(R.string.settings_font), appFontLabel(tasks.typography.fontId), index, count,

@@ -304,7 +304,8 @@ internal fun HomeClockHeader(
                                 Modifier.fillMaxWidth().then(if (inset) Modifier.padding(horizontal = LauncherLayout.ContentInset) else Modifier),
                                 animatePositions = !interactive,
                                 useLatinLetters = regions.agenda.useLatinLetters, wrapWidth = wrapWidth,
-                                color = colors.getValue(ClockColorPart.Agenda), alignment = regions.agenda.alignment)
+                                color = colors.getValue(ClockColorPart.Agenda), centered = regions.agenda.centered,
+                                rightAligned = regions.agenda.rightAligned)
                         }
                     }
                 }
@@ -330,7 +331,7 @@ internal fun HomeClockHeader(
                             role = Role.Button, onClick = { onTaskClick(task) }, onLongClick = onLongClick) else Modifier),
                         propagateMinConstraints = wrapWidth) {
                         ClockTaskContent(task, now, fields, regions.tasks, colors.getValue(ClockColorPart.Task),
-                            Modifier.then(if (inset) Modifier.padding(horizontal = LauncherLayout.ContentInset) else Modifier),
+                            Modifier.fillMaxWidth().then(if (inset) Modifier.padding(horizontal = LauncherLayout.ContentInset) else Modifier),
                             animatePositions = !interactive, wrapWidth = wrapWidth)
                         if (interactive) Box(Modifier.matchParentSize().clip(LauncherLayout.RowShape)
                             .indication(interactions, ripple(color = colors.getValue(ClockColorPart.Task))))

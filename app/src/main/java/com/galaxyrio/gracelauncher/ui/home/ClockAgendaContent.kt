@@ -73,7 +73,8 @@ internal fun ClockAgendaContent(
     useLatinLetters: Boolean = false,
     wrapWidth: Boolean = false,
     color: Color = LocalLauncherAppearance.current.text,
-    alignment: ClockAlignment = ClockAlignment.Left,
+    centered: Boolean = false,
+    rightAligned: Set<ClockAgendaField> = emptySet(),
 ) {
     val locale = LocalConfiguration.current.locales[0]
     val dateLocale = remember(locale, useLatinLetters) { clockCalendarLocale(locale, useLatinLetters) }
@@ -100,9 +101,11 @@ internal fun ClockAgendaContent(
     val durationText = if (ClockAgendaField.Duration in fields) agendaDuration(event) else ""
     val countdown = if (ClockAgendaField.Countdown in fields) eventRemainingText(event, now) else ""
 
+    val leftCount = fields.count { it !in rightAligned }
     ClockMetadataLayout(fields.map { it == ClockAgendaField.Title || it == ClockAgendaField.Location || it == ClockAgendaField.Calendar },
         modifier.then(if (wrapWidth) Modifier else Modifier.fillMaxWidth())
-        .testTag("schedule_line"), wrapWidth, alignment) {
+        .testTag("schedule_line"), wrapWidth, if (centered) ClockAlignment.Center else ClockAlignment.Left,
+        rightStart = if (centered) null else leftCount) {
         fields.forEachIndexed { index, field ->
             key(field) {
                 val draw: @Composable (Modifier) -> Unit = { movement ->
@@ -131,7 +134,8 @@ internal fun ClockAgendaContent(
                             ClockAgendaField.Calendar -> event.calendarName.orEmpty()
                             ClockAgendaField.Color -> ""
                         }.replace('\n', ' ').replace('\r', ' ')
-                        val separator = if (index > 0 && fields[index - 1] != ClockAgendaField.Color) "· " else ""
+                        val startsGroup = index == 0 || (!centered && index == leftCount)
+                        val separator = if (!startsGroup && fields[index - 1] != ClockAgendaField.Color) "· " else ""
                         Text(separator + value, modifier = movement.testTag(tag),
                             color = color,
                             style = style, maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -163,6 +167,7 @@ internal fun ClockMetadataLayout(
     modifier: Modifier,
     wrapWidth: Boolean,
     alignment: ClockAlignment,
+    rightStart: Int? = null,
     content: @Composable () -> Unit,
 ) {
     Layout(content = content, modifier = modifier) { measurables, constraints ->
@@ -198,6 +203,10 @@ internal fun ClockMetadataLayout(
                 ClockAlignment.Right -> remaining
             }
             placeables.forEachIndexed { index, placeable ->
+                if (index == rightStart) {
+                    x = (layoutWidth - placeables.drop(index).sumOf { it.width } -
+                        gap * (placeables.size - index - 1).coerceAtLeast(0)).coerceAtLeast(0)
+                }
                 placeable.place(x, above - baselines[index])
                 x += placeable.width + gap
             }

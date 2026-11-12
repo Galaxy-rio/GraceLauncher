@@ -55,6 +55,8 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.ClockColorPart
+import com.galaxyrio.gracelauncher.data.ClockAgenda
+import com.galaxyrio.gracelauncher.data.ClockTasks
 import com.galaxyrio.gracelauncher.data.ClockElement
 import com.galaxyrio.gracelauncher.data.ClockRegions
 import com.galaxyrio.gracelauncher.data.ClockRegion
@@ -320,6 +322,14 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
                                             current.copy(agenda = current.agenda.copy(order = order))
                                         } },
                                         onClose = { editingContent = null }, modifier = controlsModifier.padding(bottom = 16.dp),
+                                        rightAligned = regions.agenda.rightAligned,
+                                        onAlignedReorder = { order, rightAligned -> if (pageEnabled) updateRegions { current ->
+                                            current.copy(agenda = current.agenda.copy(order = order, rightAligned = rightAligned))
+                                        } },
+                                        onReset = { if (pageEnabled) updateRegions { current ->
+                                            val defaults = ClockAgenda()
+                                            current.copy(agenda = current.agenda.copy(order = defaults.order, rightAligned = defaults.rightAligned))
+                                        } },
                                     )
                                     ClockContentPage.Weather -> ClockContentPicker(
                                         stringResource(R.string.clock_weather_contents), regions.weather.order, regions.weather.selected,
@@ -351,6 +361,14 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
                                             current.copy(tasks = current.tasks.copy(order = order))
                                         } },
                                         onClose = { editingContent = null }, modifier = controlsModifier.padding(bottom = 16.dp),
+                                        rightAligned = regions.tasks.rightAligned,
+                                        onAlignedReorder = { order, rightAligned -> if (pageEnabled) updateRegions { current ->
+                                            current.copy(tasks = current.tasks.copy(order = order, rightAligned = rightAligned))
+                                        } },
+                                        onReset = { if (pageEnabled) updateRegions { current ->
+                                            val defaults = ClockTasks()
+                                            current.copy(tasks = current.tasks.copy(order = defaults.order, rightAligned = defaults.rightAligned))
+                                        } },
                                     )
                                 }
                             } else LazyColumn(

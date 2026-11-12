@@ -38,6 +38,8 @@ import com.galaxyrio.gracelauncher.ui.overlays.FavoritesReorderState
 import com.galaxyrio.gracelauncher.ui.overlays.rememberReorderTranslation
 import kotlinx.coroutines.isActive
 
+private const val ClockFieldAlignmentDivider = "alignment_divider"
+
 @Composable
 internal fun ClockTaskField.label(): String = stringResource(when (this) {
     ClockTaskField.Title -> R.string.clock_task_field_title
@@ -67,6 +69,9 @@ internal fun <T : Enum<T>> ClockContentPicker(
     modifier: Modifier = Modifier,
     labelShown: (T) -> Boolean? = { null },
     onLabelChange: (T, Boolean) -> Unit = { _, _ -> },
+    rightAligned: Set<T>? = null,
+    onAlignedReorder: (List<T>, Set<T>) -> Unit = { _, _ -> },
+    onReset: (() -> Unit)? = null,
 ) {
     Column(modifier.fillMaxSize().testTag("${tag}_picker")
         .clip(ListItemDefaults.segmentedShapes(0, 1).shape)
@@ -80,14 +85,18 @@ internal fun <T : Enum<T>> ClockContentPicker(
             }
         }
         ClockFieldOrder(order, selected, enabled, hapticsEnabled, tag, label, onSelect, onReorder,
-            Modifier.weight(1f), labelShown, onLabelChange)
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+            Modifier.weight(1f), labelShown, onLabelChange, rightAligned, onAlignedReorder)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            if (onReset != null) TextButton(onReset, Modifier.testTag("${tag}_reset"), enabled = enabled) {
+                Text(stringResource(R.string.reset))
+            }
+            Spacer(Modifier.weight(1f))
             FilledTonalButton(onClose, Modifier.testTag("${tag}_done")) { Text(stringResource(R.string.done)) }
         }
     }
 }
 
-/** Selection belongs to the checkbox; all fields retain their position when hidden. */
+/** Selection belongs to the checkbox; aligned content keeps selected and unselected fields apart. */
 @Composable
 internal fun <T : Enum<T>> ClockFieldOrder(
     order: List<T>,
@@ -101,15 +110,34 @@ internal fun <T : Enum<T>> ClockFieldOrder(
     modifier: Modifier = Modifier,
     labelShown: (T) -> Boolean? = { null },
     onLabelChange: (T, Boolean) -> Unit = { _, _ -> },
+    rightAligned: Set<T>? = null,
+    onAlignedReorder: (List<T>, Set<T>) -> Unit = { _, _ -> },
 ) {
     val list = rememberLazyListState()
     val fields by rememberUpdatedState(order.associateBy { it.name })
-    val commit by rememberUpdatedState(onReorder)
+    val grouped = rightAligned != null
+    val activeKeys = selected.map { it.name }.toSet() + ClockFieldAlignmentDivider
+    val commit by rememberUpdatedState<(List<String>) -> Unit> { saved ->
+        val updatedOrder = saved.mapNotNull { fields[it] }
+        if (rightAligned != null) {
+            val right = saved.drop(saved.indexOf(ClockFieldAlignmentDivider) + 1)
+                .mapNotNull { fields[it] }.filter { it in selected }.toSet()
+            // Hidden fields retain their saved side when selection or visible ordering changes.
+            onAlignedReorder(updatedOrder, (rightAligned - selected) + right)
+        } else onReorder(updatedOrder)
+    }
+    val canMove by rememberUpdatedState<(String, String) -> Boolean> { from, to ->
+        !grouped || (from in activeKeys) == (to in activeKeys)
+    }
     val haptics by rememberUpdatedState(LocalHapticFeedback.current)
     val feedbackEnabled by rememberUpdatedState(hapticsEnabled)
-    val keys = order.map { it.name }
+    val keys = if (rightAligned != null) {
+        order.filter { it in selected && it !in rightAligned }.map { it.name } + ClockFieldAlignmentDivider +
+            order.filter { it in selected && it in rightAligned }.map { it.name } +
+            order.filterNot { it in selected }.map { it.name }
+    } else order.map { it.name }
     val reorder = remember(list) {
-        FavoritesReorderState(list, keys, { saved -> commit(saved.mapNotNull { fields[it] }) }) {
+        FavoritesReorderState(list, keys, { saved -> commit(saved) }, { from, to -> canMove(from, to) }) {
             if (feedbackEnabled) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
         }
     }
@@ -133,78 +161,93 @@ internal fun <T : Enum<T>> ClockFieldOrder(
         userScrollEnabled = reorder.draggingKey == null,
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        items(reorder.keys, key = { FavoritesReorderState.itemKey(it) }) { key ->
-            val field = fields[key] ?: return@items
-            val index = reorder.keys.indexOf(key)
-            val title = label(field)
-            val up = stringResource(R.string.favorites_move_up)
-            val down = stringResource(R.string.favorites_move_down)
-            val dragging = reorder.draggingKey == key
-            val offset by rememberReorderTranslation(reorder, key)
-            val background by animateColorAsState(
-                if (dragging) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainer,
-                label = "clockFieldLift",
-            )
-            Row(
-                modifier = Modifier.then(if (dragging) Modifier else Modifier.animateItem())
-                    .zIndex(if (dragging || reorder.drop?.key == key) 1f else 0f)
-                    .graphicsLayer { translationY = offset }
-                    .fillMaxWidth().height(64.dp).clip(RoundedCornerShape(16.dp)).background(background)
-                    .testTag("$tag:$key")
-                    .semantics {
-                        customActions = buildList {
-                            if (enabled && index > 0) add(CustomAccessibilityAction(up) { reorder.moveBy(key, -1) })
-                            if (enabled && index < reorder.keys.lastIndex) add(CustomAccessibilityAction(down) { reorder.moveBy(key, 1) })
-                        }
-                    }.padding(horizontal = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Checkbox(
-                    checked = field in selected,
-                    onCheckedChange = { onSelect(field, it) },
-                    enabled = enabled,
-                    modifier = Modifier.testTag("${tag}_selected:$key").semantics { contentDescription = title },
+        fun fieldItems(itemKeys: List<String>) {
+            items(itemKeys, key = { FavoritesReorderState.itemKey(it) }) { key ->
+                val field = fields[key]
+                val divider = grouped && key == ClockFieldAlignmentDivider
+                if (field == null && !divider) return@items
+                val index = reorder.keys.indexOf(key)
+                val title = if (divider) stringResource(R.string.clock_content_alignment_divider) else label(requireNotNull(field))
+                val up = stringResource(R.string.favorites_move_up)
+                val down = stringResource(R.string.favorites_move_down)
+                val canMoveUp = enabled && index > 0 && canMove(key, reorder.keys[index - 1])
+                val canMoveDown = enabled && index < reorder.keys.lastIndex && canMove(key, reorder.keys[index + 1])
+                val dragging = reorder.draggingKey == key
+                val offset by rememberReorderTranslation(reorder, key)
+                val background by animateColorAsState(
+                    if (dragging) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainer,
+                    label = "clockFieldLift",
                 )
-                Text(title, Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else .38f))
-                labelShown(field)?.let { shown ->
-                    IconToggleButton(
-                        checked = shown,
-                        onCheckedChange = { onLabelChange(field, it) },
+                Row(
+                    modifier = Modifier.then(if (dragging) Modifier else Modifier.animateItem())
+                        .zIndex(if (dragging || reorder.drop?.key == key) 1f else 0f)
+                        .graphicsLayer { translationY = offset }
+                        .fillMaxWidth().height(64.dp).clip(RoundedCornerShape(16.dp)).background(background)
+                        .testTag("$tag:$key")
+                        .semantics {
+                            customActions = buildList {
+                                if (canMoveUp) add(CustomAccessibilityAction(up) { reorder.moveBy(key, -1) })
+                                if (canMoveDown) add(CustomAccessibilityAction(down) { reorder.moveBy(key, 1) })
+                            }
+                        }.padding(horizontal = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    if (field != null) Checkbox(
+                        checked = field in selected,
+                        onCheckedChange = { onSelect(field, it) },
                         enabled = enabled,
-                        modifier = Modifier.testTag("${tag}_label:$key"),
-                    ) {
-                        Icon(painterResource(if (shown) R.drawable.ms_label else R.drawable.ms_label_off),
-                            stringResource(if (shown) R.string.clock_hide_field_label else R.string.clock_show_field_label, title),
-                            Modifier.size(24.dp))
+                        modifier = Modifier.testTag("${tag}_selected:$key").semantics { contentDescription = title },
+                    ) else Spacer(Modifier.width(48.dp))
+                    Text(title, Modifier.weight(1f), maxLines = 2, overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else .38f))
+                    field?.let(labelShown)?.let { shown ->
+                        IconToggleButton(
+                            checked = shown,
+                            onCheckedChange = { onLabelChange(requireNotNull(field), it) },
+                            enabled = enabled,
+                            modifier = Modifier.testTag("${tag}_label:$key"),
+                        ) {
+                            Icon(painterResource(if (shown) R.drawable.ms_label else R.drawable.ms_label_off),
+                                stringResource(if (shown) R.string.clock_hide_field_label else R.string.clock_show_field_label, title),
+                                Modifier.size(24.dp))
+                        }
                     }
-                }
-                var menu by remember { mutableStateOf(false) }
-                Box {
-                    IconButton(
-                        onClick = { menu = true },
-                        enabled = enabled,
-                        modifier = Modifier.testTag("${tag}_drag:$key")
-                            .pointerInput(reorder, key, enabled) {
-                                if (enabled) detectDragGestures(
-                                    onDragStart = { reorder.start(key) },
-                                    onDragEnd = { reorder.finish(false) },
-                                    onDragCancel = { reorder.finish(true) },
-                                ) { change, amount -> change.consume(); reorder.drag(amount.y) }
-                            },
-                    ) {
-                        Icon(painterResource(R.drawable.ms_drag_indicator),
-                            stringResource(R.string.favorites_reorder, title), Modifier.size(24.dp))
-                    }
-                    DropdownMenu(menu, { menu = false }) {
-                        DropdownMenuItem(text = { Text(up) }, enabled = enabled && index > 0,
-                            onClick = { reorder.moveBy(key, -1); menu = false })
-                        DropdownMenuItem(text = { Text(down) }, enabled = enabled && index < reorder.keys.lastIndex,
-                            onClick = { reorder.moveBy(key, 1); menu = false })
+                    var menu by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(
+                            onClick = { menu = true },
+                            enabled = enabled,
+                            modifier = Modifier.testTag("${tag}_drag:$key")
+                                .pointerInput(reorder, key, enabled) {
+                                    if (enabled) detectDragGestures(
+                                        onDragStart = { reorder.start(key) },
+                                        onDragEnd = { reorder.finish(false) },
+                                        onDragCancel = { reorder.finish(true) },
+                                    ) { change, amount -> change.consume(); reorder.drag(amount.y) }
+                                },
+                        ) {
+                            Icon(painterResource(R.drawable.ms_drag_indicator),
+                                stringResource(R.string.favorites_reorder, title), Modifier.size(24.dp))
+                        }
+                        DropdownMenu(menu, { menu = false }) {
+                            DropdownMenuItem(text = { Text(up) }, enabled = canMoveUp,
+                                onClick = { reorder.moveBy(key, -1); menu = false })
+                            DropdownMenuItem(text = { Text(down) }, enabled = canMoveDown,
+                                onClick = { reorder.moveBy(key, 1); menu = false })
+                        }
                     }
                 }
             }
         }
+        if (grouped) {
+            item("selected_heading") { SettingsHeading(stringResource(R.string.favorites_selected)) }
+            fieldItems(reorder.keys.filter { it in activeKeys })
+            val unselected = reorder.keys.filterNot { it in activeKeys }
+            if (unselected.isNotEmpty()) {
+                item("unselected_heading") { SettingsHeading(stringResource(R.string.clock_content_unselected)) }
+                fieldItems(unselected)
+            }
+        } else fieldItems(reorder.keys)
     }
 }
 

@@ -32,6 +32,8 @@
     </plurals>
     <string name="clock_task_region">任务区域</string>
     <string name="clock_task_contents">任务内容</string>
+    <string name="clock_content_alignment_divider">↑ 左对齐 / ↓ 右对齐</string>
+    <string name="clock_content_unselected">未选择</string>
     <string name="clock_task_count">要显示的数目</string>
     <string name="clock_color_task">任务文字</string>
     <string name="clock_task_field_title">任务名称</string>

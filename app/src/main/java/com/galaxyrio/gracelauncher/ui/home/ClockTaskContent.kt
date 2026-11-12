@@ -28,6 +28,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.R
+import com.galaxyrio.gracelauncher.data.ClockAlignment
 import com.galaxyrio.gracelauncher.data.ClockTaskField
 import com.galaxyrio.gracelauncher.data.ClockTasks
 import com.galaxyrio.gracelauncher.data.tasks.TaskItem
@@ -74,9 +75,11 @@ internal fun ClockTaskContent(
         lineHeight = (typography.size * 1.5f).sp, fontWeight = FontWeight(typography.weight),
         shadow = clockFontShadow(typography.fontShadow),
     )
+    val leftCount = fields.count { it !in settings.rightAligned }
     ClockMetadataLayout(fields.map { it == ClockTaskField.Title || it == ClockTaskField.List || it == ClockTaskField.Notes },
         modifier.then(if (wrapWidth) Modifier else Modifier.fillMaxWidth()).testTag("task_line:${task.id}"),
-        wrapWidth, settings.alignment) {
+        wrapWidth, if (settings.centered) ClockAlignment.Center else ClockAlignment.Left,
+        rightStart = if (settings.centered) null else leftCount) {
         fields.forEachIndexed { index, field ->
             key(field) {
                 val draw: @Composable (Modifier) -> Unit = { movement ->
@@ -108,7 +111,8 @@ internal fun ClockTaskContent(
                             ClockTaskField.Notes -> task.notes
                             ClockTaskField.Color -> ""
                         }.replace('\n', ' ').replace('\r', ' ')
-                        val separator = if (index > 0 && fields[index - 1] != ClockTaskField.Color) "· " else ""
+                        val startsGroup = index == 0 || (!settings.centered && index == leftCount)
+                        val separator = if (!startsGroup && fields[index - 1] != ClockTaskField.Color) "· " else ""
                         Text(separator + value, modifier = movement.testTag("task_${field.name.lowercase()}:${task.id}"),
                             color = color, style = style, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }

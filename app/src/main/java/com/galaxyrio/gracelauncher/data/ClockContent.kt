@@ -82,9 +82,12 @@ data class ClockAgenda(
     val typography: ClockRowTypography = ClockRowTypography(),
     val eventCount: Int = 1,
     val useLatinLetters: Boolean = false,
-    val alignment: ClockAlignment = ClockAlignment.Left,
+    val centered: Boolean = false,
+    val rightAligned: Set<ClockAgendaField> = emptySet(),
 ) {
-    val visibleFields: List<ClockAgendaField> get() = normalized().order.filter { it in selected }
+    val visibleFields: List<ClockAgendaField> get() = normalized().order.filter { it in selected }.let { fields ->
+        fields.filterNot { it in rightAligned } + fields.filter { it in rightAligned }
+    }
 
     fun normalized() = copy(order = (order + ClockAgendaField.entries).distinct(), typography = typography.normalized(),
         eventCount = eventCount.coerceIn(0, 9))
@@ -100,7 +103,8 @@ data class ClockAgenda(
         })
         put("eventCount", value.eventCount)
         put("useLatinLetters", value.useLatinLetters)
-        put("alignment", value.alignment.name)
+        put("centered", value.centered)
+        put("rightAligned", JSONArray(value.order.filter { it in value.rightAligned }.map { it.name }))
     } }
 
     companion object {
@@ -119,8 +123,10 @@ data class ClockAgenda(
                 ),
                 eventCount = json.optInt("eventCount", defaults.eventCount),
                 useLatinLetters = json.optBoolean("useLatinLetters", defaults.useLatinLetters),
-                alignment = ClockAlignment.entries.firstOrNull { it.name == json.optString("alignment") }
-                    ?: defaults.alignment,
+                centered = json.optBoolean("centered", json.optString("alignment") == ClockAlignment.Center.name),
+                rightAligned = json.enumList("rightAligned", ClockAgendaField.entries)?.toSet()
+                    ?: if (json.optString("alignment") == ClockAlignment.Right.name) ClockAgendaField.entries.toSet()
+                    else defaults.rightAligned,
             ).normalized()
         }
     }

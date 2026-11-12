@@ -32,6 +32,8 @@
     </plurals>
     <string name="clock_task_region">Task region</string>
     <string name="clock_task_contents">Task content</string>
+    <string name="clock_content_alignment_divider">↑ Left aligned / ↓ Right aligned</string>
+    <string name="clock_content_unselected">Not selected</string>
     <string name="clock_task_count">Number to show</string>
     <string name="clock_color_task">Task text</string>
     <string name="clock_task_field_title">Task title</string>
