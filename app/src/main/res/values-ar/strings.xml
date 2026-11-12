@@ -73,4 +73,6 @@
     <string name="grace_button_agenda">فتح جدول الأعمال والطقس</string>
     <string name="grace_button_url">عنوان الموقع الإلكتروني</string>
     <string name="grace_button_url_hint">example.com او https://example.com</string>
+    <string name="settings_tasks">المهمات</string>
+    <string name="tasks_data">معلومات المهمات</string>
 </resources>
