@@ -129,7 +129,7 @@
     <string name="icon_edit_default">Predeterminado</string>
     <string name="icon_edit_follow_theme">Seguir o tema de iconas</string>
     <string name="icon_edit_image">Imaxe personalizada</string>
-    <string name="icon_edit_search">Buscar iconas</string>
+    <string name="icon_edit_search">Procurar iconas</string>
     <string name="icon_edit_no_results">Non hai iconas coincidentes</string>
     <string name="icon_edit_failed">Non se puido gardar esta icona. Proba con outra imaxe ou icona.</string>
     <string name="edit_app_popup">Editar a fiestra emerxente %1$s</string>
@@ -165,9 +165,9 @@
     <string name="connect_calendar">Conectar o calendario</string>
     <string name="calendar_error">Non se puido cargar o teu calendario</string>
     <string name="no_upcoming_events">Non hai eventos nos próximos 14 días</string>
-    <string name="search_apps">Buscar aplicacións</string>
+    <string name="search_apps">Busca de aplicacións</string>
     <string name="search_no_results">Non hai aplicacións coincidentes</string>
-    <string name="launcher_fab_description">Buscar aplicacións. Mantén premido para acceder á configuración.</string>
+    <string name="launcher_fab_description">Busca de aplicacións. Mantén premido para acceder á configuración.</string>
     <string name="drawer_folders">Cartafoles</string>
     <string name="recently_installed">Instalado recentemente</string>
     <string name="add_to_folder">Engadir ao cartafol</string>
@@ -258,7 +258,7 @@
         <item quantity="one">%1$d seleccionado</item>
         <item quantity="other">%1$d seleccionados</item>
     </plurals>
-    <string name="settings_search_apps">Buscar aplicacións</string>
+    <string name="settings_search_apps">Busca de aplicacións</string>
     <string name="settings_no_apps">Non hai aplicacións coincidentes</string>
     <string name="settings_save">Gardar</string>
     <string name="settings_cancel">Cancelar</string>
@@ -327,7 +327,7 @@
     <string name="icon_pack_system">Iconas do sistema</string>
     <string name="icon_pack_enabled">Paquetes de iconas activados</string>
     <string name="icon_pack_all">todo</string>
-    <string name="icon_pack_search">Buscar paquetes de iconas</string>
+    <string name="icon_pack_search">Procurar paquetes de iconas</string>
     <string name="icon_designer_title">Icon designer</string>
     <string name="icon_designer_single">único</string>
     <string name="icon_designer_all">todos</string>
@@ -408,7 +408,7 @@
     <string name="weather_settings_permission">Permite que Grace Launcher lea a información meteorolóxica compartida por Breezy Weather.</string>
     <string name="weather_settings_no_locations">Engade unha localización en Breezy Weather e logo volve aquí.</string>
     <string name="weather_settings_no_data">Abre Breezy Weather e actualiza a predición para esta localización; despois, volve aquí.</string>
-    <string name="weather_settings_incompatible">Busca actualizacións de Grace Launcher e Breezy Weather para utilizar versións compatibles da función de compartir información meteorolóxica.</string>
+    <string name="weather_settings_incompatible">Busca actualizacións de Grace Launcher e Breezy Weather para empregar versións compatibles da función de compartir información meteorolóxica.</string>
     <string name="weather_settings_unavailable">Breezy Weather non puido compartir os seus datos. Ábrea para consultar a predición e logo téntao de novo.</string>
     <string name="weather_settings_ready">Conectado a Breezy Weather.</string>
     <string name="weather_settings_update_notifier">Para as actualizacións automáticas: Breezy Weather → Configuración → Módulos externos → Notificador de actualización da localización → Grace Launcher.</string>
@@ -496,11 +496,11 @@
     <string name="settings_search">Busca</string>
     <string name="search_settings_summary">Aplicacións, contactos e suxestións</string>
     <string name="search_enable">Activar a busca</string>
-    <string name="search_open_settings">Configuración de busca</string>
-    <string name="search_suggestions">Suxestións de busca</string>
+    <string name="search_open_settings">Configuración da busca</string>
+    <string name="search_suggestions">Suxestións da busca</string>
     <string name="search_suggestions_summary">Amosar as últimas 5 aplicacións abertas dende a busca</string>
     <string name="search_contacts">Busca de contactos</string>
-    <string name="search_contacts_summary">Busca contactos por nome ou número de teléfono</string>
+    <string name="search_contacts_summary">Busca de contactos por nome ou número de teléfono</string>
     <string name="search_contacts_permission">Permite o acceso aos contactos na configuración de Android para a busca de contactos.</string>
     <string name="search_unnamed_contact">Contacto sen nome</string>
     <string name="search_files">Busca de ficheiros</string>
@@ -518,17 +518,17 @@
     <string name="search_engine_name">Nome (opcional)</string>
     <string name="search_engine_url">URL de busca</string>
     <string name="search_engine_url_example">https://examplo.com/search?q={query}</string>
-    <string name="search_engine_url_hint">Usa {query} onde deberían ir os termos de busca. Ábrese no teu navegador predeterminado.</string>
+    <string name="search_engine_url_hint">Emprega {query} onde deberían ir os termos de busca. Ábrese no teu navegador predeterminado.</string>
     <string name="search_engine_url_error">Introduce unha URL válida (http:// ou https://) e inclúe {query} despois do dominio.</string>
-    <string name="search_internet_result">Buscar en Internet</string>
-    <string name="search_hidden_apps">Buscar aplicacións ocultas</string>
+    <string name="search_internet_result">Busca en Internet</string>
+    <string name="search_hidden_apps">Busca de aplicacións ocultas</string>
     <string name="search_hidden_apps_summary">Incluír aplicacións ocultas da lista de aplicacións</string>
     <string name="search_clear_query">Limpar a busca</string>
     <string name="app_selection_fast_scroll">Desprazarse rapidamente polas aplicacións</string>
     <string name="widget_home_menu">Widget de Grace</string>
     <string name="widget_add">Engadir un widget personalizado</string>
     <string name="widget_choose">Escolle un widget</string>
-    <string name="widget_search">Buscar widgets</string>
+    <string name="widget_search">Busca de widgets</string>
     <string name="widget_none">Non se atoparon widgets</string>
     <string name="widget_single_limit">De momento, só se admite un widget personalizado. Os widgets apilados chegarán máis adiante.</string>
     <string name="widget_setup_error">Non se puido engadir este widget. Téntao de novo.</string>
@@ -559,7 +559,7 @@
     <string name="font_follow_manager">Predeterminado · Xestor de tipos de letra</string>
     <string name="font_add">Engadir tipo de letra</string>
     <string name="font_all">Todas as fontes</string>
-    <string name="font_search">Buscar tipos de letra</string>
+    <string name="font_search">Busca de tipos de letra</string>
     <string name="font_delete">Eliminar</string>
     <string name="font_delete_title">Eliminar tipos de letra?</string>
     <string name="font_delete_summary">Eliminar %1$d tipos de letra importados? Os compoñentes que os utilizan volverán ao tipo de letra predeterminado.</string>
@@ -1096,4 +1096,19 @@
     <string name="weather_choose_app_description">Escolle a aplicación a abrir cando premes o tempo.</string>
     <string name="clock_content_alignment_divider">↑ Aliñado á esquerda / ↓ Aliñado á dereita</string>
     <string name="clock_content_unselected">Non seleccionado</string>
+    <string name="agenda_title">Título</string>
+    <string name="agenda_title_time">Hora actual</string>
+    <string name="agenda_title_quote">Cita</string>
+    <string name="agenda_title_text">Texto personalizado</string>
+    <string name="agenda_widget_region">Rexión do widget</string>
+    <string name="agenda_daily">A diario</string>
+    <string name="agenda_calendar_content">Contido do calendario</string>
+    <string name="agenda_tasks_first">Amosar primeiro as tarefas</string>
+    <string name="agenda_hourly_weather">O tempo por hora</string>
+    <string name="agenda_hourly_content">Contido meteorolóxico por hora</string>
+    <string name="agenda_undated_content">Contido da tarefa sen data</string>
+    <string name="agenda_new_event_button">Botón de engadir evento</string>
+    <string name="agenda_new_task_button">Botón de engadir tarefa</string>
+    <string name="agenda_new_task">Nova tarefa</string>
+    <string name="agenda_unsaved_message">Non se gardaron os cambios da túa axenda.</string>
 </resources>
