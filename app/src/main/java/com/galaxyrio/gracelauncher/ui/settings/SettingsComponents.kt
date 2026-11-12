@@ -139,6 +139,8 @@ internal fun SettingsScaffold(
             if (fixedCollapsed) Modifier else Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         ),
         containerColor = containerColor,
+        // Transparent wallpaper pages cannot infer an on-color from their container.
+        contentColor = MaterialTheme.colorScheme.onSurface,
         topBar = {
             LargeFlexibleTopAppBar(
                 title = {
