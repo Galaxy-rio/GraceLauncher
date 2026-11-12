@@ -1109,4 +1109,19 @@
     <string name="weather_choose_app_description">Elige qué aplicación se abre al tocar la información meteorológica.</string>
     <string name="clock_content_alignment_divider">↑ Alineado a la izquierda / ↓ Alineado a la derecha</string>
     <string name="clock_content_unselected">No seleccionado</string>
+    <string name="agenda_title">Título</string>
+    <string name="agenda_title_time">Hora actual</string>
+    <string name="agenda_title_quote">Cita</string>
+    <string name="agenda_title_text">Texto personalizado</string>
+    <string name="agenda_widget_region">Región del widget</string>
+    <string name="agenda_daily">A diario</string>
+    <string name="agenda_calendar_content">Contenido del calendario</string>
+    <string name="agenda_tasks_first">Mostrar primero las tareas</string>
+    <string name="agenda_hourly_weather">Clima por hora</string>
+    <string name="agenda_hourly_content">Contenido meteorológico por hora</string>
+    <string name="agenda_undated_content">Contenido de la tarea sin fecha</string>
+    <string name="agenda_new_event_button">Botón de agregar evento</string>
+    <string name="agenda_new_task_button">Botón de agregar tarea</string>
+    <string name="agenda_new_task">Nueva tarea</string>
+    <string name="agenda_unsaved_message">Los cambios de tu agenda no se han guardado.</string>
 </resources>
