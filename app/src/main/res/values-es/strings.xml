@@ -1107,4 +1107,6 @@
     <string name="weather_app">Aplicación a abrir</string>
     <string name="weather_default_app">Breezy Weather (predeterminada)</string>
     <string name="weather_choose_app_description">Elige qué aplicación se abre al tocar la información meteorológica.</string>
+    <string name="clock_content_alignment_divider">↑ Alineado a la izquierda / ↓ Alineado a la derecha</string>
+    <string name="clock_content_unselected">No seleccionado</string>
 </resources>

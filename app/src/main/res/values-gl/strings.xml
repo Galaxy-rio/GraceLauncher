@@ -1094,4 +1094,6 @@
     <string name="weather_app">Aplicación a abrir</string>
     <string name="weather_default_app">Breezy Weather (predeterminada)</string>
     <string name="weather_choose_app_description">Escolle a aplicación a abrir cando premes o tempo.</string>
+    <string name="clock_content_alignment_divider">↑ Aliñado á esquerda / ↓ Aliñado á dereita</string>
+    <string name="clock_content_unselected">Non seleccionado</string>
 </resources>
