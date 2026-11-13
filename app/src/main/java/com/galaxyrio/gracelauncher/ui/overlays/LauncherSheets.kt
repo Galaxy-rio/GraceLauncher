@@ -23,8 +23,6 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -81,9 +79,6 @@ internal fun LauncherPanelTheme(content: @Composable () -> Unit) {
     // Panels share the chosen dynamic/custom scheme and dark mode with settings.
     content()
 }
-
-@Composable
-internal fun panelWindowHeight(): Dp = with(LocalDensity.current) { LocalWindowInfo.current.containerSize.height.toDp() }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -238,7 +233,8 @@ internal fun LauncherOverlays(
         LauncherPanelTheme { AgendaPanel(uiState, actions, onRequestCalendar) { onChange(null) } }
         return
     }
-    val maxHeight = panelWindowHeight() * 0.9f
+    val layout = launcherSheetLayout(uiState.settings.hideStatusBar)
+    val maxHeight = layout.windowHeight * 0.9f
     LauncherPanelTheme {
         val sheetColor = MaterialTheme.colorScheme.surface
         ModalBottomSheet(
@@ -250,34 +246,36 @@ internal fun LauncherOverlays(
             contentColor = MaterialTheme.colorScheme.onSurface,
             scrimColor = Color.Black.copy(alpha = 0.6f),
             dragHandle = null,
-            contentWindowInsets = { launcherSheetContentInsets() },
+            contentWindowInsets = { layout.contentInsets.union(WindowInsets.ime) },
             properties = ModalBottomSheetProperties(
                 isAppearanceLightStatusBars = false,
                 isAppearanceLightNavigationBars = sheetColor.luminance() > 0.5f,
             ),
         ) {
-          LauncherSheetSystemBars(uiState.settings.hideStatusBar, sheetColor.luminance() > 0.5f)
-          // Limit the content, not the dialog's anchoring window: the sheet must
-          // always meet the physical bottom edge, including on tall displays.
-          Box(Modifier.fillMaxWidth().heightIn(max = maxHeight + launcherSheetBottomInset())) {
-            when (overlay) {
-                is LauncherOverlay.AppDetails -> AppDetailsSheet(
-                    app = if (overlay.app.folderId == RecentlyInstalledFolderId)
-                        uiState.folderItem(uiState.recentlyInstalledFolder(stringResource(R.string.recently_installed)))
-                        else uiState.findItem(overlay.app.key) ?: overlay.app,
-                    actions = actions, onChange = onChange, popupOwner = overlay.popupOwner, uiState = uiState,
-                    returnTo = overlay.returnTo,
-                    fromAppList = overlay.fromAppList,
-                )
-                LauncherOverlay.HomeWidgetMenu -> HomeWidgetSheet(uiState, actions, onChange, custom = false)
-                LauncherOverlay.CustomWidgetMenu -> HomeWidgetSheet(uiState, actions, onChange, custom = true)
-                is LauncherOverlay.Categories -> CategoryPicker(overlay.app, uiState, actions) { onChange(LauncherOverlay.AppDetails(overlay.app, fromAppList = overlay.fromAppList)) }
-                is LauncherOverlay.CategoryApps -> CategoryAppsSheet(overlay.name, uiState) { onChange(null); onLaunchApp(it) }
-                LauncherOverlay.Agenda, LauncherOverlay.Settings, LauncherOverlay.Search, is LauncherOverlay.Shortcuts,
-                is LauncherOverlay.Homepage, is LauncherOverlay.IconDesigner, is LauncherOverlay.EditPopup,
-                is LauncherOverlay.Folder, is LauncherOverlay.FolderSettings, is LauncherOverlay.SettingsDestination -> Unit
+            CompositionLocalProvider(LocalLauncherSheetLayout provides layout) {
+                LauncherSheetSystemBars(uiState.settings.hideStatusBar)
+                // Limit the content, not the dialog's anchoring window: the sheet must
+                // always meet the physical bottom edge, including on tall displays.
+                Box(Modifier.fillMaxWidth().heightIn(max = maxHeight + layout.bottomInset)) {
+                    when (overlay) {
+                        is LauncherOverlay.AppDetails -> AppDetailsSheet(
+                            app = if (overlay.app.folderId == RecentlyInstalledFolderId)
+                                uiState.folderItem(uiState.recentlyInstalledFolder(stringResource(R.string.recently_installed)))
+                                else uiState.findItem(overlay.app.key) ?: overlay.app,
+                            actions = actions, onChange = onChange, popupOwner = overlay.popupOwner, uiState = uiState,
+                            returnTo = overlay.returnTo,
+                            fromAppList = overlay.fromAppList,
+                        )
+                        LauncherOverlay.HomeWidgetMenu -> HomeWidgetSheet(uiState, actions, onChange, custom = false)
+                        LauncherOverlay.CustomWidgetMenu -> HomeWidgetSheet(uiState, actions, onChange, custom = true)
+                        is LauncherOverlay.Categories -> CategoryPicker(overlay.app, uiState, actions) { onChange(LauncherOverlay.AppDetails(overlay.app, fromAppList = overlay.fromAppList)) }
+                        is LauncherOverlay.CategoryApps -> CategoryAppsSheet(overlay.name, uiState) { onChange(null); onLaunchApp(it) }
+                        LauncherOverlay.Agenda, LauncherOverlay.Settings, LauncherOverlay.Search, is LauncherOverlay.Shortcuts,
+                        is LauncherOverlay.Homepage, is LauncherOverlay.IconDesigner, is LauncherOverlay.EditPopup,
+                        is LauncherOverlay.Folder, is LauncherOverlay.FolderSettings, is LauncherOverlay.SettingsDestination -> Unit
+                    }
+                }
             }
-          }
         }
     }
 }
