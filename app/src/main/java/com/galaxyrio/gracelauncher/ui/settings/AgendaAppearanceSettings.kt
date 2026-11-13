@@ -20,6 +20,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -56,6 +57,13 @@ internal fun AgendaAppearanceSettings(uiState: LauncherUiState, actions: Launche
     val currentEntry by navController.currentBackStackEntryAsState()
     val currentPage = AgendaEditorPage.entries.firstOrNull { it.name == currentEntry?.destination?.route } ?: AgendaEditorPage.Overview
     var contentPage by rememberSaveable { mutableStateOf<AgendaDailyContentPage?>(null) }
+    var hourlyField by rememberSaveable { mutableStateOf<AgendaHourWeatherField?>(null) }
+    // The standalone settings activity can retain an older weather snapshot than HOME.
+    // Refresh the selected source on entry, and when its location or mode changes.
+    LifecycleResumeEffect(uiState.settings.weatherEnabled, uiState.settings.weatherLocationId, uiState.settings.weatherConnection) {
+        if (uiState.settings.weatherEnabled) actions.refreshWeather()
+        onPauseOrDispose { }
+    }
     val distance = with(LocalDensity.current) { 30.dp.roundToPx() }
     var saving by remember { mutableStateOf(false) }
     var confirmExit by rememberSaveable { mutableStateOf(false) }
@@ -103,6 +111,7 @@ internal fun AgendaAppearanceSettings(uiState: LauncherUiState, actions: Launche
     }
     val back: () -> Unit = {
         if (!saving) when {
+            hourlyField != null -> hourlyField = null
             contentPage != null -> contentPage = null
             currentPage != AgendaEditorPage.Overview -> navController.popBackStack()
             editingWidget -> editingWidget = false
@@ -204,12 +213,6 @@ internal fun AgendaAppearanceSettings(uiState: LauncherUiState, actions: Launche
                                     }
                                 }
                             }
-                            item("daily_heading") { SettingsHeading(stringResource(R.string.agenda_daily)) }
-                            clockSetting("daily_content") {
-                                AgendaNavigationToggle(stringResource(R.string.agenda_daily_content), draft.showDailyContent, 0, 1,
-                                    "agenda_daily_content", pageEnabled, onCheckedChange = { draft = draft.copy(showDailyContent = it) },
-                                    onClick = { openPage(AgendaEditorPage.Daily) })
-                            }
                             item("today_heading") { SettingsHeading(stringResource(R.string.agenda_today_heading)) }
                             agendaControls(buildList {
                                 add(AgendaControl("hourly_weather") { index, count ->
@@ -222,9 +225,16 @@ internal fun AgendaAppearanceSettings(uiState: LauncherUiState, actions: Launche
                                         "agenda_undated_tasks", enabled = pageEnabled && tasksEnabled) { draft = draft.copy(showUndatedTasks = it) }
                                 })
                             })
+                            item("daily_heading") { SettingsHeading(stringResource(R.string.agenda_daily)) }
+                            clockSetting("daily_content") {
+                                AgendaNavigationToggle(stringResource(R.string.agenda_daily_content), draft.showDailyContent, 0, 1,
+                                    "agenda_daily_content", pageEnabled, onCheckedChange = { draft = draft.copy(showDailyContent = it) },
+                                    onClick = { openPage(AgendaEditorPage.Daily) })
+                            }
                         }
                         AgendaEditorPage.Hourly -> AgendaHourlyWeatherSettings(draft, uiState.weather.snapshot,
-                            pageEnabled && weatherEnabled, haptics, onChange = { if (pageEnabled) draft = it },
+                            pageEnabled && weatherEnabled, haptics, hourlyField,
+                            onFieldChange = { if (pageEnabled) hourlyField = it }, onChange = { if (pageEnabled) draft = it },
                             modifier = contentModifier.padding(vertical = 16.dp))
                         AgendaEditorPage.Daily -> AgendaDailyContentSettings(uiState, draft, pageEnabled,
                             weatherEnabled, calendarEnabled, tasksEnabled, haptics, contentPage,
@@ -236,7 +246,7 @@ internal fun AgendaAppearanceSettings(uiState: LauncherUiState, actions: Launche
         }
     }
     // Child destinations keep NavHost's predictive back. Guard only editor exit and inline panels.
-    BackHandler(enabled = currentPage == AgendaEditorPage.Overview || contentPage != null || saving, onBack = back)
+    BackHandler(enabled = currentPage == AgendaEditorPage.Overview || contentPage != null || hourlyField != null || saving, onBack = back)
 }
 
 private fun LazyListScope.agendaControls(controls: List<AgendaControl>) {

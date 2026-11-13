@@ -306,7 +306,7 @@ fun WeatherSourceNote(snapshot: WeatherSnapshot, now: Instant, onOpenWeatherApp:
     WeatherSourceNote(snapshot, now, onOpenWeatherApp, trailing = {})
 
 @Composable
-fun WeatherSourceNote(snapshot: WeatherSnapshot, now: Instant, onOpenWeatherApp: () -> Unit,
+fun WeatherSourceNote(snapshot: WeatherSnapshot, now: Instant, onOpenWeatherApp: (() -> Unit)?,
     trailing: @Composable () -> Unit,
 ) {
     val locale = LocalConfiguration.current.locales[0]
@@ -328,7 +328,8 @@ fun WeatherSourceNote(snapshot: WeatherSnapshot, now: Instant, onOpenWeatherApp:
         Text(
             "${snapshot.location.name} · $updateLabel",
             modifier = Modifier.weight(1f).testTag("weather_location")
-                .clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button, onClick = onOpenWeatherApp)
+                .clip(RoundedCornerShape(8.dp)).then(if (onOpenWeatherApp != null)
+                    Modifier.clickable(role = Role.Button, onClick = onOpenWeatherApp) else Modifier)
                 .padding(vertical = 4.dp),
             fontSize = 11.sp, lineHeight = 16.sp,
             color = if (stale) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,

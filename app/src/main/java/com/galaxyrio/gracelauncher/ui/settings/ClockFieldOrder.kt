@@ -4,10 +4,12 @@ package com.galaxyrio.gracelauncher.ui.settings
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.*
@@ -80,8 +82,6 @@ internal fun <T : Enum<T>> ClockContentPicker(
     onAlignedReorder: (List<T>, Set<T>) -> Unit = { _, _ -> },
     primaryLine: Set<T>? = null,
     onLineReorder: (List<T>, Set<T>, Set<T>, Set<T>) -> Unit = { _, _, _, _ -> },
-    chartShown: (T) -> Boolean? = { null },
-    onChartChange: (T, Boolean) -> Unit = { _, _ -> },
     positionIcons: Map<T, Int> = emptyMap(),
     beforeFields: LazyListScope.() -> Unit = {},
 ) {
@@ -98,7 +98,7 @@ internal fun <T : Enum<T>> ClockContentPicker(
         }
         ClockFieldOrder(order, selected, enabled, hapticsEnabled, tag, label, onSelect, onReorder,
             Modifier.weight(1f), labelShown, onLabelChange, rightAligned, onAlignedReorder, primaryLine, onLineReorder,
-            chartShown, onChartChange, positionIcons, beforeFields)
+            positionIcons, beforeFields)
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onReset, Modifier.testTag("${tag}_reset"), enabled = enabled) {
                 Text(stringResource(R.string.reset))
@@ -127,13 +127,14 @@ internal fun <T : Enum<T>> ClockFieldOrder(
     onAlignedReorder: (List<T>, Set<T>) -> Unit = { _, _ -> },
     primaryLine: Set<T>? = null,
     onLineReorder: (List<T>, Set<T>, Set<T>, Set<T>) -> Unit = { _, _, _, _ -> },
-    chartShown: (T) -> Boolean? = { null },
-    onChartChange: (T, Boolean) -> Unit = { _, _ -> },
     positionIcons: Map<T, Int> = emptyMap(),
     beforeFields: LazyListScope.() -> Unit = {},
     containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
+    onEdit: ((T) -> Unit)? = null,
+    fieldModifier: @Composable (T) -> Modifier = { Modifier },
+    listState: LazyListState = rememberLazyListState(),
 ) {
-    val list = rememberLazyListState()
+    val list = listState
     val fields by rememberUpdatedState(order.associateBy { it.name })
     val grouped = rightAligned != null
     val activeKeys = selected.map { it.name }.toSet() + ClockFieldAlignmentDivider
@@ -245,7 +246,10 @@ internal fun <T : Enum<T>> ClockFieldOrder(
                     modifier = Modifier.then(if (dragging) Modifier else Modifier.animateItem())
                         .zIndex(if (dragging || reorder.drop?.key == key) 1f else 0f)
                         .graphicsLayer { translationY = offset }
+                        .then(if (field != null && field !in positionIcons) fieldModifier(field) else Modifier)
                         .fillMaxWidth().height(64.dp).clip(shape).background(background)
+                        .then(if (onEdit != null && field != null && field !in positionIcons)
+                            Modifier.clickable(enabled = enabled && !dragging) { onEdit(field) } else Modifier)
                         .testTag("$tag:$key")
                         .semantics {
                             customActions = buildList {
@@ -276,15 +280,6 @@ internal fun <T : Enum<T>> ClockFieldOrder(
                         ) {
                             Icon(painterResource(if (shown) R.drawable.ms_label else R.drawable.ms_label_off),
                                 stringResource(if (shown) R.string.clock_hide_field_label else R.string.clock_show_field_label, title),
-                                Modifier.size(24.dp))
-                        }
-                    }
-                    field?.let(chartShown)?.let { shown ->
-                        IconToggleButton(checked = shown,
-                            onCheckedChange = { onChartChange(requireNotNull(field), it) }, enabled = enabled,
-                            modifier = Modifier.testTag("${tag}_chart:$key")) {
-                            Icon(painterResource(if (shown) R.drawable.ms_bar_chart else R.drawable.ms_bar_chart_off),
-                                stringResource(if (shown) R.string.weather_hide_chart else R.string.weather_show_chart, title),
                                 Modifier.size(24.dp))
                         }
                     }

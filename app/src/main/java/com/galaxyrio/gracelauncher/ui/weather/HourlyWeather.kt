@@ -1,3 +1,5 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+
 package com.galaxyrio.gracelauncher.ui.weather
 
 import android.text.format.DateFormat
@@ -6,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -23,6 +26,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -31,6 +35,7 @@ import androidx.compose.ui.unit.sp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.AgendaHourWeatherField
 import com.galaxyrio.gracelauncher.data.AgendaAppearance
+import com.galaxyrio.gracelauncher.data.HourWeatherChartType
 import com.galaxyrio.gracelauncher.data.weather.WeatherWind
 import com.galaxyrio.gracelauncher.data.weather.WeatherCondition
 import com.galaxyrio.gracelauncher.data.weather.WeatherHour
@@ -70,7 +75,6 @@ internal fun AgendaHourWeatherField.labelResource(): Int = when (this) {
     AgendaHourWeatherField.Visibility -> R.string.weather_field_visibility
 }
 
-internal val HourWeatherWidth = 80.dp
 private data class HourWeatherColumn(val hour: WeatherHour, val current: Boolean = false)
 
 @Composable
@@ -84,8 +88,10 @@ private fun hourlyChartTextColor(field: AgendaHourWeatherField) = when (field) {
 @Composable
 fun HourlyWeather(snapshot: WeatherSnapshot, now: Instant, modifier: Modifier = Modifier,
     appearance: AgendaAppearance = AgendaAppearance(), onOpenWeatherApp: (() -> Unit)? = null,
+    constrainContentHeight: Boolean = false,
 ) {
     val config = remember(appearance) { appearance.normalized() }
+    val columnWidth = config.hourWeatherColumnWidth.dp
     val locale = LocalConfiguration.current.locales[0]
     val use24Hour = DateFormat.is24HourFormat(LocalContext.current)
     val timeFormat = remember(locale, use24Hour, snapshot.location.timeZone) {
@@ -106,22 +112,38 @@ fun HourlyWeather(snapshot: WeatherSnapshot, now: Instant, modifier: Modifier = 
     }
     val hours = remember(columns) { columns.map { it.hour } }
     val chartFields = config.hourWeatherChartFields.filter { field -> hours.any { hourlyChartValue(it, field) != null } }.toSet()
-    val visibleFields = config.hourWeatherOrder.filter { field ->
-        if (field == AgendaHourWeatherField.Chart) chartFields.isNotEmpty()
-        else field in config.hourWeatherSelected && hours.any { it.hasField(field) }
-    }
+    val textFields = config.hourWeatherSelected.filter { field -> hours.any { it.hasField(field) } }.toSet()
     var manuallyExpanded by rememberSaveable(snapshot.location.id, config.hourWeatherChartsExpanded) { mutableStateOf(false) }
     val expanded = config.hourWeatherChartsExpanded || manuallyExpanded
+    val canCollapse = !config.hourWeatherChartsExpanded && (textFields + chartFields).any { !config.hourWeatherStyle(it).alwaysShow }
+    val shownChartFields = chartFields.filter { expanded || config.hourWeatherStyle(it).alwaysShow }.toSet()
+    val barFields = config.hourWeatherOrder.filter { it in chartFields && it != AgendaHourWeatherField.WindDirection &&
+        config.hourWeatherStyle(it).chartType == HourWeatherChartType.Bar }
+    var chosenBar by rememberSaveable(snapshot.location.id) { mutableStateOf<AgendaHourWeatherField?>(null) }
+    val activeBar = chosenBar?.takeIf { it in barFields && it in shownChartFields }
+        ?: barFields.firstOrNull { it in shownChartFields }
+    // Retain the chart through its exit animation, so collapsing doesn't blank it before it shrinks.
+    var retainedChartFields by remember { mutableStateOf(shownChartFields) }
+    var retainedBar by remember { mutableStateOf(activeBar) }
+    SideEffect {
+        if (shownChartFields.isNotEmpty()) { retainedChartFields = shownChartFields; retainedBar = activeBar }
+    }
+    val visibleFields = config.hourWeatherOrder.filter { field ->
+        if (field == AgendaHourWeatherField.Chart) chartFields.isNotEmpty()
+        else field in textFields
+    }
     val scroll = rememberScrollState()
     Column(modifier.fillMaxWidth()) {
         if (columns.isNotEmpty()) Box(Modifier.fillMaxWidth().testTag("weather_hourly")
-            .clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surfaceBright)) {
+            .then(if (constrainContentHeight) Modifier.weight(1f, fill = false) else Modifier)
+            .clip(RoundedCornerShape(22.dp)).background(MaterialTheme.colorScheme.surfaceBright)
+            .then(if (constrainContentHeight) Modifier.verticalScroll(rememberScrollState()) else Modifier)) {
             // One scroll surface centers values and chart points on the same fixed-width hour columns.
             Column(Modifier.horizontalScroll(scroll).padding(horizontal = 8.dp, vertical = 14.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     columns.forEach { column ->
                         val time = if (column.current) stringResource(R.string.weather_now) else timeFormat.format(column.hour.at)
-                        Box(Modifier.width(HourWeatherWidth).testTag("weather_hour:${if (column.current) "now" else column.hour.at}"),
+                        Box(Modifier.width(columnWidth).testTag("weather_hour:${if (column.current) "now" else column.hour.at}"),
                             contentAlignment = Alignment.Center) {
                             Text(time, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1, overflow = TextOverflow.Ellipsis)
@@ -129,30 +151,30 @@ fun HourlyWeather(snapshot: WeatherSnapshot, now: Instant, modifier: Modifier = 
                     }
                 }
                 visibleFields.forEach { field -> key(field) {
-                    if (field == AgendaHourWeatherField.Chart) {
-                        AnimatedVisibility(expanded, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
-                            Column {
-                                Spacer(Modifier.height(12.dp))
-                                HourlyWeatherChart(hours, chartFields, config.hourWeatherChartHeight.dp)
-                            }
-                        }
-                    } else {
-                        Spacer(Modifier.height(12.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            columns.forEach { column ->
-                                Box(Modifier.width(HourWeatherWidth).padding(horizontal = 3.dp), contentAlignment = Alignment.Center) {
-                                    if (column.hour.hasField(field)) {
-                                        if (field == AgendaHourWeatherField.Icon) WeatherIcon(column.hour.condition, column.hour.isDaylight, Modifier.size(27.dp))
-                                        else {
-                                            val value = hourFieldText(column.hour, field, locale)
-                                            val spoken = "${stringResource(field.labelResource())}: $value"
-                                            Text(value, Modifier.semantics { contentDescription = spoken },
-                                                fontSize = if (field == AgendaHourWeatherField.Temperature) 16.sp else 13.sp,
-                                                fontWeight = if (field == AgendaHourWeatherField.Temperature) FontWeight.Medium else FontWeight.Normal,
-                                                color = if (field in chartFields) hourlyChartTextColor(field)
-                                                    else MaterialTheme.colorScheme.onSurface,
-                                                maxLines = if (field == AgendaHourWeatherField.Description) 2 else 1,
-                                                textAlign = TextAlign.Center, overflow = TextOverflow.Ellipsis)
+                    val shown = if (field == AgendaHourWeatherField.Chart) shownChartFields.isNotEmpty()
+                        else expanded || config.hourWeatherStyle(field).alwaysShow
+                    AnimatedVisibility(shown, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
+                        Column {
+                            Spacer(Modifier.height(12.dp))
+                            if (field == AgendaHourWeatherField.Chart) {
+                                HourlyWeatherChart(hours, if (shown) shownChartFields else retainedChartFields,
+                                    if (shown) activeBar else retainedBar, config, config.hourWeatherChartHeight.dp, columnWidth)
+                            } else Row(verticalAlignment = Alignment.CenterVertically) {
+                                columns.forEach { column ->
+                                    Box(Modifier.width(columnWidth).padding(horizontal = 3.dp), contentAlignment = Alignment.Center) {
+                                        if (column.hour.hasField(field)) {
+                                            if (field == AgendaHourWeatherField.Icon) WeatherIcon(column.hour.condition, column.hour.isDaylight, Modifier.size(27.dp))
+                                            else {
+                                                val value = hourFieldText(column.hour, field, locale)
+                                                val spoken = "${stringResource(field.labelResource())}: $value"
+                                                Text(value, Modifier.semantics { contentDescription = spoken },
+                                                    fontSize = if (field == AgendaHourWeatherField.Temperature) 16.sp else 13.sp,
+                                                    fontWeight = if (field == AgendaHourWeatherField.Temperature) FontWeight.Medium else FontWeight.Normal,
+                                                    color = if (field in chartFields) hourlyChartTextColor(field)
+                                                        else MaterialTheme.colorScheme.onSurface,
+                                                    maxLines = if (field == AgendaHourWeatherField.Description) 2 else 1,
+                                                    textAlign = TextAlign.Center, overflow = TextOverflow.Ellipsis)
+                                            }
                                         }
                                     }
                                 }
@@ -162,17 +184,40 @@ fun HourlyWeather(snapshot: WeatherSnapshot, now: Instant, modifier: Modifier = 
                 } }
             }
         }
-        if (onOpenWeatherApp != null) WeatherSourceNote(snapshot, now, onOpenWeatherApp, trailing = {
-            if (chartFields.isNotEmpty() && !config.hourWeatherChartsExpanded) {
-                val angle by animateFloatAsState(if (expanded) 180f else 0f, label = "weatherChartExpand")
-                IconButton(onClick = { manuallyExpanded = !manuallyExpanded },
-                    modifier = Modifier.size(36.dp).testTag("weather_chart_expand")) {
-                    Icon(painterResource(R.drawable.ms_expand_more),
-                        stringResource(if (expanded) R.string.weather_chart_collapse else R.string.weather_chart_expand),
-                        Modifier.size(20.dp).rotate(angle))
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val controlsWidth = maxWidth * .65f
+            WeatherSourceNote(snapshot, now, onOpenWeatherApp, trailing = {
+                Row(Modifier.widthIn(max = controlsWidth), verticalAlignment = Alignment.CenterVertically) {
+                    AnimatedVisibility(barFields.isNotEmpty() && (expanded || !canCollapse),
+                        modifier = Modifier.weight(1f, fill = false),
+                        enter = expandHorizontally() + fadeIn(), exit = shrinkHorizontally() + fadeOut()) {
+                        Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically) {
+                            barFields.forEach { field -> key(field) {
+                                val title = stringResource(field.labelResource())
+                                TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(),
+                                    tooltip = { PlainTooltip { Text(title) } }, state = rememberTooltipState()) {
+                                    IconButton(onClick = { chosenBar = field },
+                                        modifier = Modifier.size(36.dp).testTag("weather_bar_series:${field.name}")
+                                            .semantics { selected = activeBar == field }) {
+                                        Icon(painterResource(field.chartSymbol()), title, Modifier.size(20.dp),
+                                            tint = if (activeBar == field) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
+                                    }
+                                }
+                            } }
+                        }
+                    }
+                    if (canCollapse) {
+                        val angle by animateFloatAsState(if (expanded) 180f else 0f, label = "weatherChartExpand")
+                        IconButton(onClick = { manuallyExpanded = !manuallyExpanded },
+                            modifier = Modifier.size(36.dp).testTag("weather_chart_expand")) {
+                            Icon(painterResource(R.drawable.ms_expand_more),
+                                stringResource(if (expanded) R.string.weather_chart_collapse else R.string.weather_chart_expand),
+                                Modifier.size(20.dp).rotate(angle))
+                        }
+                    }
                 }
-            }
-        })
+            })
+        }
     }
 }
 
@@ -185,10 +230,10 @@ private fun WeatherHour.hasField(field: AgendaHourWeatherField): Boolean = when 
     AgendaHourWeatherField.Wind -> wind?.speed != null
     AgendaHourWeatherField.WindDirection -> wind?.degree != null
     AgendaHourWeatherField.DewPoint -> dewPoint != null
-    else -> measure(field) != null
+    else -> hourlyMeasure(field) != null
 }
 
-private fun WeatherHour.measure(field: AgendaHourWeatherField): WeatherMeasure? = when (field) {
+internal fun WeatherHour.hourlyMeasure(field: AgendaHourWeatherField): WeatherMeasure? = when (field) {
     AgendaHourWeatherField.Wind -> wind?.speed
     AgendaHourWeatherField.Humidity -> humidity
     AgendaHourWeatherField.Gusts -> wind?.gusts
@@ -217,7 +262,7 @@ private fun hourFieldText(hour: WeatherHour, field: AgendaHourWeatherField, loca
     AgendaHourWeatherField.FeelsLike -> hour.feelsLike!!.format()
     AgendaHourWeatherField.WindDirection -> homeWindText(WeatherWind(degree = hour.wind!!.degree), locale)
     AgendaHourWeatherField.DewPoint -> hour.dewPoint!!.format()
-    else -> hourlyMeasureText(hour.measure(field)!!, locale)
+    else -> hourlyMeasureText(hour.hourlyMeasure(field)!!, locale)
 }
 
 @Composable

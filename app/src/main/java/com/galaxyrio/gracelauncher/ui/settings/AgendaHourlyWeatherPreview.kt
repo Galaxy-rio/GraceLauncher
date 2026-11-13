@@ -4,8 +4,6 @@ package com.galaxyrio.gracelauncher.ui.settings
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.runtime.Composable
@@ -32,16 +30,16 @@ import java.time.temporal.ChronoUnit
 @Composable
 internal fun AgendaHourlyWeatherPreview(snapshot: WeatherSnapshot?, appearance: AgendaAppearance, modifier: Modifier = Modifier) {
     // Keep preview data stable while sliders and ordering update; no provider reads or clock timer.
-    val now = remember { Instant.now() }
+    val now = remember(snapshot) { Instant.now() }
     val zone = ZoneId.systemDefault()
     val location = stringResource(R.string.clock_weather_preview_location)
     val sample = remember(now, zone, location) { hourlyWeatherSample(now, zone, location) }
-    val weather = snapshot?.takeIf { it.current != null || it.hourly.any { hour -> hour.at.isAfter(now) } } ?: sample
-    val previewAppearance = remember(appearance) { appearance.copy(hourWeatherChartsExpanded = true) }
+    // Never substitute another city's data when a real source is available.
+    val weather = snapshot ?: sample
     Box(modifier.testTag("agenda_hourly_preview")
-        .clip(ListItemDefaults.segmentedShapes(0, 1).shape).background(MaterialTheme.colorScheme.surfaceBright)
-        .verticalScroll(rememberScrollState())) {
-        HourlyWeather(weather, now, appearance = previewAppearance)
+        .clip(ListItemDefaults.segmentedShapes(0, 1).shape).background(MaterialTheme.colorScheme.surfaceContainer)) {
+        // Keep the source and expand/series controls reachable even with many text rows enabled.
+        HourlyWeather(weather, now, appearance = appearance, constrainContentHeight = true)
     }
 }
 

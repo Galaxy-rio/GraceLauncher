@@ -1114,8 +1114,6 @@
     <string name="weather_field_wind_speed">Velocidade do vento</string>
     <string name="weather_field_wind_direction">Dirección do vento</string>
     <string name="weather_chart">Gráfica</string>
-    <string name="weather_show_chart">Amosar a gráfica de %1$s</string>
-    <string name="weather_hide_chart">Agochar a gráfica de %1$s</string>
     <string name="weather_chart_always_expanded">Expandir sempre as gráficas</string>
     <string name="weather_chart_height">Altura da gráfica</string>
     <string name="weather_chart_height_value">%1$d dp</string>
