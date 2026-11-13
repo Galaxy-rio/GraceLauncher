@@ -1124,11 +1124,11 @@
     <string name="weather_field_wind_speed">Velocidad del viento</string>
     <string name="weather_field_wind_direction">Dirección del viento</string>
     <string name="weather_chart">Gráfica</string>
-    <string name="weather_chart_always_expanded">Expandir siempre las gráficas</string>
+    <string name="weather_chart_always_expanded">Expandir siempre</string>
     <string name="weather_chart_height">Altura de la gráfica</string>
     <string name="weather_chart_height_value">%1$d dp</string>
-    <string name="weather_chart_expand">Expandir las gráficas</string>
-    <string name="weather_chart_collapse">Colapsar las gráficas</string>
+    <string name="weather_chart_expand">Expandir</string>
+    <string name="weather_chart_collapse">Colapsar</string>
     <string name="weather_field_precipitation_probability">Probabilidad de precipitaciones</string>
     <string name="weather_field_rain_probability">Probabilidad de lluvia</string>
     <string name="weather_field_snow_probability">Probabilidad de nieve</string>
@@ -1148,4 +1148,15 @@
     <string name="agenda_today_heading">Hoy</string>
     <string name="agenda_choose_create_action">Elige qué añadir</string>
     <string name="agenda_daily_content">Contenido diario</string>
+    <string name="clock_bottom_padding">Espaciado inferior</string>
+    <string name="clock_expand_group">Expandir grupo</string>
+    <string name="clock_collapse_group">Colapsar grupo</string>
+    <string name="weather_hour_show_text">Mostrar texto</string>
+    <string name="weather_hour_show_chart">Mostrar en la gráfica</string>
+    <string name="weather_chart_bar">Gráfica de barras</string>
+    <string name="weather_chart_line">Gráfica de líneas</string>
+    <string name="weather_chart_wavy">Usar una línea ondulada</string>
+    <string name="weather_chart_bar_width">Ancho de la barra</string>
+    <string name="weather_hour_always_show">Mostrar siempre</string>
+    <string name="weather_hour_column_width">Ancho de la columna</string>
 </resources>
