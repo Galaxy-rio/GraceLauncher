@@ -1134,4 +1134,5 @@
     <string name="agenda_supporting_information">Información de apoio</string>
     <string name="agenda_today_heading">Hoxe</string>
     <string name="agenda_choose_create_action">Escolle o que queres engadir</string>
+    <string name="agenda_daily_content">Contido diario</string>
 </resources>
