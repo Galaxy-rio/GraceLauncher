@@ -95,6 +95,7 @@ import com.galaxyrio.gracelauncher.data.CategoryIcon
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.ScheduleEvent
 import com.galaxyrio.gracelauncher.data.ClockStyle
+import com.galaxyrio.gracelauncher.data.ClockRegions
 import com.galaxyrio.gracelauncher.data.ClockColorPart
 import com.galaxyrio.gracelauncher.data.GraceButtonGesture
 import com.galaxyrio.gracelauncher.data.nextVisibleEvent
@@ -509,7 +510,7 @@ internal fun LegacyHomeClockHeader(
     val agendaVisible = showCalendar && event != null
     val rowVisible = smallClockVisible || calendarText.isNotEmpty() || visibleWeather != null
     val calendarContentVisible = rowVisible || agendaVisible
-    val calendarAction = showCalendar && (calendarText.isNotEmpty() || agendaVisible)
+    val calendarAction = calendarContentVisible
 
     val clockContent: @Composable () -> Unit = {
         if (largeFaceVisible) ClockFace(
@@ -557,12 +558,7 @@ internal fun LegacyHomeClockHeader(
                             ClockTimeLabel(
                                 time = clockText, style = clockStyle, textStyle = dateStyle,
                                 modifier = Modifier.alignByBaseline().testTag("${clockTag}_time")
-                                    .semantics { contentDescription = clockDescription }
-                                    .then(if (interactive) Modifier.combinedClickable(
-                                        interactionSource = remember { MutableInteractionSource() }, indication = null,
-                                        onClick = onClockClick,
-                                        onLongClick = onLongClick,
-                                    ) else Modifier),
+                                    .semantics { contentDescription = clockText },
                                 color = appearance.text,
                                 digitColors = digitColors,
                             )
@@ -600,6 +596,7 @@ internal fun LegacyHomeClockHeader(
         Spacer(Modifier.height(if (largeFaceVisible && calendarContentVisible) 2.dp else 0.dp)
             .onGloballyPositioned { onAnchorOffsetChange(it.positionInParent().y.roundToInt()) })
         if (calendarAboveClock) clockContent() else calendarContent()
+        if (largeFaceVisible || calendarContentVisible) Spacer(Modifier.height(ClockRegions().bottomPadding.dp))
     }
 }
 

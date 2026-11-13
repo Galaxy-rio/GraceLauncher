@@ -1075,6 +1075,9 @@
     <string name="clock_tertiary_region">Tertiary region</string>
     <string name="clock_agenda_region">Agenda region</string>
     <string name="clock_region_spacing">Region spacing</string>
+    <string name="clock_bottom_padding">Bottom padding</string>
+    <string name="clock_expand_group">Expand group</string>
+    <string name="clock_collapse_group">Collapse group</string>
     <string name="clock_agenda_contents">Agenda content</string>
     <string name="clock_agenda_event_count">Number of events</string>
     <string name="clock_agenda_unlimited">Unlimited</string>

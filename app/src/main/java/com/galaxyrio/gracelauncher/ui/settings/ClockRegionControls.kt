@@ -3,7 +3,9 @@
 package com.galaxyrio.gracelauncher.ui.settings
 
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyListScope
@@ -11,6 +13,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -26,6 +29,7 @@ import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -45,6 +49,8 @@ internal fun LazyListScope.clockRegionSettings(
     regions: ClockRegions,
     enabled: Boolean,
     hapticsEnabled: Boolean,
+    expandedGroups: Set<String>,
+    onToggleGroup: (String) -> Unit,
     onChange: ((ClockRegions) -> ClockRegions) -> Unit,
     onFont: (ClockElement) -> Unit,
     onWeatherIcons: () -> Unit,
@@ -54,8 +60,11 @@ internal fun LazyListScope.clockRegionSettings(
     onRegionFont: (ClockRegion) -> Unit,
 ) {
     fun group(region: ClockRegion, controls: List<ClockControl>) {
-        item("clock_region_heading:$region") { SettingsHeading(region.label()) }
-        controls.forEachIndexed { index, control ->
+        val expanded = region.name in expandedGroups
+        clockSetting("clock_region_heading:$region") {
+            ClockGroupHeading(region.label(), expanded, enabled, "clock_region_heading:$region") { onToggleGroup(region.name) }
+        }
+        if (expanded) controls.forEachIndexed { index, control ->
             clockSetting("clock_region:$region:${control.key}") { control.content(index, controls.size) }
         }
     }
@@ -368,8 +377,14 @@ internal fun LazyListScope.clockRegionSettings(
     }
     group(ClockRegion.Task, taskControls)
 
-    item("clock_layout_heading") { SettingsHeading(stringResource(R.string.clock_layout_section)) }
-    val layoutCount = 5
+    val layoutExpanded = "Layout" in expandedGroups
+    clockSetting("clock_layout_heading") {
+        ClockGroupHeading(stringResource(R.string.clock_layout_section), layoutExpanded, enabled, "clock_layout_heading") {
+            onToggleGroup("Layout")
+        }
+    }
+    if (!layoutExpanded) return
+    val layoutCount = 6
     clockSetting("clock_region_order") {
         ClockControlSegment(0, layoutCount, "clock_region_order") {
             Column {
@@ -387,23 +402,46 @@ internal fun LazyListScope.clockRegionSettings(
             onChange { it.copy(regionSpacing = value) }
         }
     }
+    clockSetting("clock_bottom_padding") {
+        ClockSlider(stringResource(R.string.clock_bottom_padding), regions.bottomPadding, ClockRegions().bottomPadding,
+            0..64, 1, 2, layoutCount, "clock_bottom_padding", enabled,
+            valueLabel = stringResource(R.string.lab_dp, regions.bottomPadding)) { value ->
+            onChange { it.copy(bottomPadding = value) }
+        }
+    }
     clockSetting("clock_rotate_above_primary") {
         SettingsToggleItem(stringResource(R.string.clock_rotate_above_primary), null, regions.rotateAbovePrimary,
-            2, layoutCount, "clock_rotate_above_primary", enabled) { checked ->
+            3, layoutCount, "clock_rotate_above_primary", enabled) { checked ->
             onChange { it.copy(rotateAbovePrimary = checked) }
         }
     }
     clockSetting("clock_rotate_primary") {
         SettingsToggleItem(stringResource(R.string.clock_rotate_primary), null, regions.rotatePrimary,
-            3, layoutCount, "clock_rotate_primary", enabled) { checked ->
+            4, layoutCount, "clock_rotate_primary", enabled) { checked ->
             onChange { it.copy(rotatePrimary = checked) }
         }
     }
     clockSetting("clock_rotate_all") {
         SettingsToggleItem(stringResource(R.string.clock_rotate_all), null, regions.rotateAll,
-            4, layoutCount, "clock_rotate_all", enabled) { checked ->
+            5, layoutCount, "clock_rotate_all", enabled) { checked ->
             onChange { it.copy(rotateAll = checked) }
         }
+    }
+}
+
+@Composable
+private fun ClockGroupHeading(title: String, expanded: Boolean, enabled: Boolean, tag: String, onToggle: () -> Unit) {
+    val angle by animateFloatAsState(if (expanded) 180f else 0f,
+        MaterialTheme.motionScheme.fastSpatialSpec(), label = "clockGroupChevron")
+    val action = stringResource(if (expanded) R.string.clock_collapse_group else R.string.clock_expand_group)
+    val state = stringResource(if (expanded) R.string.widget_group_expanded else R.string.widget_group_collapsed)
+    Row(Modifier.fillMaxWidth().padding(top = 16.dp).clip(MaterialTheme.shapes.small)
+        .clickable(enabled = enabled, role = Role.Button, onClickLabel = action, onClick = onToggle)
+        .heightIn(min = 40.dp).padding(start = 4.dp, end = 8.dp).testTag(tag)
+        .semantics { heading(); stateDescription = state }, verticalAlignment = Alignment.CenterVertically) {
+        Text(title, Modifier.weight(1f), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Icon(painterResource(R.drawable.ms_expand_more), contentDescription = null,
+            modifier = Modifier.size(20.dp).graphicsLayer { rotationZ = angle }, tint = MaterialTheme.colorScheme.primary)
     }
 }
 

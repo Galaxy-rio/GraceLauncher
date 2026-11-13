@@ -106,6 +106,7 @@ data class ClockRegions(
     val tasks: ClockTasks = ClockTasks(),
     val weather: ClockWeather = ClockWeather(),
     val battery: ClockBattery = ClockBattery(),
+    val bottomPadding: Int = 4,
 ) {
     fun face(element: ClockElement): ClockFaceStyle = (primaryFaces[element] ?: defaultFace(element)).normalized()
 
@@ -127,6 +128,7 @@ data class ClockRegions(
             tertiary = tertiary,
             regionOrder = completedOrder,
             regionSpacing = regionSpacing.coerceIn(0, 64),
+            bottomPadding = bottomPadding.coerceIn(0, 64),
             agenda = agenda.normalized(),
             tasks = tasks.normalized(),
             weather = weather.normalized(),
@@ -178,6 +180,7 @@ data class ClockRegions(
             put("rotatePrimary", regions.rotatePrimary)
             put("rotateAll", regions.rotateAll)
             put("regionSpacing", regions.regionSpacing)
+            put("bottomPadding", regions.bottomPadding)
             put("agenda", regions.agenda.json())
             put("tasks", regions.tasks.json())
             put("weather", regions.weather.json())
@@ -248,6 +251,7 @@ data class ClockRegions(
         internal fun fromPreset(style: ClockStyle): ClockRegions = fromLegacy(style).copy(
             regionOrder = listOf(ClockRegion.Primary, ClockRegion.Secondary, ClockRegion.Tertiary, ClockRegion.Agenda, ClockRegion.Task),
             regionSpacing = 2,
+            bottomPadding = 4,
             tasks = ClockTasks(),
             agenda = ClockAgenda(
                 order = listOf(ClockAgendaField.Title, ClockAgendaField.Countdown, ClockAgendaField.Time,
@@ -284,6 +288,7 @@ data class ClockRegions(
                 rotateAll = if (json.has("rotateAll")) json.optBoolean("rotateAll", false)
                     else legacyRotation == "All",
                 regionSpacing = json.optInt("regionSpacing", defaults.regionSpacing),
+                bottomPadding = json.optInt("bottomPadding", defaults.bottomPadding),
                 agenda = ClockAgenda.decode(json.optJSONObject("agenda")),
                 tasks = ClockTasks.decode(json.optJSONObject("tasks")),
                 weather = ClockWeather.decode(json.optJSONObject("weather")),

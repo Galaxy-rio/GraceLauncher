@@ -1070,6 +1070,9 @@
     <string name="clock_tertiary_region">第三区域</string>
     <string name="clock_agenda_region">日程区域</string>
     <string name="clock_region_spacing">区域间距</string>
+    <string name="clock_bottom_padding">底部内边距</string>
+    <string name="clock_expand_group">展开分组</string>
+    <string name="clock_collapse_group">收起分组</string>
     <string name="clock_agenda_contents">日程内容</string>
     <string name="clock_agenda_event_count">显示数量</string>
     <string name="clock_agenda_unlimited">不限</string>

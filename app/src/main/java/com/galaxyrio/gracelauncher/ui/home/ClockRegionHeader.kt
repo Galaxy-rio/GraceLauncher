@@ -190,9 +190,9 @@ internal fun HomeClockHeader(
             ClockElement.Battery -> "${dateTag}_battery"
             ClockElement.Weather -> "home_weather"
         }
-        // Weather supplies its own descriptive semantics and independent pointer target.
+        // Compact rows own their agenda action; only weather keeps an independent pointer target.
         val contentModifier = elementModifier.testTag(tag).then(
-            if (element == ClockElement.Weather) Modifier else Modifier
+            if (!primary || element == ClockElement.Weather) Modifier else Modifier
                 .then(if (description == null) Modifier else Modifier.semantics { contentDescription = description })
                 .then(if (interactive && action != null) Modifier.combinedClickable(
                     interactionSource = remember { MutableInteractionSource() },
@@ -268,19 +268,31 @@ internal fun HomeClockHeader(
             fontSize = typography.size.sp, lineHeight = (typography.size * 1.5f).sp,
             fontWeight = FontWeight(typography.weight), shadow = clockFontShadow(typography.fontShadow),
         )
-        ClockRegionRowLayout(left.size, right.size,
-            Modifier.then(if (wrapWidth) Modifier else Modifier.fillMaxWidth())
-                .then(if (inset) Modifier.padding(horizontal = LauncherLayout.ContentInset) else Modifier)
-                .testTag("clock_region:$name"), wrapWidth = wrapWidth, centered = row.centered) {
-            (left + right).forEach { item ->
-                key(item) {
-                    if (interactive) element(item, false, rowStyle, Modifier,
-                        showSeconds = row.showSeconds, useLatinLetters = row.useLatinLetters,
-                        fixedClockWidth = row.fixedClockWidth)
-                    else ClockRegionItemMotion { movement -> element(item, false, rowStyle, movement,
-                        showSeconds = row.showSeconds, useLatinLetters = row.useLatinLetters,
-                        fixedClockWidth = row.fixedClockWidth) }
+        val interactions = remember { MutableInteractionSource() }
+        Box(Modifier.then(if (wrapWidth) Modifier else Modifier.fillMaxWidth())
+            .testTag("clock_region:$name")
+            .semantics { contentDescription = dateDescription }
+            .then(if (interactive) Modifier.combinedClickable(
+                interactionSource = interactions, indication = null,
+                role = Role.Button, onClick = onDateClick, onLongClick = onLongClick,
+            ) else Modifier), propagateMinConstraints = true) {
+            ClockRegionRowLayout(left.size, right.size,
+                Modifier.then(if (inset) Modifier.padding(horizontal = LauncherLayout.ContentInset) else Modifier),
+                wrapWidth = wrapWidth, centered = row.centered) {
+                (left + right).forEach { item ->
+                    key(item) {
+                        if (interactive) element(item, false, rowStyle, Modifier,
+                            showSeconds = row.showSeconds, useLatinLetters = row.useLatinLetters,
+                            fixedClockWidth = row.fixedClockWidth)
+                        else ClockRegionItemMotion { movement -> element(item, false, rowStyle, movement,
+                            showSeconds = row.showSeconds, useLatinLetters = row.useLatinLetters,
+                            fixedClockWidth = row.fixedClockWidth) }
+                    }
                 }
+            }
+            if (interactive) {
+                Box(Modifier.matchParentSize().clip(LauncherLayout.RowShape)
+                    .indication(interactions, ripple(color = appearance.text)))
             }
         }
     }
@@ -423,6 +435,8 @@ internal fun HomeClockHeader(
                 }
                 else -> regionContent()
             }
+            // Keep the widget's bottom inset in screen coordinates, outside every rotation.
+            Spacer(Modifier.height(regions.bottomPadding.dp))
         }
     }
 }
@@ -529,7 +543,7 @@ private fun ClockRegionTime(
     val use24Hour = DateFormat.is24HourFormat(LocalContext.current)
     val text = formatHomeClock(clockNow, use24Hour, locale,
         leadingZero = style.face.showLeadingZero, showSeconds = showSeconds)
-    val description = stringResource(R.string.clock_action, text)
+    val description = if (primary) stringResource(R.string.clock_action, text) else text
     val described = modifier.semantics { contentDescription = description }
     val clockModifier = if (!primary && fixedClockWidth) described.width(rememberFixedClockWidth(
         textStyle = textStyle,

@@ -124,6 +124,8 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
     var baseline by rememberSaveable(stateSaver = ClockStyleDraftSaver) { mutableStateOf(draft) }
     var confirmExit by rememberSaveable { mutableStateOf(false) }
     var page by rememberSaveable { mutableStateOf(ClockEditorPage.Style) }
+    // Expansion belongs to this editor visit, not the saved widget configuration.
+    var expandedGroups by remember { mutableStateOf(emptySet<String>()) }
     var presetLayout by rememberSaveable {
         mutableStateOf(uiState.settings.clockStyle.layout.takeIf {
             uiState.settings.clockStyle.regions == null && !it.allowsCustomFont
@@ -398,6 +400,10 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
                                     }
                                     ClockEditorPage.Presets -> Unit
                                     ClockEditorPage.Style -> clockRegionSettings(regions, pageEnabled, uiState.settings.allowHapticFeedback,
+                                        expandedGroups = expandedGroups,
+                                        onToggleGroup = { group ->
+                                            expandedGroups = if (group in expandedGroups) expandedGroups - group else expandedGroups + group
+                                        },
                                         onChange = ::updateRegions, onFont = { editingFont = it }, onWeatherIcons = { weatherIcons = true },
                                         onWeatherContent = { editingContent = ClockContentPage.Weather },
                                         onAgendaContent = { editingContent = ClockContentPage.Agenda },
