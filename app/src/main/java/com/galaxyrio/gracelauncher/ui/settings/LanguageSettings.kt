@@ -1,7 +1,9 @@
 package com.galaxyrio.gracelauncher.ui.settings
 
+import android.app.LocaleManager
 import android.content.Context
-import androidx.appcompat.app.AppCompatDelegate
+import android.os.Build
+import android.os.LocaleList
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -27,19 +29,22 @@ import com.galaxyrio.gracelauncher.R
 import org.xmlpull.v1.XmlPullParser
 import java.util.Locale
 
-/** AndroidX delegates to the system on Android 13+; Room must not hold a second preference. */
+/** The system owns app languages on Android 13+; older versions follow the system. */
 @Composable
 internal fun rememberAppLanguage(): MutableState<String> {
+    val context = LocalContext.current
     val configuration = LocalConfiguration.current
-    val language = remember(configuration) { mutableStateOf(currentAppLanguage()) }
-    LifecycleResumeEffect(configuration) {
-        language.value = currentAppLanguage()
+    val language = remember(context, configuration) { mutableStateOf(currentAppLanguage(context)) }
+    LifecycleResumeEffect(context, configuration) {
+        language.value = currentAppLanguage(context)
         onPauseOrDispose { }
     }
     return language
 }
 
-private fun currentAppLanguage(): String = AppCompatDelegate.getApplicationLocales()[0]?.toLanguageTag().orEmpty()
+private fun currentAppLanguage(context: Context): String = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+    context.getSystemService(LocaleManager::class.java).applicationLocales[0]?.toLanguageTag().orEmpty()
+} else ""
 
 @Composable
 internal fun appLanguageSummary(languageTag: String): String = if (languageTag.isEmpty()) {
@@ -66,7 +71,10 @@ internal fun supportedAppLanguages(context: Context): List<Locale> = buildList {
 internal fun LanguageSettings(onBack: () -> Unit) {
     val context = LocalContext.current
     val displayLocale = LocalConfiguration.current.locales[0]
-    val languages = remember(context) { supportedAppLanguages(context) }
+    // A restored navigation entry on an older OS must only offer "Follow system".
+    val languages = remember(context) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) supportedAppLanguages(context) else emptyList()
+    }
     var languageTag by rememberAppLanguage()
     val requested = languageTag.takeIf(String::isNotEmpty)?.let(Locale::forLanguageTag)
     val selectedLanguage = languages.firstOrNull { it == requested }
@@ -85,8 +93,8 @@ internal fun LanguageSettings(onBack: () -> Unit) {
                     leading = { RadioButton(checked, onClick = null) },
                     modifier = Modifier.semantics { role = Role.RadioButton; selected = checked },
                 ) {
-                    if (tag != languageTag) {
-                        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
+                    if (tag != languageTag && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        context.getSystemService(LocaleManager::class.java).applicationLocales = LocaleList.forLanguageTags(tag)
                         // Selecting the same effective language may not recreate the Activity.
                         languageTag = tag
                     }

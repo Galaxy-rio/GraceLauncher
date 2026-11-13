@@ -3,6 +3,7 @@
 package com.galaxyrio.gracelauncher.ui.settings
 
 import android.net.Uri
+import android.os.Build
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.AnimatedContentTransitionScope
 import androidx.compose.animation.core.Animatable
@@ -413,13 +414,15 @@ private fun SettingsHome(
 ) {
     val showDefaultHomeBanner = isDefaultHome == false
     val languageTag by rememberAppLanguage()
-    val categories = listOf(
-        SettingsPage.Productivity to LauncherSymbol.Star,
-        SettingsPage.Themes to LauncherSymbol.Palette,
-        SettingsPage.Advanced to LauncherSymbol.Settings,
-        SettingsPage.Language to LauncherSymbol.Language,
-        SettingsPage.About to LauncherSymbol.Info,
-    )
+    val categories = buildList {
+        add(SettingsPage.Productivity to LauncherSymbol.Star)
+        add(SettingsPage.Themes to LauncherSymbol.Palette)
+        add(SettingsPage.Advanced to LauncherSymbol.Settings)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            add(SettingsPage.Language to LauncherSymbol.Language)
+        }
+        add(SettingsPage.About to LauncherSymbol.Info)
+    }
     SettingsScaffold(stringResource(R.string.settings_title), "settings_root", onBack) { padding ->
         SettingsList(padding) {
             item(key = "settings_intro") { Spacer(Modifier.height(if (showDefaultHomeBanner) 32.dp else 24.dp)) }

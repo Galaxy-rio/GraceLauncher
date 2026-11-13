@@ -577,7 +577,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         refreshApps()
     }
 
-    private fun catalogConfiguration(): String = ContextCompat.getContextForLanguage(getApplication()).resources.configuration.let {
+    private fun catalogConfiguration(): String = getApplication<Application>().resources.configuration.let {
         "${it.densityDpi}:${it.uiMode and Configuration.UI_MODE_NIGHT_MASK}:${it.locales.toLanguageTags()}"
     }
 
@@ -847,7 +847,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
                     // Keep this virtual folder out of the editable folder table, but
                     // render its saved icon through the same item-icon pipeline.
                     val recentFolder = LauncherFolder(RecentlyInstalledFolderId,
-                        ContextCompat.getString(getApplication(), com.galaxyrio.gracelauncher.R.string.recently_installed),
+                        getApplication<Application>().getString(com.galaxyrio.gracelauncher.R.string.recently_installed),
                         emptyList(), FolderPlacement.AppList)
                     val folderApps = (_uiState.value.folders + recentFolder).map { folder ->
                         decorate(folder.asApp())

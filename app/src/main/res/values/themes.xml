@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.GraceLauncher" parent="Theme.AppCompat.NoActionBar">
+    <!-- Keep the platform inflater: AppCompat replaces views in third-party widgets. -->
+    <style name="Theme.GraceLauncher" parent="android:style/Theme.Material.NoActionBar">
         <item name="android:windowShowWallpaper">true</item>
         <item name="android:windowBackground">@android:color/transparent</item>
         <item name="android:windowNoTitle">true</item>
