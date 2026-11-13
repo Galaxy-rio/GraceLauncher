@@ -25,6 +25,7 @@ enum class AgendaHourWeatherField {
 data class AgendaAppearance(
     val title: AgendaTitle = AgendaTitle.Text,
     val titleText: String = "Your Agenda",
+    val showDailyContent: Boolean = true,
     val headerOrder: List<AgendaHeaderField> = AgendaHeaderField.entries,
     val headerSelected: Set<AgendaHeaderField> = AgendaHeaderField.entries.toSet(),
     val headerRightAligned: Set<AgendaHeaderField> = setOf(AgendaHeaderField.Weather),
@@ -65,6 +66,7 @@ data class AgendaAppearance(
     fun encode(): String = normalized().let { value -> JSONObject().apply {
         put("title", value.title.name)
         put("titleText", value.titleText)
+        put("showDailyContent", value.showDailyContent)
         put("headerOrder", JSONArray(value.headerOrder.map { it.name }))
         put("headerSelected", JSONArray(value.headerSelected.map { it.name }))
         put("headerRightAligned", JSONArray(value.headerRightAligned.map { it.name }))
@@ -128,6 +130,7 @@ data class AgendaAppearance(
             AgendaAppearance(
                 title = AgendaTitle.entries.firstOrNull { it.name == data.optString("title") } ?: defaults.title,
                 titleText = data.optString("titleText", defaults.titleText),
+                showDailyContent = data.optBoolean("showDailyContent", defaults.showDailyContent),
                 headerOrder = fields("headerOrder", AgendaHeaderField.entries) ?: defaults.headerOrder,
                 headerSelected = fields("headerSelected", AgendaHeaderField.entries)?.toSet() ?: defaults.headerSelected,
                 headerRightAligned = fields("headerRightAligned", AgendaHeaderField.entries)?.toSet() ?: defaults.headerRightAligned,

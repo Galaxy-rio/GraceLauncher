@@ -2,6 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <!-- Media3's network observer is unused; exclude its transitive permission. -->
+    <uses-permission
+        android:name="android.permission.ACCESS_NETWORK_STATE"
+        tools:node="remove" />
+
     <uses-permission android:name="android.permission.READ_CALENDAR" />
     <uses-permission android:name="org.tasks.permission.READ_TASKS" />
     <uses-permission android:name="org.tasks.permission.WRITE_TASKS" />

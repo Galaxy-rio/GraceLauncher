@@ -1166,12 +1166,12 @@
     <string name="agenda_title_text">Custom text</string>
     <string name="agenda_widget_region">Widget region</string>
     <string name="agenda_daily">Daily</string>
+    <string name="agenda_daily_content">Daily content</string>
     <string name="agenda_calendar_content">Calendar content</string>
     <string name="agenda_primary_line">Primary line</string>
     <string name="agenda_supporting_information">Supporting information</string>
     <string name="agenda_tasks_first">Show tasks first</string>
     <string name="agenda_hourly_weather">Hourly weather</string>
-    <string name="agenda_hourly_content">Hourly weather content</string>
     <string name="agenda_undated_tasks">Tasks without a due date</string>
     <string name="agenda_today_heading">Today</string>
     <string name="agenda_choose_create_action">Choose what to add</string>

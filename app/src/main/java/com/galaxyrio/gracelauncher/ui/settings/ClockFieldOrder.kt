@@ -15,6 +15,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -130,6 +131,7 @@ internal fun <T : Enum<T>> ClockFieldOrder(
     onChartChange: (T, Boolean) -> Unit = { _, _ -> },
     positionIcons: Map<T, Int> = emptyMap(),
     beforeFields: LazyListScope.() -> Unit = {},
+    containerColor: Color = MaterialTheme.colorScheme.surfaceContainer,
 ) {
     val list = rememberLazyListState()
     val fields by rememberUpdatedState(order.associateBy { it.name })
@@ -236,7 +238,7 @@ internal fun <T : Enum<T>> ClockFieldOrder(
                 val dragging = reorder.draggingKey == key
                 val offset by rememberReorderTranslation(reorder, key)
                 val background by animateColorAsState(
-                    if (dragging) MaterialTheme.colorScheme.surfaceContainerHigh else MaterialTheme.colorScheme.surfaceContainer,
+                    if (dragging) MaterialTheme.colorScheme.surfaceContainerHigh else containerColor,
                     label = "clockFieldLift",
                 )
                 Row(

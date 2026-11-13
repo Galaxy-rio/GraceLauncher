@@ -96,7 +96,6 @@ internal fun HourlyWeatherChart(hours: List<WeatherHour>, fields: Set<AgendaHour
     val values = remember(hours, fields) { fields.associateWith { field -> hours.map { hourlyChartValue(it, field) } } }
     val lines = listOf(AgendaHourWeatherField.Temperature, AgendaHourWeatherField.FeelsLike, AgendaHourWeatherField.Humidity)
         .filter { it in fields }
-    val feelsLikeColor = MaterialTheme.colorScheme.tertiary
     val temperatures = listOf(AgendaHourWeatherField.Temperature, AgendaHourWeatherField.FeelsLike)
         .flatMap { values[it].orEmpty().filterNotNull() }
     val minimum = temperatures.minOrNull() ?: 0.0
@@ -124,13 +123,14 @@ internal fun HourlyWeatherChart(hours: List<WeatherHour>, fields: Set<AgendaHour
     Canvas(Modifier.width(HourWeatherWidth * hours.size).height(height)
         .testTag("weather_hourly_chart").semantics { contentDescription = description }) {
         val column = HourWeatherWidth.toPx()
-        val top = minOf(8.dp.toPx(), size.height * .1f)
-        val barWidth = 12.dp.toPx()
+        val barWidth = 18.dp.toPx()
+        val barPadding = if (AgendaHourWeatherField.AirQuality in fields) barWidth / 2 else 6.dp.toPx()
+        val top = maxOf(minOf(8.dp.toPx(), size.height * .1f), barPadding)
         val rotatedArrowExtent = arrowSize * sqrt(2f)
         val arrowCenterY = if (plot) size.height - 4.dp.toPx() - rotatedArrowExtent / 2 else size.height / 2
         // Leave 8 dp between the rounded bar ends and the arrow's full rotated bounds.
-        val bottom = (if (wind) arrowCenterY - rotatedArrowExtent / 2 - 8.dp.toPx() - barWidth / 2
-            else size.height - 8.dp.toPx()).coerceAtLeast(top + 1f)
+        val bottom = (if (wind) arrowCenterY - rotatedArrowExtent / 2 - 8.dp.toPx() - barPadding
+            else size.height - maxOf(8.dp.toPx(), barPadding)).coerceAtLeast(top + 1f)
         val plotHeight = bottom - top
         fun x(index: Int) = column * (index + .5f)
         fun y(value: Double, humidity: Boolean) = bottom -
@@ -175,8 +175,8 @@ internal fun HourlyWeatherChart(hours: List<WeatherHour>, fields: Set<AgendaHour
                     } else path.moveTo(point.x, point.y)
                 }
             }
-            if (field == AgendaHourWeatherField.Temperature) drawPath(path, temperatureBrush, style = lineStroke)
-            else drawPath(path, if (humidity) HumidityColor else feelsLikeColor, style = lineStroke)
+            if (humidity) drawPath(path, HumidityColor, style = lineStroke)
+            else drawPath(path, temperatureBrush, style = lineStroke)
         }
         values[AgendaHourWeatherField.WindDirection]?.forEachIndexed { index, degree ->
             if (degree != null) {

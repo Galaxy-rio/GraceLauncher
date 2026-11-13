@@ -1130,12 +1130,12 @@
     <string name="agenda_title_text">自定义文本</string>
     <string name="agenda_widget_region">小组件区域</string>
     <string name="agenda_daily">每日</string>
+    <string name="agenda_daily_content">每日内容</string>
     <string name="agenda_calendar_content">日程内容</string>
     <string name="agenda_primary_line">主要行</string>
     <string name="agenda_supporting_information">辅助信息</string>
     <string name="agenda_tasks_first">优先显示任务</string>
-    <string name="agenda_hourly_weather">小时天气</string>
-    <string name="agenda_hourly_content">小时天气内容</string>
+    <string name="agenda_hourly_weather">每小时天气</string>
     <string name="agenda_undated_tasks">无截止日期的任务</string>
     <string name="agenda_today_heading">今天</string>
     <string name="agenda_choose_create_action">选择添加内容</string>

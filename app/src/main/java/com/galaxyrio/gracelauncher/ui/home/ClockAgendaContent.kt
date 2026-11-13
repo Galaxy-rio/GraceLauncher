@@ -168,6 +168,7 @@ internal fun ClockMetadataLayout(
     wrapWidth: Boolean,
     alignment: ClockAlignment,
     rightStart: Int? = null,
+    remainingWidthIndex: Int? = null,
     content: @Composable () -> Unit,
 ) {
     Layout(content = content, modifier = modifier) { measurables, constraints ->
@@ -182,14 +183,21 @@ internal fun ClockMetadataLayout(
         val total = naturalWidth.coerceAtLeast(1)
         val fixed = widths.indices.filterNot { flexible[it] }.sumOf { widths[it].toLong() }
         val flexibleTotal = (total - fixed).coerceAtLeast(1)
-        val placeables = measurables.mapIndexed { index, measurable ->
-            val width = when {
-                total <= available -> widths[index]
+        val allocatedWidths = widths.mapIndexed { index, width ->
+            when {
+                total <= available -> width
                 fixed < available && flexible.any { it } -> if (flexible[index])
                     (widths[index].toLong() * (available - fixed) / flexibleTotal).toInt() else widths[index]
                 else -> (widths[index].toLong() * available / total).toInt()
             }
-            measurable.measure(constraints.copy(minWidth = 0, minHeight = 0, maxWidth = width))
+        }.toMutableList()
+        remainingWidthIndex?.takeIf { it in allocatedWidths.indices }?.let { index ->
+            // Flow content needs the available space, not an exact intrinsic estimate:
+            // fractional-density spacing can round differently during its real measurement.
+            allocatedWidths[index] += (available - allocatedWidths.sumOf { it.toLong() }).coerceAtLeast(0).toInt()
+        }
+        val placeables = measurables.mapIndexed { index, measurable ->
+            measurable.measure(constraints.copy(minWidth = 0, minHeight = 0, maxWidth = allocatedWidths[index]))
         }
         val baselines = placeables.map { it[FirstBaseline].takeUnless { line -> line == AlignmentLine.Unspecified } ?: it.height }
         val above = baselines.maxOrNull() ?: 0

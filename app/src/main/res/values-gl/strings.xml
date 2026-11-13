@@ -1105,7 +1105,6 @@
     <string name="agenda_calendar_content">Contido do calendario</string>
     <string name="agenda_tasks_first">Amosar primeiro as tarefas</string>
     <string name="agenda_hourly_weather">O tempo por hora</string>
-    <string name="agenda_hourly_content">Contido meteorolóxico por hora</string>
     <string name="agenda_undated_content">Contido da tarefa sen data</string>
     <string name="agenda_new_event_button">Botón de engadir evento</string>
     <string name="agenda_new_task_button">Botón de engadir tarefa</string>

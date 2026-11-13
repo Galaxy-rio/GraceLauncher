@@ -80,7 +80,8 @@ internal fun AgendaDayHeader(date: LocalDate, today: LocalDate, forecast: Weathe
                 .let { values -> values.filterNot { it in appearance.headerRightAligned } + values.filter { it in appearance.headerRightAligned } }
             if (fields.isNotEmpty()) ClockMetadataLayout(fields.map { it != AgendaHeaderField.Countdown }, modifier,
                 wrapWidth = false, alignment = ClockAlignment.Left,
-                rightStart = fields.count { it !in appearance.headerRightAligned }) {
+                rightStart = fields.count { it !in appearance.headerRightAligned },
+                remainingWidthIndex = fields.indexOf(AgendaHeaderField.Weather).takeIf { it >= 0 }) {
                 fields.forEach { field -> when (field) {
                     AgendaHeaderField.Date -> Text(date.format(rowDateFormat), Modifier.testTag("agenda_date:$date")
                         .semantics { contentDescription = spokenDate }, fontSize = 16.sp, fontWeight = FontWeight.Medium,

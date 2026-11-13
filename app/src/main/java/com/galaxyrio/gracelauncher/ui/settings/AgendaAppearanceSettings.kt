@@ -12,12 +12,20 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.lifecycle.Lifecycle
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.R
-import com.galaxyrio.gracelauncher.ui.weather.labelResource
 import com.galaxyrio.gracelauncher.data.*
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
@@ -27,7 +35,7 @@ import com.galaxyrio.gracelauncher.ui.overlays.panelWindowHeight
 import kotlinx.coroutines.launch
 
 private val AgendaAppearanceSaver = Saver<AgendaAppearance, String>(save = { it.encode() }, restore = { AgendaAppearance.decode(it) })
-private enum class AgendaContentPage { Weather, Calendar, Tasks, Hourly }
+private enum class AgendaEditorPage { Overview, Hourly, Daily }
 private class AgendaControl(val key: String, val content: @Composable (Int, Int) -> Unit)
 
 @Composable
@@ -44,7 +52,11 @@ internal fun AgendaAppearanceSettings(uiState: LauncherUiState, actions: Launche
     var observedWidgetId by rememberSaveable { mutableIntStateOf(-1) }
     var editingWidget by rememberSaveable { mutableStateOf(false) }
     var resizingWidget by remember { mutableStateOf(false) }
-    var page by rememberSaveable { mutableStateOf<AgendaContentPage?>(null) }
+    val navController = rememberNavController()
+    val currentEntry by navController.currentBackStackEntryAsState()
+    val currentPage = AgendaEditorPage.entries.firstOrNull { it.name == currentEntry?.destination?.route } ?: AgendaEditorPage.Overview
+    var contentPage by rememberSaveable { mutableStateOf<AgendaDailyContentPage?>(null) }
+    val distance = with(LocalDensity.current) { 30.dp.roundToPx() }
     var saving by remember { mutableStateOf(false) }
     var confirmExit by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(savedWidget) {
@@ -91,13 +103,13 @@ internal fun AgendaAppearanceSettings(uiState: LauncherUiState, actions: Launche
     }
     val back: () -> Unit = {
         if (!saving) when {
-            page != null -> page = null
+            contentPage != null -> contentPage = null
+            currentPage != AgendaEditorPage.Overview -> navController.popBackStack()
             editingWidget -> editingWidget = false
             dirty -> confirmExit = true
             else -> discardAndExit()
         }
     }
-    BackHandler(onBack = back)
     if (confirmExit) AlertDialog(
         onDismissRequest = { if (!saving) confirmExit = false },
         title = { Text(stringResource(R.string.icon_designer_unsaved_title)) },
@@ -108,123 +120,123 @@ internal fun AgendaAppearanceSettings(uiState: LauncherUiState, actions: Launche
             TextButton(::discardAndExit, enabled = !saving) { Text(stringResource(R.string.icon_designer_discard)) }
         } }, modifier = Modifier.testTag("agenda_appearance_unsaved"),
     )
-    SettingsPreviewScaffold(uiState, stringResource(R.string.settings_agenda), "agenda_appearance", back,
-        previewEnabled = false,
-        actions = { SettingsApplyAction(stringResource(R.string.save), enabled = enabled,
-            modifier = Modifier.testTag("agenda_appearance_apply"), onClick = ::saveAndExit) },
-    ) { padding ->
-        val contentModifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()
-            .padding(horizontal = 16.dp)
-        val contentPage = page
-        if (contentPage != null) key(contentPage) {
-            AgendaContentSettings(contentPage, draft, enabled, weatherEnabled, calendarEnabled, tasksEnabled, haptics,
-                onChange = { draft = it }, onClose = { page = null }, modifier = contentModifier.padding(vertical = 16.dp))
-        } else LazyColumn(contentModifier.testTag("agenda_appearance_controls"),
-            userScrollEnabled = !saving && !resizingWidget,
-            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
-            contentPadding = PaddingValues(bottom = 24.dp + LocalSettingsBottomInset.current),
-        ) {
-            item("title_heading") { SettingsHeading(stringResource(R.string.agenda_title)) }
-            clockSetting("title_choices") {
-                ClockControlSegment(0, if (draft.title == AgendaTitle.Time) 1 else 2, "agenda_title_choices") {
-                    OrderedIconChoices(tag = "agenda_title", order = AgendaTitle.entries, selected = setOf(draft.title),
-                        enabled = enabled, hapticsEnabled = haptics,
-                        labelFor = { it.label() }, iconFor = { when (it) {
-                            AgendaTitle.Time -> R.drawable.ms_schedule
-                            AgendaTitle.Quote -> R.drawable.ms_format_quote
-                            AgendaTitle.Text -> R.drawable.ms_text_fields
-                        } }, onSelect = { choice, checked -> if (checked) draft = draft.copy(title = choice) })
-                }
-            }
-            if (draft.title == AgendaTitle.Text) clockSetting("title_text") {
-                ClockControlSegment(1, 2, "agenda_title_input") {
-                    OutlinedTextField(draft.titleText, { draft = draft.copy(titleText = it.take(500)) }, enabled = enabled,
-                        label = { Text(stringResource(R.string.agenda_title_text)) }, maxLines = 3,
-                        modifier = Modifier.fillMaxWidth().testTag("agenda_title_text"))
-                }
-            }
-            if (draft.title == AgendaTitle.Quote) clockSetting("title_quote") {
-                ClockControlSegment(1, 2, "agenda_title_quote") {
-                    Text(stringResource(R.string.settings_coming_soon))
-                }
-            }
-            item("widget_heading") { SettingsHeading(stringResource(R.string.agenda_widget_region)) }
-            clockSetting("widget_add") {
-                SettingsActionItem(stringResource(R.string.settings_add_widget), null, 0, 1, "agenda_widget_add",
-                    enabled = enabled && widget == null, onClick = actions.addAgendaWidget)
-            }
-            if (widget != null) {
-                clockSetting("widget_preview:${widget.widgetId}") {
-                    Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp)) {
-                        PopupWidgetItem(widget, editingWidget, enabled, haptics,
-                            maxHeight = panelWindowHeight().value.toInt(), onChange = { layout, _ -> changeWidget(layout) },
-                            onDragStart = { editingWidget = true }, onDrag = {}, onDragEnd = {},
-                            onResizing = { resizingWidget = it }, horizontalInset = 0.dp)
+    NavHost(navController, startDestination = AgendaEditorPage.Overview.name,
+        modifier = Modifier.fillMaxSize().testTag("agenda_appearance_navigation"),
+        enterTransition = { settingsEnter(distance) }, exitTransition = { settingsExit(distance) },
+        popEnterTransition = { settingsEnter(distance, back = true) },
+        popExitTransition = { settingsExit(distance, back = true) },
+    ) {
+        AgendaEditorPage.entries.forEach { displayed ->
+            composable(displayed.name) { entry ->
+                val pageEnabled = enabled && currentEntry?.id == entry.id
+                fun openPage(destination: AgendaEditorPage) {
+                    if (pageEnabled && entry.lifecycle.currentState == Lifecycle.State.RESUMED) {
+                        navController.navigate(destination.name) { launchSingleTop = true }
                     }
                 }
-                if (editingWidget) clockSetting("widget_controls") {
-                    PopupWidgetControls(widget, onChange = { layout, _ -> changeWidget(layout) }, onDone = { editingWidget = false })
+                val title = stringResource(when (displayed) {
+                    AgendaEditorPage.Overview -> R.string.settings_agenda
+                    AgendaEditorPage.Hourly -> R.string.agenda_hourly_weather
+                    AgendaEditorPage.Daily -> R.string.agenda_daily_content
+                })
+                val tag = when (displayed) {
+                    AgendaEditorPage.Overview -> "agenda_appearance"
+                    AgendaEditorPage.Hourly -> "agenda_hourly_weather_page"
+                    AgendaEditorPage.Daily -> "agenda_daily_content_page"
                 }
-                clockSetting("widget_remove") {
-                    SettingsActionItem(stringResource(R.string.widget_remove), null, 0, 1, "agenda_widget_remove", enabled = enabled) {
-                        widgetJson = null; widgetEdited = true; editingWidget = false
+                SettingsPreviewScaffold(uiState, title, tag,
+                    onBack = { if (currentEntry?.id == entry.id) back() }, previewEnabled = false,
+                    actions = { SettingsApplyAction(stringResource(R.string.save), enabled = pageEnabled,
+                        modifier = Modifier.testTag("agenda_appearance_apply"), onClick = ::saveAndExit) },
+                ) { padding ->
+                    val contentModifier = Modifier.fillMaxSize().padding(padding).consumeWindowInsets(padding).imePadding()
+                        .padding(horizontal = 16.dp)
+                    when (displayed) {
+                        AgendaEditorPage.Overview -> LazyColumn(contentModifier.testTag("agenda_appearance_controls"),
+                            userScrollEnabled = !saving && !resizingWidget,
+                            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+                            contentPadding = PaddingValues(bottom = 24.dp + LocalSettingsBottomInset.current),
+                        ) {
+                            item("title_heading") { SettingsHeading(stringResource(R.string.agenda_title)) }
+                            clockSetting("title_choices") {
+                                ClockControlSegment(0, if (draft.title == AgendaTitle.Time) 1 else 2, "agenda_title_choices") {
+                                    OrderedIconChoices(tag = "agenda_title", order = AgendaTitle.entries, selected = setOf(draft.title),
+                                        enabled = pageEnabled, hapticsEnabled = haptics,
+                                        labelFor = { it.label() }, iconFor = { when (it) {
+                                            AgendaTitle.Time -> R.drawable.ms_schedule
+                                            AgendaTitle.Quote -> R.drawable.ms_format_quote
+                                            AgendaTitle.Text -> R.drawable.ms_text_fields
+                                        } }, onSelect = { choice, checked -> if (checked) draft = draft.copy(title = choice) })
+                                }
+                            }
+                            if (draft.title == AgendaTitle.Text) clockSetting("title_text") {
+                                ClockControlSegment(1, 2, "agenda_title_input") {
+                                    OutlinedTextField(draft.titleText, { draft = draft.copy(titleText = it.take(500)) }, enabled = pageEnabled,
+                                        label = { Text(stringResource(R.string.agenda_title_text)) }, maxLines = 3,
+                                        modifier = Modifier.fillMaxWidth().testTag("agenda_title_text"))
+                                }
+                            }
+                            if (draft.title == AgendaTitle.Quote) clockSetting("title_quote") {
+                                ClockControlSegment(1, 2, "agenda_title_quote") {
+                                    Text(stringResource(R.string.settings_coming_soon))
+                                }
+                            }
+                            item("widget_heading") { SettingsHeading(stringResource(R.string.agenda_widget_region)) }
+                            clockSetting("widget_add") {
+                                SettingsActionItem(stringResource(R.string.settings_add_widget), null, 0, 1, "agenda_widget_add",
+                                    enabled = pageEnabled && widget == null, onClick = actions.addAgendaWidget)
+                            }
+                            if (widget != null) {
+                                clockSetting("widget_preview:${widget.widgetId}") {
+                                    Box(Modifier.fillMaxWidth().padding(horizontal = 14.dp)) {
+                                        PopupWidgetItem(widget, editingWidget, pageEnabled, haptics,
+                                            maxHeight = panelWindowHeight().value.toInt(), onChange = { layout, _ -> changeWidget(layout) },
+                                            onDragStart = { editingWidget = true }, onDrag = {}, onDragEnd = {},
+                                            onResizing = { resizingWidget = it }, horizontalInset = 0.dp)
+                                    }
+                                }
+                                if (editingWidget) clockSetting("widget_controls") {
+                                    PopupWidgetControls(widget, onChange = { layout, _ -> changeWidget(layout) }, onDone = { editingWidget = false })
+                                }
+                                clockSetting("widget_remove") {
+                                    SettingsActionItem(stringResource(R.string.widget_remove), null, 0, 1, "agenda_widget_remove", enabled = pageEnabled) {
+                                        widgetJson = null; widgetEdited = true; editingWidget = false
+                                    }
+                                }
+                            }
+                            item("daily_heading") { SettingsHeading(stringResource(R.string.agenda_daily)) }
+                            clockSetting("daily_content") {
+                                AgendaNavigationToggle(stringResource(R.string.agenda_daily_content), draft.showDailyContent, 0, 1,
+                                    "agenda_daily_content", pageEnabled, onCheckedChange = { draft = draft.copy(showDailyContent = it) },
+                                    onClick = { openPage(AgendaEditorPage.Daily) })
+                            }
+                            item("today_heading") { SettingsHeading(stringResource(R.string.agenda_today_heading)) }
+                            agendaControls(buildList {
+                                add(AgendaControl("hourly_weather") { index, count ->
+                                    AgendaNavigationToggle(stringResource(R.string.agenda_hourly_weather), draft.showHourlyWeather, index, count,
+                                        "agenda_hourly_weather", pageEnabled && weatherEnabled, onCheckedChange = { draft = draft.copy(showHourlyWeather = it) },
+                                        onClick = { openPage(AgendaEditorPage.Hourly) })
+                                })
+                                add(AgendaControl("undated_tasks") { index, count ->
+                                    SettingsToggleItem(stringResource(R.string.agenda_undated_tasks), null, draft.showUndatedTasks, index, count,
+                                        "agenda_undated_tasks", enabled = pageEnabled && tasksEnabled) { draft = draft.copy(showUndatedTasks = it) }
+                                })
+                            })
+                        }
+                        AgendaEditorPage.Hourly -> AgendaHourlyWeatherSettings(draft, uiState.weather.snapshot,
+                            pageEnabled && weatherEnabled, haptics, onChange = { if (pageEnabled) draft = it },
+                            modifier = contentModifier.padding(vertical = 16.dp))
+                        AgendaEditorPage.Daily -> AgendaDailyContentSettings(uiState, draft, pageEnabled,
+                            weatherEnabled, calendarEnabled, tasksEnabled, haptics, contentPage,
+                            onPageChange = { if (pageEnabled) contentPage = it },
+                            onChange = { if (pageEnabled) draft = it }, modifier = contentModifier.padding(vertical = 16.dp))
                     }
                 }
             }
-            item("daily_heading") { SettingsHeading(stringResource(R.string.agenda_daily)) }
-            agendaControls(buildList {
-                add(AgendaControl("daily_choices") { index, count ->
-                    ClockControlSegment(index, count, "agenda_header_elements") {
-                        val order = draft.headerOrder.filterNot { it in draft.headerRightAligned } + listOf(null) +
-                            draft.headerOrder.filter { it in draft.headerRightAligned }
-                        OrderedIconChoices(tag = "agenda_header", order = order, selected = draft.headerSelected,
-                            enabled = enabled, hapticsEnabled = haptics,
-                            disabledElements = if (weatherEnabled) emptySet() else setOf(AgendaHeaderField.Weather),
-                            labelFor = { it.label() }, iconFor = { when (it) {
-                                AgendaHeaderField.Date -> R.drawable.ms_calendar_month
-                                AgendaHeaderField.Countdown -> R.drawable.ms_hourglass_empty
-                                AgendaHeaderField.Weather -> R.drawable.ms_partly_cloudy_day
-                            } },
-                            onSelect = { field, selected -> draft = draft.copy(headerSelected = if (selected)
-                                draft.headerSelected + field else draft.headerSelected - field) },
-                            onReorder = { reordered -> draft = draft.copy(headerOrder = reordered.filterNotNull(),
-                                headerRightAligned = reordered.drop(reordered.indexOf(null) + 1).filterNotNull().toSet()) })
-                    }
-                })
-                if (AgendaHeaderField.Weather in draft.headerSelected) add(AgendaControl("weather_content") { index, count ->
-                    SettingsActionItem(stringResource(R.string.clock_weather_contents), null, index, count, "agenda_weather_content",
-                        enabled = weatherEnabled) { page = AgendaContentPage.Weather }
-                })
-                add(AgendaControl("task_content") { index, count ->
-                    SettingsActionItem(stringResource(R.string.clock_task_contents), null, index, count, "agenda_task_content",
-                        enabled = tasksEnabled) { page = AgendaContentPage.Tasks }
-                })
-                add(AgendaControl("calendar_content") { index, count ->
-                    SettingsActionItem(stringResource(R.string.agenda_calendar_content), null, index, count, "agenda_calendar_content",
-                        enabled = calendarEnabled) { page = AgendaContentPage.Calendar }
-                })
-                add(AgendaControl("tasks_first") { index, count ->
-                    SettingsToggleItem(stringResource(R.string.agenda_tasks_first), null, draft.tasksFirst, index, count,
-                        "agenda_tasks_first", enabled = tasksEnabled && calendarEnabled) { draft = draft.copy(tasksFirst = it) }
-                })
-            })
-            item("today_heading") { SettingsHeading(stringResource(R.string.agenda_today_heading)) }
-            agendaControls(buildList {
-                add(AgendaControl("hourly_weather") { index, count ->
-                    SettingsToggleItem(stringResource(R.string.agenda_hourly_weather), null, draft.showHourlyWeather, index, count,
-                        "agenda_hourly_weather", enabled = weatherEnabled) { draft = draft.copy(showHourlyWeather = it) }
-                })
-                if (draft.showHourlyWeather) add(AgendaControl("hourly_content") { index, count ->
-                    SettingsActionItem(stringResource(R.string.agenda_hourly_content), null, index, count,
-                        "agenda_hourly_content", enabled = weatherEnabled) { page = AgendaContentPage.Hourly }
-                })
-                add(AgendaControl("undated_tasks") { index, count ->
-                    SettingsToggleItem(stringResource(R.string.agenda_undated_tasks), null, draft.showUndatedTasks, index, count,
-                        "agenda_undated_tasks", enabled = tasksEnabled) { draft = draft.copy(showUndatedTasks = it) }
-                })
-            })
         }
     }
+    // Child destinations keep NavHost's predictive back. Guard only editor exit and inline panels.
+    BackHandler(enabled = currentPage == AgendaEditorPage.Overview || contentPage != null || saving, onBack = back)
 }
 
 private fun LazyListScope.agendaControls(controls: List<AgendaControl>) {
@@ -232,96 +244,17 @@ private fun LazyListScope.agendaControls(controls: List<AgendaControl>) {
 }
 
 @Composable
-private fun AgendaContentSettings(page: AgendaContentPage, draft: AgendaAppearance, enabled: Boolean,
-    weatherEnabled: Boolean, calendarEnabled: Boolean, tasksEnabled: Boolean, haptics: Boolean,
-    onChange: (AgendaAppearance) -> Unit, onClose: () -> Unit, modifier: Modifier,
+private fun AgendaNavigationToggle(title: String, checked: Boolean, index: Int, count: Int,
+    tag: String, enabled: Boolean, onCheckedChange: (Boolean) -> Unit, onClick: () -> Unit,
 ) {
-    val defaults = remember { AgendaAppearance() }
-    when (page) {
-        AgendaContentPage.Weather -> ClockContentPicker(stringResource(R.string.clock_weather_contents),
-            draft.dayWeatherOrder, draft.dayWeatherSelected, enabled && weatherEnabled, haptics, "agenda_day_weather_field",
-            label = { stringResource(it.labelResource()) },
-            onSelect = { field, checked -> onChange(draft.copy(dayWeatherSelected = if (checked)
-                draft.dayWeatherSelected + field else draft.dayWeatherSelected - field)) },
-            onReorder = { onChange(draft.copy(dayWeatherOrder = it)) }, onClose = onClose, modifier = modifier,
-            labelShown = { if (it.supportsLabel) it in draft.dayWeatherLabeledFields else null },
-            onLabelChange = { field, shown -> onChange(draft.copy(dayWeatherLabeledFields =
-                if (shown) draft.dayWeatherLabeledFields + field else draft.dayWeatherLabeledFields - field)) },
-            onReset = { onChange(draft.copy(dayWeatherOrder = defaults.dayWeatherOrder,
-                dayWeatherSelected = defaults.dayWeatherSelected, dayWeatherLabeledFields = defaults.dayWeatherLabeledFields)) })
-        AgendaContentPage.Hourly -> ClockContentPicker(stringResource(R.string.agenda_hourly_content),
-            draft.hourWeatherOrder.filter { it != AgendaHourWeatherField.Chart || draft.hourWeatherChartFields.isNotEmpty() },
-            draft.hourWeatherSelected, enabled && weatherEnabled, haptics, "agenda_hour_weather_field",
-            label = { stringResource(it.labelResource()) },
-            onSelect = { field, checked -> onChange(draft.copy(hourWeatherSelected = if (checked)
-                draft.hourWeatherSelected + field else draft.hourWeatherSelected - field)) },
-            onReorder = { order ->
-                // Keep the chart's saved position when it is hidden and other fields are reordered.
-                val complete = if (AgendaHourWeatherField.Chart in order) order else order.toMutableList().apply {
-                    add(draft.hourWeatherOrder.indexOf(AgendaHourWeatherField.Chart).coerceIn(0, size), AgendaHourWeatherField.Chart)
-                }
-                onChange(draft.copy(hourWeatherOrder = complete))
-            }, onClose = onClose, modifier = modifier,
-            chartShown = { if (it.supportsChart) it in draft.hourWeatherChartFields else null },
-            onChartChange = { field, shown -> onChange(draft.copy(hourWeatherChartFields =
-                if (shown) draft.hourWeatherChartFields + field else draft.hourWeatherChartFields - field)) },
-            positionIcons = mapOf(AgendaHourWeatherField.Chart to R.drawable.ms_bar_chart),
-            beforeFields = {
-                if (draft.hourWeatherChartFields.isNotEmpty()) item("chart_options") {
-                    Column(Modifier.animateItem(), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
-                        SettingsToggleItem(stringResource(R.string.weather_chart_always_expanded), null,
-                            draft.hourWeatherChartsExpanded, 0, 2, "agenda_hour_charts_expanded", enabled && weatherEnabled) {
-                            onChange(draft.copy(hourWeatherChartsExpanded = it))
-                        }
-                        ClockSlider(stringResource(R.string.weather_chart_height), draft.hourWeatherChartHeight,
-                            defaults.hourWeatherChartHeight, 60..240, 10, 1, 2, "agenda_hour_chart_height", enabled && weatherEnabled,
-                            valueLabel = stringResource(R.string.weather_chart_height_value, draft.hourWeatherChartHeight)) {
-                            onChange(draft.copy(hourWeatherChartHeight = it))
-                        }
-                        Spacer(Modifier.height(8.dp))
-                    }
-                }
-            },
-            onReset = { onChange(draft.copy(hourWeatherOrder = defaults.hourWeatherOrder,
-                hourWeatherSelected = defaults.hourWeatherSelected, hourWeatherChartFields = defaults.hourWeatherChartFields,
-                hourWeatherChartsExpanded = defaults.hourWeatherChartsExpanded, hourWeatherChartHeight = defaults.hourWeatherChartHeight)) })
-        AgendaContentPage.Calendar -> {
-            val content = draft.calendarContent
-            fun change(value: ClockAgenda) = onChange(draft.copy(calendarContent = value))
-            ClockContentPicker(stringResource(R.string.agenda_calendar_content), content.order, content.selected,
-                calendarEnabled, haptics, "agenda_calendar_field", label = { it.label() },
-                onSelect = { field, checked -> change(content.copy(selected = if (checked) content.selected + field else content.selected - field)) },
-                onReorder = { change(content.copy(order = it)) }, onClose = onClose, modifier = modifier,
-                rightAligned = content.rightAligned,
-                onAlignedReorder = { order, aligned -> change(content.copy(order = order, rightAligned = aligned)) },
-                primaryLine = draft.calendarPrimaryFields,
-                onLineReorder = { order, selected, primary, aligned -> onChange(draft.copy(
-                    calendarContent = content.copy(order = order, selected = selected, rightAligned = aligned),
-                    calendarPrimaryFields = primary)) },
-                onReset = { onChange(draft.copy(calendarContent = content.copy(
-                    order = defaults.calendarContent.order, selected = defaults.calendarContent.selected,
-                    rightAligned = defaults.calendarContent.rightAligned),
-                    calendarPrimaryFields = defaults.calendarPrimaryFields)) })
+    SettingsActionItem(title, null, index, count, tag, enabled = enabled, trailing = {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            VerticalDivider(Modifier.height(32.dp))
+            Switch(checked, onCheckedChange, enabled = enabled,
+                modifier = Modifier.padding(start = 16.dp).testTag("${tag}_switch")
+                    .semantics { contentDescription = title })
         }
-        AgendaContentPage.Tasks -> {
-            val content = draft.taskContent
-            fun change(value: ClockTasks) = onChange(draft.copy(taskContent = value))
-            ClockContentPicker(stringResource(R.string.clock_task_contents),
-                content.order, content.selected, tasksEnabled, haptics, "agenda_tasks_field", label = { it.label() },
-                onSelect = { field, checked -> change(content.copy(selected = if (checked) content.selected + field else content.selected - field)) },
-                onReorder = { change(content.copy(order = it)) }, onClose = onClose, modifier = modifier,
-                rightAligned = content.rightAligned,
-                onAlignedReorder = { order, aligned -> change(content.copy(order = order, rightAligned = aligned)) },
-                primaryLine = draft.taskPrimaryFields,
-                onLineReorder = { order, selected, primary, aligned -> onChange(draft.copy(
-                    taskContent = content.copy(order = order, selected = selected, rightAligned = aligned),
-                    taskPrimaryFields = primary)) },
-                onReset = { onChange(draft.copy(taskContent = content.copy(
-                    order = defaults.taskContent.order, selected = defaults.taskContent.selected,
-                    rightAligned = defaults.taskContent.rightAligned),
-                    taskPrimaryFields = defaults.taskPrimaryFields)) })
-        }
-    }
+    }, onClick = onClick)
 }
 
 @Composable
@@ -329,11 +262,4 @@ private fun AgendaTitle.label(): String = stringResource(when (this) {
     AgendaTitle.Time -> R.string.agenda_title_time
     AgendaTitle.Quote -> R.string.agenda_title_quote
     AgendaTitle.Text -> R.string.agenda_title_text
-})
-
-@Composable
-private fun AgendaHeaderField.label(): String = stringResource(when (this) {
-    AgendaHeaderField.Date -> R.string.clock_agenda_field_date
-    AgendaHeaderField.Countdown -> R.string.clock_agenda_field_countdown
-    AgendaHeaderField.Weather -> R.string.settings_weather
 })

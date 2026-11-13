@@ -1118,7 +1118,6 @@
     <string name="agenda_calendar_content">Contenido del calendario</string>
     <string name="agenda_tasks_first">Mostrar primero las tareas</string>
     <string name="agenda_hourly_weather">Clima por hora</string>
-    <string name="agenda_hourly_content">Contenido meteorológico por hora</string>
     <string name="agenda_undated_content">Contenido de la tarea sin fecha</string>
     <string name="agenda_new_event_button">Botón de agregar evento</string>
     <string name="agenda_new_task_button">Botón de agregar tarea</string>
