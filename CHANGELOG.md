@@ -4,7 +4,10 @@
 
 - Added Tasks.org integration.
 - Agenda Page now displays more details in hourly weather forecasts.
+- Added support for placing one widget on Agenda Page.
+- Added per-app language selection on Android 13 and later.
 - Fixed minor UI issues, including home screen clock margins and font colors across Settings pages.
+- Fixed animations in right-to-left (RTL) layouts.
 
 ## 1.2.3
 
