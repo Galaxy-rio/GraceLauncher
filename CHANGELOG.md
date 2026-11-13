@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.2.4
+
+- Added Tasks.org integration.
+- Agenda Page now displays more details in hourly weather forecasts.
+- Fixed minor UI issues, including home screen clock margins and font colors across Settings pages.
+
 ## 1.2.3
 
 - Added more customization options for clock widgets.
