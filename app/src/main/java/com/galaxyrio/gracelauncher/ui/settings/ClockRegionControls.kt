@@ -15,6 +15,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
@@ -446,9 +447,11 @@ private fun ClockGroupHeading(title: String, expanded: Boolean, enabled: Boolean
 }
 
 @Composable
-internal fun ClockControlSegment(index: Int, count: Int, tag: String, content: @Composable () -> Unit) {
+internal fun ClockControlSegment(index: Int, count: Int, tag: String,
+    containerColor: Color = MaterialTheme.colorScheme.surfaceBright, content: @Composable () -> Unit,
+) {
     SegmentedListItem(shapes = ListItemDefaults.segmentedShapes(index, count),
-        colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
+        colors = ListItemDefaults.segmentedColors(containerColor = containerColor),
         modifier = Modifier.testTag(tag), content = content)
 }
 

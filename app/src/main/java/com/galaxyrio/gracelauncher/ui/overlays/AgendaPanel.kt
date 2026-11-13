@@ -45,20 +45,21 @@ internal fun AgendaPanel(
         contentColor = MaterialTheme.colorScheme.onSurface,
         scrimColor = Color.Black.copy(alpha = 0.6f),
         dragHandle = null,
-        contentWindowInsets = { WindowInsets.safeDrawing },
+        contentWindowInsets = { launcherSheetContentInsets() },
         properties = ModalBottomSheetProperties(
             isAppearanceLightStatusBars = false,
             isAppearanceLightNavigationBars = sheetColor.luminance() > 0.5f,
         ),
     ) {
+        LauncherSheetSystemBars(uiState.settings.hideStatusBar, sheetColor.luminance() > 0.5f)
         val density = LocalDensity.current
         val windowHeight = panelWindowHeight()
         val systemInsets = WindowInsets.safeDrawing
-        val systemBarHeight = with(density) {
-            (systemInsets.getTop(this) + systemInsets.getBottom(this)).toDp()
-        }
-        val maximumHeight = (windowHeight - systemBarHeight).coerceAtLeast(0.dp)
-        val openingHeight = (windowHeight * 0.66f).coerceAtMost(maximumHeight)
+        val topInset = with(density) { systemInsets.getTop(this).toDp() }
+        val bottomInset = launcherSheetBottomInset()
+        val maximumHeight = (windowHeight - topInset).coerceAtLeast(0.dp)
+        // Preserve the opening sheet height while moving its bottom inset into the list's scroll area.
+        val openingHeight = (windowHeight * 0.66f + bottomInset).coerceAtMost(maximumHeight)
         val maximumGrowth = with(density) { (maximumHeight - openingHeight).toPx() }
         val growth = remember { mutableFloatStateOf(0f) }
         val extendOnScroll = remember(sheetState, listState, maximumGrowth) {

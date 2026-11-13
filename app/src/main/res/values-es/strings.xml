@@ -212,7 +212,7 @@
     <string name="settings_lab">Lab</string>
     <string name="lab_animation">Animación</string>
     <string name="lab_swipe_sensitivity">Sensibilidad de deslizamiento</string>
-    <string name="lab_swipe_sensitivity_summary">Los valores más altos facilitan la activación de los deslizamientos en la pantalla de inicio y del gesto de deslizar hacia abajo para cerrar la búsqueda. El 100 % mantiene los umbrales predeterminados de distancia y velocidad.</string>
+    <string name="lab_swipe_sensitivity_summary" formatted="false">Los valores más altos facilitan la activación de los deslizamientos en la pantalla de inicio y del gesto de deslizar hacia abajo para cerrar la búsqueda. El 100 % mantiene los umbrales predeterminados de distancia y velocidad.</string>
     <string name="lab_double_tap_interval">Intervalo del doble toque</string>
     <string name="lab_double_tap_interval_summary">Tiempo máximo entre toques en un espacio vacío de la pantalla de inicio. Un intervalo más largo facilita el doble toque.</string>
     <string name="lab_milliseconds">%1$d ms</string>
@@ -726,7 +726,7 @@
     <string name="media_keep_while_playing_summary">Los deslizamientos vuelven a su posición original en lugar de descartar al reproductor durante la reproducción</string>
     <string name="lab_swipe_dismiss">Desliza para descartar</string>
     <string name="lab_dismiss_resistance">Resistencia al deslizamiento</string>
-    <string name="lab_dismiss_resistance_summary">Compartido por las notificaciones y el reproductor multimedia. Los valores más altos generan mayor resistencia; el 0 % sigue el movimiento de tu dedo.</string>
+    <string name="lab_dismiss_resistance_summary" formatted="false">Compartido por las notificaciones y el reproductor multimedia. Los valores más altos generan mayor resistencia; el 0 % sigue el movimiento de tu dedo.</string>
     <string name="lab_dismiss_threshold">Umbral de avance</string>
     <string name="lab_dismiss_threshold_summary">Distancia antes de que ceda la resistencia. Compartido por las notificaciones y el reproductor multimedia; limitado por el ancho disponible.</string>
     <string name="settings_tablets_foldables">Tabletas y plegables</string>
@@ -1118,9 +1118,6 @@
     <string name="agenda_calendar_content">Contenido del calendario</string>
     <string name="agenda_tasks_first">Mostrar primero las tareas</string>
     <string name="agenda_hourly_weather">Clima por hora</string>
-    <string name="agenda_undated_content">Contenido de la tarea sin fecha</string>
-    <string name="agenda_new_event_button">Botón de agregar evento</string>
-    <string name="agenda_new_task_button">Botón de agregar tarea</string>
     <string name="agenda_new_task">Nueva tarea</string>
     <string name="agenda_unsaved_message">Los cambios de tu agenda no se han guardado.</string>
     <string name="weather_field_gusts">Ráfagas de viento</string>

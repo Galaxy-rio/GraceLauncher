@@ -212,7 +212,7 @@
     <string name="settings_lab">Laboratorio</string>
     <string name="lab_animation">Animación</string>
     <string name="lab_swipe_sensitivity">Sensibilidade do esvarado</string>
-    <string name="lab_swipe_sensitivity_summary">Os valores máis altos facilitan a activación dos esvarados na pantalla de inicio e do movemento cara a abaixo para pechar a busca. O 100 % mantén os limiares predeterminados de distancia e velocidade.</string>
+    <string name="lab_swipe_sensitivity_summary" formatted="false">Os valores máis altos facilitan a activación dos esvarados na pantalla de inicio e do movemento cara a abaixo para pechar a busca. O 100 % mantén os limiares predeterminados de distancia e velocidade.</string>
     <string name="lab_double_tap_interval">Intervalo de dobre pulsación</string>
     <string name="lab_double_tap_interval_summary">Tempo máximo entre toques nun espazo baleiro da pantalla de inicio. Un intervalo máis longo facilita o dobre toque.</string>
     <string name="lab_milliseconds">%1$d ms</string>
@@ -717,7 +717,7 @@
     <string name="media_keep_while_playing_summary">Os esvarados volven á posición orixinal en lugar de descartar o reprodutor durante a reprodución</string>
     <string name="lab_swipe_dismiss">Esvara para descartar</string>
     <string name="lab_dismiss_resistance">Resistencia ao esvarado</string>
-    <string name="lab_dismiss_resistance_summary">Compartido polas notificacións e o reprodutor multimedia. Os valores máis altos crean máis resistencia; o 0 % segue ao teu dedo.</string>
+    <string name="lab_dismiss_resistance_summary" formatted="false">Compartido polas notificacións e o reprodutor multimedia. Os valores máis altos crean máis resistencia; o 0 % segue ao teu dedo.</string>
     <string name="lab_dismiss_threshold">Limiar de avance</string>
     <string name="lab_dismiss_threshold_summary">Distancia antes de que ceda a resistencia. Compartido polas notificacións e o reprodutor multimedia; limitado pola anchura dispoñible.</string>
     <string name="widget_bind_error">Non foi posible vincular este widget. Téntao de novo.</string>
@@ -1105,9 +1105,6 @@
     <string name="agenda_calendar_content">Contido do calendario</string>
     <string name="agenda_tasks_first">Amosar primeiro as tarefas</string>
     <string name="agenda_hourly_weather">O tempo por hora</string>
-    <string name="agenda_undated_content">Contido da tarefa sen data</string>
-    <string name="agenda_new_event_button">Botón de engadir evento</string>
-    <string name="agenda_new_task_button">Botón de engadir tarefa</string>
     <string name="agenda_new_task">Nova tarefa</string>
     <string name="agenda_unsaved_message">Non se gardaron os cambios da túa axenda.</string>
     <string name="weather_field_gusts">Refachos de vento</string>

@@ -28,7 +28,8 @@ data class HourWeatherFieldStyle(
     val chartType: HourWeatherChartType = HourWeatherChartType.Line,
     val wavy: Boolean = false,
     val barWidth: Int = 18,
-    val alwaysShow: Boolean = false,
+    val alwaysShowText: Boolean = false,
+    val alwaysShowChart: Boolean = false,
 ) {
     fun normalized() = copy(barWidth = barWidth.coerceIn(BarWidthRange))
 
@@ -38,7 +39,7 @@ data class HourWeatherFieldStyle(
         fun defaults(field: AgendaHourWeatherField) = HourWeatherFieldStyle(
             chartType = if (field == AgendaHourWeatherField.AirQuality) HourWeatherChartType.Bar else HourWeatherChartType.Line,
             wavy = field == AgendaHourWeatherField.Humidity,
-            alwaysShow = field in setOf(AgendaHourWeatherField.Icon, AgendaHourWeatherField.Temperature),
+            alwaysShowText = field in setOf(AgendaHourWeatherField.Icon, AgendaHourWeatherField.Temperature),
         )
     }
 }
@@ -115,7 +116,8 @@ data class AgendaAppearance(
                 put("chartType", style.chartType.name)
                 put("wavy", style.wavy)
                 put("barWidth", style.barWidth)
-                put("alwaysShow", style.alwaysShow)
+                put("alwaysShowText", style.alwaysShowText)
+                put("alwaysShowChart", style.alwaysShowChart)
             }) }
         })
         put("hourWeatherChartsExpanded", value.hourWeatherChartsExpanded)
@@ -194,7 +196,8 @@ data class AgendaAppearance(
                                 ?: fallback.chartType,
                             wavy = style.optBoolean("wavy", fallback.wavy),
                             barWidth = style.optInt("barWidth", fallback.barWidth),
-                            alwaysShow = style.optBoolean("alwaysShow", fallback.alwaysShow),
+                            alwaysShowText = style.optBoolean("alwaysShowText", style.optBoolean("alwaysShow", fallback.alwaysShowText)),
+                            alwaysShowChart = style.optBoolean("alwaysShowChart", false),
                         )
                     }
                 }.toMap(),

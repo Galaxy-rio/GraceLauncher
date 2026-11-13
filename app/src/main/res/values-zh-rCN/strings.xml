@@ -453,7 +453,7 @@
     <string name="settings_debug">调试</string>
     <string name="lab_animation">动画</string>
     <string name="lab_swipe_sensitivity">滑动灵敏度</string>
-    <string name="lab_swipe_sensitivity_summary">数值越高，桌面上下划和下划关闭搜索越容易触发。100% 使用默认的距离和速度阈值。</string>
+    <string name="lab_swipe_sensitivity_summary" formatted="false">数值越高，桌面上下划和下划关闭搜索越容易触发。100% 使用默认的距离和速度阈值。</string>
     <string name="lab_double_tap_interval">双击识别间隔</string>
     <string name="lab_double_tap_interval_summary">桌面空白区域两次点击之间允许的最长时间。间隔越长，双击越容易识别。</string>
     <string name="lab_milliseconds">%1$d 毫秒</string>
@@ -937,7 +937,7 @@
     <string name="media_keep_while_playing_summary">播放期间滑动仅会回弹，不会移除音乐组件</string>
     <string name="lab_swipe_dismiss">划除手势</string>
     <string name="lab_dismiss_resistance">划除阻力</string>
-    <string name="lab_dismiss_resistance_summary">通知和音乐组件共用。数值越大阻力越强，0% 时完全跟手。</string>
+    <string name="lab_dismiss_resistance_summary" formatted="false">通知和音乐组件共用。数值越大阻力越强，0% 时完全跟手。</string>
     <string name="lab_dismiss_threshold">突破阈值</string>
     <string name="lab_dismiss_threshold_summary">解除阻力前需要滑动的距离。通知和音乐组件共用，不会超过可用宽度。</string>
     <string name="font_color_default">默认字体颜色</string>

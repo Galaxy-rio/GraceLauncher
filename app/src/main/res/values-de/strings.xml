@@ -525,7 +525,7 @@
     <string name="favorites_shortcuts_app_group">Verknüpfungen und App-Gruppe</string>
     <string name="favorites_add_shortcut">Verknüpfung hinzufügen</string>
     <string name="favorites_add_folder">Ordner hinzufügen</string>
-    <string name="lab_swipe_sensitivity_summary">Höhere Werte lösen wischen auf dem Startbildschirm und nach unten wischen, um die Suche zu schließen, leichter aus. 100% behält die Standard-Entfernung und -Geschwindigkeit.</string>
+    <string name="lab_swipe_sensitivity_summary" formatted="false">Höhere Werte lösen wischen auf dem Startbildschirm und nach unten wischen, um die Suche zu schließen, leichter aus. 100% behält die Standard-Entfernung und -Geschwindigkeit.</string>
     <string name="lab_double_tap_interval">Doppeltippen-Verzögerung</string>
     <string name="lab_double_tap_interval_summary">Maximale Zeit zwischen Tipp-Gesten auf einer leeren Startbildschirm-Fläche. Eine längere Verzögerung vereinfacht Doppeltippen.</string>
     <string name="lab_milliseconds">%1$d ms</string>

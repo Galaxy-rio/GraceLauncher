@@ -432,7 +432,7 @@
     <string name="settings_debug">Debug</string>
     <string name="lab_animation">Animation</string>
     <string name="lab_swipe_sensitivity">Swipe sensitivity</string>
-    <string name="lab_swipe_sensitivity_summary">Higher values make home-screen swipes and swiping down to close search easier to trigger. 100% keeps the default distance and speed thresholds.</string>
+    <string name="lab_swipe_sensitivity_summary" formatted="false">Higher values make home-screen swipes and swiping down to close search easier to trigger. 100% keeps the default distance and speed thresholds.</string>
     <string name="lab_double_tap_interval">Double-tap interval</string>
     <string name="lab_double_tap_interval_summary">Maximum time between taps on empty home-screen space. A longer interval makes double-tapping easier.</string>
     <string name="lab_milliseconds">%1$d ms</string>
@@ -942,7 +942,7 @@
     <string name="media_keep_while_playing_summary">Swipes spring back instead of dismissing the player during playback</string>
     <string name="lab_swipe_dismiss">Swipe to dismiss</string>
     <string name="lab_dismiss_resistance">Swipe resistance</string>
-    <string name="lab_dismiss_resistance_summary">Shared by notifications and the media player. Higher values create more resistance; 0% follows your finger.</string>
+    <string name="lab_dismiss_resistance_summary" formatted="false">Shared by notifications and the media player. Higher values create more resistance; 0% follows your finger.</string>
     <string name="lab_dismiss_threshold">Breakthrough threshold</string>
     <string name="lab_dismiss_threshold_summary">Distance before resistance releases. Shared by notifications and the media player; limited by the available width.</string>
     <string name="font_color_default">Default font color</string>

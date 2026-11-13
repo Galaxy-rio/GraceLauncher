@@ -404,7 +404,7 @@
     <string name="settings_debug">Исправление</string>
     <string name="lab_animation">Анимация</string>
     <string name="lab_swipe_sensitivity">Чувствительность свайпов</string>
-    <string name="lab_swipe_sensitivity_summary">Чем выше значение, тем легче срабатывают свайпы на главном экране и свайп вниз для закрытия поиска. При 100% используются стандартные пороги расстояния и скорости.</string>
+    <string name="lab_swipe_sensitivity_summary" formatted="false">Чем выше значение, тем легче срабатывают свайпы на главном экране и свайп вниз для закрытия поиска. При 100% используются стандартные пороги расстояния и скорости.</string>
     <string name="lab_double_tap_interval">Интервал двойного нажатия</string>
     <string name="lab_double_tap_interval_summary">Максимальное время между тапами по пустому месту главного экрана. Чем больше интервал, тем проще выполнить двойной тап.</string>
     <string name="lab_milliseconds">%1$d мс</string>
@@ -913,7 +913,7 @@
     <string name="media_keep_while_playing_summary">При свайпах плеер возвращается в исходное положение, вместо выключения плеера во время воспроизведения</string>
     <string name="lab_swipe_dismiss">Свайп для закрытия</string>
     <string name="lab_dismiss_resistance">Сила свайпов</string>
-    <string name="lab_dismiss_resistance_summary">Влияние на уведомления и медиаплеер. Чем выше значение, тем требуется больший свайп, 0% - движение следует за пальцем.</string>
+    <string name="lab_dismiss_resistance_summary" formatted="false">Влияние на уведомления и медиаплеер. Чем выше значение, тем требуется больший свайп, 0% - движение следует за пальцем.</string>
     <string name="lab_dismiss_threshold">Порог срабатывания</string>
     <string name="lab_dismiss_threshold_summary">Расстояние до момента срабатывания. Влияет на уведомления и медиаплеер, ограничено доступной шириной экрана.</string>
     <string name="font_color_default">Цвет шрифта по умолчанию</string>
@@ -1083,7 +1083,7 @@
     <string name="weather_humidity_value">Влажность %1$s</string>
     <string name="weather_wind_value">Ветер %1$s</string>
     <string name="weather_air_quality_value">Воздух %1$s</string>
-    <string name="weather_uv_value">УФ</string>
+    <string name="weather_uv_value">УФ %1$s</string>
     <string name="weather_high_value">Д: %1$s</string>
     <string name="weather_low_value">Н: %1$s</string>
     <string name="weather_wind_north">С</string>

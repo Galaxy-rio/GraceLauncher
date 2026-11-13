@@ -283,7 +283,7 @@
     <string name="settings_debug">Depuração</string>
     <string name="lab_animation">Animações</string>
     <string name="lab_swipe_sensitivity">Sensibilidade do deslize</string>
-    <string name="lab_swipe_sensitivity_summary">Valores mais altos facilitam a ativação do deslize vertical/horizontal no ecrã inicial. O valor 100% mantém a distância padrão e os limites de velocidade.</string>
+    <string name="lab_swipe_sensitivity_summary" formatted="false">Valores mais altos facilitam a ativação do deslize vertical/horizontal no ecrã inicial. O valor 100% mantém a distância padrão e os limites de velocidade.</string>
     <string name="lab_double_tap_interval">Intervalo para dois toques</string>
     <string name="lab_double_tap_interval_summary">O tempo máximo entre toques num espaço vazio do ecrã inicial. Um intervalo maior facilita o toque duplo.</string>
     <string name="lab_milliseconds">%1$d ms</string>

@@ -87,6 +87,7 @@ private fun temperatureColor(value: Double): Color {
 @Composable
 internal fun HourlyWeatherChart(hours: List<WeatherHour>, fields: Set<AgendaHourWeatherField>,
     barField: AgendaHourWeatherField?, appearance: AgendaAppearance, height: Dp, columnWidth: Dp,
+    visibleFields: Set<AgendaHourWeatherField> = fields,
 ) {
     if (hours.isEmpty() || fields.isEmpty()) return
     val values = remember(hours, fields) { fields.associateWith { field -> hours.map { hourlyChartValue(it, field) } } }
@@ -94,6 +95,12 @@ internal fun HourlyWeatherChart(hours: List<WeatherHour>, fields: Set<AgendaHour
     val lines = fields.filter { it != AgendaHourWeatherField.WindDirection && appearance.hourWeatherStyle(it).chartType == HourWeatherChartType.Line }
     val wind = AgendaHourWeatherField.WindDirection in fields
     val plot = lines.isNotEmpty() || barField != null
+    // Visibility never changes the coordinate ranges or wind's reserved space. Pinned series
+    // stay still while the other series fade; with no pins the enclosing canvas exits as a unit.
+    val fieldAlphas = fields.associateWith { field -> key(field) {
+        animateFloatAsState(if (field in visibleFields) 1f else 0f,
+            animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(), label = "hourlyChartVisibility:${field.name}")
+    } }
     val colors = MaterialTheme.colorScheme
     val seriesColors = remember(colors) { AgendaHourWeatherField.entries.associateWith { field -> when (field) {
         AgendaHourWeatherField.Humidity -> HumidityColor
@@ -136,6 +143,7 @@ internal fun HourlyWeatherChart(hours: List<WeatherHour>, fields: Set<AgendaHour
     val arrowPaint = remember(arrowColor) { Paint().apply { color = arrowColor; isAntiAlias = true } }
     val description = stringResource(R.string.weather_chart) + ": " +
         (lines + listOfNotNull(barField) + listOfNotNull(AgendaHourWeatherField.WindDirection.takeIf { wind }))
+            .filter { it in visibleFields }
             .map { stringResource(it.labelResource()) }.joinToString(", ")
     Canvas(Modifier.width(chartWidth).height(height)
         .testTag("weather_hourly_chart").semantics { contentDescription = description }) {
@@ -170,7 +178,9 @@ internal fun HourlyWeatherChart(hours: List<WeatherHour>, fields: Set<AgendaHour
 
         // Exactly one bar series sits behind every line; missing readings never borrow another hour.
         if (barWidth > 0f) hours.indices.forEach { index ->
-            val color = barColors[index].value
+            val barColor = barColors[index].value
+            val alpha = barField?.let { fieldAlphas[it]?.value } ?: 0f
+            val color = barColor.copy(alpha = barColor.alpha * alpha.coerceIn(0f, 1f))
             if (color.alpha > 0f) {
                 drawRoundRect(colors.surfaceContainerHighest.copy(alpha = color.alpha),
                     Offset(x(index) - barWidth / 2, top), Size(barWidth, plotHeight), CornerRadius(barWidth / 2))
@@ -200,8 +210,9 @@ internal fun HourlyWeatherChart(hours: List<WeatherHour>, fields: Set<AgendaHour
                     } else path.moveTo(point.x, point.y)
                 }
             }
-            drawPath(path, brush(field), style = lineStroke)
+            drawPath(path, brush(field), alpha = fieldAlphas.getValue(field).value.coerceIn(0f, 1f), style = lineStroke)
         }
+        arrowPaint.alpha = fieldAlphas[AgendaHourWeatherField.WindDirection]?.value?.coerceIn(0f, 1f) ?: 0f
         values[AgendaHourWeatherField.WindDirection]?.forEachIndexed { index, degree ->
             if (degree != null) {
                 val arrowTop = arrowCenterY - arrowSize / 2

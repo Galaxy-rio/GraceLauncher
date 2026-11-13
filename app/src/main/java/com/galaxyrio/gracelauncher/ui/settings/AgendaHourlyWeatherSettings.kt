@@ -121,7 +121,8 @@ private fun HourlyWeatherFieldEditor(field: AgendaHourWeatherField, draft: Agend
     val style = draft.hourWeatherStyle(field)
     val chartEnabled = field in draft.hourWeatherChartFields
     val hasChartType = field.supportsChart && field != AgendaHourWeatherField.WindDirection && chartEnabled
-    val count = 2 + (if (field.supportsChart) 1 else 0) + (if (hasChartType) 2 else 0)
+    val chartCount = if (hasChartType) 4 else 2
+    val innerColor = MaterialTheme.colorScheme.surfaceContainer
     fun changeStyle(value: HourWeatherFieldStyle) = onChange(draft.copy(hourWeatherStyles =
         if (value == HourWeatherFieldStyle.defaults(field)) draft.hourWeatherStyles - field
         else draft.hourWeatherStyles + (field to value)))
@@ -133,33 +134,46 @@ private fun HourlyWeatherFieldEditor(field: AgendaHourWeatherField, draft: Agend
             IconButton(onClose) { Icon(painterResource(R.drawable.ms_close), stringResource(R.string.done)) }
         }
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).animateContentSize(),
-            verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
-            SettingsToggleItem(stringResource(R.string.weather_hour_show_text), null,
-                field in draft.hourWeatherSelected, 0, count, "agenda_hour_show_text", enabled) {
-                onChange(draft.copy(hourWeatherSelected = if (it) draft.hourWeatherSelected + field else draft.hourWeatherSelected - field))
-            }
-            if (field.supportsChart) SettingsToggleItem(stringResource(R.string.weather_hour_show_chart), null,
-                chartEnabled, 1, count, "agenda_hour_show_chart", enabled) {
-                onChange(draft.copy(hourWeatherChartFields = if (it) draft.hourWeatherChartFields + field else draft.hourWeatherChartFields - field))
-            }
-            if (hasChartType) {
-                ClockControlSegment(2, count, "agenda_hour_chart_type") {
-                    OrderedIconChoices(tag = "agenda_hour_chart_type", order = HourWeatherChartType.entries,
-                        selected = setOf(style.chartType), enabled = enabled, hapticsEnabled = haptics,
-                        labelFor = { stringResource(if (it == HourWeatherChartType.Bar) R.string.weather_chart_bar else R.string.weather_chart_line) },
-                        iconFor = { if (it == HourWeatherChartType.Bar) R.drawable.ms_bar_chart else R.drawable.ms_show_chart },
-                        onSelect = { type, _ -> changeStyle(style.copy(chartType = type)) })
+            verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+                SettingsToggleItem(stringResource(R.string.weather_hour_show_text), null,
+                    field in draft.hourWeatherSelected, 0, 2, "agenda_hour_show_text", enabled, containerColor = innerColor) {
+                    onChange(draft.copy(hourWeatherSelected = if (it) draft.hourWeatherSelected + field else draft.hourWeatherSelected - field))
                 }
-                if (style.chartType == HourWeatherChartType.Line) {
-                    SettingsToggleItem(stringResource(R.string.weather_chart_wavy), null, style.wavy,
-                        3, count, "agenda_hour_chart_wavy", enabled) { changeStyle(style.copy(wavy = it)) }
-                } else ClockSlider(stringResource(R.string.weather_chart_bar_width), style.barWidth,
-                    HourWeatherFieldStyle.defaults(field).barWidth, HourWeatherFieldStyle.BarWidthRange, 2,
-                    3, count, "agenda_hour_bar_width", enabled,
-                    valueLabel = stringResource(R.string.weather_chart_height_value, style.barWidth)) { changeStyle(style.copy(barWidth = it)) }
+                SettingsToggleItem(stringResource(R.string.weather_hour_always_show), null, style.alwaysShowText,
+                    1, 2, "agenda_hour_text_always_show", enabled, containerColor = innerColor) {
+                    changeStyle(style.copy(alwaysShowText = it))
+                }
             }
-            SettingsToggleItem(stringResource(R.string.weather_hour_always_show), null, style.alwaysShow,
-                count - 1, count, "agenda_hour_always_show", enabled) { changeStyle(style.copy(alwaysShow = it)) }
+            if (field.supportsChart) Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+                SettingsToggleItem(stringResource(R.string.weather_hour_show_chart), null,
+                    chartEnabled, 0, chartCount, "agenda_hour_show_chart", enabled, containerColor = innerColor) {
+                    onChange(draft.copy(hourWeatherChartFields = if (it) draft.hourWeatherChartFields + field else draft.hourWeatherChartFields - field))
+                }
+                SettingsToggleItem(stringResource(R.string.weather_hour_always_show), null, style.alwaysShowChart,
+                    1, chartCount, "agenda_hour_chart_always_show", enabled, containerColor = innerColor) {
+                    changeStyle(style.copy(alwaysShowChart = it))
+                }
+                if (hasChartType) {
+                    ClockControlSegment(2, chartCount, "agenda_hour_chart_type", containerColor = innerColor) {
+                        OrderedIconChoices(tag = "agenda_hour_chart_type", order = HourWeatherChartType.entries,
+                            selected = setOf(style.chartType), enabled = enabled, hapticsEnabled = haptics,
+                            labelFor = { stringResource(if (it == HourWeatherChartType.Bar) R.string.weather_chart_bar else R.string.weather_chart_line) },
+                            iconFor = { if (it == HourWeatherChartType.Bar) R.drawable.ms_bar_chart else R.drawable.ms_show_chart },
+                            onSelect = { type, _ -> changeStyle(style.copy(chartType = type)) })
+                    }
+                    if (style.chartType == HourWeatherChartType.Line) {
+                        SettingsToggleItem(stringResource(R.string.weather_chart_wavy), null, style.wavy,
+                            3, chartCount, "agenda_hour_chart_wavy", enabled, containerColor = innerColor) {
+                            changeStyle(style.copy(wavy = it))
+                        }
+                    } else ClockSlider(stringResource(R.string.weather_chart_bar_width), style.barWidth,
+                        HourWeatherFieldStyle.defaults(field).barWidth, HourWeatherFieldStyle.BarWidthRange, 2,
+                        3, chartCount, "agenda_hour_bar_width", enabled,
+                        valueLabel = stringResource(R.string.weather_chart_height_value, style.barWidth),
+                        containerColor = innerColor) { changeStyle(style.copy(barWidth = it)) }
+                }
+            }
         }
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             TextButton(onClick = {

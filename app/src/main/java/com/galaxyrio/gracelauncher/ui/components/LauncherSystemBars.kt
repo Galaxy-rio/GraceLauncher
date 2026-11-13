@@ -42,8 +42,8 @@ internal fun rememberLauncherSystemBars(
     darkIcons: Boolean,
     allowPullDown: Boolean,
     darkNavigationIcons: Boolean = darkIcons,
+    window: Window? = LocalActivity.current?.window,
 ): NestedScrollConnection {
-    val window = LocalActivity.current?.window
     val view = LocalView.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val bars = remember(window, view) { window?.let { LauncherStatusBar(it, view, autoHide) } }

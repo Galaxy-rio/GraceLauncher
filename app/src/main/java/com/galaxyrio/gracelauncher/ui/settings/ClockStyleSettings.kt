@@ -39,6 +39,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Rect
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.layout.LookaheadScope
@@ -590,11 +591,11 @@ private fun ClockStylePreview(
 internal fun ClockSlider(
     title: String, value: Int, default: Int, range: IntRange, step: Int,
     index: Int, count: Int, tag: String, enabled: Boolean, valueLabel: String? = null,
-    discrete: Boolean = false, onChange: (Int) -> Unit,
+    discrete: Boolean = false, containerColor: Color = MaterialTheme.colorScheme.surfaceBright, onChange: (Int) -> Unit,
 ) {
     SegmentedListItem(
         shapes = ListItemDefaults.segmentedShapes(index, count),
-        colors = ListItemDefaults.segmentedColors(containerColor = MaterialTheme.colorScheme.surfaceBright),
+        colors = ListItemDefaults.segmentedColors(containerColor = containerColor),
         modifier = Modifier.testTag("${tag}_item"),
         content = {
             Column {

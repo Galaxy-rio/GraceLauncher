@@ -90,6 +90,7 @@ fun AgendaSheet(
     }
     val undatedTasks = remember(tasks) { tasks.filter { it.dueAt == null } }
     val calendarDays = uiState.settings.calendar.daysAhead
+    val bottomInset = launcherSheetBottomInset()
     val deprioritizeAllDay = uiState.settings.calendar.deprioritizeAllDay
     val groups = remember(events, tasks, forecasts, today, zone, forecastDays, calendarDays, deprioritizeAllDay,
         appearance.tasksFirst, appearance.showDailyContent) {
@@ -118,7 +119,7 @@ fun AgendaSheet(
             LinearProgressIndicator(Modifier.fillMaxWidth())
         }
         LazyColumn(Modifier.fillMaxWidth().weight(1f, fill = false).testTag("agenda_list"), state = listState,
-            contentPadding = PaddingValues(bottom = 20.dp)) {
+            contentPadding = PaddingValues(bottom = 20.dp + bottomInset)) {
             if (widget != null) item(key = "agenda_widget") {
                 PopupWidgetItem(widget, selected = false, enabled = true, haptics = false,
                     maxHeight = panelWindowHeight().value.toInt(), onChange = { _, _ -> },

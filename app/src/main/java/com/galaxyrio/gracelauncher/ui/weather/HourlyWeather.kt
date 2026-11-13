@@ -115,18 +115,23 @@ fun HourlyWeather(snapshot: WeatherSnapshot, now: Instant, modifier: Modifier = 
     val textFields = config.hourWeatherSelected.filter { field -> hours.any { it.hasField(field) } }.toSet()
     var manuallyExpanded by rememberSaveable(snapshot.location.id, config.hourWeatherChartsExpanded) { mutableStateOf(false) }
     val expanded = config.hourWeatherChartsExpanded || manuallyExpanded
-    val canCollapse = !config.hourWeatherChartsExpanded && (textFields + chartFields).any { !config.hourWeatherStyle(it).alwaysShow }
-    val shownChartFields = chartFields.filter { expanded || config.hourWeatherStyle(it).alwaysShow }.toSet()
+    val pinnedChartFields = chartFields.filter { config.hourWeatherStyle(it).alwaysShowChart }.toSet()
+    val chartShown = expanded || pinnedChartFields.isNotEmpty()
+    val canCollapse = !config.hourWeatherChartsExpanded &&
+        (chartFields.any { it !in pinnedChartFields } || textFields.any { !config.hourWeatherStyle(it).alwaysShowText })
     val barFields = config.hourWeatherOrder.filter { it in chartFields && it != AgendaHourWeatherField.WindDirection &&
         config.hourWeatherStyle(it).chartType == HourWeatherChartType.Bar }
     var chosenBar by rememberSaveable(snapshot.location.id) { mutableStateOf<AgendaHourWeatherField?>(null) }
-    val activeBar = chosenBar?.takeIf { it in barFields && it in shownChartFields }
-        ?: barFields.firstOrNull { it in shownChartFields }
-    // Retain the chart through its exit animation, so collapsing doesn't blank it before it shrinks.
-    var retainedChartFields by remember { mutableStateOf(shownChartFields) }
-    var retainedBar by remember { mutableStateOf(activeBar) }
+    val selectedBar = chosenBar?.takeIf { it in barFields } ?: barFields.firstOrNull()
+    val activeBar = if (expanded) selectedBar else selectedBar?.takeIf { it in pinnedChartFields }
+        ?: barFields.firstOrNull { it in pinnedChartFields } ?: selectedBar
+    val visibleChartFields = if (expanded) chartFields else pinnedChartFields
+    // Freeze visibility and bar selection during the whole-canvas exit. Filtering the data itself
+    // would remove wind's reserved space and stretch every remaining series before the exit ends.
+    var retainedVisibleChartFields by remember(snapshot.location.id) { mutableStateOf(visibleChartFields) }
+    var retainedBar by remember(snapshot.location.id) { mutableStateOf(activeBar) }
     SideEffect {
-        if (shownChartFields.isNotEmpty()) { retainedChartFields = shownChartFields; retainedBar = activeBar }
+        if (chartShown) { retainedVisibleChartFields = visibleChartFields; retainedBar = activeBar }
     }
     val visibleFields = config.hourWeatherOrder.filter { field ->
         if (field == AgendaHourWeatherField.Chart) chartFields.isNotEmpty()
@@ -151,14 +156,15 @@ fun HourlyWeather(snapshot: WeatherSnapshot, now: Instant, modifier: Modifier = 
                     }
                 }
                 visibleFields.forEach { field -> key(field) {
-                    val shown = if (field == AgendaHourWeatherField.Chart) shownChartFields.isNotEmpty()
-                        else expanded || config.hourWeatherStyle(field).alwaysShow
+                    val shown = if (field == AgendaHourWeatherField.Chart) chartShown
+                        else expanded || config.hourWeatherStyle(field).alwaysShowText
                     AnimatedVisibility(shown, enter = expandVertically() + fadeIn(), exit = shrinkVertically() + fadeOut()) {
                         Column {
                             Spacer(Modifier.height(12.dp))
                             if (field == AgendaHourWeatherField.Chart) {
-                                HourlyWeatherChart(hours, if (shown) shownChartFields else retainedChartFields,
-                                    if (shown) activeBar else retainedBar, config, config.hourWeatherChartHeight.dp, columnWidth)
+                                HourlyWeatherChart(hours, chartFields, if (shown) activeBar else retainedBar,
+                                    config, config.hourWeatherChartHeight.dp, columnWidth,
+                                    visibleFields = if (shown) visibleChartFields else retainedVisibleChartFields)
                             } else Row(verticalAlignment = Alignment.CenterVertically) {
                                 columns.forEach { column ->
                                     Box(Modifier.width(columnWidth).padding(horizontal = 3.dp), contentAlignment = Alignment.Center) {
@@ -196,7 +202,7 @@ fun HourlyWeather(snapshot: WeatherSnapshot, now: Instant, modifier: Modifier = 
                                 val title = stringResource(field.labelResource())
                                 TooltipBox(positionProvider = TooltipDefaults.rememberTooltipPositionProvider(),
                                     tooltip = { PlainTooltip { Text(title) } }, state = rememberTooltipState()) {
-                                    IconButton(onClick = { chosenBar = field },
+                                    IconButton(onClick = { chosenBar = field }, enabled = expanded || !canCollapse,
                                         modifier = Modifier.size(36.dp).testTag("weather_bar_series:${field.name}")
                                             .semantics { selected = activeBar == field }) {
                                         Icon(painterResource(field.chartSymbol()), title, Modifier.size(20.dp),
