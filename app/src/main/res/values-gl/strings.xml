@@ -1111,11 +1111,11 @@
     <string name="weather_field_wind_speed">Velocidade do vento</string>
     <string name="weather_field_wind_direction">Dirección do vento</string>
     <string name="weather_chart">Gráfica</string>
-    <string name="weather_chart_always_expanded">Expandir sempre as gráficas</string>
+    <string name="weather_chart_always_expanded">Expandir sempre</string>
     <string name="weather_chart_height">Altura da gráfica</string>
     <string name="weather_chart_height_value">%1$d dp</string>
-    <string name="weather_chart_expand">Expandir as gráficas</string>
-    <string name="weather_chart_collapse">Escoller as gráficas</string>
+    <string name="weather_chart_expand">Expandir</string>
+    <string name="weather_chart_collapse">Encoller</string>
     <string name="weather_field_precipitation_probability">Probabilidade de precipitacións</string>
     <string name="weather_field_rain_probability">Probabilidade de choiva</string>
     <string name="weather_field_snow_probability">Probabilidade de neve</string>
@@ -1135,4 +1135,15 @@
     <string name="agenda_today_heading">Hoxe</string>
     <string name="agenda_choose_create_action">Escolle o que queres engadir</string>
     <string name="agenda_daily_content">Contido diario</string>
+    <string name="clock_bottom_padding">Recheo inferior</string>
+    <string name="clock_expand_group">Expandir grupo</string>
+    <string name="clock_collapse_group">Encoller grupo</string>
+    <string name="weather_hour_show_text">Amosar o texto</string>
+    <string name="weather_hour_show_chart">Amosar na gráfica</string>
+    <string name="weather_chart_bar">Gráfica de barras</string>
+    <string name="weather_chart_line">Gráfica de liñas</string>
+    <string name="weather_chart_wavy">Usar unha liña ondulada</string>
+    <string name="weather_chart_bar_width">Ancho da barra</string>
+    <string name="weather_hour_always_show">Amosar sempre</string>
+    <string name="weather_hour_column_width">Ancho da columna</string>
 </resources>
