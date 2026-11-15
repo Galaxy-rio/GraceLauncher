@@ -266,11 +266,12 @@ private fun rememberAlphabetPreviewModel(uiState: LauncherUiState): AppListModel
     }
     val now by rememberHomeTime()
     val headphones by rememberHeadphonesConnected()
-    val time = now.atZone(java.time.ZoneId.systemDefault()).toLocalTime()
+    val time = now.atZone(java.time.ZoneId.systemDefault())
     val minute = time.hour * 60 + time.minute
-    return remember(apps, uiState.folders, privateFolder, workFolder, recentFolder, settings.listAppearance.appList, categories, members, headphones, minute) {
+    val day = time.dayOfWeek
+    return remember(apps, uiState.folders, privateFolder, workFolder, recentFolder, settings.listAppearance.appList, categories, members, headphones, minute, day) {
         AppListModel(apps, uiState.folders, privateFolder, recentlyInstalledFolder = recentFolder, workFolder = workFolder,
             appList = settings.listAppearance.appList, categories = categories, categoryItems = members,
-            headphones = headphones, minuteOfDay = minute)
+            headphones = headphones, minuteOfDay = minute, dayOfWeek = day)
     }
 }

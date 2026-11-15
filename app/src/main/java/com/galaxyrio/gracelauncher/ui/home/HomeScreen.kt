@@ -162,8 +162,8 @@ fun HomeScreen(
 ) {
     val now by rememberHomeTime()
     val headphones by rememberHeadphonesConnected()
-    val localTime = now.atZone(java.time.ZoneId.systemDefault()).toLocalTime()
-    val homeContent = uiState.visibleHomeContent(headphones, localTime.hour * 60 + localTime.minute)
+    val localTime = now.atZone(java.time.ZoneId.systemDefault())
+    val homeContent = uiState.visibleHomeContent(headphones, localTime.hour * 60 + localTime.minute, localTime.dayOfWeek)
     val event = if (uiState.settings.calendarAgenda) nextVisibleEvent(uiState.events, now,
         deprioritizeAllDay = uiState.settings.calendar.deprioritizeAllDay) else null
     val entries = homeContent.items

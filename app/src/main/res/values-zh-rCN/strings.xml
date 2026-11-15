@@ -372,7 +372,8 @@
     <string name="app_category_condition">显示条件</string>
     <string name="app_category_always">始终显示</string>
     <string name="app_category_headphones">连接耳机时</string>
-    <string name="app_category_time">每日时间段</string>
+    <string name="app_category_time">时间段</string>
+    <string name="app_category_all_day">全天</string>
     <string name="app_category_start">开始时间</string>
     <string name="app_category_end">结束时间</string>
     <string name="app_category_delete">删除类别</string>

@@ -346,7 +346,8 @@
     <string name="app_category_condition">Show when</string>
     <string name="app_category_always">Always</string>
     <string name="app_category_headphones">Headphones are connected</string>
-    <string name="app_category_time">Daily time range</string>
+    <string name="app_category_time">Time range</string>
+    <string name="app_category_all_day">All day</string>
     <string name="app_category_start">Start time</string>
     <string name="app_category_end">End time</string>
     <string name="app_category_delete">Delete category</string>

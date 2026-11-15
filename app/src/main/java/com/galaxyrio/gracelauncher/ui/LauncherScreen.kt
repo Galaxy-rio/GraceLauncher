@@ -374,6 +374,7 @@ fun LauncherRoute(
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP))
         },
         refreshWeather = { viewModel.refreshWeather() },
+        refreshWeatherIfNeeded = { viewModel.refreshWeather(force = false) },
         requestWeatherAccess = {
             when {
                 viewModel.uiState.value.settings.weatherConnection.mode == WeatherConnectionMode.Gadgetbridge -> viewModel.refreshWeather()
@@ -698,13 +699,14 @@ internal fun LauncherScreen(
     }
     val categoryNow by rememberHomeTime()
     val categoryHeadphones by rememberHeadphonesConnected()
-    val categoryTime = categoryNow.atZone(java.time.ZoneId.systemDefault()).toLocalTime()
+    val categoryTime = categoryNow.atZone(java.time.ZoneId.systemDefault())
     val categoryMinute = categoryTime.hour * 60 + categoryTime.minute
+    val categoryDay = categoryTime.dayOfWeek
     val model = remember(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps, recentFolder, workFolder, workExpanded,
-        workApps, usageRanking, appListLayout, appCategories, categoryMembers, categoryHeadphones, categoryMinute) {
+        workApps, usageRanking, appListLayout, appCategories, categoryMembers, categoryHeadphones, categoryMinute, categoryDay) {
         AppListModel(appListApps, uiState.folders, privateFolder, privateExpanded, privateApps, recentFolder, workFolder, workExpanded, workApps,
             usageRanking = usageRanking, appList = appListLayout, categories = appCategories, categoryItems = categoryMembers,
-            headphones = categoryHeadphones, minuteOfDay = categoryMinute)
+            headphones = categoryHeadphones, minuteOfDay = categoryMinute, dayOfWeek = categoryDay)
     }
     val drawerState = rememberLazyListState()
     val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons,
@@ -1124,7 +1126,7 @@ internal fun LauncherScreen(
                 } else overlay = LauncherOverlay.SettingsDestination("WidgetScreen")
             }
             GraceButtonAction.Agenda -> {
-                actions.refreshWeather()
+                actions.refreshWeatherIfNeeded()
                 overlay = LauncherOverlay.Agenda
             }
             GraceButtonAction.LockScreen -> {
@@ -1205,7 +1207,7 @@ internal fun LauncherScreen(
                 onAppDetails = { overlay = LauncherOverlay.AppDetails(it) },
                 onAppShortcuts = openAppPopup,
                 onDateClick = {
-                    actions.refreshWeather()
+                    actions.refreshWeatherIfNeeded()
                     overlay = LauncherOverlay.Agenda
                 },
                 onClockClick = onClockClick,
