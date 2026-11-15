@@ -1064,6 +1064,7 @@
     <string name="category_open_dw">Open Digital wellbeing</string>
     <string name="app_list_bottom_folders">Bottom folders</string>
     <string name="app_list_edit">Edit app list</string>
+    <string name="app_list_align_with_home">Align with home</string>
     <string name="app_list_grace_settings">Grace settings</string>
     <string name="app_list_add_grace">Grace launcher</string>
     <string name="alphabet_show_in">Show in</string>

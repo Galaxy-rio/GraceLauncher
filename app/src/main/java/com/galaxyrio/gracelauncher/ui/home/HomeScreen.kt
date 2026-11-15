@@ -7,6 +7,7 @@ import androidx.compose.animation.core.spring
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.snapshotFlow
@@ -149,6 +150,8 @@ fun HomeScreen(
     onWidgetMenu: () -> Unit = {},
     onCustomWidgetMenu: () -> Unit = {},
     editingLayout: Boolean = false,
+    /** Reports where the home content starts (top of the first widget), so the app list can line up with it. */
+    onContentTop: (androidx.compose.ui.unit.Dp) -> Unit = {},
     widgetInputEnabled: Boolean = true,
     onTopOffsetChange: (Float) -> Unit = {},
     onWidgetHeightChange: (Int) -> Unit = {},
@@ -296,6 +299,12 @@ fun HomeScreen(
         val anchoredOrigin = if (baselineIndex >= 0 && baselineOffset != null && prefixHeight != null) baselineTop - prefixHeight else null
         val selectedLayout = selectedWidget?.let { drafts[it] ?: entriesByKey[it]?.widget }
         val toolbarHeight = if (selectedLayout != null) minimumTop + 104.dp else 0.dp
+        val latestContentTop by rememberUpdatedState(onContentTop)
+        SideEffect {
+            if (!editingLayout && toolbarHeight == 0.dp) {
+                latestContentTop(anchoredOrigin ?: if (baselineIndex >= 0) baselineTop else resolvedTop)
+            }
+        }
         val inputEnabled = widgetInputEnabled && !editingLayout && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
         // When an off-screen prefix has not been measured yet, align by the
         // marker's key. Measured prefixes use ordinary padding and scroll bounds.
