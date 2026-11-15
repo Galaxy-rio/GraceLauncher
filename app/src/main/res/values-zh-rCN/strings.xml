@@ -1059,6 +1059,7 @@
     <string name="category_open_dw">前往数字健康</string>
     <string name="app_list_bottom_folders">底部文件夹</string>
     <string name="app_list_edit">编辑应用列表</string>
+    <string name="app_list_align_with_home">与主页对齐</string>
     <string name="app_list_grace_settings">Grace 设置</string>
     <string name="app_list_add_grace">Grace 启动器</string>
     <string name="alphabet_show_in">显示在</string>
