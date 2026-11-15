@@ -91,6 +91,7 @@ import com.galaxyrio.gracelauncher.data.notifications.appNotifications
 import com.galaxyrio.gracelauncher.data.weather.BreezyWeatherRepository
 import com.galaxyrio.gracelauncher.data.weather.GadgetbridgeWeatherRepository
 import com.galaxyrio.gracelauncher.data.weather.WeatherConnectionMode
+import com.galaxyrio.gracelauncher.data.weather.WeatherRefreshPolicy
 import com.galaxyrio.gracelauncher.data.weather.WeatherState
 import com.galaxyrio.gracelauncher.data.weather.WeatherStatus
 import kotlinx.coroutines.CancellationException
@@ -1000,18 +1001,24 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         val locationId = if (gadgetbridge) connection.gadgetbridgeLocationId else state.settings.weatherLocationId
         val request = Triple(connection.mode, locationId, if (gadgetbridge) connection.temperatureUnit.resolvedUnit() else null)
         val sameRequest = request == lastWeatherRequest
-        if (!force && sameRequest && (weatherLoadJob?.isActive == true ||
-                (state.weather.status == WeatherStatus.Ready &&
-                    SystemClock.elapsedRealtime() - lastWeatherRefresh < 15 * 60_000L))) return
+        if (!WeatherRefreshPolicy.shouldRead(
+                force = force,
+                sameRequest = sameRequest,
+                readInProgress = weatherLoadJob?.isActive == true,
+                weather = state.weather,
+                elapsedSinceLastRead = SystemClock.elapsedRealtime() - lastWeatherRefresh,
+            )) return
         weatherLoadJob?.cancel()
         lastWeatherRequest = request
+        val cached = state.weather.takeIf { sameRequest && it.snapshot != null }
         weatherLoadJob = viewModelScope.launch {
-            val previous = _uiState.value.weather
-            _uiState.update { it.copy(weather = previous.copy(status = WeatherStatus.Loading,
-                snapshot = previous.snapshot.takeIf { sameRequest && (previous.selectedLocationId == locationId || locationId == null) })) }
+            // A background read leaves the currently displayed weather intact.
+            if (cached == null) {
+                _uiState.update { it.copy(weather = it.weather.copy(status = WeatherStatus.Loading, snapshot = null)) }
+            }
             val weather = if (gadgetbridge) gadgetbridgeWeatherRepository.load(connection) else weatherRepository.load(locationId)
             lastWeatherRefresh = SystemClock.elapsedRealtime()
-            _uiState.update { it.copy(weather = weather) }
+            _uiState.update { it.copy(weather = WeatherRefreshPolicy.retainLastSnapshot(weather, cached)) }
         }
     }
 

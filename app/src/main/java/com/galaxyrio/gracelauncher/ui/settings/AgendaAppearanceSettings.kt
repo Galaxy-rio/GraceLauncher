@@ -59,9 +59,9 @@ internal fun AgendaAppearanceSettings(uiState: LauncherUiState, actions: Launche
     var contentPage by rememberSaveable { mutableStateOf<AgendaDailyContentPage?>(null) }
     var hourlyField by rememberSaveable { mutableStateOf<AgendaHourWeatherField?>(null) }
     // The standalone settings activity can retain an older weather snapshot than HOME.
-    // Refresh the selected source on entry, and when its location or mode changes.
+    // Check freshness on entry; source and location edits already trigger an immediate read.
     LifecycleResumeEffect(uiState.settings.weatherEnabled, uiState.settings.weatherLocationId, uiState.settings.weatherConnection) {
-        if (uiState.settings.weatherEnabled) actions.refreshWeather()
+        if (uiState.settings.weatherEnabled) actions.refreshWeatherIfNeeded()
         onPauseOrDispose { }
     }
     val distance = with(LocalDensity.current) { 30.dp.roundToPx() }

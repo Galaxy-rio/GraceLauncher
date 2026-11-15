@@ -109,4 +109,5 @@ data class LauncherActions(
     val openWeatherApp: () -> Unit = {},
     val openBreezyWeather: () -> Unit = {},
     val installBreezyWeather: () -> Unit = {},
+    val refreshWeatherIfNeeded: () -> Unit = {},
 )

@@ -374,6 +374,7 @@ fun LauncherRoute(
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP))
         },
         refreshWeather = { viewModel.refreshWeather() },
+        refreshWeatherIfNeeded = { viewModel.refreshWeather(force = false) },
         requestWeatherAccess = {
             when {
                 viewModel.uiState.value.settings.weatherConnection.mode == WeatherConnectionMode.Gadgetbridge -> viewModel.refreshWeather()
@@ -1124,7 +1125,7 @@ internal fun LauncherScreen(
                 } else overlay = LauncherOverlay.SettingsDestination("WidgetScreen")
             }
             GraceButtonAction.Agenda -> {
-                actions.refreshWeather()
+                actions.refreshWeatherIfNeeded()
                 overlay = LauncherOverlay.Agenda
             }
             GraceButtonAction.LockScreen -> {
@@ -1205,7 +1206,7 @@ internal fun LauncherScreen(
                 onAppDetails = { overlay = LauncherOverlay.AppDetails(it) },
                 onAppShortcuts = openAppPopup,
                 onDateClick = {
-                    actions.refreshWeather()
+                    actions.refreshWeatherIfNeeded()
                     overlay = LauncherOverlay.Agenda
                 },
                 onClockClick = onClockClick,
