@@ -861,6 +861,7 @@
     <string name="category_dw_disabled">Bienestar digital está apagado</string>
     <string name="category_open_dw">Abrir Bienestar digital</string>
     <string name="app_list_bottom_folders">Carpetas inferiores</string>
+    <string name="app_list_align_with_home">Alinear con el inicio</string>
     <string name="app_list_edit">Editar lista de aplicaciones</string>
     <string name="app_list_grace_settings">Configuración de Grace</string>
     <string name="app_list_add_grace">Grace Launcher</string>

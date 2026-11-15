@@ -246,6 +246,13 @@ internal fun AppListEditorScreen(uiState: LauncherUiState, actions: LauncherActi
         return
     }
     ItemSelectionScreen(stringResource(R.string.app_list_edit), "app_list_editor",
+        header = {
+            SettingsFeatureBanner(stringResource(R.string.app_list_align_with_home), layout.alignWithHome,
+                "app_list_align_with_home") { checked ->
+                actions.updateSettings { it.copy(listAppearance = it.listAppearance.copy(
+                    appList = it.listAppearance.appList.copy(alignWithHome = checked))) }
+            }
+        },
         selected = layout.orderedKeys(uiState.appCategories).mapNotNull { key ->
             when (key) {
                 AppListBlock.AllApps.key -> SelectionEntry(key, stringResource(R.string.favorites_all_apps), symbol = LauncherSymbol.Apps)

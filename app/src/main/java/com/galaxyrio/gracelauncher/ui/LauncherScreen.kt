@@ -1172,7 +1172,10 @@ internal fun LauncherScreen(
         val regularHomeTop = (safeHeight * if (safeHeight < 600.dp) 0.12f else 0.32f).coerceIn(24.dp, 320.dp)
         // Variable sections extend below the clock; they never reposition the home anchor.
         val homeTop = statusBarHeight + regularHomeTop
-        val drawerTop = statusBarHeight + safeHeight * 0.28f
+        // Optionally start the app list where the home content (e.g. the clock) starts.
+        var homeContentTop by remember { mutableStateOf<androidx.compose.ui.unit.Dp?>(null) }
+        val drawerTop = homeContentTop?.takeIf { uiState.settings.listAppearance.appList.alignWithHome }
+            ?.coerceAtLeast(statusBarHeight + 8.dp) ?: (statusBarHeight + safeHeight * 0.28f)
         val alphabet = uiState.settings.listAppearance.alphabet.normalized()
         val railLayout = alphabet.layout(maxHeight.value, model.letters.size + 1)
 
@@ -1197,6 +1200,7 @@ internal fun LauncherScreen(
             HomeScreen(
                 uiState = uiState,
                 topSpace = homeTop,
+                onContentTop = { homeContentTop = it },
                 onLaunchApp = onLaunchApp,
                 onAppDetails = { overlay = LauncherOverlay.AppDetails(it) },
                 onAppShortcuts = openAppPopup,
