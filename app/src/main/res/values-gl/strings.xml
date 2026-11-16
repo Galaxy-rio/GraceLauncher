@@ -740,7 +740,7 @@
     <string name="app_category_condition">Amosar cando</string>
     <string name="app_category_always">Sempre</string>
     <string name="app_category_headphones">Os auriculares están conectados</string>
-    <string name="app_category_time">Intervalo de horario diario</string>
+    <string name="app_category_time">Rango de tempo</string>
     <string name="app_category_start">Hora de inicio</string>
     <string name="app_category_end">Hora de finalización</string>
     <string name="app_category_delete">Eliminar categoría</string>
@@ -1147,4 +1147,5 @@
     <string name="weather_hour_always_show">Amosar sempre</string>
     <string name="weather_hour_column_width">Ancho da columna</string>
     <string name="app_list_align_with_home">Aliñar co inicio</string>
+    <string name="app_category_all_day">Todo o día</string>
 </resources>
