@@ -6,6 +6,7 @@ import android.text.format.DateFormat
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -265,12 +266,11 @@ private fun CategoryWeekdays(selectedDays: Set<DayOfWeek>, index: Int, count: In
                     val interactionSource = interactionSources.getValue(day)
                     customItem(
                         buttonGroupContent = {
-                            OutlinedToggleButton(checked = day in selectedDays, onCheckedChange = { onToggle(day, it) },
+                            ToggleButton(checked = day in selectedDays, onCheckedChange = { onToggle(day, it) },
                                 enabled = enabled, interactionSource = interactionSource,
+                                shapes = ToggleButtonDefaults.shapesFor(ButtonDefaults.MinHeight)
+                                    .copy(shape = CircleShape, checkedShape = CircleShape),
                                 contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp),
-                                colors = OutlinedToggleButtonDefaults.outlinedToggleButtonColors(
-                                    checkedContainerColor = MaterialTheme.colorScheme.primary,
-                                    checkedContentColor = MaterialTheme.colorScheme.onPrimary),
                                 modifier = Modifier.weight(1f).animateWidth(interactionSource, compressionLimit = 4.dp)
                                     .testTag("category_weekday:${day.name}")
                                     .semantics { contentDescription = day.getDisplayName(TextStyle.FULL, locale) },

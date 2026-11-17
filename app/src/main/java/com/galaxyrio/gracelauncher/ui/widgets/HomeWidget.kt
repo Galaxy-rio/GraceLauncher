@@ -1,9 +1,9 @@
 package com.galaxyrio.gracelauncher.ui.widgets
 
-import android.appwidget.AppWidgetHostView
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.util.Log
+import android.view.View
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.foundation.layout.*
@@ -89,9 +89,7 @@ internal fun rememberHostedWidget(layout: HomeLayout): HostedWidget {
             .getOrNull()?.takeIf { it.provider.flattenToString() == layout.widgetProvider }
     }
     return remember(host, info, density) {
-        val padding = info?.let { AppWidgetHostView.getDefaultPaddingForWidget(context, it.provider, null) }
-        val extra = (padding?.top ?: 0) + (padding?.bottom ?: 0)
-        val bounds = info?.heightBounds(extra.toFloat(), density, 1600, 48)
+        val bounds = info?.heightBounds(0f, density, 1600, 48)
         HostedWidget(host, info, bounds?.initial ?: 160, bounds?.min ?: 48, bounds?.max ?: 1600)
     }
 }
@@ -103,8 +101,8 @@ internal fun HomeWidget(
     onDrag: ((Float, Float) -> Unit)? = null, onDragEnd: ((Boolean) -> Unit)? = null,
     onDragStart: ((Float, Float) -> Unit)? = null,
     contentScale: Float = 1f,
-    removeHorizontalPadding: Boolean = false,
     editGesturesEnabled: Boolean = true,
+    previewOnly: Boolean = false,
 ) = WidgetLongPressConfiguration {
     val density = LocalDensity.current.density
     val latestLongPress by rememberUpdatedState(onLongPress)
@@ -168,29 +166,33 @@ internal fun HomeWidget(
                 it.onWidgetDragStart = if (!editGesturesEnabled || onDragStart == null) null else { x, y -> latestDragStart?.invoke(x, y) }
                 it.onWidgetDrag = { x, y -> latestDrag?.invoke(x, y) }
                 it.onWidgetDragEnd = { cancelled -> latestDragEnd?.invoke(cancelled) }
-                it.interactionEnabled = enabled && !editing
+                val interactive = enabled && !editing && !previewOnly
+                val becomingInteractive = interactive && !it.interactionEnabled
+                it.interactionEnabled = interactive
+                if (becomingInteractive) widget.host.promoteView(it)
+                it.importantForAccessibility = if (previewOnly) View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+                    else View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
                 it.hapticsEnabled = hapticsEnabled
-                val padding = AppWidgetHostView.getDefaultPaddingForWidget(it.context, widget.info.provider, null)
-                if (removeHorizontalPadding) { padding.left = 0; padding.right = 0 }
-                if (it.paddingLeft != padding.left || it.paddingTop != padding.top ||
-                    it.paddingRight != padding.right || it.paddingBottom != padding.bottom) {
-                    it.setPadding(padding.left, padding.top, padding.right, padding.bottom)
+                if (it.paddingLeft != 0 || it.paddingTop != 0 || it.paddingRight != 0 || it.paddingBottom != 0) {
+                    it.setPadding(0, 0, 0, 0)
                 }
             },
             onRelease = {
                 it.onWidgetLongPress = null; it.onWidgetDragStart = null; it.onWidgetDrag = null; it.onWidgetDragEnd = null
+                widget.host.releaseView(it)
                 if (view === it) view = null
             },
         )
     }
-    LaunchedEffect(view, size, editing, density, scale, removeHorizontalPadding, creationFailed) {
-        if (size.width == 0 || size.height == 0 || creationFailed || widget.info == null) return@LaunchedEffect
+    LaunchedEffect(view, size, editing, density, scale, creationFailed, previewOnly) {
+        // A smaller settings preview must not change the provider's size for placed copies.
+        if (previewOnly || size.width == 0 || size.height == 0 || creationFailed || widget.info == null) return@LaunchedEffect
         // Avoid flooding providers with RemoteViews rebuilds on every drag frame.
         if (editing) delay(100)
         val hostView = view ?: return@LaunchedEffect
-        // Report the actual RemoteViews content space, including content zoom and full-width padding.
-        // AppWidgetHostView.updateAppWidgetSize subtracts *default* padding, which is wrong when
-        // full-width mode removes it. Updating the manager directly avoids double subtraction.
+        // Report the actual scaled content space; the container owns all spacing.
+        // AppWidgetHostView.updateAppWidgetSize subtracts platform defaults instead;
+        // updating the manager directly avoids reporting a width smaller than the view.
         val widthDp = ((size.width / scale).roundToInt() - hostView.paddingLeft - hostView.paddingRight) / density
         val heightDp = ((size.height / scale).roundToInt() - hostView.paddingTop - hostView.paddingBottom) / density
         runCatching {

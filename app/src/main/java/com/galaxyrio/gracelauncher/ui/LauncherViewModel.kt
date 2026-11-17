@@ -39,6 +39,7 @@ import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherAppOrder
 import com.galaxyrio.gracelauncher.data.LauncherDatabase
 import com.galaxyrio.gracelauncher.data.LauncherFolder
+import com.galaxyrio.gracelauncher.data.WidgetStackStyle
 import com.galaxyrio.gracelauncher.data.FolderPlacement
 import com.galaxyrio.gracelauncher.data.LauncherPreferences
 import com.galaxyrio.gracelauncher.data.LauncherSettings
@@ -220,7 +221,8 @@ data class LauncherUiState(
     fun folderItem(folder: LauncherFolder): LauncherApp = ((if (folder.id == PrivateSpaceFolderId) privateFolderApp
         else if (folder.id == WorkProfileFolderId) workFolderApp
         else folderApps.firstOrNull { it.folderId == folder.id })
-        ?: folder.asApp()).copy(label = folder.name, originalLabel = folder.name)
+        ?: folder.asApp()).copy(label = folder.name, originalLabel = folder.name,
+            isAppStack = folder.isAppStack, isWidgetStack = folder.isWidgetStack)
 
     fun popupItems(owner: LauncherApp, defaults: List<LauncherApp>): List<PopupItem> {
         if (owner.folderId == RecentlyInstalledFolderId) return recentlyInstalledApps.map { PopupItem(it.key) }
@@ -685,7 +687,7 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         (_uiState.value.folders + _uiState.value.workFolder + _uiState.value.privateFolder).forEach {
             // Profile-folder membership changes as each preview batch arrives.
             // Only the folder's own appearance belongs in its icon cache stamp.
-            put(it.key, "${get(it.key).orEmpty()}:${it.name}:${it.isAppStack}")
+            put(it.key, "${get(it.key).orEmpty()}:${it.name}:${it.isAppStack}:${it.isWidgetStack}")
         }
     }
 
@@ -1660,6 +1662,10 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
             rememberPopupItems(snapshot.appKeys.mapNotNull(_uiState.value::findItem))
             settingsRepository.saveFolder(snapshot)
         }
+    }
+
+    fun updateWidgetStackStyle(id: String, style: WidgetStackStyle) = persistSettings {
+        settingsRepository.updateWidgetStackStyle(id, style)
     }
 
     fun updateFolder(id: String, name: String?, placement: FolderPlacement?, appListAtBottom: Boolean? = null) = persistSettings {

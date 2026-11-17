@@ -73,6 +73,8 @@ data class AgendaAppearance(
     val hourWeatherColumnWidth: Int = 80,
     val showUndatedTasks: Boolean = true,
     val lastCreateAction: AgendaCreateAction = AgendaCreateAction.Event,
+    /** References a shared widget stack instead of owning a separate agenda widget. */
+    val widgetStackKey: String? = null,
 ) {
     fun hourWeatherStyle(field: AgendaHourWeatherField) = hourWeatherStyles[field] ?: HourWeatherFieldStyle.defaults(field)
 
@@ -90,6 +92,7 @@ data class AgendaAppearance(
         hourWeatherColumnWidth = hourWeatherColumnWidth.coerceIn(HourWeatherColumnWidthRange),
         calendarContent = calendarContent.normalized(),
         taskContent = taskContent.normalized(),
+        widgetStackKey = widgetStackKey?.takeIf { it.startsWith("folder:") && it.length > "folder:".length },
     )
 
     fun encode(): String = normalized().let { value -> JSONObject().apply {
@@ -125,6 +128,7 @@ data class AgendaAppearance(
         put("hourWeatherColumnWidth", value.hourWeatherColumnWidth)
         put("showUndatedTasks", value.showUndatedTasks)
         put("lastCreateAction", value.lastCreateAction.name)
+        put("widgetStackKey", value.widgetStackKey)
     }.toString() }
 
     companion object {
@@ -207,6 +211,7 @@ data class AgendaAppearance(
                 showUndatedTasks = data.optBoolean("showUndatedTasks", defaults.showUndatedTasks),
                 lastCreateAction = AgendaCreateAction.entries.firstOrNull { it.name == data.optString("lastCreateAction") }
                     ?: defaults.lastCreateAction,
+                widgetStackKey = data.optString("widgetStackKey").takeIf { it.startsWith("folder:") },
             ).normalized()
         }.getOrDefault(AgendaAppearance())
     }

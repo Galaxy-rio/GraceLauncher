@@ -274,7 +274,7 @@
     <string name="icon_edit_failed">Couldn’t save this icon. Please try another image or icon.</string>
     <string name="edit_app_popup">Edit %1$s pop-up</string>
     <string name="popup_app_shortcuts">%1$s shortcuts</string>
-    <string name="popup_custom_widget">Custom widget</string>
+    <string name="popup_custom_widget">Widgets</string>
     <string name="popup_add_new">Add new</string>
     <string name="popup_show_in_app_list">Show in app list</string>
     <string name="popup_empty">Choose shortcuts, apps or widgets below.</string>
@@ -812,7 +812,7 @@
 
     <!-- Home widgets -->
     <string name="widget_home_menu">Grace widget</string>
-    <string name="widget_add">Add custom widget</string>
+    <string name="widget_add">Add widget</string>
     <string name="widget_choose">Choose a widget</string>
     <string name="widget_search">Search widgets</string>
     <string name="widget_none">No widgets found</string>
@@ -826,10 +826,13 @@
     <string name="widget_move_home">Move the clock and app list</string>
     <string name="widget_resize">Resize widget</string>
     <string name="grace_widgets_title">Grace widgets</string>
+    <string name="grace_widgets_add">Add Grace widgets</string>
     <string name="grace_widget_baseline">Baseline (invisible)</string>
     <string name="popup_widget_full_width">Full width</string>
     <string name="popup_widget_background">Background</string>
-    <string name="popup_widget_content_scale">Content scale · %1$d%%</string>
+    <string name="popup_widget_background_color">Background color</string>
+    <string name="popup_widget_background_opacity">Background opacity</string>
+    <string name="popup_widget_content_scale">Content · %1$d%%</string>
     <string name="widget_adjust_up">Move up / decrease height</string>
     <string name="widget_adjust_down">Move down / increase height</string>
     <string name="widget_calendar">Calendar</string>
@@ -915,6 +918,7 @@
     <string name="widget_screen_swipe_disabled">You can open this screen using a gesture or a Grace button action</string>
     <string name="widget_screen_columns">Cells per row</string>
     <string name="widget_screen_edit">Edit widget screen</string>
+    <string name="widget_screen_add_items">Add apps, shortcuts &amp; widgets</string>
     <string name="widget_screen_open">Open widget screen</string>
     <string name="app_stacks_title">App stacks</string>
     <string name="app_stack_create">Create app stack</string>
@@ -1175,7 +1179,7 @@
     <string name="agenda_title_time">Current time</string>
     <string name="agenda_title_quote">Quote</string>
     <string name="agenda_title_text">Custom text</string>
-    <string name="agenda_widget_region">Widget region</string>
+    <string name="agenda_widget_region">Widgets</string>
     <string name="agenda_daily">Daily</string>
     <string name="agenda_daily_content">Daily content</string>
     <string name="agenda_calendar_content">Calendar content</string>
@@ -1188,4 +1192,21 @@
     <string name="agenda_choose_create_action">Choose what to add</string>
     <string name="agenda_new_task">New task</string>
     <string name="agenda_unsaved_message">Your agenda changes haven’t been saved.</string>
+    <string name="widget_stacks_title">Widget stacks</string>
+    <string name="widget_stack_create">Add widget stack</string>
+    <string name="widget_stacks_empty">Create a widget stack to keep several widgets in one place.</string>
+    <string name="widget_stack_edit">Edit widget stack</string>
+    <string name="widget_stack_name">Widget stack name</string>
+    <string name="widget_stack_placement">Show widget stack in</string>
+    <string name="widget_stack_delete">Delete widget stack</string>
+    <string name="widget_stack_delete_confirmation">Delete “%1$s” and its widgets?</string>
+    <string name="widget_stack_empty">Add widgets to this stack</string>
+    <string name="widget_stack_add">Add widget stack</string>
+    <string name="widget_stack_remove">Remove widget stack</string>
+    <string name="widget_stack_height">Stack height</string>
+    <string name="widget_stack_background_color">Background color</string>
+    <string name="widget_stack_opacity">Background opacity</string>
+    <string name="widget_stack_apply_background_all">Apply background color to all</string>
+    <string name="widget_stack_remove_widget_title">Remove widget</string>
+    <string name="widget_stack_remove_widget_confirmation">Remove “%1$s” from this stack?</string>
 </resources>

@@ -172,7 +172,7 @@ fun AppDrawerScreen(
                         highlighted = highlightedAppKey == item.app.key,
                         notifications = notificationsFor(item.app),
                     )
-                    is DrawerItem.Folder -> if (item.folder.isAppStack && appStackContent != null) appStackContent(item.folder) else FolderRow(
+                    is DrawerItem.Folder -> if ((item.folder.isAppStack || item.folder.isWidgetStack) && appStackContent != null) appStackContent(item.folder) else FolderRow(
                         showLabel = listAppearance.showNames(favorites = false),
                         folder = item.folder,
                         app = folderApps[item.folder.id] ?: item.folder.asApp(),

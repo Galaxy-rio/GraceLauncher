@@ -48,6 +48,7 @@ import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import com.galaxyrio.gracelauncher.ui.components.ShortcutPickerScreen
 import com.galaxyrio.gracelauncher.ui.settings.FavoriteFoldersScreen
 import com.galaxyrio.gracelauncher.ui.settings.AppGroupPickerScreen
+import com.galaxyrio.gracelauncher.ui.settings.WidgetStackPickerScreen
 import com.galaxyrio.gracelauncher.ui.settings.SettingsScaffold
 import com.galaxyrio.gracelauncher.ui.settings.SettingsFeatureBanner
 import com.galaxyrio.gracelauncher.ui.settings.SettingsActionItem
@@ -114,6 +115,7 @@ internal fun HomepageEditorScreen(uiState: LauncherUiState, actions: LauncherAct
     }
     var choosingFolders by rememberSaveable { mutableStateOf(false) }
     var choosingStacks by rememberSaveable { mutableStateOf(false) }
+    var choosingWidgetStacks by rememberSaveable { mutableStateOf(false) }
     var choosingCategories by rememberSaveable { mutableStateOf(false) }
     var choosingGraceWidgets by rememberSaveable { mutableStateOf(false) }
     var editingCategoryId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -147,6 +149,10 @@ internal fun HomepageEditorScreen(uiState: LauncherUiState, actions: LauncherAct
     }
     if (choosingStacks) {
         FavoriteFoldersScreen(uiState, actions, appStacks = true) { choosingStacks = false }
+        return
+    }
+    if (choosingWidgetStacks) {
+        WidgetStackPickerScreen(uiState, actions, uiState.favoriteKeys, { choosingWidgetStacks = false }, onToggle)
         return
     }
     if (choosingFolders) {
@@ -186,6 +192,7 @@ internal fun HomepageEditorScreen(uiState: LauncherUiState, actions: LauncherAct
             }
         }, onReorder = onReorder, onDone = onDone,
         onAddWidget = actions.addWidget,
+        onAddWidgetStack = { choosingWidgetStacks = true },
         onAddGraceWidget = { choosingGraceWidgets = true },
         onAddCategory = { choosingCategories = true },
         onAddFolder = { choosingFolders = true },
@@ -346,6 +353,7 @@ internal fun PopupEditorScreen(owner: LauncherApp, uiState: LauncherUiState, act
     header: (@Composable () -> Unit)? = null, widgetScreen: Boolean = false) {
     val isFolder = owner.folderId != null || widgetScreen
     val isStack = uiState.folders.any { it.id == owner.folderId && it.isAppStack }
+    val isWidgetStack = uiState.folders.any { it.id == owner.folderId && it.isWidgetStack }
     var retry by remember { mutableIntStateOf(0) }
     val result by produceState(if (isFolder) ShortcutResult(ShortcutStatus.Ready) else actions.cachedShortcuts(owner) ?: ShortcutResult(ShortcutStatus.Loading),
         owner, uiState.hasShortcutAccess, retry, uiState.itemRevision, uiState.settings) { if (!isFolder) value = actions.shortcuts(owner) }
@@ -359,6 +367,15 @@ internal fun PopupEditorScreen(owner: LauncherApp, uiState: LauncherUiState, act
     val ready = !uiState.isLoadingSettings && !uiState.settingsLoadFailed &&
         (uiState.popups.containsKey(owner.key) || result.status == ShortcutStatus.Ready || result.status == ShortcutStatus.DefaultLauncherRequired)
     var choosingShortcut by rememberSaveable(owner.key) { mutableStateOf(false) }
+    var choosingWidgetStacks by rememberSaveable(owner.key) { mutableStateOf(false) }
+    if (choosingWidgetStacks) {
+        WidgetStackPickerScreen(uiState, actions, entries.map { it.key }.toSet(), { choosingWidgetStacks = false }) { app ->
+            actions.updatePopup(owner, shortcuts) { current ->
+                if (current.any { it.key == app.key }) current.filterNot { it.key == app.key } else current + PopupItem(app.key)
+            }
+        }
+        return
+    }
     // null = editor, false = folders, true = app stacks.
     var choosingGroup by rememberSaveable(owner.key) { mutableStateOf<Boolean?>(null) }
     val groupMode = choosingGroup
@@ -387,7 +404,7 @@ internal fun PopupEditorScreen(owner: LauncherApp, uiState: LauncherUiState, act
         return
     }
     ItemSelectionScreen(
-        title = if (widgetScreen) stringResource(R.string.widget_screen_edit) else if (isStack) stringResource(R.string.app_stack_edit) else stringResource(R.string.edit_app_popup, owner.label),
+        title = if (widgetScreen) stringResource(R.string.widget_screen_edit) else if (isWidgetStack) stringResource(R.string.widget_stack_edit) else if (isStack) stringResource(R.string.app_stack_edit) else stringResource(R.string.edit_app_popup, owner.label),
         tag = if (widgetScreen) "widget_screen_editor" else "popup_editor", selected = selected,
         emptyMessage = if (isStack) stringResource(R.string.app_stack_empty) else null,
         apps = uiState.allApps.filterNot { it.key == owner.key }, enabled = ready,
@@ -395,9 +412,11 @@ internal fun PopupEditorScreen(owner: LauncherApp, uiState: LauncherUiState, act
         header = header,
         shortcutStatus = result.status, onRetry = { retry++ }, onRequestAccess = actions.requestDefaultHome,
         onAddWidget = if (isStack) null else ({ actions.addPopupWidget(owner, shortcuts) }),
-        onAddFolder = if (!isStack) ({ choosingGroup = false }) else null,
-        onAddStack = if (!isStack) ({ choosingGroup = true }) else null,
-        onAddShortcut = { choosingShortcut = true },
+        onAddWidgetStack = if (!isStack && !isWidgetStack) ({ choosingWidgetStacks = true }) else null,
+        onAddFolder = if (!isStack && !isWidgetStack) ({ choosingGroup = false }) else null,
+        onAddStack = if (!isStack && !isWidgetStack) ({ choosingGroup = true }) else null,
+        onAddShortcut = if (isWidgetStack) null else ({ choosingShortcut = true }),
+        showApps = !isWidgetStack,
         appGroupChoices = if (widgetScreen) profileGroupChoices(uiState, entries.map { it.key }.toSet()) else emptyList(),
         onToggle = { app -> actions.updatePopup(owner, shortcuts) { current ->
             if (current.any { it.key == app.key }) current.filterNot { it.key == app.key } else current + PopupItem(app.key)
@@ -425,6 +444,7 @@ private fun ItemSelectionScreen(
     onToggle: (LauncherApp) -> Unit, onRemove: (String) -> Unit, onReorder: (List<String>) -> Unit, onDone: () -> Unit,
     shortcuts: List<LauncherApp>? = null, shortcutTitle: String = "", shortcutStatus: ShortcutStatus = ShortcutStatus.Ready,
     onRetry: () -> Unit = {}, onRequestAccess: () -> Unit = {}, onAddWidget: (() -> Unit)? = null,
+    onAddWidgetStack: (() -> Unit)? = null,
     onAddShortcut: (() -> Unit)? = null,
     onAddCategory: (() -> Unit)? = null,
     onAddFolder: (() -> Unit)? = null,
@@ -556,14 +576,16 @@ private fun ItemSelectionScreen(
             }
             if (onAddWidget != null) {
                 item(key = "widgets_header", contentType = "header") {
-                    SelectionHeading(stringResource(if (onAddGraceWidget != null) R.string.homepage_widgets else R.string.popup_custom_widget), "popup_widgets")
+                    SelectionHeading(stringResource(R.string.homepage_widgets), "popup_widgets")
                 }
                 if (onAddGraceWidget != null) item(key = "add_grace_widget") {
-                    AddSelectionContent("${tag}_grace_widgets", enabled, onAddGraceWidget, stringResource(R.string.grace_widgets_title))
+                    AddSelectionContent("${tag}_grace_widgets", enabled, onAddGraceWidget, stringResource(R.string.grace_widgets_add))
                 }
                 item(key = "add_widget") {
-                    AddSelectionContent("popup_add_widget", enabled, onAddWidget,
-                        stringResource(if (onAddGraceWidget != null) R.string.popup_custom_widget else R.string.popup_add_new))
+                    AddSelectionContent("popup_add_widget", enabled, onAddWidget, stringResource(R.string.settings_add_widget))
+                }
+                if (onAddWidgetStack != null) item(key = "add_widget_stack") {
+                    AddSelectionContent("${tag}_add_widget_stack", enabled, onAddWidgetStack, stringResource(R.string.widget_stack_add))
                 }
             }
             if (onAddCategory != null || onAddGraceLauncher != null || onAddShortcut != null || onAddFolder != null || onAddStack != null || appGroupChoices.isNotEmpty()) item(key = "app_groups_header", contentType = "header") {
@@ -609,7 +631,7 @@ private fun ItemSelectionScreen(
 
 @Composable
 private fun AddSelectionContent(tag: String, enabled: Boolean, onClick: () -> Unit,
-    label: String = stringResource(R.string.popup_add_new)) {
+    label: String) {
     Row(Modifier.fillMaxWidth().heightIn(min = 64.dp).testTag(tag).clip(RoundedCornerShape(16.dp))
         .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
         .padding(horizontal = 8.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -7,6 +7,7 @@ import com.galaxyrio.gracelauncher.data.AppCategory
 import com.galaxyrio.gracelauncher.data.PopupItem
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
+import com.galaxyrio.gracelauncher.data.WidgetStackStyle
 import com.galaxyrio.gracelauncher.data.FolderPlacement
 import com.galaxyrio.gracelauncher.data.LauncherSettings
 import com.galaxyrio.gracelauncher.data.ClockStyle
@@ -78,6 +79,7 @@ data class LauncherActions(
     val hideApp: (LauncherApp) -> Unit = {},
     val setFolderAutoHide: (String, Boolean) -> Unit = { _, _ -> },
     val saveFolder: (LauncherFolder) -> Unit = {},
+    val updateWidgetStackStyle: (String, WidgetStackStyle) -> Unit = { _, _ -> },
     val updateFolder: (String, String?, FolderPlacement?, Boolean?) -> Unit = { _, _, _, _ -> },
     val setFolderFavorites: suspend (Map<String, Boolean>) -> Boolean = { false },
     val deleteFolder: (String) -> Unit = {},

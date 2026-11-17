@@ -11,8 +11,11 @@ data class HomeLayout(
     val widgetHeightDp: Int = 0,
     /** Per-widget presentation in app/folder pop-ups; the desktop grid owns its own size. */
     val popupWidthPercent: Int = 100,
-    val popupFullWidth: Boolean = false,
+    /** Full surface width; independent of the retired popup host-padding switch. */
+    val widgetFullWidth: Boolean = false,
     val popupBackground: Boolean = false,
+    val popupBackgroundColor: IconColor? = null,
+    val popupBackgroundAlpha: Float = 1f,
     val popupContentScale: Int = 100,
     /** Null reads the legacy header/widget/favorites arrangement until the first edit. */
     val homeOrder: List<String>? = null,
@@ -36,8 +39,10 @@ data class HomeLayout(
         put("widgetLabel", widgetLabel ?: JSONObject.NULL)
         put("widgetHeightDp", widgetHeightDp.coerceIn(0, 1600))
         put("popupWidthPercent", popupWidthPercent.coerceIn(20, 100))
-        put("popupFullWidth", popupFullWidth)
+        put("widgetFullWidth", widgetFullWidth)
         put("popupBackground", popupBackground)
+        put("popupBackgroundColor", popupBackgroundColor?.json())
+        put("popupBackgroundAlpha", popupBackgroundAlpha.takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 1f)
         put("popupContentScale", popupContentScale.coerceIn(50, 150))
         homeOrder?.let { put("homeOrder", org.json.JSONArray(normalizeHomeOrder(it))) }
         put("baselineEnabled", baselineEnabled)
@@ -55,9 +60,15 @@ data class HomeLayout(
                 widgetProvider = data.optString("widgetProvider").takeUnless { it.isBlank() || it == "null" },
                 widgetLabel = data.optString("widgetLabel").takeUnless { it.isBlank() || it == "null" },
                 widgetHeightDp = data.optInt("widgetHeightDp", 0).coerceIn(0, 1600),
-                popupWidthPercent = data.optInt("popupWidthPercent", 100).coerceIn(20, 100),
-                popupFullWidth = data.optBoolean("popupFullWidth", false),
+                // The retired switch filled its content column regardless of a saved narrower width.
+                popupWidthPercent = if (!data.has("widgetFullWidth") && data.optBoolean("popupFullWidth", false)) 100
+                    else data.optInt("popupWidthPercent", 100).coerceIn(20, 100),
+                // Filling the old content column must not enable the new edge-to-edge layout mode.
+                widgetFullWidth = data.optBoolean("widgetFullWidth", false),
                 popupBackground = data.optBoolean("popupBackground", false),
+                popupBackgroundColor = IconColor.decode(data.optJSONObject("popupBackgroundColor")),
+                popupBackgroundAlpha = data.optDouble("popupBackgroundAlpha", 1.0).toFloat()
+                    .takeIf { it.isFinite() }?.coerceIn(0f, 1f) ?: 1f,
                 popupContentScale = data.optInt("popupContentScale", 100).coerceIn(50, 150),
                 homeOrder = data.optJSONArray("homeOrder")?.let { array ->
                     normalizeHomeOrder((0 until array.length()).mapNotNull { (array.opt(it) as? String)?.takeIf(String::isNotBlank) })

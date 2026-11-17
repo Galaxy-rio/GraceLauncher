@@ -302,7 +302,7 @@
     <string name="icon_edit_failed">无法保存此图标，请尝试其他图片或图标。</string>
     <string name="edit_app_popup">编辑 %1$s 弹窗</string>
     <string name="popup_app_shortcuts">%1$s 快捷方式</string>
-    <string name="popup_custom_widget">自定义小组件</string>
+    <string name="popup_custom_widget">小组件</string>
     <string name="popup_add_new">添加新的小组件</string>
     <string name="popup_show_in_app_list">显示在应用列表</string>
     <string name="popup_empty">从下方选择快捷方式、应用或小组件。</string>
@@ -809,7 +809,7 @@
     <string name="app_selection_fast_scroll">快速滚动应用列表</string>
     <!-- Home widgets -->
     <string name="widget_home_menu">Grace 小组件</string>
-    <string name="widget_add">添加自定义小组件</string>
+    <string name="widget_add">添加小组件</string>
     <string name="widget_choose">选择小组件</string>
     <string name="widget_search">搜索小组件</string>
     <string name="widget_none">未找到小组件</string>
@@ -823,10 +823,13 @@
     <string name="widget_move_home">移动时钟和应用列表</string>
     <string name="widget_resize">调整小组件大小</string>
     <string name="grace_widgets_title">Grace 小组件</string>
+    <string name="grace_widgets_add">添加 Grace 小组件</string>
     <string name="grace_widget_baseline">基准线（不可见）</string>
     <string name="popup_widget_full_width">全宽</string>
     <string name="popup_widget_background">底色</string>
-    <string name="popup_widget_content_scale">内容缩放 · %1$d%%</string>
+    <string name="popup_widget_background_color">背景颜色</string>
+    <string name="popup_widget_background_opacity">背景不透明度</string>
+    <string name="popup_widget_content_scale">内容 · %1$d%%</string>
     <string name="widget_adjust_up">向上移动／减小高度</string>
     <string name="widget_adjust_down">向下移动／增加高度</string>
     <string name="widget_calendar">日历</string>
@@ -910,6 +913,7 @@
     <string name="widget_screen_swipe_disabled">可以在手势或 Grace 按钮动作中设置进入</string>
     <string name="widget_screen_columns">每行格子数</string>
     <string name="widget_screen_edit">编辑小组件页面</string>
+    <string name="widget_screen_add_items">添加应用、快捷方式和小组件</string>
     <string name="widget_screen_open">打开小组件页面</string>
     <string name="app_stacks_title">应用堆</string>
     <string name="app_stack_create">创建应用堆</string>
@@ -1139,7 +1143,7 @@
     <string name="agenda_title_time">当前时间</string>
     <string name="agenda_title_quote">名言</string>
     <string name="agenda_title_text">自定义文本</string>
-    <string name="agenda_widget_region">小组件区域</string>
+    <string name="agenda_widget_region">小组件</string>
     <string name="agenda_daily">每日</string>
     <string name="agenda_daily_content">每日内容</string>
     <string name="agenda_calendar_content">日程内容</string>
@@ -1152,4 +1156,21 @@
     <string name="agenda_choose_create_action">选择添加内容</string>
     <string name="agenda_new_task">新建任务</string>
     <string name="agenda_unsaved_message">日程页面的更改尚未保存。</string>
+    <string name="widget_stacks_title">小组件堆</string>
+    <string name="widget_stack_create">添加小组件堆</string>
+    <string name="widget_stacks_empty">创建小组件堆，将多个小组件放在同一区域。</string>
+    <string name="widget_stack_edit">编辑小组件堆</string>
+    <string name="widget_stack_name">小组件堆名称</string>
+    <string name="widget_stack_placement">显示小组件堆的位置</string>
+    <string name="widget_stack_delete">删除小组件堆</string>
+    <string name="widget_stack_delete_confirmation">删除“%1$s”及其中的小组件？</string>
+    <string name="widget_stack_empty">向此堆中添加小组件</string>
+    <string name="widget_stack_add">添加小组件堆</string>
+    <string name="widget_stack_remove">移除小组件堆</string>
+    <string name="widget_stack_height">小组件堆高度</string>
+    <string name="widget_stack_background_color">背景颜色</string>
+    <string name="widget_stack_opacity">背景不透明度</string>
+    <string name="widget_stack_apply_background_all">应用背景颜色到所有</string>
+    <string name="widget_stack_remove_widget_title">移除小组件</string>
+    <string name="widget_stack_remove_widget_confirmation">从此小组件堆中移除“%1$s”？</string>
 </resources>

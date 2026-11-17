@@ -145,7 +145,7 @@ internal fun LauncherOverlays(
                 val folder = (overlay as? LauncherOverlay.FolderSettings)?.folderId?.let { id ->
                     // Stacks have no details sheet: that sheet redirects straight
                     // back to this editor. Close instead of creating a return loop.
-                    if (uiState.folders.any { it.id == id && it.isAppStack }) null
+                    if (uiState.folders.any { it.id == id && (it.isAppStack || it.isWidgetStack) }) null
                     else uiState.findItem("folder:$id")
                 }
                 onChange(if ((overlay as? LauncherOverlay.SettingsDestination)?.returnToSearch == true && uiState.settings.search.enabled)
@@ -304,7 +304,7 @@ private fun AppDetailsSheet(app: LauncherApp, actions: LauncherActions, onChange
         LaunchedEffect(app.key) { onChange(null) }
         return
     }
-    if (folder?.isAppStack == true) {
+    if (folder != null && (folder.isAppStack || folder.isWidgetStack)) {
         LaunchedEffect(folder.id) { onChange(LauncherOverlay.FolderSettings(folder.id)) }
         return
     }
@@ -442,7 +442,7 @@ private fun CategoryPicker(app: LauncherApp, uiState: LauncherUiState, actions: 
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 32.dp)) {
         PanelTitle(stringResource(R.string.add_to_folder))
         Text(app.label, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        uiState.folders.filterNot { it.isAppStack }.forEach { folder ->
+        uiState.folders.filterNot { it.isAppStack || it.isWidgetStack }.forEach { folder ->
             val isMember = app.key in folder.appKeys
             PanelAction(if (isMember) LauncherSymbol.Check else LauncherSymbol.Folder, folder.name) {
                 actions.updatePopup(uiState.folderItem(folder), listOf(app)) { current ->

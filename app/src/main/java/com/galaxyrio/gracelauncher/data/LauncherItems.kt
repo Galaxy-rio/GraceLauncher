@@ -3,6 +3,7 @@ package com.galaxyrio.gracelauncher.data
 import androidx.room.*
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.onStart
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -112,7 +113,7 @@ class LauncherItemsRepository(private val database: LauncherDatabase) {
             icons.mapNotNull { row -> ItemIcon.decode(row.iconJson)?.let { row.itemKey to it } }.toMap(),
             shortcuts, popups.associate { it.ownerKey to PopupItem.decode(it.itemsJson) },
         )
-    }.distinctUntilChanged()
+    }.onStart { LauncherSettingsRepository(database).migrateWidgetStackBackgrounds() }.distinctUntilChanged()
 
     suspend fun saveIcon(key: String, icon: ItemIcon?) = database.withTransaction {
         // Built-in groups have stable icon identities but deliberately have no folder row.
@@ -156,17 +157,22 @@ class LauncherItemsRepository(private val database: LauncherDatabase) {
     /** Atomic edits also preserve widgets appended by the separate Android setup Activity. */
     suspend fun updatePopup(key: String, defaults: List<PopupItem>, transform: (List<PopupItem>) -> List<PopupItem>): List<Int> =
         database.withTransaction {
+            LauncherSettingsRepository(database).migrateWidgetStackBackgrounds()
             requireExistingFolder(key)
             if (key == HomeContentKey) LauncherSettingsRepository(database).migrateLegacyHomeWidget()
             val previous = dao.popup(key)?.let { PopupItem.decode(it.itemsJson) } ?: defaults
-            val stack = key.takeIf { it.startsWith("folder:") }?.removePrefix("folder:")
-                ?.let { database.settingsDao().folder(it) }?.isAppStack == true
+            val group = key.takeIf { it.startsWith("folder:") }?.removePrefix("folder:")
+                ?.let { database.settingsDao().folder(it) }
+            val stack = group?.isAppStack == true
+            val widgetStack = group?.widgetStackJson != null
             val next = transform(previous).distinctBy { it.key }.filter {
                 (!stack || (it.widget == null && !it.key.startsWith("folder:"))) &&
+                    (!widgetStack || it.widget?.hasWidget == true) &&
                     (key == WidgetScreenKey || (it.key != PrivateSpaceFolderKey && it.key != WorkProfileFolderKey))
             }
             dao.savePopup(AppPopupEntity(key, PopupItem.encode(next)))
-            val retained = next.mapNotNull { it.widget?.widgetId }.toSet()
+            val retained = dao.readPopups().flatMap { PopupItem.decode(it.itemsJson) }
+                .mapNotNull { it.widget?.widgetId }.toSet()
             previous.mapNotNull { it.widget?.widgetId }.filterNot { it in retained }
         }
 }

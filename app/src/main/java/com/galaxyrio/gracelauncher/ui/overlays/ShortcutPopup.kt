@@ -23,6 +23,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalWindowInfo
@@ -56,6 +57,7 @@ import com.galaxyrio.gracelauncher.ui.components.AppIcon
 import com.galaxyrio.gracelauncher.ui.components.AppNotificationLabel
 import com.galaxyrio.gracelauncher.ui.components.AppStack
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
+import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import com.galaxyrio.gracelauncher.ui.components.LocalListAppearance
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
@@ -171,6 +173,7 @@ fun ShortcutPopup(
     }
     BackHandler(enabled = editingWidget != null) { finishEditing() }
     val selectedLayout = editingWidget?.let { key -> drafts[key] ?: entries.firstOrNull { it.key == key }?.widget }
+    var editingControlsHeight by remember { mutableStateOf(0.dp) }
     val entriesByKey = entries.associateBy { it.key }
     SwipeRevealPanel(
         anchor = anchor,
@@ -180,9 +183,17 @@ fun ShortcutPopup(
         onDismiss = onDismiss,
         edgeToEdgeContent = true,
     ) { maxListHeight ->
-        if (selectedLayout != null) PopupWidgetControls(selectedLayout,
+        if (selectedLayout != null) Box(Modifier.onSizeChanged { editingControlsHeight = with(density) { it.height.toDp() } }) {
+            PopupWidgetControls(selectedLayout,
             onChange = { layout, save -> editingWidget?.let { updateWidget(it, layout, save) } },
-            onDone = finishEditing)
+            onDone = finishEditing, onDelete = {
+                editingWidget?.let { key ->
+                    drafts.remove(key)
+                    editingWidget = null
+                    actions.updatePopup(app, shortcuts) { current -> current.filterNot { it.key == key } }
+                }
+            })
+        }
         else {
         Row(
             Modifier.fillMaxWidth().padding(horizontal = 6.dp)
@@ -199,7 +210,8 @@ fun ShortcutPopup(
             Text(app.label, Modifier.weight(1f), fontWeight = FontWeight.SemiBold, fontSize = 17.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         }
-        LazyColumn(Modifier.heightIn(max = maxListHeight).testTag(if (isFolder) "folder_members" else "shortcut_list"),
+        LazyColumn(Modifier.heightIn(max = (maxListHeight - if (selectedLayout != null) editingControlsHeight else 0.dp)
+            .coerceAtLeast(48.dp)).testTag(if (isFolder) "folder_members" else "shortcut_list"),
             state = list, userScrollEnabled = reorder.draggingKey == null && !resizingWidget) {
             items(notifications, key = { "notification:${it.key}" }) { notification ->
                 NotificationPopupItem(
@@ -256,11 +268,16 @@ fun ShortcutPopup(
             val offset by rememberReorderTranslation(reorder, entry.key)
             val itemApp = uiState.findItem(entry.key) ?: shortcuts.firstOrNull { it.key == entry.key }
             val stack = uiState.folders.firstOrNull { it.id == itemApp?.folderId && it.isAppStack }
+            val widgetStack = uiState.folders.firstOrNull { it.id == itemApp?.folderId && it.isWidgetStack }
             Box(Modifier.fillMaxWidth().then(if (dragging) Modifier else Modifier.animateItem())
-                .zIndex(if (dragging || reorder.drop?.key == entry.key) 1f else 0f)
+                .zIndex(if (dragging || reorder.drop?.key == entry.key) 3f else if (editingWidget == entry.key) 2f else 0f)
                 .graphicsLayer { translationY = offset }
-                .padding(horizontal = if (widget == null) 6.dp else 0.dp)) {
+                .padding(horizontal = if (widget == null) LauncherLayout.PopupOuterInset else 0.dp)) {
             when {
+                widgetStack != null -> com.galaxyrio.gracelauncher.ui.widgets.WidgetStack(widgetStack, uiState,
+                    enabled = !reveal.dragging && reveal.expanded,
+                    onLongPress = { onDetails(uiState.folderItem(widgetStack)) },
+                    modifier = Modifier.padding(horizontal = LauncherLayout.PopupContentInset, vertical = 4.dp))
                 stack != null -> AppStack(stack, uiState, onLaunch = { item, bounds ->
                     onLaunchItem(item, bounds); if (!isPrivateFolder) onDismiss()
                 }, onDetails = onDetails, onEdit = { onDetails(uiState.folderItem(stack)) },
@@ -294,7 +311,7 @@ fun ShortcutPopup(
                                     onLaunchItem(itemApp, iconBounds)
                                     // A folder replaces this panel with its own hero transition.
                                     if (!isPrivateFolder && itemApp.folderId == null) onDismiss()
-                                }).padding(horizontal = 12.dp, vertical = (listAppearance.appSpacing / 2f).dp),
+                                }).padding(horizontal = LauncherLayout.PopupContentInset, vertical = (listAppearance.appSpacing / 2f).dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             if (!hiddenIcon) {

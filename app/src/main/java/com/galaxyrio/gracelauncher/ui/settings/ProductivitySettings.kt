@@ -148,32 +148,36 @@ internal fun ProductivitySettings(
             item {
                 SettingsActionItem(
                     stringResource(R.string.settings_hide_apps), pluralStringResource(R.plurals.settings_hidden_count, uiState.effectiveHiddenAppKeys.size, uiState.effectiveHiddenAppKeys.size),
-                    0, 6, "settings_open_hidden_apps",
+                    0, 7, "settings_open_hidden_apps",
                     leading = { LauncherIcon(LauncherSymbol.VisibilityOff) },
                 ) { navigate(SettingsPage.HiddenApps) }
             }
             item {
-                SettingsActionItem(stringResource(R.string.app_categories_title), null, 1, 6, "settings_app_categories",
+                SettingsActionItem(stringResource(R.string.app_categories_title), null, 1, 7, "settings_app_categories",
                     leading = { LauncherIcon(LauncherSymbol.Category) }) { navigate(SettingsPage.AppCategories) }
             }
             item {
                 SettingsActionItem(
-                    stringResource(R.string.settings_folders), pluralStringResource(R.plurals.settings_folder_count, uiState.folders.count { !it.isAppStack }, uiState.folders.count { !it.isAppStack }),
-                    2, 6, "settings_open_folders",
+                    stringResource(R.string.settings_folders), pluralStringResource(R.plurals.settings_folder_count, uiState.folders.count { !it.isAppStack && !it.isWidgetStack }, uiState.folders.count { !it.isAppStack && !it.isWidgetStack }),
+                    2, 7, "settings_open_folders",
                     leading = { LauncherIcon(LauncherSymbol.Folder) },
                 ) { navigate(SettingsPage.Folders) }
             }
             item {
-                SettingsActionItem(stringResource(R.string.app_stacks_title), null, 3, 6, "settings_app_stacks",
+                SettingsActionItem(stringResource(R.string.app_stacks_title), null, 3, 7, "settings_app_stacks",
                     leading = { LauncherIcon(LauncherSymbol.Steppers) }) { navigate(SettingsPage.AppStacks) }
             }
             item {
+                SettingsActionItem(stringResource(R.string.widget_stacks_title), null, 4, 7, "settings_widget_stacks",
+                    leading = { LauncherIcon(LauncherSymbol.Widgets) }) { navigate(SettingsPage.WidgetStacks) }
+            }
+            item {
                 SettingsActionItem(stringResource(R.string.work_profile_title), stringResource(R.string.work_profile_summary),
-                    4, 6, "settings_open_work_profile", leading = { LauncherIcon(LauncherSymbol.Work) }) { navigate(SettingsPage.WorkProfile) }
+                    5, 7, "settings_open_work_profile", leading = { LauncherIcon(LauncherSymbol.Work) }) { navigate(SettingsPage.WorkProfile) }
             }
             item {
                 SettingsActionItem(stringResource(R.string.private_space_title), stringResource(R.string.private_space_summary),
-                    5, 6, "settings_open_private_space", leading = { LauncherIcon(LauncherSymbol.Lock) }) { navigate(SettingsPage.PrivateSpace) }
+                    6, 7, "settings_open_private_space", leading = { LauncherIcon(LauncherSymbol.Lock) }) { navigate(SettingsPage.PrivateSpace) }
             }
             item { SettingsHeading(stringResource(R.string.settings_advanced)) }
             item {
@@ -293,7 +297,7 @@ internal fun FolderSettings(
     excludedIds: Set<String> = emptySet(),
     onEdit: (String) -> Unit,
 ) {
-    val folders = uiState.folders.filter { it.isAppStack == appStacks && it.id !in excludedIds }
+    val folders = uiState.folders.filter { !it.isWidgetStack && it.isAppStack == appStacks && it.id !in excludedIds }
     val title = stringResource(if (appStacks) R.string.app_stacks_title else R.string.settings_folders)
     val createTitle = stringResource(if (appStacks) R.string.app_stack_create else R.string.settings_folder_create)
     var creating by rememberSaveable { mutableStateOf(false) }
@@ -368,6 +372,10 @@ internal fun FolderSettings(
 internal fun FolderEditorSettings(folderId: String?, uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
     onEditIcon: (LauncherApp) -> Unit = {}) {
     val folder = uiState.folders.firstOrNull { it.id == folderId }
+    if (folder?.isWidgetStack == true) {
+        WidgetStackEditorSettings(folder.id, uiState, actions, onBack)
+        return
+    }
     if (folder == null) {
         SettingsScaffold(stringResource(R.string.settings_folder_edit), "settings_folder_editor", onBack) { padding ->
             Box(Modifier.padding(padding)) {

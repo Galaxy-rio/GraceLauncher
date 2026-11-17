@@ -116,13 +116,16 @@ data class LauncherFolder(
     val autoHideApps: Boolean = false,
     /** Same membership/placement storage, rendered inline instead of as a named folder. */
     val isAppStack: Boolean = false,
+    /** A widget-only group, displayed as a horizontal pager on every surface. */
+    val widgetStack: WidgetStackStyle? = null,
 ) {
     val key: String get() = "folder:$id"
+    val isWidgetStack: Boolean get() = widgetStack != null
 
     /** Local identity only: folders must never be sent to Android as activities. */
     fun asApp() = LauncherApp(
         componentName = android.content.ComponentName("com.galaxyrio.gracelauncher", key),
-        label = name, icon = null, folderId = id, isAppStack = isAppStack,
+        label = name, icon = null, folderId = id, isAppStack = isAppStack, isWidgetStack = isWidgetStack,
     )
 }
 

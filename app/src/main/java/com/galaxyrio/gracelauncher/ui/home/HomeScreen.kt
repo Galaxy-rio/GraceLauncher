@@ -25,6 +25,9 @@ import com.galaxyrio.gracelauncher.ui.overlays.FavoritesReorderState
 import com.galaxyrio.gracelauncher.ui.overlays.rememberReorderTranslation
 import com.galaxyrio.gracelauncher.ui.overlays.PopupWidgetItem
 import com.galaxyrio.gracelauncher.ui.overlays.PopupWidgetControls
+import com.galaxyrio.gracelauncher.ui.widgets.WidgetEditOutlineGap
+import com.galaxyrio.gracelauncher.ui.widgets.rememberWidgetEditorOffset
+import com.galaxyrio.gracelauncher.ui.components.statusBarContentFade
 import kotlinx.coroutines.isActive
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.indication
@@ -48,7 +51,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.material3.Surface
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.Text
@@ -63,6 +65,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
@@ -231,17 +234,6 @@ fun HomeScreen(
             finishEditing()
         }
     }
-    LaunchedEffect(reorder.draggingKey, density) {
-        if (reorder.draggingKey == null) return@LaunchedEffect
-        val edge = with(density) { 64.dp.toPx() }
-        val speed = with(density) { 640.dp.toPx() }
-        var previous = withFrameNanos { it }
-        while (isActive && reorder.draggingKey != null) {
-            val frame = withFrameNanos { it }
-            if (dragged) reorder.autoScroll(edge, speed * ((frame - previous) / 1_000_000_000f).coerceIn(0f, .032f))
-            previous = frame
-        }
-    }
     val startDrag: (String) -> Unit = { key ->
         if (!homeLayout.editingLocked) { dragged = false; reorder.start(key) }
     }
@@ -298,31 +290,56 @@ fun HomeScreen(
         // A short home list must still stretch immediately at its top boundary.
         val anchoredOrigin = if (baselineIndex >= 0 && baselineOffset != null && prefixHeight != null) baselineTop - prefixHeight else null
         val selectedLayout = selectedWidget?.let { drafts[it] ?: entriesByKey[it]?.widget }
-        val toolbarHeight = if (selectedLayout != null) minimumTop + 104.dp else 0.dp
+        var measuredToolbarHeight by remember { mutableIntStateOf(0) }
+        val selectedWidgetTop by remember(selectedWidget, listState, density) {
+            derivedStateOf {
+                listState.layoutInfo.let { info ->
+                    info.visibleItemsInfo.firstOrNull { it.key == FavoritesReorderState.itemKey(selectedWidget) }?.let {
+                        // Item offsets include a virtual negative viewport start for content padding.
+                        it.offset - info.viewportStartOffset + with(density) { (8.dp - WidgetEditOutlineGap).toPx() }
+                    }
+                }
+            }
+        }
+        val contentShift = rememberWidgetEditorOffset(selectedLayout != null, selectedWidgetTop,
+            if (measuredToolbarHeight > 0) with(density) { minimumTop.toPx() } + measuredToolbarHeight else 0f,
+            with(density) { 8.dp.toPx() }, reorder.draggingKey != null || resizing)
+        LaunchedEffect(reorder.draggingKey, density) {
+            if (reorder.draggingKey == null) return@LaunchedEffect
+            val edge = with(density) { 64.dp.toPx() }
+            val speed = with(density) { 640.dp.toPx() }
+            var previous = withFrameNanos { it }
+            while (isActive && reorder.draggingKey != null) {
+                val frame = withFrameNanos { it }
+                if (dragged) reorder.autoScroll(edge,
+                    speed * ((frame - previous) / 1_000_000_000f).coerceIn(0f, .032f), contentShift.value)
+                previous = frame
+            }
+        }
         val latestContentTop by rememberUpdatedState(onContentTop)
         SideEffect {
-            if (!editingLayout && toolbarHeight == 0.dp) {
+            if (!editingLayout) {
                 latestContentTop(anchoredOrigin ?: if (baselineIndex >= 0) baselineTop else resolvedTop)
             }
         }
         val inputEnabled = widgetInputEnabled && !editingLayout && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
         // When an off-screen prefix has not been measured yet, align by the
         // marker's key. Measured prefixes use ordinary padding and scroll bounds.
-        LaunchedEffect(reorder.keys, aboveHeights, baselineTop, baselineOffset, toolbarHeight, baselinePinned, reorder.draggingKey) {
+        LaunchedEffect(reorder.keys, aboveHeights, baselineTop, baselineOffset, baselinePinned, reorder.draggingKey) {
             if (baselinePinned && baselineIndex >= 0 && baselineOffset != null && reorder.draggingKey == null) {
                 if (anchoredOrigin != null) listState.requestScrollToItem(0,
-                    with(density) { (toolbarHeight - anchoredOrigin).coerceAtLeast(0.dp).roundToPx() })
+                    with(density) { (0.dp - anchoredOrigin).coerceAtLeast(0.dp).roundToPx() })
                 else listState.requestScrollToItem(baselineIndex, 0)
             }
         }
+        Box(Modifier.fillMaxSize().statusBarContentFade()) {
         LazyColumn(
             state = listState,
-            modifier = Modifier.fillMaxSize().padding(top = toolbarHeight)
+            modifier = Modifier.fillMaxSize().graphicsLayer { translationY = contentShift.value }
                 .overscroll(overscroll).nestedScroll(scrollConnection).testTag("home_content"),
-            contentPadding = PaddingValues(start = uiState.settings.listAppearance.startPadding,
-                end = uiState.settings.listAppearance.endPadding,
-                top = ((anchoredOrigin ?: if (baselineIndex >= 0) baselineTop else resolvedTop) - toolbarHeight).coerceAtLeast(0.dp),
-                bottom = if (baselineIndex >= 0 && (anchoredOrigin == null || anchoredOrigin < toolbarHeight))
+            contentPadding = PaddingValues(
+                top = (anchoredOrigin ?: if (baselineIndex >= 0) baselineTop else resolvedTop).coerceAtLeast(0.dp),
+                bottom = if (baselineIndex >= 0 && (anchoredOrigin == null || anchoredOrigin < 0.dp))
                     (availableHeight - baselineTop).coerceAtLeast(72.dp + bottomInset) else 72.dp + bottomInset),
             userScrollEnabled = !editingLayout && reorder.draggingKey == null && !resizing,
             overscrollEffect = null,
@@ -337,8 +354,11 @@ fun HomeScreen(
                 val currentStart by rememberUpdatedState(startDrag)
                 val currentDrag by rememberUpdatedState(drag)
                 Box(Modifier.fillMaxWidth()
+                    // Keep the scroll viewport full-width; only ordinary rows reserve list gutters.
+                    .padding(start = if (widget?.widgetFullWidth == true) 0.dp else uiState.settings.listAppearance.startPadding,
+                        end = if (widget?.widgetFullWidth == true) 0.dp else uiState.settings.listAppearance.endPadding)
                     .then(if (dragging) Modifier else Modifier.animateItem())
-                    .zIndex(if (dragging || reorder.drop?.key == entry.key) 1f else 0f)
+                    .zIndex(if (dragging || reorder.drop?.key == entry.key) 3f else if (selectedWidget == entry.key) 2f else 0f)
                     .graphicsLayer { translationY = offset }
                     .onGloballyPositioned { coordinates = it }
                     .onSizeChanged { itemHeights[entry.key] = it.height }
@@ -363,7 +383,7 @@ fun HomeScreen(
                         grace == GraceWidget.Baseline -> Spacer(Modifier.fillMaxWidth().height(2.dp)
                             .testTag("home_baseline").onGloballyPositioned {
                                 if (baselineOffset == null && baselinePinned && !listState.isScrollInProgress && inputEnabled) {
-                                    val measured = ((it.positionInWindow().y - windowOffset.y) / density.density - resolvedTop.value).coerceIn(0f, 1600f)
+                                    val measured = ((it.positionInWindow().y - windowOffset.y - contentShift.value) / density.density - resolvedTop.value).coerceIn(0f, 1600f)
                                     capturedBaseline = measured
                                     actions.updateSettings { current ->
                                         if (current.homeLayout.baselineOffsetDp != null) current else
@@ -406,7 +426,7 @@ fun HomeScreen(
                         }
                         widget != null -> PopupWidgetItem(widget, selected = selectedWidget == entry.key,
                             enabled = inputEnabled, editable = !homeLayout.editingLocked, haptics = uiState.settings.allowHapticFeedback,
-                            horizontalInset = 8.dp,
+                            horizontalInset = LauncherLayout.ContentInset,
                             maxHeight = 1600,
                             onChange = { layout, save -> updateWidget(entry.key, layout, save) },
                             onResizing = { resizing = it }, onDragStart = { startDrag(entry.key) },
@@ -417,7 +437,10 @@ fun HomeScreen(
                         app != null -> {
                             val categoryIcon = categoryIcons[homeContent.owners[entry.key]] ?: CategoryIcon.None
                             val folder = app.folderId?.let(favoriteFolders::get)
-                            if (folder?.isAppStack == true) AppStack(folder, uiState,
+                            if (folder?.isWidgetStack == true) com.galaxyrio.gracelauncher.ui.widgets.WidgetStack(folder, uiState,
+                                enabled = inputEnabled, onLongPress = { onEditFolder(folder) },
+                                modifier = Modifier.padding(horizontal = LauncherLayout.ContentInset, vertical = 4.dp))
+                            else if (folder?.isAppStack == true) AppStack(folder, uiState,
                                 onLaunch = { item, bounds -> rowGestures.onLaunchAt?.invoke(item, bounds) ?: onLaunchApp(item) },
                                 onDetails = onAppDetails, onEdit = { onEditFolder(folder) },
                                 modifier = Modifier.padding(horizontal = LauncherLayout.ContentInset - AppStackInset.dp, vertical = 4.dp))
@@ -442,11 +465,19 @@ fun HomeScreen(
                 }
             }
         }
-        if (selectedLayout != null) Surface(Modifier.fillMaxWidth()
-            .padding(horizontal = 16.dp).offset(y = minimumTop).zIndex(4f),
-            shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface) {
+        }
+        if (selectedLayout != null) Box(Modifier.fillMaxWidth()
+            .padding(horizontal = 16.dp).offset(y = minimumTop).zIndex(4f)
+            .onSizeChanged { measuredToolbarHeight = it.height }) {
             PopupWidgetControls(selectedLayout,
-                onChange = { layout, save -> selectedWidget?.let { updateWidget(it, layout, save) } }, onDone = finishEditing)
+                onChange = { layout, save -> selectedWidget?.let { updateWidget(it, layout, save) } }, onDone = finishEditing,
+                onDelete = {
+                    selectedWidget?.let { key ->
+                        drafts.remove(key)
+                        selectedWidget = null
+                        actions.updatePopup(homeContentOwner(), emptyList()) { current -> current.filterNot { it.key == key } }
+                    }
+                })
         }
         if (editingLayout) HomeEditHandle(
             label = stringResource(R.string.homepage_adjust_height), changed = topOffset != 0f, tag = "home_position_handle",

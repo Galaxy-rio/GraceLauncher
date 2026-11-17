@@ -50,6 +50,11 @@ internal object LauncherLayout {
     val Start = 36.dp
     val End = 56.dp
     val ContentInset = 8.dp
+    // Pop-up rows and hosted widgets share the same icon-leading edge.
+    val PopupOuterInset = 6.dp
+    val PopupContentInset = 12.dp
+    val PopupIconInset = PopupOuterInset + PopupContentInset
+    val AgendaContentInset = 30.dp
     val IconLabelGap = 20.dp
     val RowMinHeight = 56.dp
     val RowShape = RoundedCornerShape(18.dp)

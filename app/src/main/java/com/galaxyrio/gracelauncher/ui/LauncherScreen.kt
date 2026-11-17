@@ -560,6 +560,7 @@ fun LauncherRoute(
         hideApp = viewModel::hideApp,
         setFolderAutoHide = viewModel::setFolderAutoHide,
         saveFolder = viewModel::saveFolder,
+        updateWidgetStackStyle = viewModel::updateWidgetStackStyle,
         saveAppCategory = viewModel::saveAppCategory,
         updateAppCategory = viewModel::updateAppCategory,
         deleteAppCategory = viewModel::deleteAppCategory,
@@ -1026,7 +1027,7 @@ internal fun LauncherScreen(
         when (it.id) {
             PrivateSpaceFolderId -> editPrivateSpace()
             WorkProfileFolderId -> overlay = LauncherOverlay.SettingsDestination("WorkProfileEditor")
-            else -> overlay = if (it.isAppStack) LauncherOverlay.FolderSettings(it.id) else LauncherOverlay.AppDetails(uiState.folderItem(it))
+            else -> overlay = if (it.isAppStack || it.isWidgetStack) LauncherOverlay.FolderSettings(it.id) else LauncherOverlay.AppDetails(uiState.folderItem(it))
         }
     }
     val dragFolder: (LauncherFolder, Rect, Boolean) -> Unit = { folder, bounds, expanded ->
@@ -1196,7 +1197,7 @@ internal fun LauncherScreen(
                     translationY = if (drawerTransition != null) 0f else homeLift * pageLiftDistance
                 }
                 .graceReveal(drawerTransition, reveal = false)
-                .then(if (drawerTransition != null) Modifier.background(homeScrim) else Modifier).statusBarContentFade(),
+                .then(if (drawerTransition != null) Modifier.background(homeScrim) else Modifier),
           ) { page ->
            if (page == 0) {
             HomeScreen(
@@ -1258,7 +1259,10 @@ internal fun LauncherScreen(
             model = model,
             folderApps = (uiState.folders + listOfNotNull(workFolder, privateFolder, recentFolder)).associate { it.id to uiState.folderItem(it) },
             notificationsFor = { uiState.notificationPreviewsFor(it) },
-            appStackContent = { stack -> AppStack(stack, uiState,
+            appStackContent = { stack -> if (stack.isWidgetStack) com.galaxyrio.gracelauncher.ui.widgets.WidgetStack(stack, uiState,
+                enabled = drawerOpen && overlay == null && !systemActionAccess && buttonTransition == null,
+                onLongPress = { editFolder(stack) }, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
+            else AppStack(stack, uiState,
                 onLaunch = { app, bounds -> actions.launchAppAt?.invoke(app, bounds) ?: onLaunchApp(app) },
                 onDetails = { overlay = LauncherOverlay.AppDetails(it, fromAppList = true) }, onEdit = { editFolder(stack) },
                 modifier = Modifier.padding(horizontal = (8f - com.galaxyrio.gracelauncher.data.AppStackInset).dp, vertical = 4.dp)) },
