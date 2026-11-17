@@ -1146,4 +1146,5 @@
     <string name="weather_chart_bar_width">Ancho da barra</string>
     <string name="weather_hour_always_show">Amosar sempre</string>
     <string name="weather_hour_column_width">Ancho da columna</string>
+    <string name="app_list_align_with_home">Aliñar co inicio</string>
 </resources>
