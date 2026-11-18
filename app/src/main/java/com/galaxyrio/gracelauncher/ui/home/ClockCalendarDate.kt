@@ -49,6 +49,7 @@ internal fun clockCalendarDate(now: Instant, locale: Locale, showWeekday: Boolea
     return buildAnnotatedString {
         append(text)
         var start = fields.beginIndex
+        var previousColor: Color? = null
         while (start < fields.endIndex) {
             fields.setIndex(start)
             val end = fields.runLimit
@@ -57,9 +58,12 @@ internal fun clockCalendarDate(now: Instant, locale: Locale, showWeekday: Boolea
                 java.text.DateFormat.Field.DAY_OF_WEEK in attributes -> weekdayColor
                 java.text.DateFormat.Field.MONTH in attributes -> monthColor
                 java.text.DateFormat.Field.DAY_OF_MONTH in attributes -> dayColor
-                else -> null
+                // Literal suffixes such as 月 / 日 belong to the preceding date field.
+                // Leave any prefix before the first field in the base text color.
+                else -> previousColor
             }
             if (color != null) addStyle(SpanStyle(color = color), start - fields.beginIndex, end - fields.beginIndex)
+            previousColor = color
             start = end
         }
     }

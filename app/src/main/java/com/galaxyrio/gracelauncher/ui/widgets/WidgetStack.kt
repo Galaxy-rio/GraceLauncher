@@ -1,6 +1,7 @@
 package com.galaxyrio.gracelauncher.ui.widgets
 
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
@@ -12,12 +13,14 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.util.VelocityTracker
@@ -34,12 +37,14 @@ import com.galaxyrio.gracelauncher.data.widgetStackIndicatorHeight
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.LocalLauncherInputEnabled
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sign
 
 /** The editor and every placement use the same live RemoteViews and page geometry. */
 @Composable
+@OptIn(ExperimentalMaterial3ExpressiveApi::class)
 internal fun WidgetStack(
     folder: LauncherFolder,
     uiState: LauncherUiState,
@@ -73,6 +78,20 @@ internal fun WidgetStack(
     val scheme = MaterialTheme.colorScheme
     val height = style.height.coerceIn(80, 1200)
     val indicatorHeight = widgetStackIndicatorHeight(widgets.size)
+    // Raw pointer deltas do not set PagerState.isScrollInProgress, so track the
+    // horizontal gesture separately from its settling/programmatic animation.
+    var horizontalDragging by remember { mutableStateOf(false) }
+    var showIndicator by remember { mutableStateOf(false) }
+    LaunchedEffect(horizontalDragging, pager.isScrollInProgress, widgets.size) {
+        if (widgets.size < 2) showIndicator = false
+        else if (horizontalDragging || pager.isScrollInProgress) showIndicator = true
+        else if (showIndicator) {
+            delay(800)
+            showIndicator = false
+        }
+    }
+    val indicatorAlpha by animateFloatAsState(if (showIndicator) 1f else 0f,
+        MaterialTheme.motionScheme.fastEffectsSpec(), label = "widgetStackIndicator")
 
     DisposableEffect(Unit) { onDispose { settle?.cancel() } }
     CompositionLocalProvider(LocalWidgetHost provides host) {
@@ -85,52 +104,57 @@ internal fun WidgetStack(
                 // consuming it cancels the provider's touch stream, including pending clicks.
                 // Vertical gestures remain available to calendars and other scrollable widgets.
                 awaitEachGesture {
-                    val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
-                    if (down.isConsumed) return@awaitEachGesture
-                    val velocity = VelocityTracker()
-                    velocity.addPosition(down.uptimeMillis, down.position)
-                    var previous = down.position
-                    var dragging = false
-                    var vertical = false
-                    var released = false
-                    while (true) {
-                        val event = awaitPointerEvent(PointerEventPass.Initial)
-                        val change = event.changes.firstOrNull { it.id == down.id } ?: break
-                        // A grid editor or another ancestor can claim this stream first.
-                        if (change.isConsumed) break
-                        if (event.changes.count { it.pressed } > 1) break
-                        velocity.addPosition(change.uptimeMillis, change.position)
-                        val travel = change.position - down.position
-                        if (!dragging && !vertical) {
-                            if (abs(travel.y) > viewConfiguration.touchSlop && abs(travel.y) > abs(travel.x)) vertical = true
-                            else if (abs(travel.x) > viewConfiguration.touchSlop && abs(travel.x) > abs(travel.y)) {
-                                // Taps and vertical scrolling must not strand a list-selection
-                                // animation between pages. Only a horizontal drag takes over.
-                                settle?.cancel()
-                                scope.launch { pager.stopScroll() }
-                                dragging = true
-                                pager.dispatchRawDelta(direction * (travel.x - sign(travel.x) * viewConfiguration.touchSlop))
+                    try {
+                        val down = awaitFirstDown(requireUnconsumed = false, pass = PointerEventPass.Initial)
+                        if (down.isConsumed) return@awaitEachGesture
+                        val velocity = VelocityTracker()
+                        velocity.addPosition(down.uptimeMillis, down.position)
+                        var previous = down.position
+                        var dragging = false
+                        var vertical = false
+                        var released = false
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            // A grid editor or another ancestor can claim this stream first.
+                            if (change.isConsumed) break
+                            if (event.changes.count { it.pressed } > 1) break
+                            velocity.addPosition(change.uptimeMillis, change.position)
+                            val travel = change.position - down.position
+                            if (!dragging && !vertical) {
+                                if (abs(travel.y) > viewConfiguration.touchSlop && abs(travel.y) > abs(travel.x)) vertical = true
+                                else if (abs(travel.x) > viewConfiguration.touchSlop && abs(travel.x) > abs(travel.y)) {
+                                    // Taps and vertical scrolling must not strand a list-selection
+                                    // animation between pages. Only a horizontal drag takes over.
+                                    settle?.cancel()
+                                    scope.launch { pager.stopScroll() }
+                                    dragging = true
+                                    horizontalDragging = true
+                                    pager.dispatchRawDelta(direction * (travel.x - sign(travel.x) * viewConfiguration.touchSlop))
+                                }
+                            } else if (dragging) {
+                                pager.dispatchRawDelta(direction * (change.position.x - previous.x))
                             }
-                        } else if (dragging) {
-                            pager.dispatchRawDelta(direction * (change.position.x - previous.x))
+                            previous = change.position
+                            if (dragging) change.consume()
+                            if (!change.pressed) { released = true; break }
                         }
-                        previous = change.position
-                        if (dragging) change.consume()
-                        if (!change.pressed) { released = true; break }
-                    }
-                    if (dragging) {
-                        val speed = direction * velocity.calculateVelocity().x
-                        val offset = pager.currentPageOffsetFraction
-                        val step = when {
-                            released && abs(speed) > 500f && sign(speed) == sign(offset) -> sign(speed).toInt()
-                            released && abs(offset) > .25f -> sign(offset).toInt()
-                            else -> 0
+                        if (dragging) {
+                            val speed = direction * velocity.calculateVelocity().x
+                            val offset = pager.currentPageOffsetFraction
+                            val step = when {
+                                released && abs(speed) > 500f && sign(speed) == sign(offset) -> sign(speed).toInt()
+                                released && abs(offset) > .25f -> sign(offset).toInt()
+                                else -> 0
+                            }
+                            val target = (pager.currentPage + step).coerceIn(0, widgets.lastIndex)
+                            settle = scope.launch {
+                                pager.animateScrollToPage(target, animationSpec = pageAnimationSpec)
+                                widgets.getOrNull(target)?.key?.let { select?.invoke(it) }
+                            }
                         }
-                        val target = (pager.currentPage + step).coerceIn(0, widgets.lastIndex)
-                        settle = scope.launch {
-                            pager.animateScrollToPage(target, animationSpec = pageAnimationSpec)
-                            widgets.getOrNull(target)?.key?.let { select?.invoke(it) }
-                        }
+                    } finally {
+                        horizontalDragging = false
                     }
                 }
             }) {
@@ -147,7 +171,7 @@ internal fun WidgetStack(
                     }
                 } else {
                     HorizontalPager(pager, Modifier.fillMaxSize(),
-                        userScrollEnabled = false, key = { widgets[it].key }) { page ->
+                        pageSpacing = 8.dp, userScrollEnabled = false, key = { widgets[it].key }) { page ->
                         val layout = widgets[page].widget!!
                         val hosted = rememberHostedWidget(layout)
                         Box(Modifier.fillMaxSize().background(layout.widgetBackgroundColor())) {
@@ -166,7 +190,9 @@ internal fun WidgetStack(
                 }
             }
             if (widgets.size > 1) {
+                // Keep the external row's height while fading, so surrounding items stay put.
                 Row(Modifier.fillMaxWidth().height(indicatorHeight.dp)
+                    .graphicsLayer { alpha = indicatorAlpha }
                     .testTag("widget_stack_indicator:${folder.id}"),
                     horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
                     verticalAlignment = Alignment.CenterVertically) {
