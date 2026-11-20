@@ -134,7 +134,7 @@
     <string name="icon_edit_failed">No se pudo guardar este icono. Por favor, prueba con otra imagen u otro icono.</string>
     <string name="edit_app_popup">Editar ventana emergente %1$s</string>
     <string name="popup_app_shortcuts">accesos directos %1$s</string>
-    <string name="popup_custom_widget">Widget personalizado</string>
+    <string name="popup_custom_widget">Widgets</string>
     <string name="popup_add_new">Añadir nuevo</string>
     <string name="popup_show_in_app_list">Mostrar en la lista de aplicaciones</string>
     <string name="popup_empty">Elige los accesos directos, aplicaciones o widgets a continuación.</string>
@@ -528,7 +528,7 @@
     <string name="search_clear_query">Borrar búsqueda</string>
     <string name="app_selection_fast_scroll">Desplázate rápidamente por las aplicaciones</string>
     <string name="widget_home_menu">Widget de Grace</string>
-    <string name="widget_add">Añadir widget personalizado</string>
+    <string name="widget_add">Añadir widget</string>
     <string name="widget_choose">Elige un widget</string>
     <string name="widget_search">Buscar widgets</string>
     <string name="widget_none">No se encontraron widgets</string>
@@ -669,7 +669,7 @@
     <string name="grace_widget_baseline">Línea base (invisible)</string>
     <string name="popup_widget_full_width">Ancho completo</string>
     <string name="popup_widget_background">Fondo</string>
-    <string name="popup_widget_content_scale">Escala del contenido · %1$d%%</string>
+    <string name="popup_widget_content_scale">Contenido · %1$d%%</string>
     <string name="lab_popup">Ventana emergente</string>
     <string name="lab_popup_distance">Distancia de deslizamiento adicional</string>
     <string name="lab_popup_distance_summary">Distancia adicional necesaria al deslizar hacia la derecha antes de abrir una aplicación o una ventana emergente de carpeta. Un valor más alto hace que sea más difícil activar esta acción.</string>
@@ -1114,7 +1114,7 @@
     <string name="agenda_title_time">Hora actual</string>
     <string name="agenda_title_quote">Cita</string>
     <string name="agenda_title_text">Texto personalizado</string>
-    <string name="agenda_widget_region">Región del widget</string>
+    <string name="agenda_widget_region">Widgets</string>
     <string name="agenda_daily">A diario</string>
     <string name="agenda_calendar_content">Contenido del calendario</string>
     <string name="agenda_tasks_first">Mostrar primero las tareas</string>
@@ -1161,4 +1161,25 @@
     <string name="weather_hour_always_show">Mostrar siempre</string>
     <string name="weather_hour_column_width">Ancho de la columna</string>
     <string name="app_category_all_day">Todo el día</string>
+    <string name="grace_widgets_add">Añadir widgets de Grace</string>
+    <string name="popup_widget_background_color">Color del fondo</string>
+    <string name="popup_widget_background_opacity">Opacidad del fondo</string>
+    <string name="widget_screen_add_items">Añadir aplicaciones, atajos y widgets</string>
+    <string name="widget_stacks_title">Pila de widgets</string>
+    <string name="widget_stack_create">Añadir pila de widgets</string>
+    <string name="widget_stacks_empty">Crea una pila de widgets para mantener varios widgets en un mismo lugar.</string>
+    <string name="widget_stack_edit">Editar pila de widgets</string>
+    <string name="widget_stack_name">Nombre de la pila de widgets</string>
+    <string name="widget_stack_placement">Mostrar la pila de widgets en</string>
+    <string name="widget_stack_delete">Eliminar pila de widgets</string>
+    <string name="widget_stack_delete_confirmation">¿Eliminar «%1$s» y sus widgets?</string>
+    <string name="widget_stack_empty">Añadir widgets a esta pila</string>
+    <string name="widget_stack_add">Añadir pila de widgets</string>
+    <string name="widget_stack_remove">Eliminar pila de widgets</string>
+    <string name="widget_stack_height">Altura de la pila</string>
+    <string name="widget_stack_background_color">Color del fondo</string>
+    <string name="widget_stack_opacity">Opacidad del fondo</string>
+    <string name="widget_stack_apply_background_all">Aplicar el color del fondo a todo</string>
+    <string name="widget_stack_remove_widget_title">Eliminar el widget</string>
+    <string name="widget_stack_remove_widget_confirmation">¿Eliminar «%1$s» de esta pila?</string>
 </resources>
