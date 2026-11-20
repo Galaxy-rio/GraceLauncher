@@ -14,7 +14,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.galaxyrio.gracelauncher.ui.theme.FontShadowText as Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,6 +56,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.constrainHeight
 import androidx.compose.ui.unit.constrainWidth
+import com.galaxyrio.gracelauncher.ui.theme.ProvideFontShadow
+import com.galaxyrio.gracelauncher.ui.theme.resolvedFontShadow
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.ClockAlignment
 import com.galaxyrio.gracelauncher.data.ClockColorPart
@@ -236,24 +238,26 @@ internal fun HomeClockHeader(
     fun primaryRegion(fillWidth: Boolean = true, inset: Boolean = true) {
         val primary = regions.primary?.takeIf(::isVisible) ?: return
         val face = regions.face(primary)
-        val primaryStyle = MaterialTheme.typography.bodyLarge.copy(
-            fontFamily = rememberAppFontFamily(face.fontId), fontWeight = FontWeight(face.weight),
-            fontSize = face.size.sp, lineHeight = (face.size * 1.15f).sp,
-            letterSpacing = face.letterSpacing.sp, shadow = clockFontShadow(face.fontShadow),
-        )
-        val alignment = when (regions.primaryAlignment) {
-            ClockAlignment.Left -> AbsoluteAlignment.CenterLeft
-            ClockAlignment.Center -> Alignment.Center
-            ClockAlignment.Right -> AbsoluteAlignment.CenterRight
-        }
-        Box(Modifier.then(if (fillWidth) Modifier.fillMaxWidth() else Modifier)
-            .then(if (inset) Modifier.padding(horizontal = LauncherLayout.ContentInset) else Modifier)
-            .testTag("clock_region:Primary"), contentAlignment = alignment) {
-            if (regions.rotatePrimary && !regions.rotateAll) ClockQuarterTurn(maxRotatedHeightPx) {
-                element(primary, true, primaryStyle, Modifier,
-                    showSeconds = !regions.stackedClock && face.showSeconds, useLatinLetters = face.useLatinLetters)
-            } else element(primary, true, primaryStyle, Modifier,
-                showSeconds = !regions.stackedClock && face.showSeconds, useLatinLetters = face.useLatinLetters)
+        ProvideFontShadow(face.shadow) {
+            val primaryStyle = MaterialTheme.typography.bodyLarge.copy(
+                fontFamily = rememberAppFontFamily(face.fontId), fontWeight = FontWeight(face.weight),
+                fontSize = face.size.sp, lineHeight = (face.size * 1.15f).sp,
+                letterSpacing = face.letterSpacing.sp, shadow = resolvedFontShadow().shadow,
+            )
+            val alignment = when (regions.primaryAlignment) {
+                ClockAlignment.Left -> AbsoluteAlignment.CenterLeft
+                ClockAlignment.Center -> Alignment.Center
+                ClockAlignment.Right -> AbsoluteAlignment.CenterRight
+            }
+            Box(Modifier.then(if (fillWidth) Modifier.fillMaxWidth() else Modifier)
+                .then(if (inset) Modifier.padding(horizontal = LauncherLayout.ContentInset) else Modifier)
+                .testTag("clock_region:Primary"), contentAlignment = alignment) {
+                if (regions.rotatePrimary && !regions.rotateAll) ClockQuarterTurn(maxRotatedHeightPx) {
+                    element(primary, true, primaryStyle, Modifier,
+                        showSeconds = face.showSeconds, useLatinLetters = face.useLatinLetters)
+                } else element(primary, true, primaryStyle, Modifier,
+                    showSeconds = face.showSeconds, useLatinLetters = face.useLatinLetters)
+            }
         }
     }
 
@@ -263,36 +267,38 @@ internal fun HomeClockHeader(
         val right = row.rightItems.filter(::isVisible)
         if (left.isEmpty() && right.isEmpty()) return
         val typography = row.typography
-        val rowStyle = MaterialTheme.typography.bodyLarge.copy(
-            fontFamily = rememberAppFontFamily(typography.fontId),
-            fontSize = typography.size.sp, lineHeight = (typography.size * 1.5f).sp,
-            fontWeight = FontWeight(typography.weight), shadow = clockFontShadow(typography.fontShadow),
-        )
-        val interactions = remember { MutableInteractionSource() }
-        Box(Modifier.then(if (wrapWidth) Modifier else Modifier.fillMaxWidth())
-            .testTag("clock_region:$name")
-            .semantics { contentDescription = dateDescription }
-            .then(if (interactive) Modifier.combinedClickable(
-                interactionSource = interactions, indication = null,
-                role = Role.Button, onClick = onDateClick, onLongClick = onLongClick,
-            ) else Modifier), propagateMinConstraints = true) {
-            ClockRegionRowLayout(left.size, right.size,
-                Modifier.then(if (inset) Modifier.padding(horizontal = LauncherLayout.ContentInset) else Modifier),
-                wrapWidth = wrapWidth, centered = row.centered) {
-                (left + right).forEach { item ->
-                    key(item) {
-                        if (interactive) element(item, false, rowStyle, Modifier,
-                            showSeconds = row.showSeconds, useLatinLetters = row.useLatinLetters,
-                            fixedClockWidth = row.fixedClockWidth)
-                        else ClockRegionItemMotion { movement -> element(item, false, rowStyle, movement,
-                            showSeconds = row.showSeconds, useLatinLetters = row.useLatinLetters,
-                            fixedClockWidth = row.fixedClockWidth) }
+        ProvideFontShadow(typography.shadow) {
+            val rowStyle = MaterialTheme.typography.bodyLarge.copy(
+                fontFamily = rememberAppFontFamily(typography.fontId),
+                fontSize = typography.size.sp, lineHeight = (typography.size * 1.5f).sp,
+                fontWeight = FontWeight(typography.weight), shadow = resolvedFontShadow().shadow,
+            )
+            val interactions = remember { MutableInteractionSource() }
+            Box(Modifier.then(if (wrapWidth) Modifier else Modifier.fillMaxWidth())
+                .testTag("clock_region:$name")
+                .semantics { contentDescription = dateDescription }
+                .then(if (interactive) Modifier.combinedClickable(
+                    interactionSource = interactions, indication = null,
+                    role = Role.Button, onClick = onDateClick, onLongClick = onLongClick,
+                ) else Modifier), propagateMinConstraints = true) {
+                ClockRegionRowLayout(left.size, right.size,
+                    Modifier.then(if (inset) Modifier.padding(horizontal = LauncherLayout.ContentInset) else Modifier),
+                    wrapWidth = wrapWidth, centered = row.centered) {
+                    (left + right).forEach { item ->
+                        key(item) {
+                            if (interactive) element(item, false, rowStyle, Modifier,
+                                showSeconds = row.showSeconds, useLatinLetters = row.useLatinLetters,
+                                fixedClockWidth = row.fixedClockWidth)
+                            else ClockRegionItemMotion { movement -> element(item, false, rowStyle, movement,
+                                showSeconds = row.showSeconds, useLatinLetters = row.useLatinLetters,
+                                fixedClockWidth = row.fixedClockWidth) }
+                        }
                     }
                 }
-            }
-            if (interactive) {
-                Box(Modifier.matchParentSize().clip(LauncherLayout.RowShape)
-                    .indication(interactions, ripple(color = appearance.text)))
+                if (interactive) {
+                    Box(Modifier.matchParentSize().clip(LauncherLayout.RowShape)
+                        .indication(interactions, ripple(color = appearance.text)))
+                }
             }
         }
     }

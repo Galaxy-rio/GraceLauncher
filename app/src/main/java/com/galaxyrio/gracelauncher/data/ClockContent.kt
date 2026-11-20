@@ -99,6 +99,7 @@ data class ClockAgenda(
             put("size", value.typography.size)
             put("weight", value.typography.weight)
             put("fontShadow", value.typography.fontShadow)
+            put("shadow", value.typography.shadow.json())
             put("fontId", value.typography.fontId ?: JSONObject.NULL)
         })
         put("eventCount", value.eventCount)
@@ -120,6 +121,8 @@ data class ClockAgenda(
                     typography?.optInt("weight", defaults.typography.weight) ?: defaults.typography.weight,
                     typography?.optInt("fontShadow", defaults.typography.fontShadow) ?: defaults.typography.fontShadow,
                     typography?.optString("fontId")?.takeIf { it.isNotBlank() && it != "null" },
+                    FontShadowOverride.decode(typography?.optJSONObject("shadow"),
+                        typography?.optInt("fontShadow", defaults.typography.fontShadow) ?: defaults.typography.fontShadow),
                 ),
                 eventCount = json.optInt("eventCount", defaults.eventCount),
                 useLatinLetters = json.optBoolean("useLatinLetters", defaults.useLatinLetters),

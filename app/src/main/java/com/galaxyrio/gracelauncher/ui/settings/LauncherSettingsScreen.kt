@@ -2,6 +2,7 @@
 
 package com.galaxyrio.gracelauncher.ui.settings
 
+import com.galaxyrio.gracelauncher.ui.theme.LocalFontShadowEnabled
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.PredictiveBackHandler
@@ -69,6 +70,7 @@ import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
+import com.galaxyrio.gracelauncher.ui.theme.withFontShadow
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherTypography
 import com.galaxyrio.gracelauncher.ui.theme.SystemLauncherTypography
 import kotlinx.coroutines.CancellationException
@@ -80,7 +82,7 @@ internal enum class SettingsPage {
     Root, Productivity, Clock, ClockStyle, Calendar, CalendarSources, CalendarApp, Weather, WeatherApp, Themes, Advanced, Language, About, HiddenApps, Folders, FolderEditor,
     Changelog, Licenses, AppLicense, IconPacks, IconDesigner, IconDesignerApp, PrivateSpace, PrivateSpaceEditor, Search,
     MediaPlayer, GraceButton, GraceAction, GraceApp, GraceShortcut, GraceFolder, Gestures, WorkProfile, WorkProfileEditor,
-    LabGraceButton, LabGesture, LabPopup, LabAccessibility, LabDismiss, Fonts, FontColors, ListAppearance, Alphabet, ShortcutsFolders, AppStacks, WidgetStacks,
+    LabGraceButton, LabGesture, LabPopup, LabAccessibility, LabDismiss, Fonts, FontColors, FontShadow, ListAppearance, Alphabet, ShortcutsFolders, AppStacks, WidgetStacks,
     GraceButtonAppearance, GraceButtonPosition, AgendaAppearance, SearchAppearance, MediaPlayerAppearance,
     WidgetScreen, WidgetScreenEditor, Homepage, AppList, FeedScreen, StatusScreen, DigitalWellbeing, TabletsFoldables,
     Wallpaper, WallpaperDesigner,
@@ -162,8 +164,9 @@ fun LauncherSettingsScreen(
     )
     val reportSystemBarBackground by rememberUpdatedState(LocalSettingsSystemBarBackground.current)
     DisposableEffect(Unit) { onDispose { reportSystemBarBackground(SettingsSystemBarBackground.Surface) } }
-    MaterialTheme(typography = if (uiState.settings.applyFontToSettings) LocalLauncherTypography.current else SystemLauncherTypography) {
-     CompositionLocalProvider(LocalSettingsStorageState provides storage) {
+    MaterialTheme(typography = (if (uiState.settings.applyFontToSettings) LocalLauncherTypography.current else SystemLauncherTypography)
+        .withFontShadow(androidx.compose.ui.graphics.Shadow.None)) {
+     CompositionLocalProvider(LocalFontShadowEnabled provides false, LocalSettingsStorageState provides storage) {
       NavHost(
         navController = navController,
         startDestination = startDestination,
@@ -172,7 +175,7 @@ fun LauncherSettingsScreen(
             translationX = distance * direction * rootExit.value
         }.background(if (currentEntry?.destination?.route in listOf(SettingsPage.ClockStyle.name, SettingsPage.IconDesigner.name,
             SettingsPage.ListAppearance.name, SettingsPage.Alphabet.name, SettingsPage.GraceButtonAppearance.name, SettingsPage.GraceButtonPosition.name,
-            SettingsPage.MediaPlayerAppearance.name))
+            SettingsPage.MediaPlayerAppearance.name, SettingsPage.FontShadow.name))
             Color.Transparent else MaterialTheme.colorScheme.surfaceContainer),
         enterTransition = { settingsEnter(distance) },
         exitTransition = { settingsExit(distance) },
@@ -317,8 +320,10 @@ fun LauncherSettingsScreen(
                     SettingsPage.SearchAppearance -> SettingsPlaceholder(stringResource(R.string.settings_search), "search_appearance", back)
                     SettingsPage.MediaPlayerAppearance -> MediaPlayerAppearanceSettings(uiState, actions, back)
                     SettingsPage.ClockStyle -> ClockStyleSettings(uiState, actions, back) { navigate(SettingsPage.Fonts) }
-                    SettingsPage.Fonts -> FontSettings(uiState, actions, back) { navigate(SettingsPage.FontColors) }
+                    SettingsPage.Fonts -> FontSettings(uiState, actions, back,
+                        onFontColors = { navigate(SettingsPage.FontColors) }, onFontShadow = { navigate(SettingsPage.FontShadow) })
                     SettingsPage.FontColors -> FontColorSettings(uiState, actions, back)
+                    SettingsPage.FontShadow -> FontShadowSettings(uiState, uiState.settings.fontShadow, back, actions.applyFontShadow)
                     SettingsPage.Wallpaper -> WallpaperSettings(uiState, actions, back,
                         onDesigner = { navigate(SettingsPage.WallpaperDesigner) },
                         onChooseWallpaper = { if (isCurrent()) actions.chooseWallpaper() })

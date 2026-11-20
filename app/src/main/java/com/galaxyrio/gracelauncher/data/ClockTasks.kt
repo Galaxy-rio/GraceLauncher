@@ -28,6 +28,7 @@ data class ClockTasks(
             put("size", value.typography.size)
             put("weight", value.typography.weight)
             put("fontShadow", value.typography.fontShadow)
+            put("shadow", value.typography.shadow.json())
             put("fontId", value.typography.fontId ?: JSONObject.NULL)
         })
         put("taskCount", value.taskCount)
@@ -53,6 +54,8 @@ data class ClockTasks(
                     size = typography?.optInt("size", defaults.typography.size) ?: defaults.typography.size,
                     weight = typography?.optInt("weight", defaults.typography.weight) ?: defaults.typography.weight,
                     fontShadow = typography?.optInt("fontShadow", defaults.typography.fontShadow) ?: defaults.typography.fontShadow,
+                    shadow = FontShadowOverride.decode(typography?.optJSONObject("shadow"),
+                        typography?.optInt("fontShadow", defaults.typography.fontShadow) ?: defaults.typography.fontShadow),
                     fontId = typography?.optString("fontId")?.takeIf { it.isNotBlank() && it != "null" },
                 ),
                 taskCount = json.optInt("taskCount", defaults.taskCount),

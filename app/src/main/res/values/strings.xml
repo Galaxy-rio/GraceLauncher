@@ -749,8 +749,10 @@
     <!-- Clock style -->
     <string name="clock_style_apply">Apply</string>
     <string name="clock_layout">Clock layout</string>
-    <string name="clock_single_line">Single line</string>
-    <string name="clock_two_lines">Two lines</string>
+    <string name="clock_single_line">Horizontal</string>
+    <string name="clock_two_lines">Vertical</string>
+    <string name="clock_minute_scale">Minute font scale</string>
+    <string name="clock_second_scale">Second font scale</string>
     <string name="clock_week" translatable="false">Week</string>
     <string name="clock_sacramento" translatable="false">Sacramento</string>
     <string name="clock_bokor" translatable="false">Bokor</string>
@@ -1210,4 +1212,14 @@
     <string name="widget_stack_apply_background_all">Apply background color to all</string>
     <string name="widget_stack_remove_widget_title">Remove widget</string>
     <string name="widget_stack_remove_widget_confirmation">Remove “%1$s” from this stack?</string>
+    <string name="font_shadow_soft">Soft</string>
+    <string name="font_shadow_sharp">Sharp</string>
+    <string name="font_shadow_custom">Custom</string>
+    <string name="font_shadow_opacity">Shadow opacity</string>
+    <string name="font_shadow_blur">Blur</string>
+    <string name="font_shadow_offset_x">X offset</string>
+    <string name="font_shadow_offset_y">Y offset</string>
+    <string name="font_shadow_spread">Spread</string>
+    <string name="font_shadow_override">Override default shadow</string>
+    <string name="font_shadow_unsaved_message">Save changes to the font shadow before leaving?</string>
 </resources>

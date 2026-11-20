@@ -57,6 +57,9 @@ data class ClockFaceStyle(
     val equalWidthDigits: Boolean = false,
     val centerDigits: Boolean = false,
     val useLatinLetters: Boolean = false,
+    val minuteScale: Int = 100,
+    val secondScale: Int = 100,
+    val shadow: FontShadowOverride = FontShadowOverride.fromLegacy(fontShadow),
 ) {
     fun maxWeight(layout: ClockLayout) = if (layout.presetFont == null && fontId == null) 700 else 900
 
@@ -67,6 +70,9 @@ data class ClockFaceStyle(
         letterSpacing = letterSpacing.coerceIn(-16, 16),
         hourMinuteSpacing = hourMinuteSpacing.coerceIn(-16, 64),
         fontShadow = fontShadow.coerceIn(0, 24),
+        minuteScale = minuteScale.coerceIn(20, 150),
+        secondScale = secondScale.coerceIn(20, 150),
+        shadow = shadow.normalized(),
     )
 }
 
@@ -150,6 +156,7 @@ data class ClockStyle(
             put("letterSpacing", safe.letterSpacing)
             put("hourMinuteSpacing", safe.hourMinuteSpacing)
             put("fontShadow", safe.fontShadow)
+            put("shadow", safe.shadow.json())
             put("showColon", safe.showColon)
             put("separateDigits", safe.separateDigits)
             put("showLeadingZero", safe.showLeadingZero)
@@ -157,6 +164,8 @@ data class ClockStyle(
             put("equalWidthDigits", safe.equalWidthDigits)
             put("centerDigits", safe.centerDigits)
             put("useLatinLetters", safe.useLatinLetters)
+            put("minuteScale", safe.minuteScale)
+            put("secondScale", safe.secondScale)
         }
         // Preserve the original keys so existing clocks keep their saved appearance.
         put("singleLine", encodeFace(singleLine, ClockLayout.SingleLine))
@@ -190,6 +199,7 @@ data class ClockStyle(
                     letterSpacing = data.optInt("letterSpacing", defaults.letterSpacing),
                     hourMinuteSpacing = data.optInt("hourMinuteSpacing", defaults.hourMinuteSpacing),
                     fontShadow = data.optInt("fontShadow", defaults.fontShadow),
+                    shadow = FontShadowOverride.decode(data.optJSONObject("shadow"), data.optInt("fontShadow", defaults.fontShadow)),
                     showColon = data.optBoolean("showColon", defaults.showColon),
                     separateDigits = data.optBoolean("separateDigits", defaults.separateDigits),
                     showLeadingZero = data.optBoolean("showLeadingZero", defaults.showLeadingZero),
@@ -197,6 +207,8 @@ data class ClockStyle(
                     equalWidthDigits = data.optBoolean("equalWidthDigits", defaults.equalWidthDigits),
                     centerDigits = data.optBoolean("centerDigits", defaults.centerDigits),
                     useLatinLetters = data.optBoolean("useLatinLetters", defaults.useLatinLetters),
+                    minuteScale = data.optInt("minuteScale", defaults.minuteScale),
+                    secondScale = data.optInt("secondScale", defaults.secondScale),
                 ).normalized(layout)
             }
             val presets = json.optJSONObject("presets")

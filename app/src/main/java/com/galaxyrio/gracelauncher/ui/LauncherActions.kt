@@ -1,5 +1,6 @@
 package com.galaxyrio.gracelauncher.ui
 
+import com.galaxyrio.gracelauncher.data.FontShadow
 import androidx.compose.ui.geometry.Rect
 import android.net.Uri
 import com.galaxyrio.gracelauncher.data.ItemIcon
@@ -69,6 +70,7 @@ data class LauncherActions(
     val refreshApps: () -> Unit = {},
     val updateSettings: ((LauncherSettings) -> LauncherSettings) -> Unit = {},
     val applyClockStyle: suspend (ClockStyle) -> Boolean = { false },
+    val applyFontShadow: suspend (FontShadow) -> Boolean = { false },
     val applyAgendaAppearance: suspend (AgendaAppearance, HomeLayout?) -> Boolean = { _, _ -> false },
     val discardAgendaWidgetDraft: suspend () -> Boolean = { false },
     val applyMediaStyle: suspend (MediaPlayerStyle) -> Boolean = { false },

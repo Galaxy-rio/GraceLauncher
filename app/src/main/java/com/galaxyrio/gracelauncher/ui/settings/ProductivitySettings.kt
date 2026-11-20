@@ -2,6 +2,7 @@
 
 package com.galaxyrio.gracelauncher.ui.settings
 
+import com.galaxyrio.gracelauncher.ui.theme.LocalFontShadowEnabled
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
@@ -61,6 +62,7 @@ import com.galaxyrio.gracelauncher.ui.overlays.PopupEditorScreen
 import com.galaxyrio.gracelauncher.ui.overlays.TextEntryDialog
 import com.galaxyrio.gracelauncher.ui.overlays.FolderPlacementDialog
 import com.galaxyrio.gracelauncher.ui.overlays.DeleteFolderDialog
+import com.galaxyrio.gracelauncher.ui.theme.withFontShadow
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherTypography
 import com.galaxyrio.gracelauncher.ui.theme.SystemLauncherTypography
 import java.util.UUID
@@ -274,8 +276,9 @@ internal fun FavoriteFoldersScreen(uiState: LauncherUiState, actions: LauncherAc
         }
     }
     BackHandler(onBack = confirm)
-    MaterialTheme(typography = if (uiState.settings.applyFontToSettings) LocalLauncherTypography.current else SystemLauncherTypography) {
-        CompositionLocalProvider(LocalSettingsStorageState provides SettingsStorageState(
+    MaterialTheme(typography = (if (uiState.settings.applyFontToSettings) LocalLauncherTypography.current else SystemLauncherTypography)
+        .withFontShadow(androidx.compose.ui.graphics.Shadow.None)) {
+        CompositionLocalProvider(LocalFontShadowEnabled provides false, LocalSettingsStorageState provides SettingsStorageState(
             uiState.isLoadingSettings, uiState.settingsLoadFailed, uiState.settingsSaveFailed,
         )) {
             FolderSettings(uiState, actions, confirm, selectedIds = selectedIds, enabled = !saving,

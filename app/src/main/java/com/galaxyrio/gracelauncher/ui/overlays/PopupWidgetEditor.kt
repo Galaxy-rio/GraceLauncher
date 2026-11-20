@@ -2,6 +2,7 @@
 
 package com.galaxyrio.gracelauncher.ui.overlays
 
+import com.galaxyrio.gracelauncher.ui.theme.WithoutFontShadow
 import android.appwidget.AppWidgetProviderInfo
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -14,6 +15,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
+import com.galaxyrio.gracelauncher.ui.theme.FontShadowText as Text
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -59,7 +61,7 @@ import kotlin.math.roundToInt
 internal fun PopupWidgetControls(
     layout: HomeLayout, onChange: (HomeLayout, Boolean) -> Unit, onDone: () -> Unit,
     onDelete: () -> Unit,
-) {
+) = WithoutFontShadow {
     val currentLayout by rememberUpdatedState(layout)
     val currentChange by rememberUpdatedState(onChange)
     var latestScale by remember(layout.widgetId) { mutableIntStateOf(layout.popupContentScale) }

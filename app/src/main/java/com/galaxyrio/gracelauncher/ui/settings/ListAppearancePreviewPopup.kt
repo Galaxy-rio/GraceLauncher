@@ -1,5 +1,6 @@
 package com.galaxyrio.gracelauncher.ui.settings
 
+import com.galaxyrio.gracelauncher.ui.theme.LocalFontShadowEnabled
 import android.content.ComponentName
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
@@ -187,7 +188,7 @@ internal fun ListAppearancePreviewPopup(
         current.reveal.dragging = false
         current.reveal.expanded = false
     }
-    CompositionLocalProvider(LocalLauncherAppearance provides appearance, LocalListAppearance provides list) {
+    CompositionLocalProvider(LocalFontShadowEnabled provides true, LocalLauncherAppearance provides appearance, LocalListAppearance provides list) {
         val app = current.app
         if (app == null) FolderPopup(
             folder = content.folder, apps = content.apps, anchor = current.anchor, reveal = current.reveal,

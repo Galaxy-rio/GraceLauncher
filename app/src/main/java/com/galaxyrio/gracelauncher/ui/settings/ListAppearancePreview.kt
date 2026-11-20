@@ -2,6 +2,7 @@
 
 package com.galaxyrio.gracelauncher.ui.settings
 
+import com.galaxyrio.gracelauncher.ui.theme.LocalFontShadowEnabled
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -34,7 +35,7 @@ internal fun ListAppearancePreview(uiState: LauncherUiState, list: ListAppearanc
     val popupSettings = uiState.settings.shortcutsFolders
     val notifications = popupSettings.previewNotifications(content.notifications)
     CompositionLocalProvider(
-        LocalLauncherAppearance provides appearance,
+        LocalFontShadowEnabled provides true, LocalLauncherAppearance provides appearance,
         LocalListAppearance provides list,
         LocalLauncherInputEnabled provides false,
         LocalPopupGestureSettings provides popupSettings,

@@ -1,5 +1,7 @@
 package com.galaxyrio.gracelauncher.ui.components
 
+import com.galaxyrio.gracelauncher.ui.theme.resolvedFontShadow
+import com.galaxyrio.gracelauncher.ui.theme.FontShadowMaskCache
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
@@ -21,7 +23,7 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.galaxyrio.gracelauncher.ui.theme.FontShadowText as Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -386,6 +388,8 @@ fun AlphabetRail(
 /** Center the visible glyph, not the font's asymmetric ascent/descent line box. */
 @Composable
 private fun CenteredIndicatorGlyph(letter: String, color: Color, fontFamily: FontFamily?) {
+    val shadow = resolvedFontShadow()
+    val shadowMask = remember { FontShadowMaskCache() }
     val density = LocalDensity.current
     val typeface = LocalFontFamilyResolver.current.resolve(
         fontFamily = fontFamily ?: FontFamily.Default,
@@ -416,12 +420,22 @@ private fun CenteredIndicatorGlyph(letter: String, color: Color, fontFamily: Fon
                 paint.textSize = fontSize * fit
                 paint.getTextBounds(letter, 0, letter.length, glyphBounds)
             }
-            drawContext.canvas.nativeCanvas.drawText(
-                letter,
-                center.x - glyphBounds.exactCenterX(),
-                center.y - glyphBounds.exactCenterY(),
-                paint,
-            )
+            val x = center.x - glyphBounds.exactCenterX()
+            val y = center.y - glyphBounds.exactCenterY()
+            val canvas = drawContext.canvas.nativeCanvas
+            shadowMask.draw(canvas, listOf(letter, typeface, paint.textSize, size), size.width, size.height,
+                0f, shadow) { target, spread ->
+                val maskPaint = Paint(paint).apply {
+                    this.color = android.graphics.Color.WHITE
+                    if (spread > 0f) {
+                        style = Paint.Style.FILL_AND_STROKE
+                        strokeWidth = spread * 2f
+                        strokeJoin = Paint.Join.ROUND
+                    }
+                }
+                target.drawText(letter, x, y, maskPaint)
+            }
+            canvas.drawText(letter, x, y, paint)
         }
     }
 }

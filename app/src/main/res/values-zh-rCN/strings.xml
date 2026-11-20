@@ -757,8 +757,10 @@
     <!-- Clock style -->
     <string name="clock_style_apply">应用</string>
     <string name="clock_layout">时钟样式</string>
-    <string name="clock_single_line">单行排列</string>
-    <string name="clock_two_lines">双行排列</string>
+    <string name="clock_single_line">水平排列</string>
+    <string name="clock_two_lines">竖直排列</string>
+    <string name="clock_minute_scale">分字体缩放</string>
+    <string name="clock_second_scale">秒字体缩放</string>
     <string name="clock_font_default">默认字体 · Josefin Sans</string>
     <string name="clock_font_import">导入字体</string>
     <string name="clock_font_importing">正在导入字体…</string>
@@ -1174,4 +1176,14 @@
     <string name="widget_stack_apply_background_all">应用背景颜色到所有</string>
     <string name="widget_stack_remove_widget_title">移除小组件</string>
     <string name="widget_stack_remove_widget_confirmation">从此小组件堆中移除“%1$s”？</string>
+    <string name="font_shadow_soft">柔和</string>
+    <string name="font_shadow_sharp">锐利</string>
+    <string name="font_shadow_custom">自定义</string>
+    <string name="font_shadow_opacity">阴影不透明度</string>
+    <string name="font_shadow_blur">模糊</string>
+    <string name="font_shadow_offset_x">X 轴偏移</string>
+    <string name="font_shadow_offset_y">Y 轴偏移</string>
+    <string name="font_shadow_spread">扩展范围</string>
+    <string name="font_shadow_override">覆盖默认阴影</string>
+    <string name="font_shadow_unsaved_message">是否在退出前保存字体阴影的更改？</string>
 </resources>

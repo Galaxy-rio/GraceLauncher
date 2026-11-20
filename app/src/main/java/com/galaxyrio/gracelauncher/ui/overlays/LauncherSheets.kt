@@ -1,5 +1,7 @@
 package com.galaxyrio.gracelauncher.ui.overlays
 
+import com.galaxyrio.gracelauncher.ui.theme.resolvedFontShadow
+import com.galaxyrio.gracelauncher.ui.theme.FontShadowInput
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.activity.compose.BackHandler
@@ -15,6 +17,7 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.material3.*
+import com.galaxyrio.gracelauncher.ui.theme.FontShadowText as Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -486,12 +489,21 @@ private fun CategoryAppsSheet(name: String, uiState: LauncherUiState, onLaunch: 
 
 @Composable
 internal fun TextEntryDialog(title: String, initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit, onReset: (() -> Unit)? = null) {
-    var value by remember { mutableStateOf(initial) }
+    val input = androidx.compose.foundation.text.input.rememberTextFieldState(initial)
+    val value = input.text.toString()
     AlertDialog(
         onDismissRequest = onDismiss,
         shape = RoundedCornerShape(40.dp),
         title = { Text(title) },
-        text = { OutlinedTextField(value, onValueChange = { value = it.take(80) }, singleLine = true, modifier = Modifier.testTag("text_entry")) },
+        text = {
+            if (resolvedFontShadow().spread > 0f) {
+                FontShadowInput(input, modifier = Modifier.testTag("text_entry"),
+                    inputTransformation = androidx.compose.foundation.text.input.InputTransformation {
+                        if (length > 80) replace(80, length, "")
+                    })
+            } else OutlinedTextField(value, onValueChange = { next -> input.edit { replace(0, length, next.take(80)) } },
+                singleLine = true, modifier = Modifier.testTag("text_entry"))
+        },
         confirmButton = { TextButton(onClick = { onSave(value.trim()) }, enabled = value.isNotBlank()) { Text(stringResource(R.string.save)) } },
         dismissButton = {
             Row {

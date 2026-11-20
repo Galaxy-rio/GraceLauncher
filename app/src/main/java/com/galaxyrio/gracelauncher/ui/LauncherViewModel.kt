@@ -1,5 +1,6 @@
 package com.galaxyrio.gracelauncher.ui
 
+import com.galaxyrio.gracelauncher.data.FontShadow
 import android.Manifest
 import android.app.Application
 import android.content.BroadcastReceiver
@@ -1547,6 +1548,19 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         } catch (error: Exception) {
             if (error is CancellationException) throw error
             Log.e("LauncherViewModel", "Unable to save media style", error)
+            _uiState.update { it.copy(settingsSaveFailed = true) }
+            false
+        }
+    }
+
+    suspend fun applyFontShadow(shadow: FontShadow): Boolean = settingsWriteMutex.withLock {
+        try {
+            settingsRepository.mutateSettings { it.copy(fontShadow = shadow.normalized()) }
+            _uiState.update { it.copy(settingsSaveFailed = false) }
+            true
+        } catch (error: Exception) {
+            if (error is CancellationException) throw error
+            Log.e("LauncherViewModel", "Unable to save font shadow", error)
             _uiState.update { it.copy(settingsSaveFailed = true) }
             false
         }

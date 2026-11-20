@@ -54,6 +54,7 @@ data class LauncherSettings(
     val appFontId: String? = null,
     val fontLibrary: FontLibrary = FontLibrary(),
     val fontColors: FontColors = FontColors(),
+    val fontShadow: FontShadow = FontShadow(),
     val listAppearance: ListAppearance = ListAppearance(),
     val applyFontToSettings: Boolean = true,
     val privateSpace: ProfileSettings = ProfileSettings(),

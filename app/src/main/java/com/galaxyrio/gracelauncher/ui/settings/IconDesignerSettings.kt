@@ -2,6 +2,7 @@
 
 package com.galaxyrio.gracelauncher.ui.settings
 
+import com.galaxyrio.gracelauncher.ui.theme.LocalFontShadowEnabled
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -52,7 +53,7 @@ internal fun IconDesignerPreview(
     val appearance = rememberLauncherAppearance(uiState.textMode, uiState.themedIcons,
         iconSize = design.iconSize, iconDisplay = rowDisplay)
     Box(modifier.fillMaxWidth().testTag("icon_designer_preview").clipToBounds(), contentAlignment = Alignment.Center) {
-        CompositionLocalProvider(LocalLauncherAppearance provides appearance) {
+        CompositionLocalProvider(LocalFontShadowEnabled provides true, LocalLauncherAppearance provides appearance) {
             MaterialTheme(typography = LocalLauncherTypography.current) {
                 if (all) AllIconsPreview(uiState, choice, store, dynamicColors, themeColors)
                 else if (selectedApp == null) {

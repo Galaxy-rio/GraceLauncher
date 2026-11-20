@@ -2,6 +2,7 @@
 
 package com.galaxyrio.gracelauncher.ui.settings
 
+import com.galaxyrio.gracelauncher.ui.theme.LocalFontShadowEnabled
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -142,6 +143,7 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
     var editingContent by rememberSaveable { mutableStateOf<ClockContentPage?>(null) }
     var editingFont by rememberSaveable { mutableStateOf<ClockElement?>(null) }
     var editingRegionFont by rememberSaveable { mutableStateOf<ClockRegion?>(null) }
+    var editingShadow by rememberSaveable { mutableStateOf<ClockRegion?>(null) }
     var weatherIcons by rememberSaveable { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     val enabled = !saving && LocalSettingsStorageState.current.canEdit
@@ -256,6 +258,34 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
     val styleListState = rememberLazyListState()
     val presetsListState = rememberLazyListState()
     val colorsListState = rememberLazyListState()
+    editingShadow?.let { target ->
+        val primary = regions.primary ?: ClockElement.Clock
+        val shadow = when (target) {
+            ClockRegion.Primary -> regions.face(primary).shadow
+            ClockRegion.Secondary -> regions.secondary.typography.shadow
+            ClockRegion.Tertiary -> regions.tertiary.typography.shadow
+            ClockRegion.Agenda -> regions.agenda.typography.shadow
+            ClockRegion.Task -> regions.tasks.typography.shadow
+        }
+        key(target, primary) {
+            FontShadowSettings(uiState, shadow.shadow, onBack = { editingShadow = null }) { value ->
+                updateRegions { current -> when (target) {
+                    ClockRegion.Primary -> current.copy(primaryFaces = current.primaryFaces +
+                        (primary to current.face(primary).copy(shadow = shadow.copy(shadow = value))))
+                    ClockRegion.Secondary -> current.copy(secondary = current.secondary.copy(
+                        typography = current.secondary.typography.copy(shadow = shadow.copy(shadow = value))))
+                    ClockRegion.Tertiary -> current.copy(tertiary = current.tertiary.copy(
+                        typography = current.tertiary.typography.copy(shadow = shadow.copy(shadow = value))))
+                    ClockRegion.Agenda -> current.copy(agenda = current.agenda.copy(
+                        typography = current.agenda.typography.copy(shadow = shadow.copy(shadow = value))))
+                    ClockRegion.Task -> current.copy(tasks = current.tasks.copy(
+                        typography = current.tasks.typography.copy(shadow = shadow.copy(shadow = value))))
+                } }
+                true
+            }
+        }
+        return
+    }
     val pageTransition = updateTransition(page, label = "clockEditorPage")
     val reportSystemBarBackground = LocalSettingsSystemBarBackground.current
     val systemBarBackground = if (pageTransition.currentState == ClockEditorPage.Presets &&
@@ -411,7 +441,7 @@ internal fun ClockStyleSettings(uiState: LauncherUiState, actions: LauncherActio
                                         onWeatherContent = { editingContent = ClockContentPage.Weather },
                                         onAgendaContent = { editingContent = ClockContentPage.Agenda },
                                         onTaskContent = { editingContent = ClockContentPage.Task },
-                                        onRegionFont = { editingRegionFont = it })
+                                        onRegionFont = { editingRegionFont = it }, onShadow = { editingShadow = it })
                                 }
                             }
                         }
@@ -622,7 +652,7 @@ private fun ClockStylePreview(
             modifier = Modifier.heightIn(min = minimumPreviewHeight, max = maximumPreviewHeight),
             boundsTransform = boundsTransform,
         ).clipToBounds(), contentAlignment = Alignment.CenterStart) {
-        CompositionLocalProvider(LocalLauncherAppearance provides appearance) {
+        CompositionLocalProvider(LocalFontShadowEnabled provides true, LocalLauncherAppearance provides appearance) {
             MaterialTheme(typography = LocalLauncherTypography.current) {
                 Box(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
                     HomeClockHeader(

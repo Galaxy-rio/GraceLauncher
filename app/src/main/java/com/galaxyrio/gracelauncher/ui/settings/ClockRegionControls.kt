@@ -59,6 +59,7 @@ internal fun LazyListScope.clockRegionSettings(
     onAgendaContent: () -> Unit,
     onTaskContent: () -> Unit,
     onRegionFont: (ClockRegion) -> Unit,
+    onShadow: (ClockRegion) -> Unit,
 ) {
     fun group(region: ClockRegion, controls: List<ClockControl>) {
         val expanded = region.name in expandedGroups
@@ -118,11 +119,11 @@ internal fun LazyListScope.clockRegionSettings(
                     onSelect = { stacked -> onChange { it.copy(stackedClock = stacked) } })
             }
         }
-        if (primary == ClockElement.Clock && !regions.stackedClock) primaryControls += ClockControl("seconds") { index, count ->
+        if (primary == ClockElement.Clock) primaryControls += ClockControl("seconds") { index, count ->
             SettingsToggleItem(stringResource(R.string.clock_show_seconds), null, face.showSeconds,
                 index, count, "clock_show_seconds", enabled) { value -> changeFace(primary) { it.copy(showSeconds = value) } }
         }
-        if (primary == ClockElement.Clock && regions.stackedClock) {
+        if (primary == ClockElement.Clock) {
             primaryControls += ClockControl("equal_width") { index, count ->
                 SettingsToggleItem(stringResource(R.string.clock_equal_width_characters), null, face.equalWidthDigits,
                     index, count, "clock_equal_width_characters", enabled) { value ->
@@ -150,6 +151,20 @@ internal fun LazyListScope.clockRegionSettings(
             ClockSlider(stringResource(R.string.clock_size), face.size, defaults.size, 32..144, 1,
                 index, count, "clock_size", enabled) { value -> changeFace(primary) { it.copy(size = value) } }
         }
+        if (primary == ClockElement.Clock) {
+            primaryControls += ClockControl("minute_scale") { index, count ->
+                ClockSlider(stringResource(R.string.clock_minute_scale), face.minuteScale, 100, 20..150, 1,
+                    index, count, "clock_minute_scale", enabled, valueLabel = "${face.minuteScale}%") { value ->
+                    changeFace(primary) { it.copy(minuteScale = value) }
+                }
+            }
+            primaryControls += ClockControl("second_scale") { index, count ->
+                ClockSlider(stringResource(R.string.clock_second_scale), face.secondScale, 100, 20..150, 1,
+                    index, count, "clock_second_scale", enabled, valueLabel = "${face.secondScale}%") { value ->
+                    changeFace(primary) { it.copy(secondScale = value) }
+                }
+            }
+        }
         primaryControls += ClockControl("weight") { index, count ->
             ClockSlider(stringResource(R.string.clock_weight), face.weight, defaults.weight,
                 100..face.maxWeight(ClockLayout.SingleLine), 100, index, count, "clock_weight", enabled) { value ->
@@ -169,8 +184,9 @@ internal fun LazyListScope.clockRegionSettings(
             }
         }
         primaryControls += ClockControl("shadow") { index, count ->
-            ClockSlider(stringResource(R.string.clock_font_shadow), face.fontShadow, defaults.fontShadow,
-                0..24, 1, index, count, "clock_font_shadow", enabled) { value -> changeFace(primary) { it.copy(fontShadow = value) } }
+            FontShadowOverrideItem(face.shadow, index, count, "clock_font_shadow", enabled,
+                onToggle = { value -> changeFace(primary) { it.copy(shadow = it.shadow.copy(enabled = value)) } },
+                onOpen = { onShadow(ClockRegion.Primary) })
         }
         if (primary == ClockElement.Clock) {
             primaryControls += ClockControl("leading_zero") { index, count ->
@@ -240,10 +256,9 @@ internal fun LazyListScope.clockRegionSettings(
                 }
             }
             controls += ClockControl("shadow") { index, count ->
-                ClockSlider(stringResource(R.string.clock_font_shadow), row.typography.fontShadow, defaults.fontShadow, 0..24, 1,
-                    index, count, "${prefix}_font_shadow", enabled) { value ->
-                    changeRow { it.copy(typography = it.typography.copy(fontShadow = value)) }
-                }
+                FontShadowOverrideItem(row.typography.shadow, index, count, "${prefix}_font_shadow", enabled,
+                    onToggle = { value -> changeRow { it.copy(typography = it.typography.copy(
+                        shadow = it.typography.shadow.copy(enabled = value))) } }, onOpen = { onShadow(region) })
             }
         }
         if (ClockElement.Clock in row.selected) {
@@ -315,10 +330,9 @@ internal fun LazyListScope.clockRegionSettings(
             }
         }
         agendaControls += ClockControl("shadow") { index, count ->
-            ClockSlider(stringResource(R.string.clock_font_shadow), agenda.typography.fontShadow, defaults.fontShadow, 0..24, 1,
-                index, count, "clock_agenda_font_shadow", enabled) { value ->
-                changeAgenda { it.copy(typography = it.typography.copy(fontShadow = value)) }
-            }
+            FontShadowOverrideItem(agenda.typography.shadow, index, count, "clock_agenda_font_shadow", enabled,
+                onToggle = { value -> changeAgenda { it.copy(typography = it.typography.copy(
+                    shadow = it.typography.shadow.copy(enabled = value))) } }, onOpen = { onShadow(ClockRegion.Agenda) })
         }
     }
     if (ClockAgendaField.Date in agenda.selected) agendaControls += ClockControl("latin_letters") { index, count ->
@@ -364,10 +378,9 @@ internal fun LazyListScope.clockRegionSettings(
             }
         }
         taskControls += ClockControl("shadow") { index, count ->
-            ClockSlider(stringResource(R.string.clock_font_shadow), tasks.typography.fontShadow, defaults.fontShadow, 0..24, 1,
-                index, count, "clock_task_font_shadow", enabled) { value ->
-                changeTasks { it.copy(typography = it.typography.copy(fontShadow = value)) }
-            }
+            FontShadowOverrideItem(tasks.typography.shadow, index, count, "clock_task_font_shadow", enabled,
+                onToggle = { value -> changeTasks { it.copy(typography = it.typography.copy(
+                    shadow = it.typography.shadow.copy(enabled = value))) } }, onOpen = { onShadow(ClockRegion.Task) })
         }
     }
     if (ClockTaskField.DueDate in tasks.selected || ClockTaskField.StartDate in tasks.selected) {

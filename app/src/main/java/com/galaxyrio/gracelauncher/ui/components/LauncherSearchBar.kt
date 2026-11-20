@@ -2,9 +2,12 @@
 
 package com.galaxyrio.gracelauncher.ui.components
 
+import com.galaxyrio.gracelauncher.ui.theme.resolvedFontShadow
+import com.galaxyrio.gracelauncher.ui.theme.FontShadowInput
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.*
+import com.galaxyrio.gracelauncher.ui.theme.FontShadowText as Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -45,7 +48,24 @@ internal fun LauncherSearchBar(
         shadowElevation = SearchBarDefaults.ShadowElevation,
     ) {
         val keyboard = LocalSoftwareKeyboardController.current
-        SearchBarDefaults.InputField(
+        val leading: @Composable () -> Unit = {
+            if (onBack != null) IconButton(onClick = { keyboard?.hide(); onBack() }) {
+                Icon(painterResource(R.drawable.ms_arrow_back), stringResource(R.string.settings_back))
+            } else Icon(painterResource(R.drawable.ms_search), null)
+        }
+        val trailing: @Composable () -> Unit = {
+            if (trailingIcon != null) trailingIcon()
+            else if (textFieldState.text.isNotEmpty()) IconButton(onClick = { textFieldState.edit { replace(0, length, "") } }, enabled = enabled,
+                modifier = Modifier.testTag("${tag}_clear")) {
+                Icon(painterResource(R.drawable.ms_close), stringResource(R.string.search_clear_query))
+            }
+        }
+        if (resolvedFontShadow().spread > 0f) {
+            FontShadowInput(textFieldState,
+                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester).testTag(tag),
+                enabled = enabled, search = true, placeholder = { Text(placeholder) },
+                leadingIcon = leading, trailingIcon = trailing, onSearch = { keyboard?.hide(); onSearch?.invoke() })
+        } else SearchBarDefaults.InputField(
             textFieldState = textFieldState,
             searchBarState = state,
             onSearch = { keyboard?.hide(); onSearch?.invoke() },
@@ -53,18 +73,8 @@ internal fun LauncherSearchBar(
             modifier = Modifier.fillMaxWidth().focusRequester(focusRequester).testTag(tag),
             colors = colors.inputFieldColors,
             placeholder = { Text(placeholder) },
-            leadingIcon = {
-                if (onBack != null) IconButton(onClick = { keyboard?.hide(); onBack() }) {
-                    Icon(painterResource(R.drawable.ms_arrow_back), stringResource(R.string.settings_back))
-                } else Icon(painterResource(R.drawable.ms_search), null)
-            },
-            trailingIcon = {
-                if (trailingIcon != null) trailingIcon()
-                else if (textFieldState.text.isNotEmpty()) IconButton(onClick = { textFieldState.edit { replace(0, length, "") } }, enabled = enabled,
-                    modifier = Modifier.testTag("${tag}_clear")) {
-                    Icon(painterResource(R.drawable.ms_close), stringResource(R.string.search_clear_query))
-                }
-            },
+            leadingIcon = leading,
+            trailingIcon = trailing,
         )
     }
 }

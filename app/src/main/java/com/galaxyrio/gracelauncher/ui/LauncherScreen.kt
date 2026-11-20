@@ -549,6 +549,7 @@ fun LauncherRoute(
         refreshIconPacks = viewModel::refreshApps,
         refreshApps = viewModel::refreshApps,
         applyClockStyle = viewModel::applyClockStyle,
+        applyFontShadow = viewModel::applyFontShadow,
         applyAgendaAppearance = viewModel::applyAgendaAppearance,
         discardAgendaWidgetDraft = viewModel::discardAgendaWidgetDraft,
         applyMediaStyle = viewModel::applyMediaStyle,
