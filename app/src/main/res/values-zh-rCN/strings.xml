@@ -39,6 +39,7 @@
     <string name="weather_chart">可视化图表</string>
     <string name="weather_chart_always_expanded">始终展开</string>
     <string name="weather_hour_show_text">显示文字</string>
+    <string name="weather_hour_use_value_color">使用数值颜色</string>
     <string name="weather_hour_show_chart">显示到图表</string>
     <string name="weather_chart_bar">柱状图</string>
     <string name="weather_chart_line">折线图</string>

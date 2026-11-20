@@ -28,6 +28,8 @@ data class HourWeatherFieldStyle(
     val chartType: HourWeatherChartType = HourWeatherChartType.Line,
     val wavy: Boolean = false,
     val barWidth: Int = 18,
+    val useValueColorText: Boolean = false,
+    val useValueColorChart: Boolean = true,
     val alwaysShowText: Boolean = false,
     val alwaysShowChart: Boolean = false,
 ) {
@@ -119,6 +121,8 @@ data class AgendaAppearance(
                 put("chartType", style.chartType.name)
                 put("wavy", style.wavy)
                 put("barWidth", style.barWidth)
+                put("useValueColorText", style.useValueColorText)
+                put("useValueColorChart", style.useValueColorChart)
                 put("alwaysShowText", style.alwaysShowText)
                 put("alwaysShowChart", style.alwaysShowChart)
             }) }
@@ -200,6 +204,8 @@ data class AgendaAppearance(
                                 ?: fallback.chartType,
                             wavy = style.optBoolean("wavy", fallback.wavy),
                             barWidth = style.optInt("barWidth", fallback.barWidth),
+                            useValueColorText = style.optBoolean("useValueColorText", fallback.useValueColorText),
+                            useValueColorChart = style.optBoolean("useValueColorChart", fallback.useValueColorChart),
                             alwaysShowText = style.optBoolean("alwaysShowText", style.optBoolean("alwaysShow", fallback.alwaysShowText)),
                             alwaysShowChart = style.optBoolean("alwaysShowChart", false),
                         )

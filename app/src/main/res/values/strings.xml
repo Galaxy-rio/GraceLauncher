@@ -1123,6 +1123,7 @@
     <string name="weather_chart">Chart</string>
     <string name="weather_chart_always_expanded">Always expand</string>
     <string name="weather_hour_show_text">Show text</string>
+    <string name="weather_hour_use_value_color">Use value color</string>
     <string name="weather_hour_show_chart">Show in chart</string>
     <string name="weather_chart_bar">Bar chart</string>
     <string name="weather_chart_line">Line chart</string>

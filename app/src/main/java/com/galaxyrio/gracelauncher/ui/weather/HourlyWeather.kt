@@ -173,10 +173,16 @@ fun HourlyWeather(snapshot: WeatherSnapshot, now: Instant, modifier: Modifier = 
                                             else {
                                                 val value = hourFieldText(column.hour, field, locale)
                                                 val spoken = "${stringResource(field.labelResource())}: $value"
+                                                val style = config.hourWeatherStyle(field)
+                                                val valueColor = if (style.useValueColorText) {
+                                                    hourlyChartValue(column.hour, field)?.let { number ->
+                                                        field.valueColors?.color(number, style.chartType)
+                                                    }
+                                                } else null
                                                 Text(value, Modifier.semantics { contentDescription = spoken },
                                                     fontSize = if (field == AgendaHourWeatherField.Temperature) 16.sp else 13.sp,
                                                     fontWeight = if (field == AgendaHourWeatherField.Temperature) FontWeight.Medium else FontWeight.Normal,
-                                                    color = if (field in chartFields) hourlyChartTextColor(field)
+                                                    color = valueColor ?: if (field in chartFields) hourlyChartTextColor(field)
                                                         else MaterialTheme.colorScheme.onSurface,
                                                     maxLines = if (field == AgendaHourWeatherField.Description) 2 else 1,
                                                     textAlign = TextAlign.Center, overflow = TextOverflow.Ellipsis)
