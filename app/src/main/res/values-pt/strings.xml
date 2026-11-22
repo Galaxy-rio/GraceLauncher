@@ -148,7 +148,7 @@
     <string name="icon_edit_failed">Não foi possível guardar o ícone. Por favor, tente outra imagem ou ícone.</string>
     <string name="edit_app_popup">Editar pop-up para %1$s</string>
     <string name="popup_app_shortcuts">Atalhos para %1$s</string>
-    <string name="popup_custom_widget">Widget personalizado</string>
+    <string name="popup_custom_widget">Widgets</string>
     <string name="popup_add_new">Novo</string>
     <string name="popup_show_in_app_list">Mostrar na lista de aplicações</string>
     <string name="popup_empty">Escolha os atalhos, aplicações ou widgets.</string>
@@ -246,7 +246,7 @@
     <string name="app_category_condition">Mostrar</string>
     <string name="app_category_always">Sempre</string>
     <string name="app_category_headphones">Ao conectar os auscultadores</string>
-    <string name="app_category_time">Intervalo horário diário</string>
+    <string name="app_category_time">Intervalo de tempo</string>
     <string name="app_category_start">Hora inicial</string>
     <string name="app_category_end">Hora final</string>
     <string name="app_category_delete">Eliminar categoria</string>
@@ -531,8 +531,8 @@
     <string name="licenses_named_full_text">%1$s · Texto integral</string>
     <string name="clock_style_apply">Aplicar</string>
     <string name="clock_layout">Esquema do relógio</string>
-    <string name="clock_single_line">Uma linha</string>
-    <string name="clock_two_lines">Duas linhas</string>
+    <string name="clock_single_line">Horizontal</string>
+    <string name="clock_two_lines">Vertical</string>
     <string name="clock_font_default">Padrão · Josefin Sans</string>
     <string name="clock_font_import">Importar tipo de letra</string>
     <string name="search_settings_summary">Aplicações, contactos e sugestões</string>
@@ -586,7 +586,7 @@
     <string name="search_clear_query">Limpar pesquisa</string>
     <string name="app_selection_fast_scroll">Deslocação rápida entre aplicações</string>
     <string name="widget_home_menu">Widget Grace</string>
-    <string name="widget_add">Adicionar widget personalizado</string>
+    <string name="widget_add">Adicionar widget</string>
     <string name="widget_choose">Escolha um widget</string>
     <string name="widget_search">Pesquisar widgets</string>
     <string name="font_luckiest_guy">Luckiest Guy</string>
@@ -622,7 +622,7 @@
     <string name="grace_widget_baseline">Linha base (invisível)</string>
     <string name="popup_widget_full_width">Largura total</string>
     <string name="popup_widget_background">Fundo</string>
-    <string name="popup_widget_content_scale">Escala do conteúdo· %1$d%%</string>
+    <string name="popup_widget_content_scale">Conteúdo· %1$d%%</string>
     <string name="widget_calendar">Calendário</string>
     <string name="widget_calendar_access">Permitir acesso ao calendário</string>
     <string name="widget_preview_unavailable">Antevisão não disponível</string>
@@ -1106,4 +1106,15 @@
     <string name="settings_folder_auto_hide">Ocultar automaticamente as aplicações existentes</string>
     <string name="settings_folder_auto_hide_summary">Ocultar membros atuais e futuros da lista de aplicações. As ocultações manuais são mantidas se as aplicações forem removidas da pasta.</string>
     <string name="hidden_from_folder">Ocultar por pasta</string>
+    <string name="app_category_all_day">Dia completo</string>
+    <string name="clock_minute_scale">Escala do tipo de letra dos minutos</string>
+    <string name="clock_second_scale">Escala do tipo de letra dos segundos</string>
+    <string name="grace_widgets_add">Adicionar widgets Grace</string>
+    <string name="popup_widget_background_color">Cor de fundo</string>
+    <string name="popup_widget_background_opacity">Opacidade do fundo</string>
+    <string name="widget_screen_swipe_disabled">Pode abrir este ecrã através de gestos ou como ação no botão Grace.</string>
+    <string name="widget_screen_add_items">Adicionar aplicações, atalhos e widgets</string>
+    <string name="app_stack_delete_confirmation">Eliminar “%1$s”? As aplicações existentes não serão desinstaladas.</string>
+    <string name="app_stack_expand">Expandir pilha de aplicações</string>
+    <string name="app_stack_collapse">Recolher pilha de aplicações</string>
 </resources>
