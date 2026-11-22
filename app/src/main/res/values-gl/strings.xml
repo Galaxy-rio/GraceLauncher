@@ -69,7 +69,7 @@
     <string name="private_space_indicator_summary">Amosar un distintivo nas iconas das aplicacións privadas</string>
     <string name="private_space_lock_immediately">Bloquea inmediatamente</string>
     <string name="private_space_lock_on_exit">Pechar automaticamente ao saír da lista</string>
-    <string name="private_space_lock_on_screen">Mantén desbloqueado ata que a pantalla se bloquee</string>
+    <string name="private_space_lock_on_screen">Sigue a configuración de bloqueo automático do sistema</string>
     <string name="private_space_display_folder">Cartafol</string>
     <string name="private_space_edit">Editar</string>
     <string name="private_space_edit_summary">Cambia o nome, a icona e a orde da aplicación</string>
@@ -475,8 +475,8 @@
     <string name="licenses_link_unavailable">Non hai ningunha aplicación dispoñible para abrir esta ligazón.</string>
     <string name="clock_style_apply">Aplicar</string>
     <string name="clock_layout">Disposición do reloxo</string>
-    <string name="clock_single_line">Liña única</string>
-    <string name="clock_two_lines">Dúas liñas</string>
+    <string name="clock_single_line">Horizontal</string>
+    <string name="clock_two_lines">Vertical</string>
     <string name="clock_font_default">Predeterminado · Josefin Sans</string>
     <string name="clock_font_import">Importar tipo de letra</string>
     <string name="clock_font_importing">Importando o tipo de letra…</string>
@@ -1170,4 +1170,16 @@
     <string name="widget_stack_remove_widget_title">Eliminar o widget</string>
     <string name="widget_stack_remove_widget_confirmation">Eliminar «%1$s» desta pía?</string>
     <string name="weather_hour_use_value_color">Usar cores numéricas</string>
+    <string name="clock_minute_scale">Escala da tipografía dos minutos</string>
+    <string name="clock_second_scale">Escala da tipografía dos segundos</string>
+    <string name="font_shadow_soft">Lene</string>
+    <string name="font_shadow_sharp">Afiada</string>
+    <string name="font_shadow_custom">Personalizada</string>
+    <string name="font_shadow_opacity">Opacidade da sombra</string>
+    <string name="font_shadow_blur">Desenfoque</string>
+    <string name="font_shadow_offset_x">Desprazamento X</string>
+    <string name="font_shadow_offset_y">Desprazamento Y</string>
+    <string name="font_shadow_spread">Espallamento</string>
+    <string name="font_shadow_override">Substituír a sombra predeterminada</string>
+    <string name="font_shadow_unsaved_message">Gardar os cambios na sombra da fonte antes de saír?</string>
 </resources>
