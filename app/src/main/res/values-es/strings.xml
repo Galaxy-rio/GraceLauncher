@@ -69,7 +69,7 @@
     <string name="private_space_indicator_summary">Mostrar una insignia en los iconos de las aplicaciones privadas</string>
     <string name="private_space_lock_immediately">Bloquear inmediatamente</string>
     <string name="private_space_lock_on_exit">Cerrar automáticamente al salir de la lista</string>
-    <string name="private_space_lock_on_screen">Mantener desbloqueado hasta que la pantalla se bloquee</string>
+    <string name="private_space_lock_on_screen">Sigue la configuración de bloqueo automático del sistema</string>
     <string name="private_space_display_folder">Carpeta</string>
     <string name="private_space_edit">Editar</string>
     <string name="private_space_edit_summary">Cambiar el nombre, icono y orden de la aplicación</string>
@@ -478,8 +478,8 @@
     <string name="licenses_link_unavailable">No hay ninguna aplicación disponible para abrir este enlace.</string>
     <string name="clock_style_apply">Aplicar</string>
     <string name="clock_layout">Disposición del reloj</string>
-    <string name="clock_single_line">Una línea</string>
-    <string name="clock_two_lines">Dos líneas</string>
+    <string name="clock_single_line">Horizontal</string>
+    <string name="clock_two_lines">Vertical</string>
     <string name="clock_font_default">Por defecto · Josefin Sans</string>
     <string name="clock_font_import">Importar tipografía</string>
     <string name="clock_font_importing">Importando tipografía…</string>
@@ -1183,4 +1183,16 @@
     <string name="widget_stack_remove_widget_title">Eliminar el widget</string>
     <string name="widget_stack_remove_widget_confirmation">¿Eliminar «%1$s» de esta pila?</string>
     <string name="weather_hour_use_value_color">Usar colores numéricos</string>
+    <string name="clock_minute_scale">Escala de la tipografía de los minutos</string>
+    <string name="clock_second_scale">Escala de la tipografía de los segundos</string>
+    <string name="font_shadow_soft">Suave</string>
+    <string name="font_shadow_sharp">Afilada</string>
+    <string name="font_shadow_custom">Personalizada</string>
+    <string name="font_shadow_opacity">Opacidad de la sombra</string>
+    <string name="font_shadow_blur">Desenfoque</string>
+    <string name="font_shadow_offset_x">Desplazamiento X</string>
+    <string name="font_shadow_offset_y">Desplazamiento Y</string>
+    <string name="font_shadow_spread">Extensión</string>
+    <string name="font_shadow_override">Anular la sombra predeterminada</string>
+    <string name="font_shadow_unsaved_message">¿Guardar los cambios en la sombra de la fuente antes de salir?</string>
 </resources>
