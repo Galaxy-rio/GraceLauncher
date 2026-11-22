@@ -85,7 +85,7 @@ internal enum class SettingsPage {
     LabGraceButton, LabGesture, LabPopup, LabAccessibility, LabDismiss, Fonts, FontColors, FontShadow, ListAppearance, Alphabet, ShortcutsFolders, AppStacks, WidgetStacks,
     GraceButtonAppearance, GraceButtonPosition, AgendaAppearance, SearchAppearance, MediaPlayerAppearance,
     WidgetScreen, WidgetScreenEditor, Homepage, AppList, FeedScreen, StatusScreen, DigitalWellbeing, TabletsFoldables,
-    Wallpaper, WallpaperDesigner,
+    Wallpaper, WallpaperDesigner, Screens,
     AppCategories, CategoryEditor, TasksOrg, TaskLists,
 }
 
@@ -359,8 +359,9 @@ fun LauncherSettingsScreen(
                     SettingsPage.TasksOrg -> TasksSettings(uiState, actions, back,
                         onLists = { navigate(SettingsPage.TaskLists) }, onAppearance = { navigate(SettingsPage.ClockStyle) })
                     SettingsPage.TaskLists -> TasksListsSettings(uiState, actions, back)
-                    SettingsPage.Advanced -> AdvancedSettings(uiState, actions, back, navigate,
+                    SettingsPage.Advanced -> AdvancedSettings(back, navigate,
                         onChooseDefaultHome = { if (isCurrent()) actions.requestDefaultHome() })
+                    SettingsPage.Screens -> ScreenSettings(uiState, actions, back)
                     SettingsPage.Language -> LanguageSettings(back)
                     SettingsPage.LabGraceButton -> LabGraceButtonSettings(uiState, actions, back)
                     SettingsPage.LabGesture -> LabGestureSettings(uiState, actions, back)

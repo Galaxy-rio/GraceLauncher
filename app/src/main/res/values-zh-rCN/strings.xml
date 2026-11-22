@@ -235,7 +235,7 @@
     <string name="private_space_indicator_summary">在私密应用图标上显示标志</string>
     <string name="private_space_lock_immediately">立即锁定</string>
     <string name="private_space_lock_on_exit">离开列表时自动关闭</string>
-    <string name="private_space_lock_on_screen">保持解锁直到屏幕锁定</string>
+    <string name="private_space_lock_on_screen">遵循系统的自动锁定设置</string>
     <string name="private_space_display_folder">文件夹</string>
     <string name="private_space_edit">编辑</string>
     <string name="private_space_edit_summary">修改名称、图标和应用排序</string>
@@ -447,6 +447,8 @@
     <string name="settings_language">语言</string>
     <string name="settings_allow_screen_rotation">允许屏幕旋转</string>
     <string name="settings_allow_screen_rotation_summary">遵循系统旋转设置，关闭后桌面固定为竖屏。</string>
+    <string name="settings_remember_screen_position">记住屏幕位置</string>
+    <string name="settings_remember_screen_position_summary">解锁或从应用返回时保留上次的页面，关闭后回到首页。</string>
     <string name="settings_tablets_foldables">平板与折叠屏</string>
     <string name="settings_lab">实验室</string>
     <string name="lab_accessibility">无障碍</string>

@@ -203,16 +203,27 @@ fun LauncherRoute(
             viewModel.setCalendarForeground(false)
         }
     }
+    var screenFlowPending by rememberSaveable { mutableStateOf(false) }
+    fun launchScreenFlow(launch: () -> Unit) {
+        screenFlowPending = true
+        try { launch() } catch (error: Exception) { screenFlowPending = false; throw error }
+    }
+    val widgetSetupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        screenFlowPending = false
+    }
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
     ) {
+        screenFlowPending = false
         viewModel.refreshSchedule()
         viewModel.refreshCalendarSources()
     }
     val homeRoleLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        screenFlowPending = false
         viewModel.refreshProfiles()
     }
     val tasksPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        screenFlowPending = false
         viewModel.refreshTasks()
     }
     fun finishTask(id: Long) {
@@ -229,17 +240,20 @@ fun LauncherRoute(
     }
     var taskAwaitingWritePermission by rememberSaveable { mutableStateOf<Long?>(null) }
     val tasksWritePermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        screenFlowPending = false
         val id = taskAwaitingWritePermission
         taskAwaitingWritePermission = null
         if (granted && id != null) finishTask(id)
         else if (!granted) Toast.makeText(context, R.string.tasks_write_permission_required, Toast.LENGTH_LONG).show()
     }
     val mediaAccessLauncher = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        screenFlowPending = false
         viewModel.refreshApps()
     }
     val breezyRepository = remember(context) { BreezyWeatherRepository(context) }
     var weatherPermissionRequested by rememberSaveable { mutableStateOf(false) }
     val weatherPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
+        screenFlowPending = false
         viewModel.refreshWeather()
     }
     LaunchedEffect(uiState.settingsSaveFailed, uiState.settingsLoadFailed) {
@@ -261,7 +275,11 @@ fun LauncherRoute(
     }
 
     val openSystemApp: (Intent) -> Unit = { intent ->
-        runCatching { context.startActivity(intent) }.onFailure {
+        runCatching {
+            if (intent.component == ComponentName(context, WidgetSetupActivity::class.java)) {
+                launchScreenFlow { widgetSetupLauncher.launch(intent) }
+            } else context.startActivity(intent)
+        }.onFailure {
             Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
         }
     }
@@ -357,7 +375,7 @@ fun LauncherRoute(
             runCatching { context.startActivity(Intent(Settings.ACTION_SYNC_SETTINGS)) }
                 .onFailure { openSystemApp(Intent(Settings.ACTION_SETTINGS)) }
         },
-        requestCalendarAccess = { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) },
+        requestCalendarAccess = { launchScreenFlow { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) } },
         addWidget = {
             when {
                 uiState.isLoadingSettings || uiState.settingsLoadFailed -> Toast.makeText(context, R.string.settings_storage_load_error, Toast.LENGTH_SHORT).show()
@@ -388,7 +406,7 @@ fun LauncherRoute(
                     Uri.fromParts("package", context.packageName, null)))
                 else -> {
                     weatherPermissionRequested = true
-                    weatherPermissionLauncher.launch(BreezyWeatherRepository.READ_PERMISSION)
+                    launchScreenFlow { weatherPermissionLauncher.launch(BreezyWeatherRepository.READ_PERMISSION) }
                 }
             }
         },
@@ -421,7 +439,7 @@ fun LauncherRoute(
             }
         },
         requestMediaAccess = {
-            runCatching { mediaAccessLauncher.launch(MediaAccess.settingsIntent(context)) }
+            runCatching { launchScreenFlow { mediaAccessLauncher.launch(MediaAccess.settingsIntent(context)) } }
                 .onFailure { openSystemApp(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
         },
         controlMedia = { sessionId, command ->
@@ -432,7 +450,7 @@ fun LauncherRoute(
             }
         },
         requestDefaultHome = {
-            runCatching { homeRoleLauncher.launch(DefaultHome.requestIntent(context)) }
+            runCatching { launchScreenFlow { homeRoleLauncher.launch(DefaultHome.requestIntent(context)) } }
                 .onFailure { openSystemApp(Intent(Settings.ACTION_HOME_SETTINGS)) }
         },
         requestUsageAccess = { openSystemApp(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)) },
@@ -517,7 +535,7 @@ fun LauncherRoute(
         refreshAgenda = viewModel::refreshSchedule,
         refreshCalendarSources = viewModel::refreshCalendarSources,
         refreshTasks = viewModel::refreshTasks,
-        requestTasksAccess = { tasksPermissionLauncher.launch(TasksRepository.ReadPermission) },
+        requestTasksAccess = { launchScreenFlow { tasksPermissionLauncher.launch(TasksRepository.ReadPermission) } },
         openTasksAccessSettings = { openSystemApp(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
             Uri.fromParts("package", context.packageName, null))) },
         openTasks = {
@@ -541,7 +559,7 @@ fun LauncherRoute(
                     finishTask(task.id)
                 } else {
                     taskAwaitingWritePermission = task.id
-                    tasksWritePermissionLauncher.launch(TasksRepository.WritePermission)
+                    launchScreenFlow { tasksWritePermissionLauncher.launch(TasksRepository.WritePermission) }
                 }
             }
         },
@@ -608,8 +626,9 @@ fun LauncherRoute(
             uiState = uiState,
             widgetEditRequest = widgetEditRequest,
             returnHomeRequests = viewModel.returnHomeRequests,
+            preserveScreenOnReturn = { screenFlowPending || viewModel.privateSpaceController.state.value.authenticating },
             onCalendarHomeVisible = viewModel::setCalendarHomeVisible,
-            onDateClick = { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) },
+            onDateClick = { launchScreenFlow { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) } },
             onClockClick = {
                 val key = uiState.settings.clockAppKey
                 if (key?.startsWith("profile:") == true) {
@@ -647,6 +666,7 @@ internal fun LauncherScreen(
     initialDrawerOpen: Boolean = false,
     widgetEditRequest: Int = 0,
     onCalendarHomeVisible: (Boolean) -> Unit = {},
+    preserveScreenOnReturn: () -> Boolean = { false },
 ) {
     var drawerOpen by rememberSaveable { mutableStateOf(initialDrawerOpen) }
     val homePager = rememberPagerState { if (uiState.settings.widgetScreen.enabled) 2 else 1 }
@@ -859,14 +879,25 @@ internal fun LauncherScreen(
         },
     )
 
+    suspend fun returnHome() {
+        firstItemJob?.cancel()
+        drawerOpen = false; selectedLetter = null; overlay = null; editingHome = false
+        editingWidgetScreen = false
+        privateListOpen = false; workListOpen = false
+        homePager.scrollToPage(0)
+        if (buttonTransition?.lockCommitted != true) buttonTransition = null
+    }
+    ScreenPositionEffect(
+        rememberPosition = uiState.settings.rememberScreenPosition.takeUnless { uiState.isLoadingSettings || uiState.settingsLoadFailed },
+        preservePosition = {
+            preserveScreenOnReturn() || isSettings || editingHome || editingWidgetScreen || editingHomeContent || systemActionAccess ||
+                overlay is LauncherOverlay.Homepage || overlay is LauncherOverlay.EditPopup ||
+                overlay is LauncherOverlay.AppDetails || overlay is LauncherOverlay.Categories
+        },
+        onReturnHome = { returnHome() },
+    )
     LaunchedEffect(returnHomeRequests) {
-        returnHomeRequests.collect {
-            firstItemJob?.cancel()
-            drawerOpen = false; selectedLetter = null; overlay = null; editingHome = false
-            editingWidgetScreen = false
-            homePager.scrollToPage(0)
-            if (buttonTransition?.lockCommitted != true) buttonTransition = null
-        }
+        returnHomeRequests.collect { returnHome() }
     }
     LaunchedEffect(widgetEditRequest) {
         if (widgetEditRequest > 0) {

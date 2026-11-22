@@ -147,7 +147,7 @@ class PopupGestureSettingsTest {
             GraceLauncherTheme(dynamicColor = false) {
                 if (page == SettingsPage.LabPopup) {
                     LabPopupSettings(state, actions, onBack = { page = SettingsPage.Advanced })
-                } else AdvancedSettings(state, actions, onBack = {}, navigate = { page = it }, onChooseDefaultHome = {})
+                } else AdvancedSettings(onBack = {}, navigate = { page = it }, onChooseDefaultHome = {})
             }
         }
         compose.onNodeWithTag("lab_open_popup").performClick()

@@ -17,6 +17,7 @@ data class LauncherSettings(
     val showBatteryPercentage: Boolean = true,
     val allowHapticFeedback: Boolean = true,
     val allowScreenRotation: Boolean = true,
+    val rememberScreenPosition: Boolean = false,
     val useDynamicColors: Boolean = true,
     val themeColor: Int = 0xFF6750A4.toInt(),
     val paletteStyle: PaletteStyle = PaletteStyle.TonalSpot,

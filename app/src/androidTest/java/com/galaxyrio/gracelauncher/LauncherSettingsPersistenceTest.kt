@@ -24,6 +24,7 @@ import com.galaxyrio.gracelauncher.data.NotificationDisplay
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.LauncherSettings
 import com.galaxyrio.gracelauncher.data.LauncherSettingsRepository
+import com.galaxyrio.gracelauncher.data.ProfileSettings
 import com.galaxyrio.gracelauncher.data.ThemeMode
 import com.galaxyrio.gracelauncher.data.LauncherItemsRepository
 import com.galaxyrio.gracelauncher.data.PopupItem
@@ -75,9 +76,72 @@ class LauncherSettingsPersistenceTest {
                 LauncherDatabase.Migration26To27, LauncherDatabase.Migration27To28,
                 LauncherDatabase.Migration28To29, LauncherDatabase.Migration29To30,
                 LauncherDatabase.Migration30To31, LauncherDatabase.Migration31To32,
-                LauncherDatabase.Migration32To33).build()
+                LauncherDatabase.Migration32To33, LauncherDatabase.Migration33To34,
+                LauncherDatabase.Migration34To35, LauncherDatabase.Migration35To36,
+                LauncherDatabase.Migration36To37).build()
         database = reopened
         return LauncherSettingsRepository(reopened)
+    }
+
+    @Test
+    fun screenPreferencesMigrateFromVersion36AndSurviveReopening() = runBlocking {
+        val schema = InstrumentationRegistry.getInstrumentation().context.assets
+            .open("com.galaxyrio.gracelauncher.data.LauncherDatabase/36.json")
+            .bufferedReader().use { JSONObject(it.readText()).getJSONObject("database") }
+        context.openOrCreateDatabase(databaseName, 0, null).use { legacy ->
+            val entities = schema.getJSONArray("entities")
+            for (index in 0 until entities.length()) {
+                val entity = entities.getJSONObject(index)
+                val table = entity.getString("tableName")
+                legacy.execSQL(entity.getString("createSql").replace('$' + "{TABLE_NAME}", table))
+                entity.optJSONArray("indices")?.let { indices ->
+                    for (i in 0 until indices.length()) legacy.execSQL(indices.getJSONObject(i).getString("createSql")
+                        .replace('$' + "{TABLE_NAME}", table))
+                }
+            }
+            val setup = schema.getJSONArray("setupQueries")
+            for (index in 0 until setup.length()) legacy.execSQL(setup.getString(index))
+            legacy.execSQL("INSERT INTO launcher_settings (id, calendarAgenda, showBatteryPercentage, allowHapticFeedback, " +
+                "allowScreenRotation, useDynamicColors, themeColor, darkMode) VALUES (0, 1, 1, 1, 0, 1, 12345, 'System')")
+            legacy.version = 36
+        }
+        val repository = openRepository()
+        val migrated = withTimeout(10_000) { repository.snapshots.first().settings }
+        assertFalse(migrated.rememberScreenPosition)
+        assertFalse(migrated.allowScreenRotation)
+        assertEquals(12345, migrated.themeColor)
+        repository.mutateSettings { it.copy(rememberScreenPosition = true) }
+        openRepository().mutateSettings { it.copy(allowScreenRotation = true) }
+        assertEquals(migrated.copy(rememberScreenPosition = true, allowScreenRotation = true),
+            withTimeout(10_000) { openRepository().snapshots.first().settings })
+    }
+
+    @Test
+    fun privateSpaceDefaultsFollowSystemWithoutEnablingLauncherProtection() = runBlocking {
+        val saved = withTimeout(10_000) { openRepository().snapshots.first().settings.privateSpace }
+        for (settings in listOf(saved, ProfileSettings.decode(null), ProfileSettings.decode("{}"))) {
+            assertTrue(settings.enabled)
+            assertFalse(settings.passwordProtected)
+            assertFalse(settings.lockImmediately)
+            assertFalse(settings.protectsApps)
+            assertFalse(settings.locksOnExit)
+        }
+    }
+
+    @Test
+    fun privateSpaceSecurityChoicesSurviveReopeningAndUnrelatedUpdates() = runBlocking {
+        for (passwordProtected in listOf(false, true)) {
+            for (lockImmediately in listOf(false, true)) {
+                val expected = ProfileSettings(passwordProtected = passwordProtected, lockImmediately = lockImmediately,
+                    name = "Private apps", appOrder = listOf("profile:10:app"))
+                openRepository().mutateSettings { it.copy(privateSpace = expected) }
+                openRepository().mutateSettings { it.copy(showBatteryPercentage = false) }
+                val saved = withTimeout(10_000) { openRepository().snapshots.first().settings.privateSpace }
+                assertEquals(expected, saved)
+                assertEquals(passwordProtected, saved.protectsApps)
+                assertEquals(lockImmediately, saved.locksOnExit)
+            }
+        }
     }
 
     @Test

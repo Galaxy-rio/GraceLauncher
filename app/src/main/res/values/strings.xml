@@ -206,7 +206,7 @@
     <string name="private_space_indicator_summary">Show a badge on private app icons</string>
     <string name="private_space_lock_immediately">Lock immediately</string>
     <string name="private_space_lock_on_exit">Close automatically when leaving the list</string>
-    <string name="private_space_lock_on_screen">Keep unlocked until the screen locks</string>
+    <string name="private_space_lock_on_screen">Follow the system’s automatic locking settings</string>
     <string name="private_space_display_folder">Folder</string>
     <string name="private_space_edit">Edit</string>
     <string name="private_space_edit_summary">Change the name, icon and app order</string>
@@ -425,6 +425,8 @@
     <string name="settings_language">Language</string>
     <string name="settings_allow_screen_rotation">Allow screen rotation</string>
     <string name="settings_allow_screen_rotation_summary">Follow system rotation settings. Turn off to keep the home screen in portrait.</string>
+    <string name="settings_remember_screen_position">Remember screen position</string>
+    <string name="settings_remember_screen_position_summary">Keep the last screen after unlocking or returning from an app. Turn off to return to the home screen.</string>
     <string name="settings_tablets_foldables">Tablets &amp; foldables</string>
     <string name="settings_lab">Lab</string>
     <string name="lab_accessibility">Accessibility</string>
