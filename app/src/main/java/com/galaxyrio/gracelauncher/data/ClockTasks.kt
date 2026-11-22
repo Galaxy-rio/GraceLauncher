@@ -13,6 +13,7 @@ data class ClockTasks(
     val useLatinLetters: Boolean = false,
     val centered: Boolean = false,
     val rightAligned: Set<ClockTaskField> = emptySet(),
+    val useRelativeDates: Boolean = false,
 ) {
     val visibleFields: List<ClockTaskField> get() = normalized().order.filter { it in selected }.let { fields ->
         fields.filterNot { it in rightAligned } + fields.filter { it in rightAligned }
@@ -33,6 +34,7 @@ data class ClockTasks(
         })
         put("taskCount", value.taskCount)
         put("useLatinLetters", value.useLatinLetters)
+        put("useRelativeDates", value.useRelativeDates)
         put("centered", value.centered)
         put("rightAligned", JSONArray(value.order.filter { it in value.rightAligned }.map { it.name }))
     } }
@@ -60,6 +62,7 @@ data class ClockTasks(
                 ),
                 taskCount = json.optInt("taskCount", defaults.taskCount),
                 useLatinLetters = json.optBoolean("useLatinLetters", defaults.useLatinLetters),
+                useRelativeDates = json.optBoolean("useRelativeDates", defaults.useRelativeDates),
                 centered = json.optBoolean("centered", json.optString("alignment") == ClockAlignment.Center.name),
                 rightAligned = fields("rightAligned")?.toSet() ?: if (json.optString("alignment") == ClockAlignment.Right.name)
                     ClockTaskField.entries.toSet() else defaults.rightAligned,

@@ -299,6 +299,12 @@ internal fun LazyListScope.clockRegionSettings(
         SettingsActionItem(stringResource(R.string.clock_agenda_contents), null,
             index, count, "clock_agenda_contents", enabled = enabled, onClick = onAgendaContent)
     })
+    if (ClockAgendaField.Date in agenda.selected) agendaControls += ClockControl("relative_dates") { index, count ->
+        SettingsToggleItem(stringResource(R.string.clock_use_relative_dates), stringResource(R.string.clock_use_relative_dates_summary),
+            agenda.useRelativeDates, index, count, "clock_agenda_relative_dates", enabled) { value ->
+            changeAgenda { it.copy(useRelativeDates = value) }
+        }
+    }
     agendaControls += ClockControl("event_count") { index, count ->
         ClockSlider(stringResource(R.string.clock_agenda_event_count), agenda.eventCount, 1, 0..9, 1,
             index, count, "clock_agenda_event_count", enabled,
@@ -349,6 +355,14 @@ internal fun LazyListScope.clockRegionSettings(
         SettingsActionItem(stringResource(R.string.clock_task_contents), null,
             index, count, "clock_task_contents", enabled = enabled, onClick = onTaskContent)
     })
+    if (ClockTaskField.DueDate in tasks.selected || ClockTaskField.StartDate in tasks.selected) {
+        taskControls += ClockControl("relative_dates") { index, count ->
+            SettingsToggleItem(stringResource(R.string.clock_use_relative_dates), stringResource(R.string.clock_use_relative_dates_summary),
+                tasks.useRelativeDates, index, count, "clock_task_relative_dates", enabled) { value ->
+                changeTasks { it.copy(useRelativeDates = value) }
+            }
+        }
+    }
     taskControls += ClockControl("task_count") { index, count ->
         ClockSlider(stringResource(R.string.clock_task_count), tasks.taskCount, 1, 0..9, 1,
             index, count, "clock_task_count", enabled,

@@ -6,6 +6,7 @@
     <string name="tasks_enable">启用 Tasks.org</string>
     <string name="tasks_connection">连接</string>
     <string name="tasks_data">任务数据</string>
+    <string name="tasks_show_overdue">显示过期任务</string>
     <string name="tasks_sorting">任务排序</string>
     <string name="tasks_sort_by">排序方式</string>
     <string name="tasks_undated_first">无截止日期的任务优先</string>
@@ -122,6 +123,7 @@
     <string name="calendar_system_default_app">跟随系统默认</string>
     <string name="calendar_choose_app_description">选择用于打开日程的应用。</string>
     <string name="calendar_read_days">要读取的天数</string>
+    <string name="calendar_no_events_today">今天没有日程</string>
     <string name="calendar_deprioritize_all_day">降低全天事件的优先级</string>
     <string name="calendar_deprioritize_all_day_summary">同一天内优先显示有时间段的事件</string>
     <string name="calendar_display">显示</string>
@@ -1011,6 +1013,8 @@
     <string name="clock_equal_width_characters">字符等宽排列</string>
     <string name="clock_center_characters">居中等宽字符</string>
     <string name="clock_use_latin_letters">始终使用拉丁字母</string>
+    <string name="clock_use_relative_dates">使用相对日期</string>
+    <string name="clock_use_relative_dates_summary">用今天和明天代替对应日期</string>
     <string name="clock_layout_section">布局</string>
     <string name="clock_show_clock">显示时钟</string>
     <string name="clock_show_weekday">显示星期</string>

@@ -90,8 +90,8 @@ fun AgendaSheet(
     val events = uiState.events.takeIf { uiState.settings.calendarAgenda }.orEmpty()
     val taskPreferences = uiState.settings.calendar.tasksOrg
     val tasksEnabled = taskPreferences.enabled && !uiState.isLoadingSettings && !uiState.settingsLoadFailed
-    val tasks = remember(uiState.tasks.tasks, taskPreferences, tasksEnabled, zone, locale) {
-        if (tasksEnabled) visibleTaskItems(uiState.tasks.tasks, taskPreferences, zone, locale) else emptyList()
+    val tasks = remember(uiState.tasks.tasks, taskPreferences, tasksEnabled, zone, locale, now) {
+        if (tasksEnabled) visibleTaskItems(uiState.tasks.tasks, taskPreferences, zone, locale, now) else emptyList()
     }
     val undatedTasks = remember(tasks) { tasks.filter { it.dueAt == null } }
     val calendarDays = uiState.settings.calendar.daysAhead
@@ -193,7 +193,8 @@ fun AgendaSheet(
             val tasksReady = !tasksEnabled || uiState.tasks.status == TasksStatus.Ready
             if (appearance.showDailyContent && uiState.settings.calendarAgenda && events.isEmpty() && tasks.isEmpty() && tasksReady &&
                 uiState.scheduleStatus == ScheduleStatus.Ready) agendaItem {
-                Text(pluralStringResource(R.plurals.calendar_no_upcoming_events, calendarDays, calendarDays),
+                Text(if (calendarDays == 0) stringResource(R.string.calendar_no_events_today)
+                    else pluralStringResource(R.plurals.calendar_no_upcoming_events, calendarDays, calendarDays),
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if ((appearance.showDailyContent || appearance.showUndatedTasks) && tasksEnabled &&

@@ -40,7 +40,7 @@ data class CalendarPreferences(
     }
 
     companion object {
-        val DaysAheadOptions = listOf(1, 3, 7, 14, 30, 90)
+        val DaysAheadOptions = listOf(0, 1, 3, 7, 14, 30, 90)
         val DaysAheadRange = DaysAheadOptions.first()..DaysAheadOptions.last()
 
         fun decode(value: String?): CalendarPreferences = runCatching {

@@ -147,7 +147,7 @@ internal fun HomeClockHeader(
         }
         .let { rows -> if (regions.agenda.eventCount > 0) rows.take(regions.agenda.eventCount) else rows }
         else emptyList()
-    val taskRows = if (showTasks) visibleTaskItems(tasks, taskPreferences, locale = locale).mapNotNull { task ->
+    val taskRows = if (showTasks) visibleTaskItems(tasks, taskPreferences, locale = locale, now = now).mapNotNull { task ->
         clockTaskFields(task, regions.tasks.visibleFields).takeIf { it.isNotEmpty() }?.let { task to it }
     }.let { rows -> if (regions.tasks.taskCount > 0) rows.take(regions.tasks.taskCount) else rows } else emptyList()
     fun isVisible(element: ClockElement): Boolean = when (element) {
@@ -323,7 +323,7 @@ internal fun HomeClockHeader(
                                 animatePositions = !interactive,
                                 useLatinLetters = regions.agenda.useLatinLetters, wrapWidth = wrapWidth,
                                 color = colors.getValue(ClockColorPart.Agenda), centered = regions.agenda.centered,
-                                rightAligned = regions.agenda.rightAligned)
+                                rightAligned = regions.agenda.rightAligned, useRelativeDates = regions.agenda.useRelativeDates)
                         }
                     }
                 }

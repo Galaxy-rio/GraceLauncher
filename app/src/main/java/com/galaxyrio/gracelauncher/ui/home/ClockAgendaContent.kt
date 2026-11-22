@@ -77,6 +77,7 @@ internal fun ClockAgendaContent(
     color: Color = LocalLauncherAppearance.current.text,
     centered: Boolean = false,
     rightAligned: Set<ClockAgendaField> = emptySet(),
+    useRelativeDates: Boolean = false,
 ) = ProvideFontShadow(typography.shadow) {
     val locale = LocalConfiguration.current.locales[0]
     val dateLocale = remember(locale, useLatinLetters) { clockCalendarLocale(locale, useLatinLetters) }
@@ -96,9 +97,13 @@ internal fun ClockAgendaContent(
     } else ""
     val dateText = if (ClockAgendaField.Date in fields) {
         // All-day timestamps encode UTC calendar dates, not a local time to shift.
-        DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(dateLocale, "MMMEd"), dateLocale)
+        val zone = ZoneId.systemDefault()
+        val dateZone = if (event.isAllDay) ZoneOffset.UTC else zone
+        val date = event.startsAt.atZone(dateZone).toLocalDate()
+        val relative = if (useRelativeDates) clockRelativeDate(date, now.atZone(zone).toLocalDate(), dateLocale) else null
+        relative ?: DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(dateLocale, "MMMEd"), dateLocale)
             .withDecimalStyle(DecimalStyle.of(dateLocale))
-            .withZone(if (event.isAllDay) ZoneOffset.UTC else ZoneId.systemDefault()).format(event.startsAt)
+            .withZone(dateZone).format(event.startsAt)
     } else ""
     val durationText = if (ClockAgendaField.Duration in fields) agendaDuration(event) else ""
     val countdown = if (ClockAgendaField.Countdown in fields) eventRemainingText(event, now) else ""

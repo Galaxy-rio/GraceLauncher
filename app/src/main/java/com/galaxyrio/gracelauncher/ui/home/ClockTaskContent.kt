@@ -67,6 +67,11 @@ internal fun ClockTaskContent(
         DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(dateLocale, "MMMEd"), dateLocale)
             .withDecimalStyle(DecimalStyle.of(dateLocale)).withZone(zone)
     }
+    val today = now.atZone(zone).toLocalDate()
+    fun dateLabel(value: Instant): String {
+        val relative = if (settings.useRelativeDates) clockRelativeDate(value.atZone(zone).toLocalDate(), today, dateLocale) else null
+        return relative ?: dateFormat.format(value)
+    }
     val timeFormat = remember(locale, use24Hour, zone) {
         DateTimeFormatter.ofPattern(DateFormat.getBestDateTimePattern(locale, if (use24Hour) "Hm" else "hm"), locale)
             .withDecimalStyle(DecimalStyle.of(locale)).withZone(zone)
@@ -97,11 +102,11 @@ internal fun ClockTaskContent(
                         val value = when (field) {
                             ClockTaskField.Title -> task.title
                             ClockTaskField.Countdown -> taskRemainingText(task, now)
-                            ClockTaskField.DueDate -> task.dueAt?.let(dateFormat::format).orEmpty()
+                            ClockTaskField.DueDate -> task.dueAt?.let(::dateLabel).orEmpty()
                             ClockTaskField.DueTime -> if (task.dueAllDay) stringResource(R.string.all_day)
                                 else task.dueAt?.let(timeFormat::format).orEmpty()
                             ClockTaskField.StartDate -> task.startsAt?.let {
-                                dateFormat.format(it) + if (task.startAllDay) "" else " " + timeFormat.format(it)
+                                dateLabel(it) + if (task.startAllDay) "" else " " + timeFormat.format(it)
                             }.orEmpty()
                             ClockTaskField.Priority -> stringResource(when (task.priority) {
                                 TaskPriority.High -> R.string.tasks_priority_high

@@ -5,6 +5,7 @@
     <string name="tasks_enable">Enable Tasks.org</string>
     <string name="tasks_connection">Connection</string>
     <string name="tasks_data">Task data</string>
+    <string name="tasks_show_overdue">Show overdue tasks</string>
     <string name="tasks_sorting">Task order</string>
     <string name="tasks_sort_by">Sort by</string>
     <string name="tasks_undated_first">Undated tasks first</string>
@@ -80,6 +81,7 @@
     <string name="calendar_system_default_app">System default</string>
     <string name="calendar_choose_app_description">Choose the app used to open calendar events.</string>
     <string name="calendar_read_days">Days to read ahead</string>
+    <string name="calendar_no_events_today">No events today</string>
     <string name="calendar_deprioritize_all_day">Lower priority for all-day events</string>
     <string name="calendar_deprioritize_all_day_summary">Show timed events before all-day events on the same day</string>
     <string name="calendar_display">Display</string>
@@ -1015,6 +1017,8 @@
     <string name="clock_equal_width_characters">Equal character widths</string>
     <string name="clock_center_characters">Center characters</string>
     <string name="clock_use_latin_letters">Always use Latin letters</string>
+    <string name="clock_use_relative_dates">Use relative dates</string>
+    <string name="clock_use_relative_dates_summary">Show today and tomorrow instead of their dates</string>
     <string name="clock_layout_section">Layout</string>
     <string name="clock_show_clock">Show clock</string>
     <string name="clock_show_weekday">Show weekday</string>
