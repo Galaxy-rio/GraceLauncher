@@ -1081,7 +1081,7 @@
     <string name="agenda_title_time">Hora atual</string>
     <string name="agenda_title_quote">Quota</string>
     <string name="agenda_title_text">Texto personalizado</string>
-    <string name="agenda_widget_region">Região do widget</string>
+    <string name="agenda_widget_region">Widgets</string>
     <string name="agenda_daily">Diariamente</string>
     <string name="agenda_daily_content">Conteúdo diário</string>
     <string name="agenda_calendar_content">Conteúdo do calendário</string>
@@ -1117,4 +1117,21 @@
     <string name="app_stack_delete_confirmation">Eliminar “%1$s”? As aplicações existentes não serão desinstaladas.</string>
     <string name="app_stack_expand">Expandir pilha de aplicações</string>
     <string name="app_stack_collapse">Recolher pilha de aplicações</string>
+    <string name="wallpaper_color_access_title">Permitir deteção da cor do papel de parede?</string>
+    <string name="app_list_align_with_home">Alinhar com ecrã inicial</string>
+    <string name="clock_expand_group">Expandir grupo</string>
+    <string name="clock_collapse_group">Recolher grupo</string>
+    <string name="weather_field_wind_speed">Velocidade do vento</string>
+    <string name="weather_field_wind_direction">Direção do vento</string>
+    <string name="weather_chart">Gráfico</string>
+    <string name="weather_chart_always_expanded">Expandir sempre</string>
+    <string name="weather_hour_show_text">Mostrar texto</string>
+    <string name="weather_hour_show_chart">Mostrar no gráfico</string>
+    <string name="weather_chart_bar">Gráfico de barras</string>
+    <string name="weather_chart_line">Gráfico de linhas</string>
+    <string name="weather_chart_wavy">Linha ondulada</string>
+    <string name="weather_chart_bar_width">Largura da barra</string>
+    <string name="weather_hour_always_show">Mostrar sempre</string>
+    <string name="weather_hour_column_width">Largura da coluna</string>
+    <string name="weather_chart_height_value">%1$d pp</string>
 </resources>
