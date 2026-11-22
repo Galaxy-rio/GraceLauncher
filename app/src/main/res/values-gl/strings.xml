@@ -1170,4 +1170,7 @@
     <string name="widget_stack_remove_widget_title">Eliminar o widget</string>
     <string name="widget_stack_remove_widget_confirmation">Eliminar «%1$s» desta pía?</string>
     <string name="weather_hour_use_value_color">Usar cores numéricas</string>
+    <string name="clock_minute_scale">Escala do tipo de letra dos minutos</string>
+    <string name="clock_second_scale">Escala do tipo de letra dos segundos</string>
+    <string name="font_shadow_soft">Suave</string>
 </resources>
