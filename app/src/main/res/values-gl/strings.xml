@@ -1169,4 +1169,5 @@
     <string name="widget_stack_apply_background_all">Aplicar a cor do fondo a todo</string>
     <string name="widget_stack_remove_widget_title">Eliminar o widget</string>
     <string name="widget_stack_remove_widget_confirmation">Eliminar «%1$s» desta pía?</string>
+    <string name="weather_hour_use_value_color">Usar cores numéricas</string>
 </resources>
