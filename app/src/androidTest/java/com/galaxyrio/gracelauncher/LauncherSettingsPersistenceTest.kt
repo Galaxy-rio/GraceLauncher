@@ -145,6 +145,34 @@ class LauncherSettingsPersistenceTest {
     }
 
     @Test
+    fun privateSpaceDefaultsFollowSystemWithoutEnablingLauncherProtection() = runBlocking {
+        val saved = withTimeout(10_000) { openRepository().snapshots.first().settings.privateSpace }
+        for (settings in listOf(saved, ProfileSettings.decode(null), ProfileSettings.decode("{}"))) {
+            assertTrue(settings.enabled)
+            assertFalse(settings.passwordProtected)
+            assertFalse(settings.lockImmediately)
+            assertFalse(settings.protectsApps)
+            assertFalse(settings.locksOnExit)
+        }
+    }
+
+    @Test
+    fun privateSpaceSecurityChoicesSurviveReopeningAndUnrelatedUpdates() = runBlocking {
+        for (passwordProtected in listOf(false, true)) {
+            for (lockImmediately in listOf(false, true)) {
+                val expected = ProfileSettings(passwordProtected = passwordProtected, lockImmediately = lockImmediately,
+                    name = "Private apps", appOrder = listOf("profile:10:app"))
+                openRepository().mutateSettings { it.copy(privateSpace = expected) }
+                openRepository().mutateSettings { it.copy(showBatteryPercentage = false) }
+                val saved = withTimeout(10_000) { openRepository().snapshots.first().settings.privateSpace }
+                assertEquals(expected, saved)
+                assertEquals(passwordProtected, saved.protectsApps)
+                assertEquals(lockImmediately, saved.locksOnExit)
+            }
+        }
+    }
+
+    @Test
     fun fontColorsAndComponentReferencesSurviveReopeningAndUnrelatedUpdates() = runBlocking {
         val repository = openRepository()
         val colors = FontColors(listOf(
