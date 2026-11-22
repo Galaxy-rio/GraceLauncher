@@ -1182,4 +1182,6 @@
     <string name="font_shadow_spread">Espallamento</string>
     <string name="font_shadow_override">Substituír a sombra predeterminada</string>
     <string name="font_shadow_unsaved_message">Gardar os cambios na sombra da fonte antes de saír?</string>
+    <string name="settings_remember_screen_position">Lembrar a posición da pantalla</string>
+    <string name="settings_remember_screen_position_summary">Manter a última pantalla despois de desbloquear ou de voltar dende unha aplicación. Desactívao para volver á pantalla de inicio.</string>
 </resources>
