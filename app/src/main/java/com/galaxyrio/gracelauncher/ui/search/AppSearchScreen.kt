@@ -1,5 +1,8 @@
 package com.galaxyrio.gracelauncher.ui.search
 
+import com.galaxyrio.gracelauncher.ui.theme.LocalFontShadowEnabled
+import com.galaxyrio.gracelauncher.ui.theme.WithoutFontShadow
+
 import android.widget.Toast
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -81,7 +84,7 @@ internal fun AppSearchScreen(
     onSettings: () -> Unit = {},
     queryState: TextFieldState = rememberTextFieldState(),
     transition: GraceButtonTransition? = null,
-) {
+) = CompositionLocalProvider(LocalFontShadowEnabled provides true) {
     val settings = uiState.settings.search
     val query = queryState.text.toString().trim()
     val context = LocalContext.current
@@ -254,7 +257,9 @@ private fun ContactAvatar(contact: SearchContact, source: SearchContacts, modifi
         color = MaterialTheme.colorScheme.primaryContainer, contentColor = MaterialTheme.colorScheme.onPrimaryContainer) {
         Box(contentAlignment = Alignment.Center) {
             val name = contact.name.trim()
-            Text(if (name.isEmpty()) "?" else String(Character.toChars(name.codePointAt(0))).uppercase(), style = MaterialTheme.typography.titleLarge)
+            WithoutFontShadow {
+                Text(if (name.isEmpty()) "?" else String(Character.toChars(name.codePointAt(0))).uppercase(), style = MaterialTheme.typography.titleLarge)
+            }
         }
     }
 }

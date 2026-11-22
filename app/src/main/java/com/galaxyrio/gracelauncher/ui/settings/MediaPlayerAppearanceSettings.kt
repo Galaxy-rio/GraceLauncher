@@ -295,7 +295,7 @@ private fun MediaPresetPreview(media: NowPlaying, appearance: LauncherAppearance
     val previewAppearance = remember(appearance, contentColor) {
         appearance.copy(darkText = contentColor.luminance() < .5f, textColor = contentColor)
     }
-    CompositionLocalProvider(LocalFontShadowEnabled provides true, LocalLauncherAppearance provides previewAppearance) {
+    CompositionLocalProvider(LocalFontShadowEnabled provides false, LocalLauncherAppearance provides previewAppearance) {
         MaterialTheme(typography = LocalLauncherTypography.current) {
             Layout(modifier = modifier.clearAndSetSemantics {}, content = { HomeMediaPlayerPreview(media) }) { measurables, constraints ->
                 val desktopWidth = 360.dp.roundToPx().coerceAtLeast(1)

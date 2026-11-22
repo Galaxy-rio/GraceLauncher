@@ -144,6 +144,7 @@ import com.galaxyrio.gracelauncher.ui.overlays.LauncherOverlay
 import com.galaxyrio.gracelauncher.ui.overlays.LauncherOverlays
 import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
+import com.galaxyrio.gracelauncher.ui.theme.LocalFontShadowEnabled
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherHaptics
 import com.galaxyrio.gracelauncher.ui.theme.WallpaperBlur
@@ -1155,7 +1156,8 @@ internal fun LauncherScreen(
       val revealDimAlpha = if (drawerTransition != null && uiState.settings.dimWallpaper)
           uiState.settings.wallpaperDimAmount.coerceIn(0, 100) / 100f else dimAlpha
       Box(Modifier.fillMaxSize().graceReveal(drawerTransition, reveal = true).background(wallpaperTint.copy(alpha = revealDimAlpha)))
-      CompositionLocalProvider(LocalLauncherInputEnabled provides (!fullScreen && !editingHome && backProgress.value == 0f && buttonTransition == null)) {
+      CompositionLocalProvider(LocalFontShadowEnabled provides true,
+          LocalLauncherInputEnabled provides (!fullScreen && !editingHome && backProgress.value == 0f && buttonTransition == null)) {
       BoxWithConstraints(
         // Settings can reveal this retained page during a predictive root back.
         // It remains non-interactive and absent from accessibility while covered.

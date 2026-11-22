@@ -8,14 +8,17 @@ enum class FontShadowPreset { None, Soft, Sharp, Custom }
 /** Dimensions are in dp, independently of the text's font size. */
 data class FontShadow(
     val preset: FontShadowPreset = FontShadowPreset.None,
-    val opacity: Int = 32,
-    val blur: Float = 4f,
+    val opacity: Int = 0,
+    val blur: Float = 0f,
     val offsetX: Float = 0f,
     val offsetY: Float = 0f,
     val spread: Float = 0f,
     val color: IconColor = IconColor(0xFF000000.toInt()),
 ) {
-    fun normalized() = copy(
+    fun normalized() = if (preset == FontShadowPreset.None) copy(
+        opacity = 0, blur = 0f, offsetX = 0f, offsetY = 0f, spread = 0f,
+        color = color.normalized(),
+    ) else copy(
         opacity = opacity.coerceIn(0, 100),
         blur = blur.finiteIn(0f, 48f), offsetX = offsetX.finiteIn(-24f, 24f),
         offsetY = offsetY.finiteIn(-24f, 24f), spread = spread.finiteIn(0f, 16f),
@@ -23,7 +26,8 @@ data class FontShadow(
     )
 
     fun select(value: FontShadowPreset): FontShadow = when (value) {
-        FontShadowPreset.None, FontShadowPreset.Custom -> copy(preset = value)
+        FontShadowPreset.None -> copy(preset = value).normalized()
+        FontShadowPreset.Custom -> copy(preset = value)
         FontShadowPreset.Soft -> Soft
         FontShadowPreset.Sharp -> Sharp
     }
@@ -37,7 +41,7 @@ data class FontShadow(
     fun encode(): String = json().toString()
 
     companion object {
-        val Soft = FontShadow(preset = FontShadowPreset.Soft)
+        val Soft = FontShadow(preset = FontShadowPreset.Soft, opacity = 32, blur = 4f)
         val Sharp = FontShadow(preset = FontShadowPreset.Sharp, opacity = 95, blur = 2f, offsetY = 1f)
 
         fun decode(value: String?): FontShadow = runCatching { decode(value?.let(::JSONObject)) }.getOrDefault(FontShadow())

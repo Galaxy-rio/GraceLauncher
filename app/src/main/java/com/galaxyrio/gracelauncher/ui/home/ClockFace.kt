@@ -78,7 +78,8 @@ internal fun ClockFace(
         fontSize = face.size * scale, digitSpacing = face.letterSpacing * scale, groupSpacing = face.hourMinuteSpacing * scale,
         stacked = style.layout.stacked, showColon = face.showColon, separate = face.separateDigits,
         color = color, shadow = resolvedFontShadow(face.shadow).scaled(scale), modifier = modifier, textAlign = textAlign,
-        digitColors = digitColors, equalWidthDigits = face.equalWidthDigits, centerDigits = face.centerDigits,
+        digitColors = digitColors, equalWidthDigits = face.equalWidthDigits(style.layout.stacked),
+        centerDigits = face.centerDigits(style.layout.stacked),
         minuteScale = face.minuteScale / 100f, secondScale = face.secondScale / 100f,
     )
 }

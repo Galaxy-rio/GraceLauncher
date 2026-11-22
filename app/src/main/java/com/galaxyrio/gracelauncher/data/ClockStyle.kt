@@ -54,14 +54,25 @@ data class ClockFaceStyle(
     val fontShadow: Int = 0,
     val showLeadingZero: Boolean = true,
     val showSeconds: Boolean = false,
-    val equalWidthDigits: Boolean = false,
-    val centerDigits: Boolean = false,
+    val horizontalEqualWidthDigits: Boolean = false,
+    val horizontalCenterDigits: Boolean = false,
+    val verticalEqualWidthDigits: Boolean = true,
+    val verticalCenterDigits: Boolean = true,
     val useLatinLetters: Boolean = false,
     val minuteScale: Int = 100,
     val secondScale: Int = 100,
     val shadow: FontShadowOverride = FontShadowOverride.fromLegacy(fontShadow),
 ) {
     fun maxWeight(layout: ClockLayout) = if (layout.presetFont == null && fontId == null) 700 else 900
+
+    fun equalWidthDigits(stacked: Boolean): Boolean = if (stacked) verticalEqualWidthDigits else horizontalEqualWidthDigits
+    fun centerDigits(stacked: Boolean): Boolean = if (stacked) verticalCenterDigits else horizontalCenterDigits
+
+    fun withEqualWidthDigits(stacked: Boolean, enabled: Boolean): ClockFaceStyle =
+        if (stacked) copy(verticalEqualWidthDigits = enabled) else copy(horizontalEqualWidthDigits = enabled)
+
+    fun withCenterDigits(stacked: Boolean, enabled: Boolean): ClockFaceStyle =
+        if (stacked) copy(verticalCenterDigits = enabled) else copy(horizontalCenterDigits = enabled)
 
     fun normalized(layout: ClockLayout = ClockLayout.SingleLine) = copy(
         fontId = fontId.takeIf { layout.allowsCustomFont },
@@ -161,8 +172,10 @@ data class ClockStyle(
             put("separateDigits", safe.separateDigits)
             put("showLeadingZero", safe.showLeadingZero)
             put("showSeconds", safe.showSeconds)
-            put("equalWidthDigits", safe.equalWidthDigits)
-            put("centerDigits", safe.centerDigits)
+            put("horizontalEqualWidthDigits", safe.horizontalEqualWidthDigits)
+            put("horizontalCenterDigits", safe.horizontalCenterDigits)
+            put("verticalEqualWidthDigits", safe.verticalEqualWidthDigits)
+            put("verticalCenterDigits", safe.verticalCenterDigits)
             put("useLatinLetters", safe.useLatinLetters)
             put("minuteScale", safe.minuteScale)
             put("secondScale", safe.secondScale)
@@ -204,8 +217,13 @@ data class ClockStyle(
                     separateDigits = data.optBoolean("separateDigits", defaults.separateDigits),
                     showLeadingZero = data.optBoolean("showLeadingZero", defaults.showLeadingZero),
                     showSeconds = data.optBoolean("showSeconds", defaults.showSeconds),
-                    equalWidthDigits = data.optBoolean("equalWidthDigits", defaults.equalWidthDigits),
-                    centerDigits = data.optBoolean("centerDigits", defaults.centerDigits),
+                    horizontalEqualWidthDigits = data.optBoolean("horizontalEqualWidthDigits", defaults.horizontalEqualWidthDigits),
+                    horizontalCenterDigits = data.optBoolean("horizontalCenterDigits", defaults.horizontalCenterDigits),
+                    // Shared settings from older versions belong to the vertical layout.
+                    verticalEqualWidthDigits = data.optBoolean("verticalEqualWidthDigits",
+                        data.optBoolean("equalWidthDigits", defaults.verticalEqualWidthDigits)),
+                    verticalCenterDigits = data.optBoolean("verticalCenterDigits",
+                        data.optBoolean("centerDigits", defaults.verticalCenterDigits)),
                     useLatinLetters = data.optBoolean("useLatinLetters", defaults.useLatinLetters),
                     minuteScale = data.optInt("minuteScale", defaults.minuteScale),
                     secondScale = data.optInt("secondScale", defaults.secondScale),

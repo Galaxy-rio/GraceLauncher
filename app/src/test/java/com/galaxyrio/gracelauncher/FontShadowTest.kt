@@ -34,7 +34,10 @@ class FontShadowTest {
         assertEquals(1f, sharp.offsetY, .0001f)
         assertEquals(0f, sharp.spread, .0001f)
         assertEquals(custom, FontShadowOverride(true, custom).copy(enabled = false).shadow)
-        assertEquals(custom, custom.select(FontShadowPreset.None).select(FontShadowPreset.Custom))
+        val none = custom.select(FontShadowPreset.None)
+        assertEquals(FontShadow(color = custom.color), none)
+        assertEquals(none.copy(preset = FontShadowPreset.Custom), none.select(FontShadowPreset.Custom))
+        assertEquals(none, custom.copy(preset = FontShadowPreset.None).normalized())
     }
 
     @Test fun clockGroupScalesAreBoundedAndEveryPresetStartsAtFullSize() {

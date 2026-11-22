@@ -114,7 +114,7 @@ internal fun ClockPresetPreview(
         appearance.copy(darkText = contentColor.luminance() < 0.5f, textColor = contentColor)
     }
     CompositionLocalProvider(
-        LocalFontShadowEnabled provides true, LocalLauncherAppearance provides previewAppearance,
+        LocalFontShadowEnabled provides false, LocalLauncherAppearance provides previewAppearance,
         LocalWallpaperFontColor provides contentColor,
     ) {
         MaterialTheme(typography = LocalLauncherTypography.current) {

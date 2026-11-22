@@ -1,5 +1,9 @@
 package com.galaxyrio.gracelauncher.ui.components
 
+import androidx.compose.runtime.CompositionLocalProvider
+import com.galaxyrio.gracelauncher.ui.theme.LocalFontShadowEnabled
+import com.galaxyrio.gracelauncher.ui.theme.WithoutFontShadow
+
 import android.os.Process
 import android.os.UserHandle
 import androidx.compose.foundation.Image
@@ -181,12 +185,14 @@ fun AppIcon(app: LauncherApp, modifier: Modifier = Modifier, size: Dp = 38.dp, a
                     modifier = Modifier.size(displaySize).background(color, CircleShape),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text = app.label.firstOrNull()?.uppercase().orEmpty(),
-                        color = Color(0xFF13201E),
-                        fontSize = (displaySize.value * 0.43f).sp,
-                        fontWeight = FontWeight.Medium,
-                    )
+                    WithoutFontShadow {
+                        Text(
+                            text = app.label.firstOrNull()?.uppercase().orEmpty(),
+                            color = Color(0xFF13201E),
+                            fontSize = (displaySize.value * 0.43f).sp,
+                            fontWeight = FontWeight.Medium,
+                        )
+                    }
                 }
             }
         }
@@ -486,7 +492,7 @@ internal fun AppNotificationLabel(
     notificationBodyLines: Int = 1,
     usageText: String? = null,
     categoryIcon: CategoryIcon = CategoryIcon.None,
-) {
+) = CompositionLocalProvider(LocalFontShadowEnabled provides (LocalFontShadowEnabled.current && onWallpaper)) {
     val style = listLabelStyle(onWallpaper)
     val list = LocalListAppearance.current
     Column(modifier) {

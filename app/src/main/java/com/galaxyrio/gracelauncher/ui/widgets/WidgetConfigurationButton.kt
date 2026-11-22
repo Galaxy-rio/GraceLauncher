@@ -1,5 +1,7 @@
 package com.galaxyrio.gracelauncher.ui.widgets
 
+import com.galaxyrio.gracelauncher.ui.theme.WithoutFontShadow
+
 import android.appwidget.AppWidgetManager
 import android.content.Intent
 import android.util.Log
@@ -29,7 +31,7 @@ import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 
 /** Always expose settings; some providers have a configure Activity but omit feature flags. */
 @Composable
-internal fun WidgetConfigurationButton(layout: HomeLayout, onBeforeOpen: () -> Unit) {
+internal fun WidgetConfigurationButton(layout: HomeLayout, onBeforeOpen: () -> Unit) = WithoutFontShadow {
     AssistChip(onClick = rememberWidgetConfigurationAction(layout, onBeforeOpen),
         label = { Text(stringResource(R.string.widget_settings_button), maxLines = 1) },
         modifier = Modifier.testTag("widget_settings"))
@@ -69,7 +71,7 @@ internal fun WidgetEditButtonGroup(
     fullWidth: Boolean, onFullWidthChange: (Boolean) -> Unit, onSettings: () -> Unit, onDelete: () -> Unit,
     modifier: Modifier = Modifier, enabled: Boolean = true,
     background: Boolean? = null, onBackgroundChange: ((Boolean) -> Unit)? = null, onDone: (() -> Unit)? = null,
-) {
+) = WithoutFontShadow {
     val scheme = MaterialTheme.colorScheme
     val fullWidthLabel = stringResource(R.string.popup_widget_full_width)
     val backgroundLabel = stringResource(R.string.popup_widget_background)

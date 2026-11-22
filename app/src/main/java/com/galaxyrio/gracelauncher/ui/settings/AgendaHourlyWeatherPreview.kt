@@ -40,7 +40,7 @@ internal fun AgendaHourlyWeatherPreview(snapshot: WeatherSnapshot?, appearance: 
     Box(modifier.testTag("agenda_hourly_preview")
         .clip(ListItemDefaults.segmentedShapes(0, 1).shape).background(MaterialTheme.colorScheme.surfaceContainer)) {
         // Keep the source and expand/series controls reachable even with many text rows enabled.
-        androidx.compose.runtime.CompositionLocalProvider(LocalFontShadowEnabled provides true) {
+        androidx.compose.runtime.CompositionLocalProvider(LocalFontShadowEnabled provides false) {
             HourlyWeather(weather, now, appearance = appearance, constrainContentHeight = true)
         }
     }

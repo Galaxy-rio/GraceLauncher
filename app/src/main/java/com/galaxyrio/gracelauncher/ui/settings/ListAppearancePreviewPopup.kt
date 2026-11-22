@@ -188,7 +188,7 @@ internal fun ListAppearancePreviewPopup(
         current.reveal.dragging = false
         current.reveal.expanded = false
     }
-    CompositionLocalProvider(LocalFontShadowEnabled provides true, LocalLauncherAppearance provides appearance, LocalListAppearance provides list) {
+    CompositionLocalProvider(LocalFontShadowEnabled provides false, LocalLauncherAppearance provides appearance, LocalListAppearance provides list) {
         val app = current.app
         if (app == null) FolderPopup(
             folder = content.folder, apps = content.apps, anchor = current.anchor, reveal = current.reveal,

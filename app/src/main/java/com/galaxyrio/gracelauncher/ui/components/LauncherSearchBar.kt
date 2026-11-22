@@ -2,8 +2,7 @@
 
 package com.galaxyrio.gracelauncher.ui.components
 
-import com.galaxyrio.gracelauncher.ui.theme.resolvedFontShadow
-import com.galaxyrio.gracelauncher.ui.theme.FontShadowInput
+import com.galaxyrio.gracelauncher.ui.theme.WithoutFontShadow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.material3.*
@@ -30,7 +29,7 @@ internal fun LauncherSearchBar(
     onBack: (() -> Unit)? = null,
     onSearch: (() -> Unit)? = null,
     trailingIcon: (@Composable () -> Unit)? = null,
-) {
+) = WithoutFontShadow {
     // Keep the native input in its editable/results-visible state. There is no
     // expanding SearchBar or dialog; the collapsed SearchBar wrapper would
     // suppress the keyboard because it expects a separate expanded view.
@@ -60,12 +59,7 @@ internal fun LauncherSearchBar(
                 Icon(painterResource(R.drawable.ms_close), stringResource(R.string.search_clear_query))
             }
         }
-        if (resolvedFontShadow().spread > 0f) {
-            FontShadowInput(textFieldState,
-                modifier = Modifier.fillMaxWidth().focusRequester(focusRequester).testTag(tag),
-                enabled = enabled, search = true, placeholder = { Text(placeholder) },
-                leadingIcon = leading, trailingIcon = trailing, onSearch = { keyboard?.hide(); onSearch?.invoke() })
-        } else SearchBarDefaults.InputField(
+        SearchBarDefaults.InputField(
             textFieldState = textFieldState,
             searchBarState = state,
             onSearch = { keyboard?.hide(); onSearch?.invoke() },

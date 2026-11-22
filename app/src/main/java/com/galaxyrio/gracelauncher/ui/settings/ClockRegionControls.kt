@@ -125,15 +125,15 @@ internal fun LazyListScope.clockRegionSettings(
         }
         if (primary == ClockElement.Clock) {
             primaryControls += ClockControl("equal_width") { index, count ->
-                SettingsToggleItem(stringResource(R.string.clock_equal_width_characters), null, face.equalWidthDigits,
+                SettingsToggleItem(stringResource(R.string.clock_equal_width_characters), null, face.equalWidthDigits(regions.stackedClock),
                     index, count, "clock_equal_width_characters", enabled) { value ->
-                    changeFace(primary) { it.copy(equalWidthDigits = value) }
+                    changeFace(primary) { it.withEqualWidthDigits(regions.stackedClock, value) }
                 }
             }
-            if (face.equalWidthDigits) primaryControls += ClockControl("center_characters") { index, count ->
-                SettingsToggleItem(stringResource(R.string.clock_center_characters), null, face.centerDigits,
+            if (face.equalWidthDigits(regions.stackedClock)) primaryControls += ClockControl("center_characters") { index, count ->
+                SettingsToggleItem(stringResource(R.string.clock_center_characters), null, face.centerDigits(regions.stackedClock),
                     index, count, "clock_center_characters", enabled) { value ->
-                    changeFace(primary) { it.copy(centerDigits = value) }
+                    changeFace(primary) { it.withCenterDigits(regions.stackedClock, value) }
                 }
             }
         }
@@ -158,7 +158,7 @@ internal fun LazyListScope.clockRegionSettings(
                     changeFace(primary) { it.copy(minuteScale = value) }
                 }
             }
-            primaryControls += ClockControl("second_scale") { index, count ->
+            if (face.showSeconds) primaryControls += ClockControl("second_scale") { index, count ->
                 ClockSlider(stringResource(R.string.clock_second_scale), face.secondScale, 100, 20..150, 1,
                     index, count, "clock_second_scale", enabled, valueLabel = "${face.secondScale}%") { value ->
                     changeFace(primary) { it.copy(secondScale = value) }

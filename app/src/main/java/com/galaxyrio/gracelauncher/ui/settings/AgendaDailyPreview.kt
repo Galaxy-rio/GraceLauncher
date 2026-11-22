@@ -51,7 +51,7 @@ internal fun AgendaDailyPreview(uiState: LauncherUiState, appearance: AgendaAppe
         if (uiState.settings.calendar.tasksOrg.enabled) listOf(task) else emptyList(), zone,
         uiState.settings.calendar.deprioritizeAllDay, appearance.tasksFirst,
     )[today].orEmpty()
-    CompositionLocalProvider(LocalFontShadowEnabled provides true) {
+    CompositionLocalProvider(LocalFontShadowEnabled provides false) {
         MaterialTheme(typography = LocalLauncherTypography.current) {
             Surface(modifier.testTag("agenda_daily_preview"), color = MaterialTheme.colorScheme.surfaceContainer,
                 shape = ListItemDefaults.segmentedShapes(0, 1).shape,

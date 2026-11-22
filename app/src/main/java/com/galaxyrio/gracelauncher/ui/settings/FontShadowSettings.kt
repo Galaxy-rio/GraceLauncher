@@ -121,7 +121,7 @@ internal fun FontShadowSettings(uiState: LauncherUiState, initial: FontShadow,
                         item("presets") {
                             DesignerSegment(0, 7, "font_shadow_presets") {
                                 DesignerConnectedChoices(FontShadowPreset.entries, draft.preset, enabled && !colorOpen, "font_shadow_preset",
-                                    label = { it.label() }, onSelect = { draft = draft.select(it) })
+                                    label = { it.label() }, topPadding = 0.dp, onSelect = { draft = draft.select(it) })
                             }
                         }
                         item("opacity") {

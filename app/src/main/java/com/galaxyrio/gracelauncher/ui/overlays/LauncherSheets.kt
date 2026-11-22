@@ -1,7 +1,7 @@
 package com.galaxyrio.gracelauncher.ui.overlays
 
-import com.galaxyrio.gracelauncher.ui.theme.resolvedFontShadow
-import com.galaxyrio.gracelauncher.ui.theme.FontShadowInput
+import com.galaxyrio.gracelauncher.ui.theme.WithoutFontShadow
+
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.activity.compose.BackHandler
@@ -79,8 +79,8 @@ sealed interface LauncherOverlay {
 
 @Composable
 internal fun LauncherPanelTheme(content: @Composable () -> Unit) {
-    // Panels share the chosen dynamic/custom scheme and dark mode with settings.
-    content()
+    // Panels share the theme's colors, but their filled backgrounds need no wallpaper text shadow.
+    WithoutFontShadow(content)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -488,7 +488,7 @@ private fun CategoryAppsSheet(name: String, uiState: LauncherUiState, onLaunch: 
 }
 
 @Composable
-internal fun TextEntryDialog(title: String, initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit, onReset: (() -> Unit)? = null) {
+internal fun TextEntryDialog(title: String, initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit, onReset: (() -> Unit)? = null) = WithoutFontShadow {
     val input = androidx.compose.foundation.text.input.rememberTextFieldState(initial)
     val value = input.text.toString()
     AlertDialog(
@@ -496,12 +496,7 @@ internal fun TextEntryDialog(title: String, initial: String, onDismiss: () -> Un
         shape = RoundedCornerShape(40.dp),
         title = { Text(title) },
         text = {
-            if (resolvedFontShadow().spread > 0f) {
-                FontShadowInput(input, modifier = Modifier.testTag("text_entry"),
-                    inputTransformation = androidx.compose.foundation.text.input.InputTransformation {
-                        if (length > 80) replace(80, length, "")
-                    })
-            } else OutlinedTextField(value, onValueChange = { next -> input.edit { replace(0, length, next.take(80)) } },
+            OutlinedTextField(value, onValueChange = { next -> input.edit { replace(0, length, next.take(80)) } },
                 singleLine = true, modifier = Modifier.testTag("text_entry"))
         },
         confirmButton = { TextButton(onClick = { onSave(value.trim()) }, enabled = value.isNotBlank()) { Text(stringResource(R.string.save)) } },

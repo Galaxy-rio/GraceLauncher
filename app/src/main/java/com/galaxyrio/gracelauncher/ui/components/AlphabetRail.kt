@@ -1,7 +1,6 @@
 package com.galaxyrio.gracelauncher.ui.components
 
-import com.galaxyrio.gracelauncher.ui.theme.resolvedFontShadow
-import com.galaxyrio.gracelauncher.ui.theme.FontShadowMaskCache
+import com.galaxyrio.gracelauncher.ui.theme.LocalFontShadowEnabled
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.Typeface
@@ -25,6 +24,7 @@ import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.material3.MaterialTheme
 import com.galaxyrio.gracelauncher.ui.theme.FontShadowText as Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -318,19 +318,21 @@ fun AlphabetRail(
                     } else if (category != null) {
                         CategoryIndicator(category.icon, Modifier.size(18.dp), tint = color)
                     } else {
-                        Text(
-                            text = letter,
-                            modifier = Modifier.wrapContentSize(unbounded = true),
-                            maxLines = 1,
-                            color = color,
-                            style = TextStyle(
-                                fontFamily = fontFamily,
-                                fontSize = fontSize,
-                                lineHeight = fontSize * (16f / 14f),
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                shadow = if (onWallpaper) appearance.textShadow else null,
-                            ),
-                        )
+                        CompositionLocalProvider(LocalFontShadowEnabled provides (LocalFontShadowEnabled.current && onWallpaper)) {
+                            Text(
+                                text = letter,
+                                modifier = Modifier.wrapContentSize(unbounded = true),
+                                maxLines = 1,
+                                color = color,
+                                style = TextStyle(
+                                    fontFamily = fontFamily,
+                                    fontSize = fontSize,
+                                    lineHeight = fontSize * (16f / 14f),
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    shadow = if (onWallpaper) appearance.textShadow else null,
+                                ),
+                            )
+                        }
                     }
                 }
             }
@@ -385,11 +387,9 @@ fun AlphabetRail(
     }
 }
 
-/** Center the visible glyph, not the font's asymmetric ascent/descent line box. */
+/** Center the visible glyph in the indicator; the filled thumb never uses a wallpaper text shadow. */
 @Composable
 private fun CenteredIndicatorGlyph(letter: String, color: Color, fontFamily: FontFamily?) {
-    val shadow = resolvedFontShadow()
-    val shadowMask = remember { FontShadowMaskCache() }
     val density = LocalDensity.current
     val typeface = LocalFontFamilyResolver.current.resolve(
         fontFamily = fontFamily ?: FontFamily.Default,
@@ -423,18 +423,6 @@ private fun CenteredIndicatorGlyph(letter: String, color: Color, fontFamily: Fon
             val x = center.x - glyphBounds.exactCenterX()
             val y = center.y - glyphBounds.exactCenterY()
             val canvas = drawContext.canvas.nativeCanvas
-            shadowMask.draw(canvas, listOf(letter, typeface, paint.textSize, size), size.width, size.height,
-                0f, shadow) { target, spread ->
-                val maskPaint = Paint(paint).apply {
-                    this.color = android.graphics.Color.WHITE
-                    if (spread > 0f) {
-                        style = Paint.Style.FILL_AND_STROKE
-                        strokeWidth = spread * 2f
-                        strokeJoin = Paint.Join.ROUND
-                    }
-                }
-                target.drawText(letter, x, y, maskPaint)
-            }
             canvas.drawText(letter, x, y, paint)
         }
     }

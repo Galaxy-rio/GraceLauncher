@@ -26,7 +26,8 @@ import com.galaxyrio.gracelauncher.data.FontColors
 import kotlin.math.ceil
 
 internal val LocalFontShadow = staticCompositionLocalOf { FontShadow() }
-internal val LocalFontShadowEnabled = staticCompositionLocalOf { true }
+// Only wallpaper content opts in. Filled surfaces and settings remain plain by default.
+internal val LocalFontShadowEnabled = staticCompositionLocalOf { false }
 
 internal data class ResolvedFontShadow(val shadow: Shadow = Shadow.None, val spread: Float = 0f)
 
@@ -82,7 +83,7 @@ internal fun ProvideFontShadow(override: FontShadowOverride, content: @Composabl
         content = content)
 }
 
-/** Settings controls stay unshadowed; a live component preview can opt in inside this scope. */
+/** Filled surfaces and settings stay unshadowed; wallpaper previews can opt in inside this scope. */
 @Composable
 internal fun WithoutFontShadow(content: @Composable () -> Unit) {
     val typography = MaterialTheme.typography

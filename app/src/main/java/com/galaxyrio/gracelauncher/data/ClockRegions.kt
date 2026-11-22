@@ -205,8 +205,10 @@ data class ClockRegions(
                         put("separateDigits", face.separateDigits)
                         put("showLeadingZero", face.showLeadingZero)
                         put("showSeconds", face.showSeconds)
-                        put("equalWidthDigits", face.equalWidthDigits)
-                        put("centerDigits", face.centerDigits)
+                        put("horizontalEqualWidthDigits", face.horizontalEqualWidthDigits)
+                        put("horizontalCenterDigits", face.horizontalCenterDigits)
+                        put("verticalEqualWidthDigits", face.verticalEqualWidthDigits)
+                        put("verticalCenterDigits", face.verticalCenterDigits)
                         put("useLatinLetters", face.useLatinLetters)
                         put("minuteScale", face.minuteScale)
                         put("secondScale", face.secondScale)
@@ -321,8 +323,12 @@ data class ClockRegions(
                         separateDigits = data.optBoolean("separateDigits", face.separateDigits),
                         showLeadingZero = data.optBoolean("showLeadingZero", face.showLeadingZero),
                         showSeconds = data.optBoolean("showSeconds", face.showSeconds),
-                        equalWidthDigits = data.optBoolean("equalWidthDigits", face.equalWidthDigits),
-                        centerDigits = data.optBoolean("centerDigits", face.centerDigits),
+                        horizontalEqualWidthDigits = data.optBoolean("horizontalEqualWidthDigits", face.horizontalEqualWidthDigits),
+                        horizontalCenterDigits = data.optBoolean("horizontalCenterDigits", face.horizontalCenterDigits),
+                        verticalEqualWidthDigits = data.optBoolean("verticalEqualWidthDigits",
+                            data.optBoolean("equalWidthDigits", face.verticalEqualWidthDigits)),
+                        verticalCenterDigits = data.optBoolean("verticalCenterDigits",
+                            data.optBoolean("centerDigits", face.verticalCenterDigits)),
                         useLatinLetters = data.optBoolean("useLatinLetters", face.useLatinLetters),
                         minuteScale = data.optInt("minuteScale", face.minuteScale),
                         secondScale = data.optInt("secondScale", face.secondScale),

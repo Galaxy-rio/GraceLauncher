@@ -1,5 +1,7 @@
 package com.galaxyrio.gracelauncher.ui.home
 
+import com.galaxyrio.gracelauncher.ui.theme.WithoutFontShadow
+
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.os.Build
@@ -304,11 +306,13 @@ internal fun WidgetScreen(
                     if (!enabled || grid.busy) false else { scope.launch { grid.scrolling.scrollBy(-y) }; true }
                 }
             }) {
-            if (entries.isEmpty()) FilledTonalButton(onClick = onEdit, enabled = inputEnabled,
-                modifier = Modifier.align(Alignment.Center).testTag("widget_screen_add")) {
-                LauncherIcon(LauncherSymbol.Plus)
-                Spacer(Modifier.width(8.dp))
-                Text(stringResource(R.string.widget_screen_add_items))
+            if (entries.isEmpty()) WithoutFontShadow {
+                FilledTonalButton(onClick = onEdit, enabled = inputEnabled,
+                    modifier = Modifier.align(Alignment.Center).testTag("widget_screen_add")) {
+                    LauncherIcon(LauncherSymbol.Plus)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.widget_screen_add_items))
+                }
             }
             // Render identity is independent of row order. In particular, moving a native
             // widget upward must not detach its AndroidView while it owns a touch stream.

@@ -1,5 +1,7 @@
 package com.galaxyrio.gracelauncher.ui.widgets
 
+import com.galaxyrio.gracelauncher.ui.theme.WithoutFontShadow
+
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProviderInfo
 import android.util.Log
@@ -147,7 +149,9 @@ internal fun HomeWidget(
         } else modifier.combinedClickable(enabled = enabled && !editing, onClick = onLongPress, onLongClick = onLongPress)
         Surface(fallback,
             shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainer) {
-            Text(stringResource(R.string.widget_unavailable), Modifier.padding(20.dp))
+            WithoutFontShadow {
+                Text(stringResource(R.string.widget_unavailable), Modifier.padding(20.dp))
+            }
         }
     } else key(layout.widgetId, widget.info.provider) {
         AndroidView(

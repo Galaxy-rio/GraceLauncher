@@ -12,7 +12,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalResources
-import androidx.compose.ui.platform.LocalDensity
 import com.materialkolor.PaletteStyle
 import com.galaxyrio.gracelauncher.data.FontLibrary
 import com.galaxyrio.gracelauncher.data.FontColors
@@ -99,8 +98,6 @@ fun GraceLauncherTheme(
 
     val family = rememberAppFontFamily(null, fontLibrary)
     val typography = remember(family) { launcherTypography(family) }
-    val shadow = resolveFontShadow(fontShadow, colors, fontColors, wallpaperScheme.onSurface, LocalDensity.current.density).shadow
-    val contentTypography = remember(typography, shadow) { typography.withFontShadow(shadow) }
     CompositionLocalProvider(
         LocalFontLibrary provides fontLibrary,
         LocalFontColors provides fontColors,
@@ -112,7 +109,7 @@ fun GraceLauncherTheme(
     ) {
         MaterialExpressiveTheme(
             colorScheme = colors,
-            typography = contentTypography,
+            typography = typography,
             content = content,
         )
     }

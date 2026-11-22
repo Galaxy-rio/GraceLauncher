@@ -37,7 +37,7 @@ class FontShadowPersistenceTest {
 
     @Test fun clockScalesAndDisabledOverrideSurviveSavingAndReopening() {
         val shadow = FontShadowOverride(false, FontShadow.Sharp.copy(preset = FontShadowPreset.Custom, spread = 2f))
-        val face = ClockFaceStyle(showSeconds = true, equalWidthDigits = true, centerDigits = true,
+        val face = ClockFaceStyle(showSeconds = true, horizontalEqualWidthDigits = true, horizontalCenterDigits = true,
             minuteScale = 20, secondScale = 150, shadow = shadow)
         val row = ClockRowTypography(shadow = shadow)
         val value = ClockStyle(singleLine = face, twoLines = face, regions = ClockRegions(stackedClock = true,

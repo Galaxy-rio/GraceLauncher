@@ -2,6 +2,8 @@
 
 package com.galaxyrio.gracelauncher.ui.settings
 
+import com.galaxyrio.gracelauncher.ui.theme.FontShadowText as Text
+
 import com.galaxyrio.gracelauncher.ui.theme.LocalFontShadowEnabled
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
