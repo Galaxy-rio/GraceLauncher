@@ -85,6 +85,8 @@ import androidx.core.net.toUri
 import androidx.core.content.ContextCompat
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.platform.openCalendarEvent
+import com.galaxyrio.gracelauncher.platform.openDefaultCalendar
+import com.galaxyrio.gracelauncher.data.DateTapAction
 import com.galaxyrio.gracelauncher.data.tasks.TasksRepository
 import com.galaxyrio.gracelauncher.data.tasks.TaskCompletionResult
 import com.galaxyrio.gracelauncher.MainActivity
@@ -1230,6 +1232,12 @@ internal fun LauncherScreen(
         val alphabet = uiState.settings.listAppearance.alphabet.normalized()
         val railLayout = alphabet.layout(maxHeight.value, model.letters.size + 1)
 
+        val dateTapAction = uiState.settings.calendar.dateTapAction
+        val openCalendar: () -> Unit = { openDefaultCalendar(context) }
+        val openAgenda: () -> Unit = {
+            actions.refreshWeatherIfNeeded()
+            overlay = LauncherOverlay.Agenda
+        }
         CompositionLocalProvider(LocalHomeAnimationTarget provides true) {
           HorizontalPager(
             state = homePager, beyondViewportPageCount = 1,
@@ -1255,10 +1263,9 @@ internal fun LauncherScreen(
                 onLaunchApp = onLaunchApp,
                 onAppDetails = { overlay = LauncherOverlay.AppDetails(it) },
                 onAppShortcuts = openAppPopup,
-                onDateClick = {
-                    actions.refreshWeatherIfNeeded()
-                    overlay = LauncherOverlay.Agenda
-                },
+                onDateClick = openAgenda,
+                onCalendarClick = if (dateTapAction == DateTapAction.TapCalendar) openCalendar else openAgenda,
+                onCalendarLongClick = if (dateTapAction == DateTapAction.LongPressCalendar) openCalendar else null,
                 onClockClick = onClockClick,
                 onWeatherClick = actions.openWeatherApp,
                 onWidgetMenu = { overlay = LauncherOverlay.HomeWidgetMenu },

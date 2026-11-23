@@ -161,6 +161,8 @@ fun HomeScreen(
     actions: LauncherActions = LauncherActions(),
     onWidgetEditingChange: (Boolean) -> Unit = {},
     onWeatherClick: () -> Unit = {},
+    onCalendarClick: () -> Unit = onDateClick,
+    onCalendarLongClick: (() -> Unit)? = null,
 ) {
     val now by rememberHomeTime()
     val headphones by rememberHeadphonesConnected()
@@ -392,6 +394,7 @@ fun HomeScreen(
                                 }
                             })
                         grace == GraceWidget.ClockCalendar -> HomeClockHeader(now, event, onDateClick, onClockClick,
+                            onCalendarClick = onCalendarClick, onCalendarLongClick = onCalendarLongClick,
                             showBattery = true,
                             clockStyle = uiState.settings.clockStyle,
                             weather = uiState.weather.snapshot?.current.takeIf { uiState.settings.weatherEnabled &&

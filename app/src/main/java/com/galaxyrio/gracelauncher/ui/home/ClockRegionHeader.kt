@@ -114,6 +114,8 @@ internal fun HomeClockHeader(
     showTasks: Boolean = false,
     onTaskClick: (TaskItem) -> Unit = {},
     taskPreferences: TasksPreferences = TasksPreferences(),
+    onCalendarClick: () -> Unit = onDateClick,
+    onCalendarLongClick: (() -> Unit)? = null,
 ) {
     val regions = clockStyle.regions ?: if (showTasks) clockStyle.resolvedRegions(calendarAboveClock) else null
     if (regions == null) {
@@ -175,9 +177,9 @@ internal fun HomeClockHeader(
         val calendarLocale = remember(locale, useLatinLetters) { clockCalendarLocale(locale, useLatinLetters) }
         val action = when (element) {
             ClockElement.Clock -> onClockClick
-            ClockElement.Weekday, ClockElement.Date -> onDateClick
+            ClockElement.Weekday, ClockElement.Date -> onCalendarClick
             ClockElement.Weather -> onWeatherClick
-            ClockElement.Battery -> null
+            ClockElement.Battery -> ({}) // no-op: swallows the tap so the row's agenda action does not fire
         }
         val description = when (element) {
             ClockElement.Weekday, ClockElement.Date -> stringResource(R.string.date_calendar_action,
@@ -192,19 +194,17 @@ internal fun HomeClockHeader(
             ClockElement.Battery -> "${dateTag}_battery"
             ClockElement.Weather -> "home_weather"
         }
-        // Compact rows own their agenda action; only weather keeps an independent pointer target.
+        // Compact rows own their agenda action; date, weekday, battery and weather keep their own pointer targets.
         val contentModifier = elementModifier.testTag(tag).then(
-            if (!primary || element == ClockElement.Weather) Modifier else Modifier
+            if (element == ClockElement.Weather || (!primary && element != ClockElement.Weekday && element != ClockElement.Date && element != ClockElement.Battery)) Modifier else Modifier
                 .then(if (description == null) Modifier else Modifier.semantics { contentDescription = description })
-                .then(if (interactive && action != null) Modifier.combinedClickable(
+                .then(if (interactive) Modifier.combinedClickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = ripple(color = appearance.text),
                     role = Role.Button,
-                    onClick = action, onLongClick = onLongClick,
-                ) else if (interactive) Modifier
-                    .pointerInput(onLongClick) { detectTapGestures(onLongPress = { onLongClick() }) }
-                    .semantics { semanticOnLongClick { onLongClick(); true } }
-                else Modifier),
+                    onClick = action,
+                    onLongClick = if (element == ClockElement.Weekday || element == ClockElement.Date) onCalendarLongClick ?: onLongClick else onLongClick,
+                ) else Modifier),
         )
         when (element) {
             ClockElement.Clock -> ClockRegionTime(now, primary, showSeconds, clockActive,

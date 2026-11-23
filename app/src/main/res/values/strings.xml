@@ -78,6 +78,9 @@
     <string name="calendar_hidden">Hidden in the system calendar</string>
     <string name="calendar_open_events">Open events</string>
     <string name="calendar_app">Default calendar app</string>
+    <string name="calendar_date_tap">Date tap</string>
+    <string name="calendar_date_tap_calendar">Tap opens calendar</string>
+    <string name="calendar_date_long_press_calendar">Long press opens calendar</string>
     <string name="calendar_system_default_app">System default</string>
     <string name="calendar_choose_app_description">Choose the app used to open calendar events.</string>
     <string name="calendar_read_days">Days to read ahead</string>

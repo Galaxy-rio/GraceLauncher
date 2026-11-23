@@ -12,10 +12,14 @@ enum class CalendarRefreshMode(val intervalMillis: Long?) {
     Manual(null),
 }
 
+/** Which gesture on the home date/weekday opens the system calendar; the other one opens Your agenda (tap) or nothing (long press). */
+enum class DateTapAction { LongPressCalendar, TapCalendar }
+
 data class CalendarPreferences(
     val daysAhead: Int = 14,
     val refreshMode: CalendarRefreshMode = CalendarRefreshMode.EveryMinute,
     val deprioritizeAllDay: Boolean = true,
+    val dateTapAction: DateTapAction = DateTapAction.LongPressCalendar,
     /** null follows system-visible calendars; an empty set explicitly selects none. */
     val selectedCalendarIds: Set<Long>? = null,
     /** null lets Android resolve the event with the user's system default. */
@@ -34,6 +38,7 @@ data class CalendarPreferences(
     fun encode(): String = normalized().let { value ->
         JSONObject().put("daysAhead", value.daysAhead).put("refreshMode", value.refreshMode.name)
             .put("deprioritizeAllDay", value.deprioritizeAllDay)
+            .put("dateTapAction", value.dateTapAction.name)
             .put("selectedCalendarIds", value.selectedCalendarIds?.let { JSONArray(it.sorted()) } ?: JSONObject.NULL)
             .put("appPackage", value.appPackage ?: JSONObject.NULL)
             .put("tasksOrg", value.tasksOrg.json()).toString()
@@ -51,6 +56,8 @@ data class CalendarPreferences(
                 refreshMode = CalendarRefreshMode.entries.firstOrNull { it.name == json.optString("refreshMode") }
                     ?: defaults.refreshMode,
                 deprioritizeAllDay = json.optBoolean("deprioritizeAllDay", defaults.deprioritizeAllDay),
+                dateTapAction = DateTapAction.entries.firstOrNull { it.name == json.optString("dateTapAction") }
+                    ?: defaults.dateTapAction,
                 selectedCalendarIds = json.optJSONArray("selectedCalendarIds")?.let { ids ->
                     buildSet {
                         for (index in 0 until ids.length()) {
