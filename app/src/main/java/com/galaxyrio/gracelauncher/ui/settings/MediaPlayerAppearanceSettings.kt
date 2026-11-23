@@ -61,8 +61,7 @@ import com.galaxyrio.gracelauncher.data.MediaPlayerStyle
 import com.galaxyrio.gracelauncher.data.IconDesign
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
-import com.galaxyrio.gracelauncher.ui.components.endPadding
-import com.galaxyrio.gracelauncher.ui.components.startPadding
+import com.galaxyrio.gracelauncher.ui.components.horizontalPadding
 import com.galaxyrio.gracelauncher.ui.home.HomeMediaPlayerPreview
 import com.galaxyrio.gracelauncher.ui.theme.LauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
@@ -247,8 +246,7 @@ private fun MediaAppearancePreview(uiState: LauncherUiState, media: NowPlaying, 
             MaterialTheme(typography = LocalLauncherTypography.current) {
                 Box(Modifier.fillMaxWidth().verticalScroll(rememberScrollState())) {
                     HomeMediaPlayerPreview(media, Modifier.padding(
-                        start = uiState.settings.listAppearance.startPadding,
-                        end = uiState.settings.listAppearance.endPadding, top = 12.dp, bottom = 12.dp),
+                        horizontal = uiState.settings.listAppearance.horizontalPadding, vertical = 12.dp),
                         style = style, iconDesign = uiState.settings.iconDesign?.design ?: IconDesign())
                 }
             }

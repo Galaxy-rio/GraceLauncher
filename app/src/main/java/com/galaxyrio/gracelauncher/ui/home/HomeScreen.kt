@@ -118,8 +118,7 @@ import com.galaxyrio.gracelauncher.ui.components.favoriteUsageLabel
 import com.galaxyrio.gracelauncher.ui.components.FolderRow
 import com.galaxyrio.gracelauncher.ui.components.AppStack
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
-import com.galaxyrio.gracelauncher.ui.components.startPadding
-import com.galaxyrio.gracelauncher.ui.components.endPadding
+import com.galaxyrio.gracelauncher.ui.components.horizontalPadding
 import com.galaxyrio.gracelauncher.ui.components.stableStatusBarInset
 import com.galaxyrio.gracelauncher.ui.components.eventRemainingText
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
@@ -355,8 +354,7 @@ fun HomeScreen(
                 val currentDrag by rememberUpdatedState(drag)
                 Box(Modifier.fillMaxWidth()
                     // Keep the scroll viewport full-width; only ordinary rows reserve list gutters.
-                    .padding(start = if (widget?.widgetFullWidth == true) 0.dp else uiState.settings.listAppearance.startPadding,
-                        end = if (widget?.widgetFullWidth == true) 0.dp else uiState.settings.listAppearance.endPadding)
+                    .padding(horizontal = if (widget?.widgetFullWidth == true) 0.dp else uiState.settings.listAppearance.horizontalPadding)
                     .then(if (dragging) Modifier else Modifier.animateItem())
                     .zIndex(if (dragging || reorder.drop?.key == entry.key) 3f else if (selectedWidget == entry.key) 2f else 0f)
                     .graphicsLayer { translationY = offset }
@@ -487,7 +485,7 @@ fun HomeScreen(
                 val current = (topSpace.value + topOffset + anchorOffset).coerceIn(minimumTop.value, maximumTop.value)
                 topOffset = (current + delta).coerceIn(minimumTop.value, maximumTop.value) - topSpace.value - anchorOffset
             }, onFinished = { onTopOffsetChange(topOffset) },
-            modifier = Modifier.padding(start = uiState.settings.listAppearance.startPadding, end = uiState.settings.listAppearance.endPadding)
+            modifier = Modifier.padding(horizontal = uiState.settings.listAppearance.horizontalPadding)
                 .offset(y = (if (baselineIndex >= 0) baselineTop else resolvedTop) - 20.dp))
     }
 }

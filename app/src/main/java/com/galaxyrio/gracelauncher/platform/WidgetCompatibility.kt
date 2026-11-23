@@ -79,7 +79,7 @@ internal fun initialWidgetOptions(context: Context, info: AppWidgetProviderInfo,
             target.second * cellHeight - 8f)
     }
     val available = (screenWidth - if (owner == null || owner == HomeContentKey)
-        (homeSidePadding.coerceIn(8, 80) * 2 + 20f) else 64f).coerceAtLeast(1f)
+        (homeSidePadding.coerceIn(8, 80) * 2f) else 64f).coerceAtLeast(1f)
     val height = info.heightBounds(0f, density, 1600, 48)
     return widgetSizeOptions(available, height.initial.toFloat())
 }

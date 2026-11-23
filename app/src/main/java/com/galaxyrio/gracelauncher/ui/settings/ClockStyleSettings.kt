@@ -79,8 +79,7 @@ import com.galaxyrio.gracelauncher.data.tasks.TaskItem
 import com.galaxyrio.gracelauncher.data.tasks.TaskPriority
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
-import com.galaxyrio.gracelauncher.ui.components.endPadding
-import com.galaxyrio.gracelauncher.ui.components.startPadding
+import com.galaxyrio.gracelauncher.ui.components.horizontalPadding
 import com.galaxyrio.gracelauncher.ui.home.HomeClockHeader
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherTypography
@@ -666,8 +665,7 @@ private fun ClockStylePreview(
                         weather = weatherSnapshot.current,
                         weatherSnapshot = weatherSnapshot,
                         modifier = Modifier.fillMaxWidth().padding(
-                            start = uiState.settings.listAppearance.startPadding,
-                            end = uiState.settings.listAppearance.endPadding, top = 12.dp, bottom = 12.dp),
+                            horizontal = uiState.settings.listAppearance.horizontalPadding, vertical = 12.dp),
                         interactive = false, clockTag = "clock_style_preview_text", dateTag = "clock_style_preview_date",
                     )
                 }

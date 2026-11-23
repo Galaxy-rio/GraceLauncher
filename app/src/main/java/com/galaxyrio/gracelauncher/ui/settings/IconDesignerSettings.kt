@@ -36,8 +36,7 @@ import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
-import com.galaxyrio.gracelauncher.ui.components.endPadding
-import com.galaxyrio.gracelauncher.ui.components.startPadding
+import com.galaxyrio.gracelauncher.ui.components.horizontalPadding
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherTypography
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherAppearance
@@ -106,8 +105,8 @@ private fun AllIconsPreview(uiState: LauncherUiState, choice: ItemIcon, store: I
         stringResource(R.string.icon_designer_legacy_apps))
     val iconSize = 40.dp * ((choice.design?.iconSize ?: 100) / 100f)
     val appearance = LocalLauncherAppearance.current
-    Column(Modifier.fillMaxSize().padding(start = uiState.settings.listAppearance.startPadding,
-        end = uiState.settings.listAppearance.endPadding, top = 12.dp, bottom = 12.dp).testTag("icon_designer_grid"),
+    Column(Modifier.fillMaxSize().padding(horizontal = uiState.settings.listAppearance.horizontalPadding,
+        vertical = 12.dp).testTag("icon_designer_grid"),
         verticalArrangement = Arrangement.Center) {
             rows.forEachIndexed { row, entries ->
                 val app = entries.firstOrNull()

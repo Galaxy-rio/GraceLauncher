@@ -22,8 +22,8 @@ import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
 import com.galaxyrio.gracelauncher.ui.components.LocalLauncherInputEnabled
 import com.galaxyrio.gracelauncher.ui.components.LocalListAppearance
 import com.galaxyrio.gracelauncher.ui.components.LocalPopupGestureSettings
-import com.galaxyrio.gracelauncher.ui.components.endPadding
-import com.galaxyrio.gracelauncher.ui.components.startPadding
+import com.galaxyrio.gracelauncher.ui.components.appListEndPadding
+import com.galaxyrio.gracelauncher.ui.components.horizontalPadding
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.rememberLauncherAppearance
 
@@ -44,7 +44,7 @@ internal fun ListAppearancePreview(uiState: LauncherUiState, list: ListAppearanc
         Column(
             modifier = modifier.fillMaxWidth().testTag("list_appearance_preview")
                 .clipToBounds().verticalScroll(rememberScrollState())
-                .padding(start = list.startPadding, end = list.endPadding),
+                .padding(start = list.horizontalPadding, end = list.appListEndPadding),
         ) {
             AppListSectionHeader("A", Modifier.testTag("list_preview_section"))
             LauncherAppRow(content.ordinaryApp, {}, {}, Modifier.testTag("list_preview_first_app"),

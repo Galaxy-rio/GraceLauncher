@@ -49,8 +49,8 @@ import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
 import com.galaxyrio.gracelauncher.ui.components.FolderRow
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
 import com.galaxyrio.gracelauncher.ui.components.LocalListAppearance
-import com.galaxyrio.gracelauncher.ui.components.startPadding
-import com.galaxyrio.gracelauncher.ui.components.endPadding
+import com.galaxyrio.gracelauncher.ui.components.horizontalPadding
+import com.galaxyrio.gracelauncher.ui.components.appListEndPadding
 import com.galaxyrio.gracelauncher.ui.components.stableStatusBarInset
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.settings.categoryLabel
@@ -136,7 +136,7 @@ fun AppDrawerScreen(
         // may occupy this area after jumping to a later letter. The small, real
         // bottom inset lets LazyColumn naturally clamp sections near the end
         // without clipping scrolling rows above the navigation bar.
-        contentPadding = PaddingValues(start = listAppearance.startPadding, end = listAppearance.endPadding, top = topSpace, bottom = 24.dp + bottomInset),
+        contentPadding = PaddingValues(start = listAppearance.horizontalPadding, end = listAppearance.appListEndPadding, top = topSpace, bottom = 24.dp + bottomInset),
         userScrollEnabled = selectedLetter == null,
     ) {
         items(
