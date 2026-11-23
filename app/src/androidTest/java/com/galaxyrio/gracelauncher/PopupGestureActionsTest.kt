@@ -44,12 +44,12 @@ class PopupGestureActionsTest {
         assertEquals(listOf(newest.key), removed)
     }
 
-    @Test fun dismissAllUsesOwningAppForPreviewAndAllMemberAppsForFolderOrStack() = runBlocking {
+    @Test fun dismissAllClearsEveryMemberAppEvenFromOnePreviewInAFolderOrStack() = runBlocking {
         val state = state(PopupGestureAction.DismissAllNotifications)
         val removed = mutableListOf<String>()
         val actions = LauncherActions(dismissNotification = { key, _ -> removed.add(key) })
         assertTrue(execute(state, touched, actions))
-        assertEquals(setOf(touched.key, older.key), removed.toSet())
+        assertEquals(setOf(newest.key, touched.key, older.key), removed.toSet())
         removed.clear()
         assertTrue(execute(state, null, actions))
         assertEquals(setOf(newest.key, touched.key, older.key), removed.toSet())

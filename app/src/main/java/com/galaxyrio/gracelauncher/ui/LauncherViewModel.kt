@@ -1357,6 +1357,8 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
         return mediaRepository.dismiss(sessionId, revision)
     }
     fun dismissNotification(key: String, revision: Long): Boolean = appNotifications.dismiss(key, revision)
+
+    fun dismissAllNotifications(packageName: String): Boolean = appNotifications.dismissAll(packageName)
     fun openNotification(key: String, revision: Long): Boolean = appNotifications.open(getApplication(), key, revision)
 
     fun renameApp(app: LauncherApp, label: String) {

@@ -27,6 +27,7 @@ import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -547,5 +548,15 @@ internal fun DeleteFolderDialog(name: String, onDismiss: () -> Unit, appStack: B
         text = { Text(stringResource(if (appStack) R.string.app_stack_delete_confirmation else R.string.settings_folder_delete_confirmation, name)) },
         confirmButton = { TextButton(onClick = onDelete, modifier = Modifier.testTag("folder_confirm_delete")) {
             Text(stringResource(R.string.settings_delete), color = MaterialTheme.colorScheme.error)
+        } }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
+}
+
+@Composable
+internal fun DismissNotificationsDialog(count: Int, onConfirm: () -> Unit, onDismiss: () -> Unit) {
+    AlertDialog(onDismissRequest = onDismiss, shape = RoundedCornerShape(40.dp),
+        title = { Text(stringResource(R.string.dismiss_notifications_title)) },
+        text = { Text(pluralStringResource(R.plurals.dismiss_notifications_message, count, count)) },
+        confirmButton = { TextButton(onClick = onConfirm, modifier = Modifier.testTag("dismiss_notifications_confirm")) {
+            Text(stringResource(R.string.dismiss_notifications_confirm))
         } }, dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } })
 }

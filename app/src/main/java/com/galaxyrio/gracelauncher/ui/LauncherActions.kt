@@ -104,6 +104,7 @@ data class LauncherActions(
     val controlMedia: (String, MediaCommand) -> Unit = { _, _ -> },
     val dismissMedia: (String, Long) -> Boolean = { _, _ -> false },
     val dismissNotification: (String, Long) -> Boolean = { _, _ -> false },
+    val dismissAllNotifications: (String) -> Boolean = { false },
     val openNotification: (String, Long) -> Boolean = { _, _ -> false },
     val requestWeatherAccess: () -> Unit = {},
     val requestCalendarAccess: () -> Unit = {},

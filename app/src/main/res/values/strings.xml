@@ -1241,6 +1241,12 @@
     <string name="popup_action_first_notification">Open the first notification</string>
     <string name="popup_action_dismiss_first">Dismiss the first notification</string>
     <string name="popup_action_dismiss_all">Dismiss all app notifications</string>
+    <string name="dismiss_notifications_title">Dismiss notifications?</string>
+    <plurals name="dismiss_notifications_message">
+        <item quantity="one">Dismiss %1$d notification? This can’t be undone.</item>
+        <item quantity="other">Dismiss all %1$d notifications? This can’t be undone.</item>
+    </plurals>
+    <string name="dismiss_notifications_confirm">Dismiss</string>
     <string name="popup_double_tap_delay">Enabling double-tap gestures delays single taps.</string>
     <string name="settings_backup">Backup and restore</string>
     <string name="settings_backup_summary">Save or restore your layout, settings, folders and icons</string>

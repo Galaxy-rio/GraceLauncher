@@ -145,6 +145,8 @@ import com.galaxyrio.gracelauncher.ui.settings.LocalSettingsSystemBarBackground
 import com.galaxyrio.gracelauncher.ui.settings.SettingsSystemBarBackground
 import com.galaxyrio.gracelauncher.ui.theme.LocalWallpaperFontColor
 import com.galaxyrio.gracelauncher.ui.overlays.LauncherOverlay
+import kotlinx.coroutines.CompletableDeferred
+import com.galaxyrio.gracelauncher.ui.overlays.DismissNotificationsDialog
 import com.galaxyrio.gracelauncher.ui.overlays.LauncherOverlays
 import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
@@ -439,6 +441,7 @@ fun LauncherRoute(
         },
         dismissMedia = viewModel::dismissMedia,
         dismissNotification = viewModel::dismissNotification,
+        dismissAllNotifications = viewModel::dismissAllNotifications,
         openNotification = { key, revision ->
             viewModel.openNotification(key, revision).also { opened ->
                 if (!opened) Toast.makeText(context, R.string.notification_unavailable, Toast.LENGTH_SHORT).show()
@@ -1048,6 +1051,8 @@ internal fun LauncherScreen(
             true
         } else false
     }
+    // Multi-app folder dismissals wait here for the user's answer; a single app clears at once.
+    var pendingDismiss by remember { mutableStateOf<Pair<List<AppNotification>, CompletableDeferred<Boolean>>?>(null) }
     val executeGesture: (LauncherApp, PopupGesture, Rect, AppNotification?) -> Unit = execute@{ owner, gesture, bounds, notification ->
         if (popupGestureJob?.isActive == true || overlay != null) return@execute
         val fromDrawer = drawerOpen
@@ -1059,6 +1064,11 @@ internal fun LauncherScreen(
                         drawerOpen == fromDrawer && homePager.currentPage == fromPage
                 },
                 openPopup = { openGesturePopup(it, bounds) },
+                confirmDismiss = { notifications ->
+                    val answer = CompletableDeferred<Boolean>()
+                    pendingDismiss = notifications to answer
+                    try { answer.await() } finally { pendingDismiss = null }
+                },
                 launchItem = { target ->
                     if (target.folderId != null) openGesturePopup(target, bounds)
                     else {
@@ -1074,6 +1084,13 @@ internal fun LauncherScreen(
             if (current?.app?.key == app.key) current.reveal.expanded = expanded
             else overlay = LauncherOverlay.Shortcuts(app, bounds, ShortcutRevealState(expanded, dragging = true))
         }
+    }
+    pendingDismiss?.let { (notifications, answer) ->
+        DismissNotificationsDialog(
+            count = notifications.size,
+            onConfirm = { answer.complete(true) },
+            onDismiss = { answer.complete(false) },
+        )
     }
     val rowGestures = AppRowGestures(
         onPrepare = actions.prepareShortcuts,

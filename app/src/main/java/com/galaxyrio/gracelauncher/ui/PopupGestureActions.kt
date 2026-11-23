@@ -39,6 +39,10 @@ internal fun LauncherUiState.allGestureNotifications(target: PopupGestureTarget)
     if (target.app.folderId == null) ownNotificationsFor(target.app, expanded = true, includeHidden = true)
     else notificationsFor(target.app, expanded = true, includeHidden = true)
 
+/** Dismiss-all means the whole row (every app in a folder), even when the swipe starts on one preview line. */
+private fun LauncherUiState.dismissAllTarget(owner: LauncherApp, target: PopupGestureTarget): PopupGestureTarget =
+    if (target.notification == null) target else popupGestureTarget(owner, null) ?: target
+
 private fun LauncherUiState.needsPopupShortcuts(owner: LauncherApp): Boolean {
     val custom = popups[owner.key]
     return owner.folderId == null && (custom == null || custom.firstOrNull()?.let {
@@ -64,9 +68,13 @@ internal fun LauncherUiState.resolvePopupGesture(
         }
         PopupGestureAction.OpenFirstNotification -> firstGestureNotification(target)?.canOpen == true
         PopupGestureAction.DismissFirstNotification -> firstGestureNotification(target)?.canDismiss == true
-        PopupGestureAction.DismissAllNotifications -> allGestureNotifications(target).any { it.canDismiss }
+        PopupGestureAction.DismissAllNotifications -> allGestureNotifications(dismissAllTarget(owner, target)).any { it.canDismiss }
     } }
 }
+
+/** Clearing more than one notification asks first; a single notification does not. */
+internal fun notificationDismissNeedsConfirmation(notifications: List<AppNotification>): Boolean =
+    notifications.size > 1
 
 /** Shared by desktop rows and the simulated preview; platform actions are injected. */
 internal suspend fun performPopupGesture(
@@ -74,6 +82,7 @@ internal suspend fun performPopupGesture(
     state: () -> LauncherUiState, actions: () -> LauncherActions,
     canContinue: () -> Boolean,
     openPopup: (LauncherApp) -> Boolean, launchItem: (LauncherApp) -> Boolean,
+    confirmDismiss: suspend (List<AppNotification>) -> Boolean = { true },
 ): Boolean {
     val plan = state().settings.shortcutsFolders.gesture(gesture)
     fun current(): Pair<LauncherUiState, PopupGestureTarget>? {
@@ -103,10 +112,18 @@ internal suspend fun performPopupGesture(
                 it.canDismiss && actions().dismissNotification(it.key, it.revision)
             } == true
             PopupGestureAction.DismissAllNotifications -> {
+                val pending = latest.allGestureNotifications(latest.dismissAllTarget(owner, target)).filter { it.canDismiss }
+                // A declined confirmation ends the gesture instead of falling through to the next action.
+                if (pending.isNotEmpty() && notificationDismissNeedsConfirmation(pending) && !confirmDismiss(pending)) return@performFirstAvailable true
+                val (refreshed, refreshedTarget) = if (pending.isEmpty()) latest to target
+                    else current() ?: return@performFirstAvailable false
                 var dismissed = false
-                latest.allGestureNotifications(target).filter { it.canDismiss }.forEach {
-                    if (actions().dismissNotification(it.key, it.revision)) dismissed = true
-                }
+                refreshed.allGestureNotifications(refreshed.dismissAllTarget(owner, refreshedTarget)).filter { it.canDismiss }.groupBy { it.packageName }
+                    .forEach { (pkg, list) ->
+                        // App-wide clear also takes group summaries the list hides; per-key is the fallback.
+                        if (actions().dismissAllNotifications(pkg)) dismissed = true
+                        else list.forEach { if (actions().dismissNotification(it.key, it.revision)) dismissed = true }
+                    }
                 dismissed
             }
         }

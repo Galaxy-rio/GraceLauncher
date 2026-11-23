@@ -112,6 +112,15 @@ internal class AppNotificationStore {
         return cancel?.invoke(entry.display.key) == true
     }
 
+    /** Clears every dismissable notification of the app, including group summaries that the list hides. */
+    fun dismissAll(packageName: String): Boolean {
+        val keys = entries.values.filter {
+            it.display.packageName == packageName && it.display.canDismiss && classification(it.display.key).visible
+        }.map { it.display.key }
+        // Cancel every key even if one fails; any success counts as handled.
+        return keys.map { cancel?.invoke(it) == true }.any { it }
+    }
+
     fun open(context: Context, key: String, revision: Long): Boolean {
         val entry = entries[key]?.takeIf { it.display.revision == revision && classification(key).visible } ?: return false
         val intent = entry.contentIntent ?: return false
