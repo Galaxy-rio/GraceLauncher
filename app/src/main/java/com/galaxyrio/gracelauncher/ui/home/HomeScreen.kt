@@ -250,7 +250,8 @@ fun HomeScreen(
             if (it && !userIsEditing) baselinePinned = false
         }
     }
-    val overscroll = rememberOverscrollEffect()
+    // Locked (default): the list never scrolls or stretches; the gesture connection consumes drags.
+    val overscroll = rememberOverscrollEffect().takeIf { homeLayout.listStretch }
     val gesturesEnabled = widgetInputEnabled && !editingLayout && !widgetEditing && uiState.settings.homeGestures.enabled &&
         !uiState.isLoadingSettings && !uiState.settingsLoadFailed
     val doubleTapEnabled = gesturesEnabled && uiState.settings.homeGestures.doubleTap.active
@@ -266,6 +267,7 @@ fun HomeScreen(
         protectSwipeUp = uiState.settings.homeGestures.protectSwipeUp,
         protectSwipeDown = uiState.settings.homeGestures.protectSwipeDown,
         onPullReady = { haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate) },
+        locked = !homeLayout.listStretch,
     )
     LaunchedEffect(gesturesEnabled) { if (!gesturesEnabled) scrollConnection.cancelGesture() }
     BoxWithConstraints(modifier.fillMaxSize()

@@ -945,6 +945,9 @@
     <string name="lab_dp">%1$d dp</string>
     <string name="lab_degrees">±%1$d°</string>
     <string name="favorites_lock_editing">Lock editing</string>
+    <string name="favorites_list_stretch">Allow scrolling the home list</string>
+    <string name="home_list_heading">Home list</string>
+    <string name="home_layout_heading">Home layout</string>
     <string name="widget_settings_button">Settings</string>
     <string name="widget_bind_error">Couldn’t bind this widget. Please try again.</string>
     <string name="widget_configuration_launch_error">Couldn’t open this widget’s settings. Please try again.</string>

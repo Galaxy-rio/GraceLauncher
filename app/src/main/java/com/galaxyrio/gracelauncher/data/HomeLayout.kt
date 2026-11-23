@@ -25,12 +25,14 @@ data class HomeLayout(
     /** Offset from the old home origin, captured once to preserve its existing visual position. */
     val baselineOffsetDp: Float? = null,
     val editingLocked: Boolean = false,
+    /** Off keeps the home list still at its edges; on restores the platform stretch. */
+    val listStretch: Boolean = false,
 ) {
     val hasWidget: Boolean get() = widgetId >= 0
 
     fun withoutWidget() = HomeLayout(topOffsetDp = topOffsetDp, homeOrder = homeOrder,
         baselineEnabled = baselineEnabled, clockCalendarEnabled = clockCalendarEnabled,
-        baselineOffsetDp = baselineOffsetDp, editingLocked = editingLocked)
+        baselineOffsetDp = baselineOffsetDp, editingLocked = editingLocked, listStretch = listStretch)
 
     fun encode(): String = JSONObject().apply {
         put("topOffsetDp", topOffsetDp.takeIf { it.isFinite() }?.coerceIn(-1200f, 1200f) ?: 0f)
@@ -48,6 +50,7 @@ data class HomeLayout(
         put("baselineEnabled", baselineEnabled)
         put("clockCalendarEnabled", clockCalendarEnabled)
         put("editingLocked", editingLocked)
+        put("listStretch", listStretch)
         baselineOffsetDp?.takeIf { it.isFinite() }?.let { put("baselineOffsetDp", it.coerceIn(0f, 1600f)) }
     }.toString()
 
@@ -76,6 +79,7 @@ data class HomeLayout(
                 baselineEnabled = data.optBoolean("baselineEnabled", true),
                 clockCalendarEnabled = data.optBoolean("clockCalendarEnabled", true),
                 editingLocked = data.optBoolean("editingLocked", false),
+                listStretch = data.optBoolean("listStretch", false),
                 baselineOffsetDp = data.optDouble("baselineOffsetDp", Double.NaN).toFloat().takeIf { it.isFinite() }?.coerceIn(0f, 1600f),
             )
         }.getOrDefault(HomeLayout())
