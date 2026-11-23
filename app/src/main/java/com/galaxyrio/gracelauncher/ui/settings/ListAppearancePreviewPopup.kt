@@ -126,7 +126,7 @@ internal fun rememberListAppearancePreviewContent(uiState: LauncherUiState, stat
     val candidates = remember(uiState.apps, uiState.effectiveHiddenAppKeys) {
         uiState.apps.filter {
             it.folderId == null && it.shortcut == null && it.user == null && !it.isLauncherSettings &&
-                !it.isPrivateSpace && !it.isWorkProfile && it.key !in uiState.effectiveHiddenAppKeys && it.icon != null
+                !it.isPrivateSpace && !it.isWorkProfile && !it.isArchived && it.key !in uiState.effectiveHiddenAppKeys && it.icon != null
         }.distinctBy(LauncherApp::packageName)
     }
     val sources = if (candidates.isEmpty()) {

@@ -197,7 +197,8 @@ internal fun AppSearchScreen(
                     SearchResult.Internet -> stringResource(R.string.search_internet_result)
                 }
                 val resultDisplay = (result as? SearchResult.App)?.app?.effectiveDisplay(appearance)
-                SearchResultRow(label, result.key, first = index == 0, onClick = { open(result, it) },
+                val badge = (result as? SearchResult.App)?.app?.takeIf { it.isArchived }?.let { stringResource(R.string.app_archived_label) }
+                SearchResultRow(label, result.key, first = index == 0, badge = badge, onClick = { open(result, it) },
                     hideIcon = resultDisplay?.style == IconDisplayStyle.Hidden,
                     onLongClick = (result as? SearchResult.App)?.let { { keyboard?.hide(); onDetails(it.app) } }) { iconModifier ->
                     when (result) {
@@ -228,7 +229,7 @@ internal fun AppSearchScreen(
 }
 
 @Composable
-private fun SearchResultRow(label: String, key: String, first: Boolean, hideIcon: Boolean = false, onClick: (Rect) -> Unit,
+private fun SearchResultRow(label: String, key: String, first: Boolean, badge: String? = null, hideIcon: Boolean = false, onClick: (Rect) -> Unit,
     onLongClick: (() -> Unit)?, icon: @Composable (Modifier) -> Unit) {
     val appearance = LocalLauncherAppearance.current
     var bounds by remember { mutableStateOf(Rect.Zero) }
@@ -245,6 +246,8 @@ private fun SearchResultRow(label: String, key: String, first: Boolean, hideIcon
                 style = MaterialTheme.typography.bodyLarge.copy(fontWeight = if (first) FontWeight.Bold else FontWeight.Normal, shadow = appearance.textShadow),
                 maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (first) Box(Modifier.padding(start = 8.dp).size(5.dp).background(appearance.text, CircleShape).testTag("search_first_result_dot"))
+            if (badge != null) Text(badge, Modifier.padding(start = 8.dp).testTag(key + ":badge"), color = appearance.text.copy(alpha = 0.7f),
+                style = MaterialTheme.typography.labelMedium.copy(shadow = appearance.textShadow), maxLines = 1)
         }
     }
 }

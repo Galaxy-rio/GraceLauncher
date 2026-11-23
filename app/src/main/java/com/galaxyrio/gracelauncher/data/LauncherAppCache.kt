@@ -221,7 +221,7 @@ internal class LauncherAppCache(context: Context) {
         put("originalColor", app.originalIconColor); put("englishLabel", app.englishLabel)
         put("folder", app.folderId); put("stack", app.isAppStack); put("widgetStack", app.isWidgetStack)
         put("userSerial", app.userSerial); put("profileType", profileType(app).name)
-        put("showWorkIndicator", app.showWorkIndicator)
+        put("showWorkIndicator", app.showWorkIndicator); put("archived", app.isArchived)
         app.iconDisplay?.let { put("display", it.json()) }
         app.shortcut?.let { shortcut -> put("shortcut", JSONObject().apply {
             put("id", shortcut.id); put("package", shortcut.packageName); put("label", shortcut.label)
@@ -250,7 +250,8 @@ internal class LauncherAppCache(context: Context) {
             user = profile?.user, userSerial = profile?.serial,
             isWorkProfile = profile?.type == LauncherProfileType.Work,
             isCloneProfile = profile?.type == LauncherProfileType.Clone,
-            showWorkIndicator = entry.optBoolean("showWorkIndicator", true))
+            showWorkIndicator = entry.optBoolean("showWorkIndicator", true),
+            isArchived = entry.optBoolean("archived"))
     }
 
     private fun encodeIcon(icon: ImageBitmap?): String = icon?.let {

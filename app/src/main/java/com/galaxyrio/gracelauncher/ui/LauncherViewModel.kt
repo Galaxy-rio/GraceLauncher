@@ -125,7 +125,7 @@ enum class ScheduleStatus {
 }
 
 private fun recentInstallations(apps: List<LauncherApp>): List<LauncherApp> = apps.asSequence()
-        .filter { it.shortcut == null && it.folderId == null && !it.isPrivateSpace && !it.isLauncherSettings }
+        .filter { it.shortcut == null && it.folderId == null && !it.isPrivateSpace && !it.isLauncherSettings && !it.isArchived }
         .sortedWith(compareByDescending<LauncherApp> { it.firstInstallTime }.then(LauncherAppOrder))
         .distinctBy { it.userSerial to it.packageName }.take(8).toList()
 
@@ -193,7 +193,7 @@ data class LauncherUiState(
         ?: graceButtonApp?.takeIf { it.key == key }
 
     val privateFolder: LauncherFolder get() = settings.privateSpace.folder(privateSpaceApps)
-    val workProfileApps: List<LauncherApp> get() = settings.workProfile.orderedApps(apps.filter { it.isWorkProfile && it.shortcut == null })
+    val workProfileApps: List<LauncherApp> get() = settings.workProfile.orderedApps(apps.filter { it.isWorkProfile && it.shortcut == null && !it.isArchived })
     val workFolder: LauncherFolder get() = settings.workProfile.folder(workProfileApps, WorkProfileFolderId)
     // Locking/pausing a profile does not remove its pinned folder; only its contents are protected.
     val canFavoritePrivateSpace: Boolean get() = !isLoadingSettings && !settingsLoadFailed &&
@@ -232,8 +232,10 @@ data class LauncherUiState(
             ?: (if (owner.folderId == PrivateSpaceFolderId) privateSpaceApps.map { it.key }
                 else if (owner.folderId == null) defaults.map { it.key }
                 else folders.firstOrNull { it.id == owner.folderId }?.appKeys.orEmpty()).distinct().map { PopupItem(it) }
-        return if (owner.folderId != PrivateSpaceFolderId && !settings.privateSpace.exposesApps)
+        val permitted = if (owner.folderId != PrivateSpaceFolderId && !settings.privateSpace.exposesApps)
             items.filterNot { it.key.startsWith("profile:") && findItem(it.key)?.isPrivateSpace != false } else items
+        // Folder contents follow the same archive rule as the drawer; search is unaffected.
+        return permitted.filterNot { findItem(it.key)?.isArchived == true }
     }
 
     fun ownNotificationsFor(app: LauncherApp, expanded: Boolean, includeHidden: Boolean = false): List<AppNotification> =
@@ -279,7 +281,7 @@ data class LauncherUiState(
     val appListApps: List<LauncherApp>
         get() = if (isLoadingSettings || settingsLoadFailed) emptyList()
         else (if (settings.privateSpace.display == PrivateSpaceDisplay.NormalApp) allApps else apps + publicPrivateShortcuts)
-            .filterNot { it.key in effectiveHiddenAppKeys }
+            .filterNot { it.key in effectiveHiddenAppKeys || it.isArchived }
             .filterNot { it.isWorkProfile && it.shortcut == null && settings.workProfile.enabled &&
                 settings.workProfile.display != PrivateSpaceDisplay.NormalApp }
 
@@ -287,7 +289,7 @@ data class LauncherUiState(
         get() {
             if (isLoadingSettings || settingsLoadFailed) return emptyList()
             val favorites = (allApps + shortcutApps.filter { !it.isPrivateSpace || (settings.privateSpace.exposesApps && privateContentVisible) })
-                .filter { it.key in favoriteKeys }.associateBy(LauncherApp::key)
+                .filter { it.key in favoriteKeys && !it.isArchived }.associateBy(LauncherApp::key)
             return (favoriteOrder + favorites.keys).distinct().mapNotNull(favorites::get)
         }
 
@@ -332,9 +334,9 @@ data class LauncherUiState(
         if (isLoadingSettings || settingsLoadFailed) return emptyList()
         fun available(app: LauncherApp) = !app.isPrivateSpace || (settings.privateSpace.exposesApps && privateContentVisible)
         if (category.inclusion == CategoryInclusion.Manual) return category.itemKeys.filter { key ->
-            findItem(key)?.let(::available) == true
+            findItem(key)?.let { available(it) && !it.isArchived } == true
         }
-        val candidates = allApps.filter { app -> available(app) && app.key !in effectiveHiddenAppKeys &&
+        val candidates = allApps.filter { app -> available(app) && app.key !in effectiveHiddenAppKeys && !app.isArchived &&
             app.shortcut == null && app.folderId == null && !app.isLauncherSettings }
         return when (category.dynamicRule) {
             CategoryDynamicRule.Notifications -> candidates.filter { app ->
