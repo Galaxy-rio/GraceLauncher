@@ -193,7 +193,7 @@
     <string name="media_player_summary">Amosar a reprodución na pantalla de inicio</string>
     <string name="media_allow_controls">Permitir notificacións e contido multimedia</string>
     <string name="media_access_required">Requírese acceso ás notificacións</string>
-    <string name="media_access_explanation">Activa o acceso ás notificacións para Grace Launcher na seguinte pantalla. Grace utilízao para amosar vistas previas de notificacións e mensaxes das aplicacións, abrir ou descartar notificacións cando ti queiras e controlar as sesións multimedia. O texto e as iconas das notificacións almacénanse só na memoria; nunca se gardan nin se soben a ningún servidor. Podes revogar o acceso en calquera momento dende a configuración do sistema.</string>
+    <string name="media_access_explanation">Activa o acceso ás notificacións para Grace Launcher na seguinte pantalla. Grace utilízao para amosar vistas previas de notificacións e mensaxes das aplicacións, abrir ou desbotar notificacións cando ti queiras e controlar as sesións multimedia. O texto e as iconas das notificacións almacénanse só na memoria; nunca se gardan nin se soben a ningún servidor. Podes revogar o acceso en calquera momento dende a configuración do sistema.</string>
     <string name="media_open_settings">Abrir a configuración</string>
     <string name="media_play">Reproducir</string>
     <string name="media_pause">Pausa</string>
@@ -373,7 +373,7 @@
     <string name="icon_designer_cookie_sides">Cookie · %1$d lados</string>
     <string name="icon_designer_color">Cor</string>
     <string name="icon_designer_invert_background">Inverter a detección do fondo da icona</string>
-    <string name="icon_designer_invert_background_summary">Só para imaxes planas: utiliza as zonas claras como símbolo en lugar das zonas escuras</string>
+    <string name="icon_designer_invert_background_summary">Só para imaxes planas: utiliza as zonas claras como símbolo no lugar das zonas escuras</string>
     <string name="icon_designer_tray_color">Cor da bandexa</string>
     <string name="icon_designer_symbol_color">Cor do símbolo</string>
     <string name="icon_designer_original_color">Cor orixinal</string>
@@ -712,7 +712,7 @@
     <string name="widget_settings_button">Configuración</string>
     <string name="widget_configuration_launch_error">Non foi posible abrir a configuración deste widget. Téntao de novo.</string>
     <string name="media_keep_while_playing">Manter mentres reproduce</string>
-    <string name="media_keep_while_playing_summary">Os esvarados volven á posición orixinal en lugar de descartar o reprodutor durante a reprodución</string>
+    <string name="media_keep_while_playing_summary">Os esvarados volven á posición orixinal no lugar de desbotar o reprodutor durante a reprodución</string>
     <string name="lab_swipe_dismiss">Esvara para descartar</string>
     <string name="lab_dismiss_resistance">Resistencia ao esvarado</string>
     <string name="lab_dismiss_resistance_summary" formatted="false">Compartido polas notificacións e o reprodutor multimedia. Os valores máis altos crean máis resistencia; o 0 % segue ao teu dedo.</string>
@@ -1186,4 +1186,13 @@
     <string name="calendar_no_events_today">Hoxe non hai eventos</string>
     <string name="clock_use_relative_dates">Empregar datas relativas</string>
     <string name="clock_use_relative_dates_summary">Amosar «hoxe» e «mañá» no canto das súas datas</string>
+    <string name="list_hide_symbol">Agochar o símbolo</string>
+    <string name="popup_notifications_heading">Notificacións</string>
+    <string name="popup_gestures_heading">Xestos</string>
+    <string name="popup_action_open">Abrir fiestra emerxente</string>
+    <string name="popup_action_first_item">Abrir o primeiro elemento</string>
+    <string name="popup_action_first_notification">Abrir a primeira notificación</string>
+    <string name="popup_action_dismiss_first">Desbotar a primeira notificación</string>
+    <string name="popup_action_dismiss_all">Desbotar todas as notificacións da aplicación</string>
+    <string name="popup_double_tap_delay">Activar os xestos de dobre premido retarda os premidos simples.</string>
 </resources>
