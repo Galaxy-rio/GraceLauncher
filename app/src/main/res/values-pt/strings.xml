@@ -81,7 +81,7 @@
     <string name="private_space_indicator_summary">Mostrar indicador pessoal nos ícones das aplicações</string>
     <string name="private_space_lock_immediately">Bloquear imediatamente</string>
     <string name="private_space_lock_on_exit">Fechar automaticamente ao sair da lista</string>
-    <string name="private_space_lock_on_screen">Manter desbloqueado até bloquear o ecrã</string>
+    <string name="private_space_lock_on_screen">Utilizar definições de bloqueio do sistema</string>
     <string name="private_space_display_folder">Pasta</string>
     <string name="private_space_edit">Editar</string>
     <string name="private_space_edit_summary">Mudar nome, ícone e ordenação das aplicações</string>
@@ -1134,4 +1134,5 @@
     <string name="weather_hour_always_show">Mostrar sempre</string>
     <string name="weather_hour_column_width">Largura da coluna</string>
     <string name="weather_chart_height_value">%1$d pp</string>
+    <string name="settings_remember_screen_position">Memorizar posição do ecrã</string>
 </resources>
