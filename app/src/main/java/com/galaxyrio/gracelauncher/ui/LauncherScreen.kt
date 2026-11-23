@@ -370,6 +370,8 @@ fun LauncherRoute(
         openPrivateSpaceSettings = { (context as? Activity)?.let(viewModel.privateSpaceController::openSettings) },
         reorderPrivateApps = viewModel::reorderPrivateApps,
         resetPrivateSpaceAppearance = viewModel::resetPrivateSpaceAppearance,
+        exportBackup = viewModel::exportBackup,
+        restoreBackup = viewModel::restoreBackup,
         reorderWorkApps = viewModel::reorderWorkApps,
         resetWorkProfileAppearance = viewModel::resetWorkProfileAppearance,
         openWorkProfileSettings = {

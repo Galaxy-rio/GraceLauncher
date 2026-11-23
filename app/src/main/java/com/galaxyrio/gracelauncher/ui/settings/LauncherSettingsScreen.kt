@@ -79,7 +79,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 internal enum class SettingsPage {
-    Root, Productivity, Clock, ClockStyle, Calendar, CalendarSources, CalendarApp, Weather, WeatherApp, Themes, Advanced, Language, About, HiddenApps, Folders, FolderEditor,
+    Root, Productivity, Clock, ClockStyle, Calendar, CalendarSources, CalendarApp, Weather, WeatherApp, Themes, Advanced, Backup, Language, About, HiddenApps, Folders, FolderEditor,
     Changelog, Licenses, AppLicense, IconPacks, IconDesigner, IconDesignerApp, PrivateSpace, PrivateSpaceEditor, Search,
     MediaPlayer, GraceButton, GraceAction, GraceApp, GraceShortcut, GraceFolder, Gestures, WorkProfile, WorkProfileEditor,
     LabGraceButton, LabGesture, LabPopup, LabAccessibility, LabDismiss, Fonts, FontColors, FontShadow, ListAppearance, Alphabet, ShortcutsFolders, AppStacks, WidgetStacks,
@@ -361,6 +361,7 @@ fun LauncherSettingsScreen(
                     SettingsPage.TaskLists -> TasksListsSettings(uiState, actions, back)
                     SettingsPage.Advanced -> AdvancedSettings(back, navigate,
                         onChooseDefaultHome = { if (isCurrent()) actions.requestDefaultHome() })
+                    SettingsPage.Backup -> BackupSettings(actions, back)
                     SettingsPage.Screens -> ScreenSettings(uiState, actions, back)
                     SettingsPage.Language -> LanguageSettings(back)
                     SettingsPage.LabGraceButton -> LabGraceButtonSettings(uiState, actions, back)
@@ -445,6 +446,7 @@ private fun SettingsHome(
                         SettingsPage.Productivity -> R.string.settings_productivity
                         SettingsPage.Themes -> R.string.settings_themes
                         SettingsPage.Advanced -> R.string.settings_advanced
+                        SettingsPage.Backup -> R.string.settings_backup
                         SettingsPage.Language -> R.string.settings_language
                         else -> R.string.settings_about
                     }
@@ -452,6 +454,7 @@ private fun SettingsHome(
                         SettingsPage.Productivity -> stringResource(R.string.settings_productivity_summary)
                         SettingsPage.Themes -> stringResource(R.string.settings_themes_summary)
                         SettingsPage.Advanced -> stringResource(R.string.settings_advanced_summary)
+                        SettingsPage.Backup -> stringResource(R.string.settings_backup_summary)
                         SettingsPage.Language -> appLanguageSummary(languageTag)
                         else -> stringResource(R.string.settings_about_summary)
                     }

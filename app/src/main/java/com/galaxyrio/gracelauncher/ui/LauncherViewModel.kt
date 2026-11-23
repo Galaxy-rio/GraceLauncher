@@ -38,6 +38,7 @@ import com.galaxyrio.gracelauncher.data.CatalogRefreshState
 import com.galaxyrio.gracelauncher.data.FavoritesStore
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherAppOrder
+import com.galaxyrio.gracelauncher.data.LauncherBackup
 import com.galaxyrio.gracelauncher.data.LauncherDatabase
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.WidgetStackStyle
@@ -1395,6 +1396,25 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     fun reorderWorkApps(keys: List<String>) = updateSettings {
         it.copy(workProfile = it.workProfile.copy(appOrder = keys.distinct()))
+    }
+
+    private val launcherBackup by lazy { LauncherBackup(application, LauncherDatabase.getInstance(application)) }
+
+    suspend fun exportBackup(uri: Uri): Result<Unit> = settingsWriteMutex.withLock {
+        runCatching {
+            val output = getApplication<Application>().contentResolver.openOutputStream(uri, "wt")
+                ?: throw java.io.IOException("The backup file could not be opened.")
+            output.use { launcherBackup.export(it) }
+        }
+    }
+
+    /** Callers must restart the launcher afterwards: in-memory caches still hold the old setup. */
+    suspend fun restoreBackup(uri: Uri): Result<Unit> = settingsWriteMutex.withLock {
+        runCatching {
+            val input = getApplication<Application>().contentResolver.openInputStream(uri)
+                ?: throw java.io.IOException("The backup file could not be opened.")
+            input.use { launcherBackup.restore(it) }
+        }
     }
 
     suspend fun resetWorkProfileAppearance(): Boolean {

@@ -1236,4 +1236,16 @@
     <string name="popup_action_dismiss_first">Dismiss the first notification</string>
     <string name="popup_action_dismiss_all">Dismiss all app notifications</string>
     <string name="popup_double_tap_delay">Enabling double-tap gestures delays single taps.</string>
+    <string name="settings_backup">Backup and restore</string>
+    <string name="settings_backup_summary">Save or restore your layout, settings, folders and icons</string>
+    <string name="backup_export">Back up to file</string>
+    <string name="backup_export_summary">Save everything to a .zip file you choose</string>
+    <string name="backup_restore">Restore from file</string>
+    <string name="backup_restore_summary">Replace the current setup with a backup</string>
+    <string name="backup_restore_title">Replace current setup?</string>
+    <string name="backup_restore_message">Your layout, favorites, folders and settings will be replaced by the backup. The launcher will restart.</string>
+    <string name="backup_restore_confirm">Restore</string>
+    <string name="backup_exported">Backup saved.</string>
+    <string name="backup_export_failed">The backup could not be saved.</string>
+    <string name="backup_restore_failed">The backup could not be restored.</string>
 </resources>
