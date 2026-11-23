@@ -1044,8 +1044,6 @@
     <string name="list_names_in_folders">Aplicar também dentro das pastas</string>
     <string name="list_left_alphabet">Utilizar à esquerda</string>
     <string name="shortcuts_folders_enable">Ativar pop-ups das aplicações</string>
-    <string name="popup_swipe_left_first">Deslizar da esquerda para abrir o primeiro item</string>
-    <string name="popup_swipe_left_first_summary">Abrir o primeiro atalho, aplicação ou widget através do pop-up da aplicação</string>
     <string name="palette_tonal_spot">Ponto tonal</string>
     <string name="app_stacks_title">Pilhas de aplicações</string>
     <string name="app_stack_create">Criar pilha de aplicações</string>

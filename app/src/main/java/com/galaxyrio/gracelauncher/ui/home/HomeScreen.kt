@@ -440,7 +440,7 @@ fun HomeScreen(
                                 modifier = Modifier.padding(horizontal = LauncherLayout.ContentInset, vertical = 4.dp))
                             else if (folder?.isAppStack == true) AppStack(folder, uiState,
                                 onLaunch = { item, bounds -> rowGestures.onLaunchAt?.invoke(item, bounds) ?: onLaunchApp(item) },
-                                onDetails = onAppDetails, onEdit = { onEditFolder(folder) },
+                                onDetails = onAppDetails, onEdit = { onEditFolder(folder) }, gestures = rowGestures,
                                 modifier = Modifier.padding(horizontal = LauncherLayout.ContentInset - AppStackInset.dp, vertical = 4.dp))
                             else if (folder != null) FolderRow(folder, app = app,
                                 highlighted = highlightedAppKey == folder.key,
@@ -448,7 +448,7 @@ fun HomeScreen(
                                 onOpen = { onOpenFolder(folder, it) }, onLongClick = { onEditFolder(folder) },
                                 onDrag = { bounds, expanded -> onFolderDrag(folder, bounds, expanded) },
                                 onDragEnd = onFolderDragEnd,
-                                onSwipeLeft = rowGestures.onOpenFirst?.let { open -> { bounds -> open(app, bounds) } },
+                                gestures = rowGestures,
                                 showLabel = uiState.settings.listAppearance.showNames(favorites = true),
                                 categoryIcon = categoryIcon)
                             else LauncherAppRow(app, onClick = { onLaunchApp(app) }, onLongClick = { onAppDetails(app) },

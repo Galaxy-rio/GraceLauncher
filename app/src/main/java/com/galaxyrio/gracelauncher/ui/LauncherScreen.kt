@@ -92,6 +92,8 @@ import com.galaxyrio.gracelauncher.WidgetSetupActivity
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.icons.GraceButtonIcon
 import com.galaxyrio.gracelauncher.data.LauncherFolder
+import com.galaxyrio.gracelauncher.data.PopupGesture
+import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.data.LauncherShortcut
 import com.galaxyrio.gracelauncher.data.PrivateSpaceDisplay
 import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
@@ -692,8 +694,8 @@ internal fun LauncherScreen(
     var privateFolderWasOpen by remember { mutableStateOf(false) }
     val latestUiState by rememberUpdatedState(uiState)
     val latestActions by rememberUpdatedState(actions)
-    val firstItemScope = rememberCoroutineScope()
-    var firstItemJob by remember { mutableStateOf<Job?>(null) }
+    val popupGestureScope = rememberCoroutineScope()
+    var popupGestureJob by remember { mutableStateOf<Job?>(null) }
     val privateExpanded = privateListOpen && uiState.privateContentVisible && uiState.settings.privateSpace.display == PrivateSpaceDisplay.List
     val privateFolder = uiState.privateFolder.takeIf {
         uiState.settings.privateSpace.enabled && uiState.settings.privateSpace.display != PrivateSpaceDisplay.NormalApp &&
@@ -753,7 +755,7 @@ internal fun LauncherScreen(
     }
     DisposableEffect(lifecycle) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE) firstItemJob?.cancel()
+            if (event == Lifecycle.Event.ON_PAUSE) popupGestureJob?.cancel()
             val transition = currentButtonTransition ?: return@LifecycleEventObserver
             when (event) {
                 Lifecycle.Event.ON_PAUSE -> {
@@ -880,7 +882,7 @@ internal fun LauncherScreen(
     )
 
     suspend fun returnHome() {
-        firstItemJob?.cancel()
+        popupGestureJob?.cancel()
         drawerOpen = false; selectedLetter = null; overlay = null; editingHome = false
         editingWidgetScreen = false
         privateListOpen = false; workListOpen = false
@@ -970,54 +972,6 @@ internal fun LauncherScreen(
     val openAppPopup: (LauncherApp, Rect) -> Unit = { app, bounds ->
         if (popupSettings.enabled) overlay = LauncherOverlay.Shortcuts(app, bounds)
     }
-    val openFirstItem: (LauncherApp, Rect) -> Unit = openFirst@{ owner, bounds ->
-        if (firstItemJob?.isActive == true || overlay != null || !popupSettings.swipeLeftToOpenFirst ||
-            (owner.folderId == null && !popupSettings.enabled)) return@openFirst
-        val fromDrawer = drawerOpen
-        firstItemJob = firstItemScope.launch {
-            val custom = latestUiState.popups[owner.key]
-            val needsShortcuts = owner.folderId == null && (custom == null || custom.firstOrNull()?.let {
-                it.widget == null && latestUiState.findItem(it.key) == null
-            } == true)
-            val defaults = if (needsShortcuts) latestActions.shortcuts(owner).asApps(owner).map {
-                latestUiState.findItem(it.key) ?: it
-            } else emptyList()
-            // A cold shortcut lookup must not launch later after HOME, navigation,
-            // disabling the feature, or a profile change has cancelled the intent.
-            val state = latestUiState
-            val currentSettings = state.settings.shortcutsFolders
-            if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) || overlay != null || drawerOpen != fromDrawer ||
-                !currentSettings.swipeLeftToOpenFirst || (owner.folderId == null && !currentSettings.enabled)) return@launch
-            val target = state.firstPopupApp(owner, defaults)
-            if (target == null) Toast.makeText(context, R.string.popup_item_unavailable, Toast.LENGTH_SHORT).show()
-            else if (target.folderId != null) state.folders.firstOrNull { it.id == target.folderId }?.let {
-                overlay = LauncherOverlay.Folder(it, bounds)
-            }
-            else latestActions.launchAppAt?.invoke(target, bounds) ?: onLaunchApp(target)
-        }
-    }
-    val rowGestures = AppRowGestures(
-        onPrepare = actions.prepareShortcuts,
-        onLaunchAt = actions.launchAppAt,
-        popupsEnabled = popupSettings.enabled,
-        onOpenFirst = openFirstItem.takeIf { popupSettings.swipeLeftToOpenFirst },
-        onDrag = { app, bounds, expanded ->
-            if (popupSettings.enabled) {
-                val current = overlay as? LauncherOverlay.Shortcuts
-                if (current?.app?.key == app.key) {
-                    current.reveal.expanded = expanded
-                } else {
-                    overlay = LauncherOverlay.Shortcuts(app, bounds, ShortcutRevealState(expanded, dragging = true))
-                }
-            }
-        },
-        onDragEnd = { commit ->
-            (overlay as? LauncherOverlay.Shortcuts)?.reveal?.let {
-                it.expanded = commit
-                it.dragging = false
-            }
-        },
-    )
     val highlightedAppKey = (overlay as? LauncherOverlay.AppDetails)?.app?.key
     val openPrivateSpace: (Rect) -> Unit = { bounds ->
         val fromFavorites = !drawerOpen
@@ -1082,6 +1036,64 @@ internal fun LauncherScreen(
         if (privateAnchor != null) { if (commit) openPrivateSpace(privateAnchor) }
         else (overlay as? LauncherOverlay.Folder)?.reveal?.let { it.expanded = commit; it.dragging = false }
     }
+    val openGesturePopup: (LauncherApp, Rect) -> Boolean = { app, bounds ->
+        if (app.folderId != null) {
+            latestUiState.popupGestureFolder(app)?.let { openFolder(it, bounds); true } ?: false
+        } else if (latestUiState.settings.shortcutsFolders.enabled) {
+            overlay = LauncherOverlay.Shortcuts(app, bounds)
+            true
+        } else false
+    }
+    val executeGesture: (LauncherApp, PopupGesture, Rect, AppNotification?) -> Unit = execute@{ owner, gesture, bounds, notification ->
+        if (popupGestureJob?.isActive == true || overlay != null) return@execute
+        val fromDrawer = drawerOpen
+        val fromPage = homePager.currentPage
+        popupGestureJob = popupGestureScope.launch {
+            performPopupGesture(owner, gesture, notification, state = { latestUiState }, actions = { latestActions },
+                canContinue = {
+                    lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED) && overlay == null &&
+                        drawerOpen == fromDrawer && homePager.currentPage == fromPage
+                },
+                openPopup = { openGesturePopup(it, bounds) },
+                launchItem = { target ->
+                    if (target.folderId != null) openGesturePopup(target, bounds)
+                    else {
+                        latestActions.launchAppAt?.invoke(target, bounds) ?: onLaunchApp(target)
+                        true
+                    }
+                })
+        }
+    }
+    val dragAppPopup: (LauncherApp, Rect, Boolean) -> Unit = { app, bounds, expanded ->
+        if (latestUiState.settings.shortcutsFolders.enabled) {
+            val current = overlay as? LauncherOverlay.Shortcuts
+            if (current?.app?.key == app.key) current.reveal.expanded = expanded
+            else overlay = LauncherOverlay.Shortcuts(app, bounds, ShortcutRevealState(expanded, dragging = true))
+        }
+    }
+    val rowGestures = AppRowGestures(
+        onPrepare = actions.prepareShortcuts,
+        onLaunchAt = actions.launchAppAt,
+        popupsEnabled = popupSettings.enabled,
+        resolveGesture = { owner, gesture, notification ->
+            uiState.resolvePopupGesture(owner, gesture, notification, actions.cachedShortcuts)
+        },
+        onGesture = executeGesture,
+        onDrag = { app, bounds, expanded ->
+            if (app.folderId != null) latestUiState.popupGestureFolder(app)?.let { dragFolder(it, bounds, expanded) }
+            else dragAppPopup(app, bounds, expanded)
+        },
+        onNotificationDrag = { owner, notification, bounds, expanded ->
+            latestUiState.popupGestureTarget(owner, notification)?.let { dragAppPopup(it.app, bounds, expanded) }
+        },
+        onDragEnd = { commit ->
+            if (overlay is LauncherOverlay.Folder || privateSwipeAnchor != null) endFolderDrag(commit)
+            else (overlay as? LauncherOverlay.Shortcuts)?.reveal?.let {
+                it.expanded = commit
+                it.dragging = false
+            }
+        },
+    )
     val popupReveal = when (val current = overlay) {
         is LauncherOverlay.Shortcuts -> current.reveal
         is LauncherOverlay.Folder -> current.reveal
@@ -1297,6 +1309,7 @@ internal fun LauncherScreen(
                 enabled = drawerOpen && overlay == null && !systemActionAccess && buttonTransition == null,
                 onLongPress = { editFolder(stack) }, modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp))
             else AppStack(stack, uiState,
+                gestures = rowGestures,
                 onLaunch = { app, bounds -> actions.launchAppAt?.invoke(app, bounds) ?: onLaunchApp(app) },
                 onDetails = { overlay = LauncherOverlay.AppDetails(it, fromAppList = true) }, onEdit = { editFolder(stack) },
                 modifier = Modifier.padding(horizontal = (8f - com.galaxyrio.gracelauncher.data.AppStackInset).dp, vertical = 4.dp)) },

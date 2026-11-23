@@ -878,8 +878,6 @@
     <string name="shortcuts_folders_title">快捷方式与文件夹</string>
     <string name="popups_title">弹出窗口</string>
     <string name="shortcuts_folders_enable">启用应用弹出窗口</string>
-    <string name="popup_swipe_left_first">左滑打开第一项</string>
-    <string name="popup_swipe_left_first_summary">打开弹出窗口中的第一个快捷方式、应用或小组件所属应用</string>
     <string name="popup_silent_notifications">静默通知</string>
     <string name="popup_normal_notifications">普通通知</string>
     <string name="popup_single_line_previews">单行显示通知</string>
@@ -1192,4 +1190,12 @@
     <string name="font_shadow_spread">扩展范围</string>
     <string name="font_shadow_override">覆盖默认阴影</string>
     <string name="font_shadow_unsaved_message">是否在退出前保存字体阴影的更改？</string>
+    <string name="popup_notifications_heading">通知</string>
+    <string name="popup_gestures_heading">手势</string>
+    <string name="popup_action_open">打开弹出窗口</string>
+    <string name="popup_action_first_item">打开内部第一项</string>
+    <string name="popup_action_first_notification">打开内部第一条通知</string>
+    <string name="popup_action_dismiss_first">删除内部第一条通知</string>
+    <string name="popup_action_dismiss_all">删除应用的所有通知</string>
+    <string name="popup_double_tap_delay">开启双击手势会增加单击延迟。</string>
 </resources>

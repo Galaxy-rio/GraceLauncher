@@ -573,8 +573,6 @@
     <string name="list_left_alphabet">Usar dende a esquerda</string>
     <string name="shortcuts_folders_title">Atallos e cartafoles</string>
     <string name="shortcuts_folders_enable">Activar as fiestras emerxentes da aplicación</string>
-    <string name="popup_swipe_left_first">Esvara cara á esquerda para abrir o primeiro elemento</string>
-    <string name="popup_swipe_left_first_summary">Abre o primeiro atallo, aplicación ou widget na fiestra emerxente</string>
     <string name="popup_silent_notifications">Notificacións silenciosas</string>
     <string name="popup_normal_notifications">Notificacións normais</string>
     <string name="popup_notification_normal">Amosar normalmente</string>

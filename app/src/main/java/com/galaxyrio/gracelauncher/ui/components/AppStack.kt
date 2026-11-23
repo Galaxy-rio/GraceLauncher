@@ -3,6 +3,8 @@ package com.galaxyrio.gracelauncher.ui.components
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.animateIntOffsetAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
 import androidx.compose.foundation.background
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.indication
@@ -45,6 +47,7 @@ internal fun AppStack(
     modifier: Modifier = Modifier, enabled: Boolean = true, gridManaged: Boolean = false,
     expanded: Boolean? = null, onExpandedChange: ((Boolean) -> Unit)? = null,
     iconSize: Dp = 40.dp, onWallpaper: Boolean = true,
+    gestures: AppRowGestures? = null,
 ) {
     val inputEnabled = enabled && LocalLauncherInputEnabled.current
     val appearance = LocalLauncherAppearance.current
@@ -57,7 +60,31 @@ internal fun AppStack(
     val open = expanded ?: localExpanded
     val expandLabel = stringResource(if (open) R.string.app_stack_collapse else R.string.app_stack_expand)
     val editLabel = stringResource(R.string.app_stack_edit)
-    BoxWithConstraints(modifier.fillMaxWidth().testTag("app_stack:${stack.id}")) {
+    val popupSettings = LocalPopupGestureSettings.current
+    val owner = uiState.folderItem(stack)
+    var anchor by remember(stack.id) { mutableStateOf(Rect.Zero) }
+    var pull by remember(stack.id) { mutableFloatStateOf(0f) }
+    var dragging by remember(stack.id) { mutableStateOf(false) }
+    val resistance = with(LocalDensity.current) { 72.dp.toPx() }
+    val anchorInset = with(LocalDensity.current) { AppStackInset.dp.toPx() }
+    val anchorSize = with(LocalDensity.current) { displayedIconSize.toPx() }
+    val offset by animateFloatAsState(resistedSignedPopupPull(pull, resistance),
+        animationSpec = if (dragging) snap() else spring(dampingRatio = .58f, stiffness = 420f), label = "stackPull")
+    val gestureEnabled = inputEnabled && onWallpaper && !gridManaged && gestures?.onGesture != null
+    val doubleTap: (() -> Unit)? = if (gestureEnabled && popupSettings.doubleTap.selected.isNotEmpty())
+        ({ gestures.onGesture(owner, PopupGesture.DoubleTap, anchor, null) }) else null
+    BoxWithConstraints(modifier.fillMaxWidth().testTag("app_stack:${stack.id}")
+        .onGloballyPositioned {
+            val bounds = it.boundsInWindow()
+            anchor = Rect(bounds.left + anchorInset, bounds.top + anchorInset,
+                bounds.left + anchorInset + anchorSize, bounds.top + anchorInset + anchorSize)
+        }
+        .popupRowGestureInput("stack:${stack.id}", gestureEnabled, popupSettings,
+            resolve = { gestures?.resolveGesture?.invoke(owner, it, null) },
+            perform = { gestures?.onGesture?.invoke(owner, it, anchor, null) }, prepare = {},
+            onPopupDrag = { gestures?.onDrag?.invoke(owner, anchor, it) },
+            onPopupDragEnd = { gestures?.onDragEnd?.invoke(it) },
+            onPull = { distance, active -> pull = distance; dragging = active })) {
         val density = LocalDensity.current
         val columns = appStackColumns(maxWidth.value, displayedIconSize.value)
         val inset = AppStackInset.dp
@@ -70,10 +97,10 @@ internal fun AppStack(
             MaterialTheme.motionScheme.defaultSpatialSpec(), label = "stackHeight")
         val radius by animateDpAsState(if (open && overflow) 16.dp else displayedIconSize / 2 + inset,
             MaterialTheme.motionScheme.defaultSpatialSpec(), label = "stackShape")
-        Box(Modifier.fillMaxWidth().height(height).clip(RoundedCornerShape(radius))
+        Box(Modifier.fillMaxWidth().height(height).graphicsLayer { translationX = offset }.clip(RoundedCornerShape(radius))
             .background(MaterialTheme.colorScheme.surfaceContainerHigh.copy(alpha = if (onWallpaper) 0.25f else 1f))
             .then(if (gridManaged) Modifier else Modifier.combinedClickable(enabled = inputEnabled,
-                onClick = {}, onLongClick = onEdit))
+                onClick = {}, onLongClick = onEdit, onDoubleClick = doubleTap))
             .semantics {
                 contentDescription = stack.name
                 customActions = listOf(CustomAccessibilityAction(editLabel) { if (inputEnabled) onEdit(); inputEnabled })
@@ -91,6 +118,7 @@ internal fun AppStack(
                     .combinedClickable(enabled = inputEnabled && visible,
                         interactionSource = interactions, indication = null,
                         onClick = { onLaunch(app, bounds) },
+                        onDoubleClick = doubleTap,
                         onLongClick = if (gridManaged) null else ({ onDetails(app) }))
                     .semantics { if (visible) contentDescription = app.label },
                     contentAlignment = Alignment.Center) {

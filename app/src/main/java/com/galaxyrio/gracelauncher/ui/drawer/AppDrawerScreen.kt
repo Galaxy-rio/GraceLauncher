@@ -182,15 +182,13 @@ fun AppDrawerScreen(
                         onLongClick = { onEditFolder(item.folder) },
                         onDrag = { bounds, expanded -> onFolderDrag(item.folder, bounds, expanded) },
                         onDragEnd = onFolderDragEnd,
-                        onSwipeLeft = rowGestures.onOpenFirst?.let { open -> { bounds ->
-                            open(folderApps[item.folder.id] ?: item.folder.asApp(), bounds)
-                        } },
+                        gestures = rowGestures,
                     )
                     is DrawerItem.PrivateApp -> LauncherAppRow(
                         showLabel = listAppearance.showNames(favorites = false, insideFolder = true),
                         app = item.app, onClick = { onLaunchApp(item.app) }, onLongClick = { onAppDetails(item.app) },
                         onSwipeRight = { if (privateAppsPublic) onAppShortcuts(item.app, it) },
-                        gestures = if (privateAppsPublic) rowGestures else AppRowGestures(onLaunchAt = rowGestures.onLaunchAt),
+                        gestures = if (privateAppsPublic) rowGestures else AppRowGestures(onLaunchAt = rowGestures.onLaunchAt, popupsEnabled = false),
                         highlighted = highlightedAppKey == item.app.key,
                         modifier = Modifier.animateItem(fadeOutSpec = null),
                     )

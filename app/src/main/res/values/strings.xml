@@ -882,8 +882,6 @@
     <string name="shortcuts_folders_title">Shortcuts &amp; folders</string>
     <string name="popups_title">Pop-ups</string>
     <string name="shortcuts_folders_enable">Enable app pop-ups</string>
-    <string name="popup_swipe_left_first">Swipe left to open the first item</string>
-    <string name="popup_swipe_left_first_summary">Open the first shortcut, app, or widget’s app in the pop-up</string>
     <string name="popup_silent_notifications">Silent notifications</string>
     <string name="popup_normal_notifications">Normal notifications</string>
     <string name="popup_single_line_previews">Single-line notification previews</string>
@@ -1228,4 +1226,12 @@
     <string name="font_shadow_spread">Spread</string>
     <string name="font_shadow_override">Override default shadow</string>
     <string name="font_shadow_unsaved_message">Save changes to the font shadow before leaving?</string>
+    <string name="popup_notifications_heading">Notifications</string>
+    <string name="popup_gestures_heading">Gestures</string>
+    <string name="popup_action_open">Open pop-up</string>
+    <string name="popup_action_first_item">Open the first item</string>
+    <string name="popup_action_first_notification">Open the first notification</string>
+    <string name="popup_action_dismiss_first">Dismiss the first notification</string>
+    <string name="popup_action_dismiss_all">Dismiss all app notifications</string>
+    <string name="popup_double_tap_delay">Enabling double-tap gestures delays single taps.</string>
 </resources>

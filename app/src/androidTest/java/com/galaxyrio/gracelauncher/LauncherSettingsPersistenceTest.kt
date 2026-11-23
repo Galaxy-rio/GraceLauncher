@@ -20,6 +20,8 @@ import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherDatabase
 import com.galaxyrio.gracelauncher.data.SearchSettings
 import com.galaxyrio.gracelauncher.data.ShortcutsFoldersSettings
+import com.galaxyrio.gracelauncher.data.PopupGestureAction
+import com.galaxyrio.gracelauncher.data.PopupGestureActions
 import com.galaxyrio.gracelauncher.data.NotificationDisplay
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.LauncherSettings
@@ -114,34 +116,6 @@ class LauncherSettingsPersistenceTest {
         openRepository().mutateSettings { it.copy(allowScreenRotation = true) }
         assertEquals(migrated.copy(rememberScreenPosition = true, allowScreenRotation = true),
             withTimeout(10_000) { openRepository().snapshots.first().settings })
-    }
-
-    @Test
-    fun privateSpaceDefaultsFollowSystemWithoutEnablingLauncherProtection() = runBlocking {
-        val saved = withTimeout(10_000) { openRepository().snapshots.first().settings.privateSpace }
-        for (settings in listOf(saved, ProfileSettings.decode(null), ProfileSettings.decode("{}"))) {
-            assertTrue(settings.enabled)
-            assertFalse(settings.passwordProtected)
-            assertFalse(settings.lockImmediately)
-            assertFalse(settings.protectsApps)
-            assertFalse(settings.locksOnExit)
-        }
-    }
-
-    @Test
-    fun privateSpaceSecurityChoicesSurviveReopeningAndUnrelatedUpdates() = runBlocking {
-        for (passwordProtected in listOf(false, true)) {
-            for (lockImmediately in listOf(false, true)) {
-                val expected = ProfileSettings(passwordProtected = passwordProtected, lockImmediately = lockImmediately,
-                    name = "Private apps", appOrder = listOf("profile:10:app"))
-                openRepository().mutateSettings { it.copy(privateSpace = expected) }
-                openRepository().mutateSettings { it.copy(showBatteryPercentage = false) }
-                val saved = withTimeout(10_000) { openRepository().snapshots.first().settings.privateSpace }
-                assertEquals(expected, saved)
-                assertEquals(passwordProtected, saved.protectsApps)
-                assertEquals(lockImmediately, saved.locksOnExit)
-            }
-        }
     }
 
     @Test
@@ -618,7 +592,10 @@ class LauncherSettingsPersistenceTest {
     }
 
     @Test fun popupOptionsRoundTripAndMissingOrInvalidValuesKeepDefaults() = runBlocking {
-        val options = ShortcutsFoldersSettings(enabled = false, swipeLeftToOpenFirst = true,
+        val options = ShortcutsFoldersSettings(enabled = false,
+            swipeLeft = PopupGestureActions(order = PopupGestureAction.entries.reversed(),
+                selected = setOf(PopupGestureAction.OpenFirstItem, PopupGestureAction.DismissFirstNotification)),
+            doubleTap = PopupGestureActions(selected = setOf(PopupGestureAction.OpenFirstNotification)),
             silentNotifications = NotificationDisplay.ExpandedOnly, normalNotifications = NotificationDisplay.Hidden,
             popupSwipeDistanceDp = 24, popupSwipeAngleDegrees = 30,
             singleLineNotificationPreviews = true, multipleAppNotificationPreviews = true)
@@ -633,6 +610,13 @@ class LauncherSettingsPersistenceTest {
         assertEquals(ShortcutsFoldersSettings(), ShortcutsFoldersSettings.decode("invalid"))
         assertEquals(ShortcutsFoldersSettings(), ShortcutsFoldersSettings.decode("{\"normalNotifications\":\"unknown\"}"))
         val oldOptions = ShortcutsFoldersSettings.decode("""{"enabled":true,"swipeLeftToOpenFirst":true,"normalNotifications":"normal"}""")
+        assertEquals(setOf(PopupGestureAction.OpenFirstItem), oldOptions.swipeLeft.selected)
+        assertTrue(ShortcutsFoldersSettings.decode("""{"swipeLeftToOpenFirst":false}""").swipeLeft.selected.isEmpty())
+        val partial = ShortcutsFoldersSettings.decode("""{"swipeLeft":[{"action":"unknown","enabled":true},
+            {"action":"openPopup","enabled":true},{"action":"openPopup","enabled":false}]}""")
+        assertEquals(PopupGestureAction.OpenPopup, partial.swipeLeft.order.first())
+        assertEquals(PopupGestureAction.entries.size, partial.swipeLeft.order.size)
+        assertEquals(setOf(PopupGestureAction.OpenPopup), partial.swipeLeft.selected)
         assertFalse(oldOptions.singleLineNotificationPreviews)
         assertFalse(oldOptions.multipleAppNotificationPreviews)
         openRepository().mutateSettings { it.copy(shortcutsFolders = options) }

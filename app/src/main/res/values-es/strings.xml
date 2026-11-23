@@ -581,8 +581,6 @@
     <string name="icon_designer_square_corner_radius">Radio de esquina</string>
     <string name="shortcuts_folders_title">Accesos directos y carpetas</string>
     <string name="shortcuts_folders_enable">Habilitar ventanas emergentes de la aplicación</string>
-    <string name="popup_swipe_left_first">Desliza hacia la izquierda para abrir el primer elemento</string>
-    <string name="popup_swipe_left_first_summary">Abre el primer acceso directo, aplicación o widget en la ventana emergente</string>
     <string name="popup_silent_notifications">Silenciar notificaciones</string>
     <string name="popup_normal_notifications">Notificaciones normales</string>
     <string name="popup_notification_normal">Mostrar normalmente</string>

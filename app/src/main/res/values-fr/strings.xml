@@ -623,8 +623,6 @@
     <string name="list_left_alphabet">Utiliser depuis la gauche</string>
     <string name="shortcuts_folders_title">Raccourcis et dossiers</string>
     <string name="shortcuts_folders_enable">Activer les fenêtres contextuelles des applications</string>
-    <string name="popup_swipe_left_first">Glisser vers la gauche pour ouvrir le premier élément</string>
-    <string name="popup_swipe_left_first_summary">Ouvrir l\'application associée au premier raccourci, à la première application ou au premier widget dans la fenêtre contextuelle</string>
     <string name="popup_silent_notifications">Notifications silencieuses</string>
     <string name="popup_normal_notifications">Notifications normales</string>
     <string name="popup_notification_normal">Afficher normalement</string>

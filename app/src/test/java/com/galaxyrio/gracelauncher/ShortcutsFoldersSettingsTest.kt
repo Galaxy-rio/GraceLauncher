@@ -1,16 +1,21 @@
 package com.galaxyrio.gracelauncher
 
 import com.galaxyrio.gracelauncher.data.NotificationDisplay
+import com.galaxyrio.gracelauncher.data.PopupGestureAction
+import com.galaxyrio.gracelauncher.data.PopupGestureActions
 import com.galaxyrio.gracelauncher.data.ShortcutsFoldersSettings
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import org.junit.Assert.*
 import org.junit.Test
+import kotlinx.coroutines.runBlocking
 
 class ShortcutsFoldersSettingsTest {
     @Test fun defaultsHideSilentAndShowOrdinaryNotifications() {
         val settings = ShortcutsFoldersSettings()
         assertTrue(settings.enabled)
-        assertFalse(settings.swipeLeftToOpenFirst)
+        assertEquals(listOf(PopupGestureAction.OpenFirstItem), settings.swipeLeft.enabledActions)
+        assertEquals(listOf(PopupGestureAction.OpenPopup), settings.swipeRight.enabledActions)
+        assertTrue(settings.doubleTap.enabledActions.isEmpty())
         assertFalse(settings.singleLineNotificationPreviews)
         assertFalse(settings.multipleAppNotificationPreviews)
         listOf(false, true).forEach { expanded ->
@@ -34,7 +39,7 @@ class ShortcutsFoldersSettingsTest {
     }
 
     @Test fun disablingPopupsHidesPreviewsWithoutLosingTheirPreferences() {
-        val enabled = ShortcutsFoldersSettings(swipeLeftToOpenFirst = true, silentNotifications = NotificationDisplay.Normal,
+        val enabled = ShortcutsFoldersSettings(silentNotifications = NotificationDisplay.Normal,
             normalNotifications = NotificationDisplay.ExpandedOnly, singleLineNotificationPreviews = true,
             multipleAppNotificationPreviews = true)
         val disabled = enabled.copy(enabled = false)
@@ -66,5 +71,17 @@ class ShortcutsFoldersSettingsTest {
         listOf(false, true).forEach { multiple ->
             assertTrue(ShortcutsFoldersSettings(multipleAppNotificationPreviews = multiple).previewNotifications(emptyList()).isEmpty())
         }
+    }
+
+    @Test fun gestureSkipsDisabledAndUnavailableActionsAndStopsAfterSuccess() = runBlocking {
+        val calls = mutableListOf<PopupGestureAction>()
+        val plan = PopupGestureActions(selected = setOf(PopupGestureAction.DismissFirstNotification,
+            PopupGestureAction.OpenPopup, PopupGestureAction.DismissAllNotifications))
+        assertTrue(plan.performFirstAvailable {
+            calls += it
+            it == PopupGestureAction.OpenPopup
+        })
+        assertEquals(listOf(PopupGestureAction.DismissFirstNotification, PopupGestureAction.OpenPopup), calls)
+        assertFalse(PopupGestureActions().performFirstAvailable { error("Disabled actions must not run") })
     }
 }

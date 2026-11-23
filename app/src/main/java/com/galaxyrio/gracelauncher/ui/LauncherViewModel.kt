@@ -236,19 +236,21 @@ data class LauncherUiState(
             items.filterNot { it.key.startsWith("profile:") && findItem(it.key)?.isPrivateSpace != false } else items
     }
 
-    fun ownNotificationsFor(app: LauncherApp, expanded: Boolean): List<AppNotification> =
+    fun ownNotificationsFor(app: LauncherApp, expanded: Boolean, includeHidden: Boolean = false): List<AppNotification> =
         if (app.shortcut != null || app.user != null || app.folderId != null) emptyList()
-        else notifications[app.packageName].orEmpty().filter { settings.shortcutsFolders.showsNotification(it.silent, expanded) }
+        else notifications[app.packageName].orEmpty().filter {
+            includeHidden || settings.shortcutsFolders.showsNotification(it.silent, expanded)
+        }
 
     /** An outer row previews its own notifications and those of the apps shown inside it. */
-    fun notificationsFor(app: LauncherApp, expanded: Boolean): List<AppNotification> {
+    fun notificationsFor(app: LauncherApp, expanded: Boolean, includeHidden: Boolean = false): List<AppNotification> {
         if (app.shortcut != null || app.user != null || notifications.isEmpty()) return emptyList()
         return buildList {
-            addAll(ownNotificationsFor(app, expanded))
+            addAll(ownNotificationsFor(app, expanded, includeHidden))
             // Use the same contents/privacy filtering as the panel. Shortcuts and widget
             // providers do not stand for app rows; nested pop-ups are not expanded here.
             popupItems(app, emptyList()).filter { it.widget == null }.forEach { entry ->
-                findItem(entry.key)?.let { addAll(ownNotificationsFor(it, expanded)) }
+                findItem(entry.key)?.let { addAll(ownNotificationsFor(it, expanded, includeHidden)) }
             }
         }.distinctBy { it.key }.sortedByDescending { it.postedAt }
     }
