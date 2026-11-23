@@ -1199,4 +1199,13 @@
     <string name="calendar_no_events_today">Hoy no hay eventos</string>
     <string name="clock_use_relative_dates">Usar fechas relativas</string>
     <string name="clock_use_relative_dates_summary">Mostrar «hoy» y «mañana» en lugar de sus fechas</string>
+    <string name="list_hide_symbol">Ocultar el símbolo</string>
+    <string name="popup_notifications_heading">Notificaciones</string>
+    <string name="popup_gestures_heading">Gestos</string>
+    <string name="popup_action_open">Abrir ventana emergente</string>
+    <string name="popup_action_first_item">Abrir el primer elemento</string>
+    <string name="popup_action_first_notification">Abrir la primera notificación</string>
+    <string name="popup_action_dismiss_first">Descartar la primera notificación</string>
+    <string name="popup_action_dismiss_all">Descartar todas las notificaciones de la aplicación</string>
+    <string name="popup_double_tap_delay">Habilitar los gestos de doble toque retrasa los toques simples.</string>
 </resources>
