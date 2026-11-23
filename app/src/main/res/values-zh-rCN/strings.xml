@@ -1075,6 +1075,7 @@
     <string name="app_list_grace_settings">Grace 设置</string>
     <string name="app_list_add_grace">Grace 启动器</string>
     <string name="alphabet_show_in">显示在</string>
+    <string name="list_hide_symbol">隐藏符号</string>
     <string name="list_symbol_horizontal_offset">符号水平偏移</string>
     <string name="alphabet_touch_area">显示触控区域</string>
     <string name="alphabet_touch_width">右侧触控宽度</string>

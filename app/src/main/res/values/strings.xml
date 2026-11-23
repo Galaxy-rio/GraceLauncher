@@ -1079,6 +1079,7 @@
     <string name="app_list_grace_settings">Grace settings</string>
     <string name="app_list_add_grace">Grace launcher</string>
     <string name="alphabet_show_in">Show in</string>
+    <string name="list_hide_symbol">Hide symbol</string>
     <string name="list_symbol_horizontal_offset">Symbol horizontal offset</string>
     <string name="alphabet_touch_area">Show touch area</string>
     <string name="alphabet_touch_width">Right touch width</string>

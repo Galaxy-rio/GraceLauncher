@@ -132,7 +132,7 @@ internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherA
                             .testTag("list_appearance_controls"), state = controlsState,
                             contentPadding = PaddingValues(bottom = 96.dp + LocalSettingsBottomInset.current), verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
                             item("icon_size") {
-                                DesignerSegment(0, 10, "list_icon_size") {
+                                DesignerSegment(0, 11, "list_icon_size") {
                                     Text(stringResource(R.string.icon_designer_icon_size_title))
                                     DesignerSlider(stringResource(R.string.icon_designer_icon_size), iconSize.toFloat(), 100f, 80f..150f,
                                         enabled, "list_icon_size_slider", onFinished = { saveSize() }) { iconSize = it.roundToInt() }
@@ -150,27 +150,33 @@ internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherA
                                 ListSpacingSlider(stringResource(R.string.list_icon_name_gap), draft.iconNameGap, 20, 0..64, 3, "list_icon_name_gap",
                                     { draft = draft.copy(iconNameGap = it) }) { value -> change { it.copy(iconNameGap = value) } }
                             }
+                            item("hide_symbol") {
+                                SettingsToggleItem(stringResource(R.string.list_hide_symbol), null,
+                                    draft.hideSymbol, 4, 11, "list_hide_symbol", enabled = enabled) { value ->
+                                    change { it.copy(hideSymbol = value) }
+                                }
+                            }
                             item("symbol_offset") {
                                 ListSpacingSlider(stringResource(R.string.list_symbol_horizontal_offset), draft.symbolHorizontalOffset,
-                                    0, -16..16, 4, "list_symbol_horizontal_offset", { draft = draft.copy(symbolHorizontalOffset = it) },
-                                    centered = true) { value -> change { it.copy(symbolHorizontalOffset = value) } }
+                                    0, -16..16, 5, "list_symbol_horizontal_offset", { draft = draft.copy(symbolHorizontalOffset = it) },
+                                    centered = true, enabled = !draft.hideSymbol) { value -> change { it.copy(symbolHorizontalOffset = value) } }
                             }
                             item("font") { SettingsActionItem(stringResource(R.string.settings_font), appFontLabel(draft.fontId),
-                                5, 10, "list_font", onClick = { dialog = "font" }) }
+                                6, 11, "list_font", onClick = { dialog = "font" }) }
                             item("font_size") {
-                                ListSpacingSlider(stringResource(R.string.clock_size), draft.fontSize, 16, 10..32, 6, "list_font_size",
+                                ListSpacingSlider(stringResource(R.string.clock_size), draft.fontSize, 16, 10..32, 7, "list_font_size",
                                     { draft = draft.copy(fontSize = it) }, suffix = "sp") { value -> change { it.copy(fontSize = value) } }
                             }
                             item("font_color") {
                                 SettingsActionItem(stringResource(R.string.list_font_color),
                                     fontColorSummary(draft.fontColor, onWallpaper = true),
-                                    7, 10, "list_font_color", modifier = colorModifier("font_color"), trailing = {
+                                    8, 11, "list_font_color", modifier = colorModifier("font_color"), trailing = {
                                         Surface(Modifier.size(24.dp), shape = MaterialTheme.shapes.small,
                                             color = resolvedFontColor(draft.fontColor, onWallpaper = true)) {}
                                     }, onClick = { dialog = "font_color" })
                             }
                             item("names") {
-                                DesignerSegment(8, 10, "list_show_names") {
+                                DesignerSegment(9, 11, "list_show_names") {
                                     Text(stringResource(R.string.list_show_names))
                                     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(top = 12.dp),
                                         horizontalArrangement = Arrangement.spacedBy(ButtonGroupDefaults.ConnectedSpaceBetween)) {
@@ -198,7 +204,7 @@ internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherA
                             }
                             item("names_in_folders") {
                                 SettingsToggleItem(stringResource(R.string.list_names_in_folders), null,
-                                    draft.applyNameVisibilityToFolders, 9, 10, "list_names_in_folders", enabled = enabled) { value ->
+                                    draft.applyNameVisibilityToFolders, 10, 11, "list_names_in_folders", enabled = enabled) { value ->
                                     change { it.copy(applyNameVisibilityToFolders = value) }
                                 }
                             }
@@ -221,10 +227,10 @@ internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherA
 
 @Composable
 private fun ListSpacingSlider(label: String, value: Int, default: Int, range: IntRange, index: Int, tag: String,
-    onPreview: (Int) -> Unit, suffix: String = "dp", centered: Boolean = false, onCommit: (Int) -> Unit) {
-    DesignerSegment(index, 10, tag) {
+    onPreview: (Int) -> Unit, suffix: String = "dp", centered: Boolean = false, enabled: Boolean = true, onCommit: (Int) -> Unit) {
+    DesignerSegment(index, 11, tag) {
         DesignerSlider(label, value.toFloat(), default.toFloat(), range.first.toFloat()..range.last.toFloat(),
-            LocalSettingsStorageState.current.canEdit, "${tag}_slider", suffix, centered = centered,
+            LocalSettingsStorageState.current.canEdit && enabled, "${tag}_slider", suffix, centered = centered,
             onFinished = { onCommit(it.roundToInt()) }, onChange = { onPreview(it.roundToInt()) })
     }
 }
