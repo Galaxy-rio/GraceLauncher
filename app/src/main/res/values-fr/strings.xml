@@ -950,4 +950,13 @@
     <string name="calendar_sources_loading">Chargement des calendriers…</string>
     <string name="calendar_sources_error">Impossible de charger les calendriers</string>
     <string name="calendar_sources_empty">Aucun calendrier trouvé</string>
+    <string name="clock_content_alignment_divider">Alignement gauche/droite</string>
+    <string name="clock_content_unselected">Non sélectionné</string>
+    <string name="calendar_local">Sur l\'appareil</string>
+    <string name="calendar_unnamed">Calendrier non nommé</string>
+    <string name="calendar_hidden">Caché dans le calendrier système</string>
+    <string name="calendar_open_events">Événements ouverts</string>
+    <string name="calendar_app">Application agenda par défaut</string>
+    <string name="calendar_system_default_app">Par défaut</string>
+    <string name="calendar_choose_app_description">Choisir l\'application utilisée pur ouvrir les événements de l\'agenda</string>
 </resources>

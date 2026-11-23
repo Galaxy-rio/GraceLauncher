@@ -1195,4 +1195,8 @@
     <string name="font_shadow_unsaved_message">¿Guardar los cambios en la sombra de la fuente antes de salir?</string>
     <string name="settings_remember_screen_position">Recordar la posición de la pantalla</string>
     <string name="settings_remember_screen_position_summary">Conserva la última pantalla tras desbloquear el dispositivo o salir de una aplicación. Desactiva para volver a la pantalla de inicio.</string>
+    <string name="tasks_show_overdue">Mostrar tareas vencidas</string>
+    <string name="calendar_no_events_today">Hoy no hay eventos</string>
+    <string name="clock_use_relative_dates">Usar fechas relativas</string>
+    <string name="clock_use_relative_dates_summary">Mostrar «hoy» y «mañana» en lugar de sus fechas</string>
 </resources>
