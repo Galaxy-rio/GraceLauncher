@@ -571,7 +571,10 @@ internal fun ClockRegionItemMotion(content: @Composable (Modifier) -> Unit) {
     val position = target?.let {
         animateOffsetAsState(it, MaterialTheme.motionScheme.defaultSpatialSpec(), label = "clockRegionItemPosition")
     }
-    Box(Modifier.onPlaced { target = it.positionInParent() }) {
+    Box(Modifier.onPlaced {
+        // Lazy layouts can dispatch placement while deactivating an item for reuse.
+        if (it.isAttached) target = it.positionInParent()
+    }) {
         content(Modifier.graphicsLayer {
             val currentTarget = target
             val offset = if (position != null && currentTarget != null) position.value - currentTarget else Offset.Zero
