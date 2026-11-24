@@ -16,11 +16,11 @@ class NotificationTitleTest {
         val messages = listOf("Ana" to "One", "Ana" to "Two", "Bob" to "Three")
         assertEquals("Ana: One\nTwo\nBob: Three", formatNotificationMessages(messages, true))
         assertEquals("Ana: One\nAna: Two\nBob: Three", formatNotificationMessages(messages, false))
-        val notification = AppNotification("key", "com.instagram.android", "", "Ana: One\nTwo", 1, 2, true, true,
-            originalTitle = "Account", originalText = "Ana: One\nAna: Two")
-        assertEquals("Account", notification.forDisplay(false).title)
+        val notification = AppNotification("key", "fixture.chat", "Conversation", "Ana: One\nTwo", 1, 2, true, true,
+            originalTitle = "Conversation: Ana", originalText = "Ana: One\nAna: Two")
+        assertEquals("Conversation: Ana", notification.forDisplay(false).title)
         assertEquals("Ana: One\nAna: Two", notification.forDisplay(false).text)
-        assertEquals("", notification.forDisplay(true).title)
+        assertEquals("Conversation", notification.forDisplay(true).title)
         assertEquals(2L, notification.forDisplay(false).revision)
     }
 

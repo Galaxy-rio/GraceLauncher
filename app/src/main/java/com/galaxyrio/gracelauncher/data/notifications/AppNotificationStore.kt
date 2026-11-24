@@ -47,7 +47,7 @@ internal fun formatNotificationMessages(messages: List<Pair<String, String>>, re
 internal fun isTitleRedundant(title: String, text: String): Boolean =
     title.isNotBlank() && (text == title || text.startsWith("$title: "))
 
-/** Slack/Instagram titles are "Channel: Sender"; keep the channel and drop the sender the body already shows. */
+/** For "Channel: Sender" titles, keep the channel and drop the sender the body already shows. */
 internal fun stripSenderFromTitle(title: String, text: String): String {
     val sender = title.substringAfterLast(": ", "")
     return if (sender.isNotBlank() && text.startsWith("$sender: ")) title.removeSuffix(": $sender") else title
@@ -183,8 +183,8 @@ internal class AppNotificationStore {
         }.trim()
         if (title.isBlank() && body.isBlank()) return null
         Entry(
-            display = AppNotification(sbn.key, sbn.packageName, // shortcut: Instagram's conversation title is the user's own username, so drop it; per-package, generalize if more apps do this.
-                if (sbn.packageName == "com.instagram.android" && messages.isNotEmpty()) "" else stripSenderFromTitle(title, body).take(256), body.take(8192),
+            display = AppNotification(sbn.key, sbn.packageName,
+                stripSenderFromTitle(title, body).take(256), body.take(8192),
                 sbn.postTime, ++revision, sbn.isClearable, notification.contentIntent != null,
                 notification.getLargeIcon(), originalTitle = title.take(256),
                 originalText = (if (messages.isNotEmpty()) formatNotificationMessages(messageText, reduceRepeatedSenders = false)
