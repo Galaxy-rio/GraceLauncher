@@ -23,6 +23,8 @@ import androidx.core.graphics.drawable.toBitmap
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.data.notifications.isTitleRedundant
+import com.galaxyrio.gracelauncher.data.notifications.forDisplay
+import com.galaxyrio.gracelauncher.ui.components.LocalPopupGestureSettings
 import com.galaxyrio.gracelauncher.ui.components.AppIcon
 import com.galaxyrio.gracelauncher.ui.components.SwipeDismissContainer
 import com.galaxyrio.gracelauncher.ui.components.notificationAge
@@ -41,6 +43,8 @@ internal fun NotificationPopupItem(
     dismissThresholdDp: Int = 72,
 ) {
     val context = LocalContext.current
+    val reduceRepeatedSenders = LocalPopupGestureSettings.current.reduceRepeatedSenders
+    val display = remember(notification, reduceRepeatedSenders) { notification.forDisplay(reduceRepeatedSenders) }
     val icon by produceState<ImageBitmap?>(null, notification.key, notification.icon) {
         value = withContext(Dispatchers.IO) {
             runCatching { notification.icon?.loadDrawable(context)?.toBitmap(120, 120)?.asImageBitmap() }.getOrNull()
@@ -64,14 +68,14 @@ internal fun NotificationPopupItem(
                 else AppIcon(app, size = 36.dp)
                 Spacer(Modifier.width(22.dp))
                 Text(
-                    "${header(app, notification)} · ${notificationAge(notification.postedAt)}",
+                    "${header(app, display, reduceRepeatedSenders)} · ${notificationAge(notification.postedAt)}",
                     style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
             }
-            if (notification.text.isNotBlank()) {
+            if (display.text.isNotBlank()) {
                 Spacer(Modifier.height(12.dp))
-                Text(notification.text, style = MaterialTheme.typography.bodyMedium,
+                Text(display.text, style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -79,6 +83,6 @@ internal fun NotificationPopupItem(
 }
 
 /** Header names the app when the body already shows the sender, so the sender appears once. */
-private fun header(app: LauncherApp, notification: AppNotification): String =
-    if (isTitleRedundant(notification.title, notification.text)) app.label
+private fun header(app: LauncherApp, notification: AppNotification, reduceRepeatedSenders: Boolean): String =
+    if (reduceRepeatedSenders && isTitleRedundant(notification.title, notification.text)) app.label
     else notification.title.ifBlank { app.label }

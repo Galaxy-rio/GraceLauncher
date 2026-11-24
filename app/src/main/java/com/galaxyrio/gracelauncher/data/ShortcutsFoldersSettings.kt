@@ -20,6 +20,7 @@ data class ShortcutsFoldersSettings(
     val popupSwipeAngleDegrees: Int = 45,
     val singleLineNotificationPreviews: Boolean = false,
     val multipleAppNotificationPreviews: Boolean = false,
+    val reduceRepeatedSenders: Boolean = true,
 ) {
     fun gesture(gesture: PopupGesture): PopupGestureActions = when (gesture) {
         PopupGesture.SwipeLeft -> swipeLeft
@@ -48,6 +49,7 @@ data class ShortcutsFoldersSettings(
         .put("normalNotifications", normalNotifications.id)
         .put("singleLineNotificationPreviews", singleLineNotificationPreviews)
         .put("multipleAppNotificationPreviews", multipleAppNotificationPreviews)
+        .put("reduceRepeatedSenders", reduceRepeatedSenders)
         .put("popupSwipeDistanceDp", popupSwipeDistanceDp.coerceIn(0, 48))
         .put("popupSwipeAngleDegrees", popupSwipeAngleDegrees.coerceIn(10, 90)).toString()
 
@@ -64,6 +66,7 @@ data class ShortcutsFoldersSettings(
                 doubleTap = PopupGestureActions.decode(json.optJSONArray("doubleTap"), PopupGestureActions.defaults(PopupGesture.DoubleTap)),
                 singleLineNotificationPreviews = json.optBoolean("singleLineNotificationPreviews", false),
                 multipleAppNotificationPreviews = json.optBoolean("multipleAppNotificationPreviews", false),
+                reduceRepeatedSenders = json.optBoolean("reduceRepeatedSenders", true),
                 popupSwipeDistanceDp = json.optInt("popupSwipeDistanceDp", 8).coerceIn(0, 48),
                 popupSwipeAngleDegrees = json.optInt("popupSwipeAngleDegrees", 45).coerceIn(10, 90),
                 silentNotifications = NotificationDisplay.entries.firstOrNull { it.id == json.optString("silentNotifications") }

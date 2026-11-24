@@ -1,9 +1,7 @@
 package com.galaxyrio.gracelauncher.ui.settings
 
-import android.content.Context
-import android.content.Intent
 import android.net.Uri
-import android.os.Process
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Spacer
@@ -11,6 +9,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -24,7 +23,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import com.galaxyrio.gracelauncher.MainActivity
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import java.time.LocalDateTime
@@ -35,11 +33,19 @@ private val BackupNameStamp = DateTimeFormatter.ofPattern("yyyyMMdd-HHmm")
 private val BackupMimeTypes = arrayOf("application/zip", "application/x-zip-compressed", "application/octet-stream")
 
 @Composable
-internal fun BackupSettings(actions: LauncherActions, onBack: () -> Unit) {
+internal fun BackupSettings(actions: LauncherActions, onBack: () -> Unit, inProgress: Boolean = false) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     var message by remember { mutableStateOf<String?>(null) }
     var pendingRestore by remember { mutableStateOf<Uri?>(null) }
+    BackHandler(enabled = inProgress) { }
+    if (inProgress) AlertDialog(
+        onDismissRequest = {},
+        confirmButton = {},
+        icon = { CircularProgressIndicator() },
+        title = { Text(stringResource(R.string.backup_in_progress)) },
+        properties = androidx.compose.ui.window.DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false),
+    )
 
     val exportPicker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
         if (uri != null) scope.launch {
@@ -62,7 +68,7 @@ internal fun BackupSettings(actions: LauncherActions, onBack: () -> Unit) {
                     pendingRestore = null
                     scope.launch {
                         actions.restoreBackup(uri).fold(
-                            onSuccess = { restartLauncher(context) },
+                            onSuccess = { },
                             onFailure = { message = context.getString(R.string.backup_restore_failed) + detail(it) },
                         )
                     }
@@ -73,18 +79,18 @@ internal fun BackupSettings(actions: LauncherActions, onBack: () -> Unit) {
             dismissButton = { TextButton(onClick = { pendingRestore = null }) { Text(stringResource(R.string.cancel)) } })
     }
 
-    SettingsScaffold(stringResource(R.string.settings_backup), "settings_backup", onBack) { padding ->
+    SettingsScaffold(stringResource(R.string.settings_backup), "settings_backup", { if (!inProgress) onBack() }) { padding ->
         SettingsList(padding) {
             item { Spacer(Modifier.height(24.dp)) }
             item {
                 SettingsActionItem(stringResource(R.string.backup_export), stringResource(R.string.backup_export_summary),
-                    0, 2, "backup_export") {
+                    0, 2, "backup_export", enabled = !inProgress) {
                     exportPicker.launch("grace-launcher-backup-${LocalDateTime.now().format(BackupNameStamp)}.zip")
                 }
             }
             item {
                 SettingsActionItem(stringResource(R.string.backup_restore), stringResource(R.string.backup_restore_summary),
-                    1, 2, "backup_restore") { restorePicker.launch(BackupMimeTypes) }
+                    1, 2, "backup_restore", enabled = !inProgress) { restorePicker.launch(BackupMimeTypes) }
             }
             message?.let { text ->
                 item { Text(text, modifier = Modifier.padding(horizontal = 4.dp, vertical = 12.dp).testTag("backup_message")) }
@@ -94,10 +100,3 @@ internal fun BackupSettings(actions: LauncherActions, onBack: () -> Unit) {
 }
 
 private fun detail(error: Throwable): String = error.message?.let { " $it" }.orEmpty()
-
-/** Restarting drops every in-memory cache, so the restored setup is what the launcher shows. */
-private fun restartLauncher(context: Context) {
-    context.startActivity(Intent(context, MainActivity::class.java)
-        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK))
-    Process.killProcess(Process.myPid())
-}

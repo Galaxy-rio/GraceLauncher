@@ -27,7 +27,21 @@ data class AppNotification(
     val canOpen: Boolean,
     val icon: Icon? = null,
     val silent: Boolean = false,
+    val originalTitle: String = title,
+    val originalText: String = text,
 )
+
+/** Both projections are prepared once when the notification arrives; toggling needs no system query. */
+internal fun AppNotification.forDisplay(reduceRepeatedSenders: Boolean): AppNotification =
+    if (reduceRepeatedSenders) this else copy(title = originalTitle, text = originalText)
+
+internal fun formatNotificationMessages(messages: List<Pair<String, String>>, reduceRepeatedSenders: Boolean): String {
+    var previous = ""
+    return messages.filter { it.second.isNotBlank() }.joinToString("\n") { (sender, text) ->
+        (if (sender.isEmpty() || (reduceRepeatedSenders && sender == previous)) text else "$sender: $text")
+            .also { previous = sender }
+    }
+}
 
 /** True when the body already names the sender (MessagingStyle prefixes "Sender: "), so the title repeats it. */
 internal fun isTitleRedundant(title: String, text: String): Boolean =
@@ -158,17 +172,11 @@ internal class AppNotificationStore {
         if (extras.containsKey(Notification.EXTRA_MEDIA_SESSION) || notification.visibility == Notification.VISIBILITY_SECRET) return null
         val messaging = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(notification)
         val messages = messaging?.messages.orEmpty().takeLast(8)
+        val messageText = messages.map { it.person?.name?.toString()?.trim().orEmpty() to it.text?.toString().orEmpty() }
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim().orEmpty()
         val body = when {
             // Skip attachment-only messages (blank text) and repeat the sender only when it changes.
-            messages.isNotEmpty() -> {
-                var previous = ""
-                messages.filter { !it.text.isNullOrBlank() }.joinToString("\n") { message ->
-                    val sender = message.person?.name?.toString()?.trim().orEmpty()
-                    val text = message.text.toString()
-                    (if (sender.isEmpty() || sender == previous) text else "$sender: $text").also { previous = sender }
-                }
-            }
+            messages.isNotEmpty() -> formatNotificationMessages(messageText, reduceRepeatedSenders = true)
             !extras.getCharSequence(Notification.EXTRA_BIG_TEXT).isNullOrBlank() -> extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString()
             !extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES).isNullOrEmpty() -> extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)!!.joinToString("\n")
             else -> extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
@@ -178,7 +186,9 @@ internal class AppNotificationStore {
             display = AppNotification(sbn.key, sbn.packageName, // shortcut: Instagram's conversation title is the user's own username, so drop it; per-package, generalize if more apps do this.
                 if (sbn.packageName == "com.instagram.android" && messages.isNotEmpty()) "" else stripSenderFromTitle(title, body).take(256), body.take(8192),
                 sbn.postTime, ++revision, sbn.isClearable, notification.contentIntent != null,
-                notification.getLargeIcon()),
+                notification.getLargeIcon(), originalTitle = title.take(256),
+                originalText = (if (messages.isNotEmpty()) formatNotificationMessages(messageText, reduceRepeatedSenders = false)
+                    else body).trim().take(8192)),
             groupKey = sbn.groupKey,
             summary = notification.flags and Notification.FLAG_GROUP_SUMMARY != 0,
             contentIntent = notification.contentIntent,

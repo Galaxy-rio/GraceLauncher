@@ -91,6 +91,7 @@ import com.galaxyrio.gracelauncher.data.RecentlyInstalledFolderId
 import com.galaxyrio.gracelauncher.data.icons.iconShapePath
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.data.notifications.isTitleRedundant
+import com.galaxyrio.gracelauncher.data.notifications.forDisplay
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.effectiveDisplay
 
@@ -527,14 +528,16 @@ internal fun AppNotificationLabel(
                     Modifier.size(16.dp).testTag("category_indicator:${categoryIcon.name}"), tint = style.color)
             }
         }
-        notifications.forEachIndexed { index, notification ->
+        val reduceRepeatedSenders = LocalPopupGestureSettings.current.reduceRepeatedSenders
+        notifications.forEachIndexed { index, original ->
+            val notification = remember(original, reduceRepeatedSenders) { original.forDisplay(reduceRepeatedSenders) }
             key(notification.key) {
                 if (index > 0) Spacer(Modifier.height(6.dp))
                 else if (showLabel) Spacer(Modifier.height(2.dp))
                 notificationContent(notification) {
                     Column {
                         val previewStyle = style.copy(fontSize = (list.fontSize - 2).sp, color = style.color.copy(alpha = 0.88f))
-                        if (notification.title.isNotBlank() && !isTitleRedundant(notification.title, notification.text)) Text(notification.title,
+                        if (notification.title.isNotBlank() && (!reduceRepeatedSenders || !isTitleRedundant(notification.title, notification.text))) Text(notification.title,
                             style = previewStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         if (notification.text.isNotBlank()) Text(
                             text = if (notificationBodyLines > 1) notification.text else notification.text.replace('\n', ' '),

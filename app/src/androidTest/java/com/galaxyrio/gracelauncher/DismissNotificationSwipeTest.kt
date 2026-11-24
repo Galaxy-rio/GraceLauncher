@@ -21,7 +21,7 @@ class DismissNotificationSwipeTest {
         apps = listOf(a, b), folders = listOf(folder),
         notifications = mapOf(a.packageName to listOf(note(a, "a1")), b.packageName to listOf(note(b, "b1"))),
         settings = LauncherSettings(shortcutsFolders = ShortcutsFoldersSettings(
-            swipeLeft = PopupGestureActions(selected = actions.toSet()))),
+            swipeLeft = PopupGestureActions(selected = actions.toSet(), confirmDismissAll = true))),
     )
 
     private suspend fun swipe(owner: LauncherApp, state: LauncherUiState, removed: MutableList<String>,
@@ -30,9 +30,9 @@ class DismissNotificationSwipeTest {
             { LauncherActions(dismissNotification = { key, _ -> removed.add(key) }) }, { true },
             openPopup = { error("Unexpected pop-up") }, launchItem = { error("Unexpected launch") }, confirmDismiss = confirm)
 
-    @Test fun confirmationIsRequiredOnlyForMoreThanOneNotification() {
+    @Test fun confirmationIsRequiredOnlyForMoreThanOneApp() {
         assertTrue(notificationDismissNeedsConfirmation(listOf(note(a, "a1"), note(b, "b1"))))
-        assertTrue(notificationDismissNeedsConfirmation(listOf(note(a, "a1"), note(a, "a2"))))
+        assertFalse(notificationDismissNeedsConfirmation(listOf(note(a, "a1"), note(a, "a2"))))
         assertFalse(notificationDismissNeedsConfirmation(listOf(note(a, "a1"))))
         assertFalse(notificationDismissNeedsConfirmation(emptyList()))
     }
@@ -43,7 +43,7 @@ class DismissNotificationSwipeTest {
         val base = state(PopupGestureAction.DismissAllNotifications, PopupGestureAction.OpenPopup)
         val order = listOf(PopupGestureAction.DismissAllNotifications, PopupGestureAction.OpenPopup)
         val state = base.copy(settings = base.settings.copy(shortcutsFolders = base.settings.shortcutsFolders.copy(
-            swipeLeft = PopupGestureActions(order = order, selected = order.toSet()))))
+            swipeLeft = PopupGestureActions(order = order, selected = order.toSet(), confirmDismissAll = true))))
         assertTrue(swipe(folder.asApp(), state, removed) { asked++; false })
         assertEquals(1, asked)
         assertTrue(removed.isEmpty())
@@ -61,7 +61,7 @@ class DismissNotificationSwipeTest {
         assertEquals(listOf("a1"), removed)
     }
 
-    @Test fun twoNotificationsFromOneAppAskOnceThenClearTheWholeApp() = runBlocking {
+    @Test fun twoNotificationsFromOneAppClearWithoutConfirmation() = runBlocking {
         val cleared = mutableListOf<String>()
         var asked = 0
         val two = state(PopupGestureAction.DismissAllNotifications).copy(
@@ -70,7 +70,7 @@ class DismissNotificationSwipeTest {
             { LauncherActions(dismissAllNotifications = { cleared.add(it) }) }, { true },
             openPopup = { error("Unexpected pop-up") }, launchItem = { error("Unexpected launch") },
             confirmDismiss = { asked++; true }))
-        assertEquals(1, asked)
+        assertEquals(0, asked)
         assertEquals(listOf(a.packageName), cleared)
     }
 

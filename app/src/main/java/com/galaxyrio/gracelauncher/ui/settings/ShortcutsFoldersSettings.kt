@@ -79,8 +79,20 @@ internal fun ShortcutsFoldersSettingsScreen(uiState: LauncherUiState, actions: L
                                 current.withGesture(gesture, value.copy(selected = if (checked) value.selected + action else value.selected - action))
                             } },
                             onReorder = { order -> update { current -> current.withGesture(gesture, current.gesture(gesture).copy(order = order)) } },
-                            modifier = Modifier.height(64.dp * options.order.size + 2.dp * (options.order.size - 1)),
-                            containerColor = MaterialTheme.colorScheme.surfaceBright)
+                            modifier = Modifier.height(64.dp * options.order.size + 2.dp * (options.order.size - 1) +
+                                if (PopupGestureAction.DismissAllNotifications in options.selected) 80.dp else 0.dp),
+                            containerColor = MaterialTheme.colorScheme.surfaceBright,
+                            fieldSupportingContent = { action ->
+                                if (action == PopupGestureAction.DismissAllNotifications && action in options.selected) {
+                                    Box(Modifier.height(80.dp).padding(start = 40.dp, end = 8.dp),
+                                        contentAlignment = androidx.compose.ui.Alignment.Center) {
+                                        SettingsToggleItem(stringResource(R.string.popup_confirm_multiple_apps), null,
+                                            options.confirmDismissAll, 0, 1, "popup_confirm_multiple_apps_${gesture.id}") { confirm ->
+                                            update { current -> current.withGesture(gesture, current.gesture(gesture).copy(confirmDismissAll = confirm)) }
+                                        }
+                                    }
+                                }
+                            })
                         if (gesture == PopupGesture.DoubleTap && options.selected.isNotEmpty()) Text(
                             stringResource(R.string.popup_double_tap_delay),
                             Modifier.padding(horizontal = 4.dp, vertical = 8.dp).testTag("popup_double_tap_delay"),

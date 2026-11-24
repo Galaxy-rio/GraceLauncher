@@ -128,7 +128,7 @@ internal fun ProductivitySettings(
             item { SettingsHeading(stringResource(R.string.settings_screens)) }
             item {
                 SettingsActionItem(stringResource(R.string.settings_home_screen), null, 0, 5, "settings_edit_homepage",
-                    leading = { LauncherIcon(LauncherSymbol.Home) }) { navigate(SettingsPage.Homepage) }
+                    leading = { LauncherIcon(LauncherSymbol.Home) }) { navigate(SettingsPage.HomeScreen) }
             }
             item {
                 SettingsActionItem(stringResource(R.string.settings_folder_app_list), null, 1, 5, "settings_app_list",

@@ -316,7 +316,7 @@ fun ShortcutPopup(
                         val itemDisplay = itemApp.effectiveDisplay(LocalLauncherAppearance.current)
                         val hiddenIcon = itemDisplay.style == IconDisplayStyle.Hidden
                         val notification = uiState.ownNotificationsFor(itemApp, expanded = true).firstOrNull()
-                        // Same left-swipe rule as home rows: more than one notification asks first.
+                        // Apply the same optional multi-app confirmation as desktop rows.
                         val popupSettings = LocalPopupGestureSettings.current
                         val inputEnabled = LocalLauncherInputEnabled.current
                         // Popup rows only honor the dismiss actions; opening is meaningless inside the popup.
@@ -340,7 +340,8 @@ fun ShortcutPopup(
                             val found = (if (dismissAction == PopupGestureAction.DismissFirstNotification)
                                 listOfNotNull(uiState.firstGestureNotification(target)) else uiState.allGestureNotifications(target))
                                 .filter { it.canDismiss }
-                            if (notificationDismissNeedsConfirmation(found)) pendingDismiss = found else clearNotifications(found)
+                            if (popupSettings.swipeLeft.confirmDismissAll && notificationDismissNeedsConfirmation(found))
+                                pendingDismiss = found else clearNotifications(found)
                         }
                         pendingDismiss?.let { found ->
                             DismissNotificationsDialog(found.size, onConfirm = { pendingDismiss = null; clearNotifications(found) },
@@ -360,6 +361,7 @@ fun ShortcutPopup(
                                         extraDistance = popupSettings.popupSwipeDistanceDp.coerceIn(0, 48).dp.toPx(),
                                         maxAngleDegrees = popupSettings.popupSwipeAngleDegrees.coerceIn(10, 90),
                                         leftEnabled = true,
+                                        rightEnabled = false,
                                         onDragStart = { swipe.reset() },
                                         onDragCancel = { swipe.reset() },
                                         onDragEnd = { if (swipe.opensFirst) dismissItem(itemApp); swipe.reset() },

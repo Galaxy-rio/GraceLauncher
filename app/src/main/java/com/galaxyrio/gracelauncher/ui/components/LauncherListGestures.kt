@@ -173,7 +173,7 @@ internal class LauncherListGestureConnection(
 
     override fun onPreScroll(available: Offset, source: NestedScrollSource): Offset {
         // Consume the drag so the list never moves; the pull is still measured.
-        if (locked) { onPostScroll(Offset.Zero, available, source); return available }
+        if (locked) { onPostScroll(Offset.Zero, available, source); return Offset(0f, available.y) }
         // Reversing a pull cancels its accumulated distance, including stretch relaxation.
         if (source == NestedScrollSource.UserInput && available.y * edgePull < 0f) {
             edgePull = if (abs(available.y) >= abs(edgePull)) 0f else edgePull + available.y

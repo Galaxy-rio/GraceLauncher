@@ -84,7 +84,7 @@ internal enum class SettingsPage {
     MediaPlayer, GraceButton, GraceAction, GraceApp, GraceShortcut, GraceFolder, Gestures, WorkProfile, WorkProfileEditor,
     LabGraceButton, LabGesture, LabPopup, LabAccessibility, LabDismiss, Fonts, FontColors, FontShadow, ListAppearance, Alphabet, ShortcutsFolders, AppStacks, WidgetStacks,
     GraceButtonAppearance, GraceButtonPosition, AgendaAppearance, SearchAppearance, MediaPlayerAppearance,
-    WidgetScreen, WidgetScreenEditor, Homepage, AppList, FeedScreen, StatusScreen, DigitalWellbeing, TabletsFoldables,
+    WidgetScreen, WidgetScreenEditor, HomeScreen, Homepage, AppList, FeedScreen, StatusScreen, DigitalWellbeing, TabletsFoldables,
     Wallpaper, WallpaperDesigner, Screens,
     AppCategories, CategoryEditor, TasksOrg, TaskLists,
 }
@@ -229,6 +229,7 @@ fun LauncherSettingsScreen(
                     SettingsPage.CategoryEditor -> AppCategoryEditorSettings(entry.arguments?.getString("categoryId"), uiState, actions, back)
                     SettingsPage.DigitalWellbeing -> DigitalWellbeingSettingsScreen(uiState, actions, back)
                     SettingsPage.TabletsFoldables -> SettingsPlaceholder(stringResource(R.string.settings_tablets_foldables), "tablets_foldables_settings", back)
+                    SettingsPage.HomeScreen -> HomeScreenSettings(uiState, actions, back) { navigate(SettingsPage.Homepage) }
                     SettingsPage.Homepage -> com.galaxyrio.gracelauncher.ui.overlays.HomepageEditorScreen(
                         uiState, actions, actions.toggleFavorite, actions.reorderFavorites, onDone = back)
                     SettingsPage.AppList -> com.galaxyrio.gracelauncher.ui.overlays.AppListEditorScreen(uiState, actions, back)
@@ -361,7 +362,7 @@ fun LauncherSettingsScreen(
                     SettingsPage.TaskLists -> TasksListsSettings(uiState, actions, back)
                     SettingsPage.Advanced -> AdvancedSettings(back, navigate,
                         onChooseDefaultHome = { if (isCurrent()) actions.requestDefaultHome() })
-                    SettingsPage.Backup -> BackupSettings(actions, back)
+                    SettingsPage.Backup -> BackupSettings(actions, back, uiState.backupInProgress)
                     SettingsPage.Screens -> ScreenSettings(uiState, actions, back)
                     SettingsPage.Language -> LanguageSettings(back)
                     SettingsPage.LabGraceButton -> LabGraceButtonSettings(uiState, actions, back)
@@ -428,6 +429,7 @@ private fun SettingsHome(
         add(SettingsPage.Productivity to LauncherSymbol.Star)
         add(SettingsPage.Themes to LauncherSymbol.Palette)
         add(SettingsPage.Advanced to LauncherSymbol.Settings)
+        add(SettingsPage.Backup to LauncherSymbol.Cloud)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             add(SettingsPage.Language to LauncherSymbol.Language)
         }

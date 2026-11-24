@@ -121,7 +121,7 @@ internal fun HomeClockHeader(
     if (regions == null) {
         LegacyHomeClockHeader(now, event, onDateClick, onClockClick, showBattery, clockStyle, weather ?: weatherSnapshot?.current,
             modifier, interactive, clockTag, dateTag, onLongClick, onAnchorOffsetChange,
-            showClock, showCalendar, calendarAboveClock, onWeatherClick)
+            showClock, showCalendar, calendarAboveClock, onWeatherClick, onCalendarClick, onCalendarLongClick)
         return
     }
     val appearance = LocalLauncherAppearance.current

@@ -252,8 +252,7 @@ fun HomeScreen(
             if (it && !userIsEditing) baselinePinned = false
         }
     }
-    // Locked (default): the list never scrolls or stretches; the gesture connection consumes drags.
-    val overscroll = rememberOverscrollEffect().takeIf { homeLayout.listStretch }
+    val overscroll = rememberOverscrollEffect().takeUnless { homeLayout.disableStretch }
     val gesturesEnabled = widgetInputEnabled && !editingLayout && !widgetEditing && uiState.settings.homeGestures.enabled &&
         !uiState.isLoadingSettings && !uiState.settingsLoadFailed
     val doubleTapEnabled = gesturesEnabled && uiState.settings.homeGestures.doubleTap.active
@@ -269,7 +268,7 @@ fun HomeScreen(
         protectSwipeUp = uiState.settings.homeGestures.protectSwipeUp,
         protectSwipeDown = uiState.settings.homeGestures.protectSwipeDown,
         onPullReady = { haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate) },
-        locked = !homeLayout.listStretch,
+        locked = homeLayout.disableScrolling && !editingLayout && !widgetEditing,
     )
     LaunchedEffect(gesturesEnabled) { if (!gesturesEnabled) scrollConnection.cancelGesture() }
     BoxWithConstraints(modifier.fillMaxSize()
@@ -514,6 +513,8 @@ internal fun LegacyHomeClockHeader(
     showCalendar: Boolean = true,
     calendarAboveClock: Boolean = false,
     onWeatherClick: () -> Unit = {},
+    onCalendarClick: () -> Unit = onDateClick,
+    onCalendarLongClick: (() -> Unit)? = null,
 ) {
     val appearance = LocalLauncherAppearance.current
     val visibility = clockStyle.effectiveVisibility
@@ -537,13 +538,7 @@ internal fun LegacyHomeClockHeader(
         colors.getValue(ClockColorPart.Weekday), colors.getValue(ClockColorPart.Month), colors.getValue(ClockColorPart.Day)).text
     val dateText = clockCalendarDate(now, locale, weekdayVisible && !week, dateVisible,
         colors.getValue(ClockColorPart.Weekday), colors.getValue(ClockColorPart.Month), colors.getValue(ClockColorPart.Day))
-    val calendarText = buildAnnotatedString {
-        append(dateText)
-        if (battery != null) {
-            if (length > 0) append("  ")
-            withStyle(SpanStyle(color = colors.getValue(ClockColorPart.Battery))) { append("$battery%") }
-        }
-    }
+    val calendarText = dateText
     val completeDate = clockCalendarDate(now, locale, true, true,
         colors.getValue(ClockColorPart.Weekday), colors.getValue(ClockColorPart.Month), colors.getValue(ClockColorPart.Day)).text
     val dateDescription = stringResource(R.string.date_calendar_action, completeDate)
@@ -551,7 +546,7 @@ internal fun LegacyHomeClockHeader(
     val largeFaceVisible = if (week) weekdayVisible else clockVisible
     val smallClockVisible = week && clockVisible
     val agendaVisible = showCalendar && event != null
-    val rowVisible = smallClockVisible || calendarText.isNotEmpty() || visibleWeather != null
+    val rowVisible = smallClockVisible || calendarText.isNotEmpty() || battery != null || visibleWeather != null
     val calendarContentVisible = rowVisible || agendaVisible
     val calendarAction = calendarContentVisible
 
@@ -565,8 +560,8 @@ internal fun LegacyHomeClockHeader(
                 .semantics { contentDescription = if (week) dateDescription else clockDescription }
                 .then(if (interactive) Modifier.combinedClickable(
                     interactionSource = remember { MutableInteractionSource() }, indication = null,
-                    onClick = if (week) onDateClick else onClockClick,
-                    onLongClick = onLongClick,
+                    onClick = if (week) onCalendarClick else onClockClick,
+                    onLongClick = if (week) onCalendarLongClick ?: onLongClick else onLongClick,
                 ) else Modifier)
                 .padding(horizontal = LauncherLayout.ContentInset),
             color = if (week) colors.getValue(ClockColorPart.Weekday) else appearance.text,
@@ -605,18 +600,29 @@ internal fun LegacyHomeClockHeader(
                                 color = appearance.text,
                                 digitColors = digitColors,
                             )
-                            if (calendarText.isNotEmpty()) Text(" · ", modifier = Modifier.alignByBaseline(), color = appearance.text, style = dateStyle)
+                            if (calendarText.isNotEmpty() || battery != null) Text(" · ", modifier = Modifier.alignByBaseline(), color = appearance.text, style = dateStyle)
                         }
                         if (calendarText.isNotEmpty()) Text(
                             text = calendarText,
-                            modifier = Modifier.weight(1f, fill = false).alignByBaseline().testTag("${dateTag}_text"),
+                            modifier = Modifier.weight(1f, fill = false).alignByBaseline().testTag("${dateTag}_text")
+                                .then(if (interactive) Modifier.combinedClickable(
+                                    interactionSource = remember { MutableInteractionSource() }, indication = null,
+                                    onClick = onCalendarClick, onLongClick = onCalendarLongClick ?: onLongClick,
+                                ) else Modifier),
                             color = appearance.text,
                             style = dateStyle,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
+                        if (battery != null) {
+                            if (calendarText.isNotEmpty()) Spacer(Modifier.width(8.dp))
+                            Text("$battery%", Modifier.alignByBaseline().then(if (interactive) Modifier.combinedClickable(
+                                interactionSource = remember { MutableInteractionSource() }, indication = null,
+                                onClick = {}, onLongClick = onLongClick,
+                            ) else Modifier), color = colors.getValue(ClockColorPart.Battery), style = dateStyle)
+                        }
                         if (visibleWeather != null) {
-                            if (smallClockVisible || calendarText.isNotEmpty()) Spacer(Modifier.width(10.dp))
+                            if (smallClockVisible || calendarText.isNotEmpty() || battery != null) Spacer(Modifier.width(10.dp))
                             HomeWeather(visibleWeather, colors.getValue(ClockColorPart.Weather), dateStyle, Modifier.alignByBaseline(),
                                 onClick = onWeatherClick.takeIf { interactive }, onLongClick = onLongClick.takeIf { interactive },
                                 iconColor = colors.getValue(ClockColorPart.WeatherIcon))

@@ -16,6 +16,7 @@ enum class PopupGestureAction(val id: String) {
 data class PopupGestureActions(
     val order: List<PopupGestureAction> = PopupGestureAction.entries.toList(),
     val selected: Set<PopupGestureAction> = emptySet(),
+    val confirmDismissAll: Boolean = false,
 ) {
     val enabledActions: List<PopupGestureAction> get() = normalized().order.filter { it in selected }
 
@@ -23,7 +24,9 @@ data class PopupGestureActions(
 
     fun json(): JSONArray = JSONArray().apply {
         normalized().order.forEach { action ->
-            put(JSONObject().put("action", action.id).put("enabled", action in selected))
+            put(JSONObject().put("action", action.id).put("enabled", action in selected).apply {
+                if (action == PopupGestureAction.DismissAllNotifications) put("confirmMultipleApps", confirmDismissAll)
+            })
         }
     }
 
@@ -44,14 +47,16 @@ data class PopupGestureActions(
             if (array == null) return fallback
             val order = mutableListOf<PopupGestureAction>()
             val selected = mutableSetOf<PopupGestureAction>()
+            var confirmDismissAll = false
             for (index in 0 until array.length()) {
                 val entry = array.optJSONObject(index) ?: continue
                 val action = PopupGestureAction.entries.firstOrNull { it.id == entry.optString("action") } ?: continue
                 if (action in order) continue
                 order += action
                 if (entry.optBoolean("enabled", false)) selected += action
+                if (action == PopupGestureAction.DismissAllNotifications) confirmDismissAll = entry.optBoolean("confirmMultipleApps", false)
             }
-            return PopupGestureActions(order, selected).normalized()
+            return PopupGestureActions(order, selected, confirmDismissAll).normalized()
         }
     }
 }

@@ -119,12 +119,13 @@ class LauncherSettingsPersistenceTest {
     }
 
     @Test
-    fun dateTapActionRoundTripsAndFallsBackToLongPress() {
+    fun dateActionsRoundTripAndHaveIndependentDefaults() {
         val chosen = com.galaxyrio.gracelauncher.data.CalendarPreferences(
-            dateTapAction = com.galaxyrio.gracelauncher.data.DateTapAction.TapCalendar)
+            dateTapAction = com.galaxyrio.gracelauncher.data.DateAction.Calendar,
+            dateLongPressAction = com.galaxyrio.gracelauncher.data.DateAction.NewTask)
         assertEquals(chosen, com.galaxyrio.gracelauncher.data.CalendarPreferences.decode(chosen.encode()))
         for (stored in listOf(null, "{}", """{"dateTapAction":"Bogus"}""")) {
-            assertEquals(com.galaxyrio.gracelauncher.data.DateTapAction.LongPressCalendar,
+            assertEquals(com.galaxyrio.gracelauncher.data.DateAction.Agenda,
                 com.galaxyrio.gracelauncher.data.CalendarPreferences.decode(stored).dateTapAction)
         }
     }

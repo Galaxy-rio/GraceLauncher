@@ -114,7 +114,7 @@ internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherA
                                 item("single_line") {
                                     SettingsToggleItem(stringResource(R.string.popup_single_line_previews),
                                         stringResource(R.string.popup_single_line_previews_summary),
-                                        notifications.singleLineNotificationPreviews, 0, 2, "popup_single_line_previews",
+                                        notifications.singleLineNotificationPreviews, 0, 3, "popup_single_line_previews",
                                         enabled = notifications.enabled) { value ->
                                         actions.updateSettings { it.copy(shortcutsFolders = it.shortcutsFolders.copy(singleLineNotificationPreviews = value)) }
                                     }
@@ -122,9 +122,16 @@ internal fun ListAppearanceSettings(uiState: LauncherUiState, actions: LauncherA
                                 item("multiple_apps") {
                                     SettingsToggleItem(stringResource(R.string.popup_multiple_app_previews),
                                         stringResource(R.string.popup_multiple_app_previews_summary),
-                                        notifications.multipleAppNotificationPreviews, 1, 2, "popup_multiple_app_previews",
+                                        notifications.multipleAppNotificationPreviews, 1, 3, "popup_multiple_app_previews",
                                         enabled = notifications.enabled) { value ->
                                         actions.updateSettings { it.copy(shortcutsFolders = it.shortcutsFolders.copy(multipleAppNotificationPreviews = value)) }
+                                    }
+                                }
+                                item("reduce_repeated_senders") {
+                                    SettingsToggleItem(stringResource(R.string.notification_reduce_repeated_senders), null,
+                                        notifications.reduceRepeatedSenders, 2, 3, "notification_reduce_repeated_senders",
+                                        enabled = notifications.enabled) { value ->
+                                        actions.updateSettings { it.copy(shortcutsFolders = it.shortcutsFolders.copy(reduceRepeatedSenders = value)) }
                                     }
                                 }
                             }

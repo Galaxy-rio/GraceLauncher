@@ -168,13 +168,8 @@ internal fun HomepageEditorScreen(uiState: LauncherUiState, actions: LauncherAct
                 SettingsHeading(stringResource(R.string.home_list_heading))
                 SettingsToggleItem(stringResource(R.string.favorites_lock_editing),
                     null, uiState.settings.homeLayout.editingLocked,
-                    0, 2, "favorites_lock_editing") { locked ->
+                    0, 1, "favorites_lock_editing") { locked ->
                     actions.updateSettings { it.copy(homeLayout = it.homeLayout.copy(editingLocked = locked)) }
-                }
-                SettingsToggleItem(stringResource(R.string.favorites_list_stretch),
-                    null, uiState.settings.homeLayout.listStretch,
-                    1, 2, "favorites_list_stretch") { stretch ->
-                    actions.updateSettings { it.copy(homeLayout = it.homeLayout.copy(listStretch = stretch)) }
                 }
                 SettingsHeading(stringResource(R.string.home_layout_heading))
                 SettingsActionItem(stringResource(R.string.homepage_adjust_height), null, 0, 1, "homepage_adjust_height",
