@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.graphics.drawable.toBitmap
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
+import com.galaxyrio.gracelauncher.data.notifications.isTitleRedundant
 import com.galaxyrio.gracelauncher.ui.components.AppIcon
 import com.galaxyrio.gracelauncher.ui.components.SwipeDismissContainer
 import com.galaxyrio.gracelauncher.ui.components.notificationAge
@@ -63,7 +64,7 @@ internal fun NotificationPopupItem(
                 else AppIcon(app, size = 36.dp)
                 Spacer(Modifier.width(22.dp))
                 Text(
-                    "${notification.title.ifBlank { app.label }} · ${notificationAge(notification.postedAt)}",
+                    "${header(app, notification)} · ${notificationAge(notification.postedAt)}",
                     style = MaterialTheme.typography.bodyLarge, maxLines = 2, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
@@ -76,3 +77,8 @@ internal fun NotificationPopupItem(
         }
     }
 }
+
+/** Header names the app when the body already shows the sender, so the sender appears once. */
+private fun header(app: LauncherApp, notification: AppNotification): String =
+    if (isTitleRedundant(notification.title, notification.text)) app.label
+    else notification.title.ifBlank { app.label }

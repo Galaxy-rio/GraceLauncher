@@ -161,6 +161,8 @@ fun HomeScreen(
     actions: LauncherActions = LauncherActions(),
     onWidgetEditingChange: (Boolean) -> Unit = {},
     onWeatherClick: () -> Unit = {},
+    onCalendarClick: () -> Unit = onDateClick,
+    onCalendarLongClick: (() -> Unit)? = null,
 ) {
     val now by rememberHomeTime()
     val headphones by rememberHeadphonesConnected()
@@ -250,7 +252,8 @@ fun HomeScreen(
             if (it && !userIsEditing) baselinePinned = false
         }
     }
-    val overscroll = rememberOverscrollEffect()
+    // Locked (default): the list never scrolls or stretches; the gesture connection consumes drags.
+    val overscroll = rememberOverscrollEffect().takeIf { homeLayout.listStretch }
     val gesturesEnabled = widgetInputEnabled && !editingLayout && !widgetEditing && uiState.settings.homeGestures.enabled &&
         !uiState.isLoadingSettings && !uiState.settingsLoadFailed
     val doubleTapEnabled = gesturesEnabled && uiState.settings.homeGestures.doubleTap.active
@@ -266,6 +269,7 @@ fun HomeScreen(
         protectSwipeUp = uiState.settings.homeGestures.protectSwipeUp,
         protectSwipeDown = uiState.settings.homeGestures.protectSwipeDown,
         onPullReady = { haptics.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate) },
+        locked = !homeLayout.listStretch,
     )
     LaunchedEffect(gesturesEnabled) { if (!gesturesEnabled) scrollConnection.cancelGesture() }
     BoxWithConstraints(modifier.fillMaxSize()
@@ -390,6 +394,7 @@ fun HomeScreen(
                                 }
                             })
                         grace == GraceWidget.ClockCalendar -> HomeClockHeader(now, event, onDateClick, onClockClick,
+                            onCalendarClick = onCalendarClick, onCalendarLongClick = onCalendarLongClick,
                             showBattery = true,
                             clockStyle = uiState.settings.clockStyle,
                             weather = uiState.weather.snapshot?.current.takeIf { uiState.settings.weatherEnabled &&

@@ -50,6 +50,8 @@ data class LauncherApp(
     /** Clone profiles live alongside personal apps, with their own user identity and badge. */
     val isCloneProfile: Boolean = false,
     val isWidgetStack: Boolean = false,
+    /** System archive state (API 35+). Archived apps stay out of every list but remain searchable. */
+    val isArchived: Boolean = false,
 ) {
     val key: String = folderId?.let { "folder:$it" } ?: shortcut?.key
         ?: userSerial?.let { "profile:$it:${componentName.flattenToString()}" } ?: componentName.flattenToString()

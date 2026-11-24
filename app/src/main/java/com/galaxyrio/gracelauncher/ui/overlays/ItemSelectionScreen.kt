@@ -51,6 +51,7 @@ import com.galaxyrio.gracelauncher.ui.settings.FavoriteFoldersScreen
 import com.galaxyrio.gracelauncher.ui.settings.AppGroupPickerScreen
 import com.galaxyrio.gracelauncher.ui.settings.WidgetStackPickerScreen
 import com.galaxyrio.gracelauncher.ui.settings.SettingsScaffold
+import com.galaxyrio.gracelauncher.ui.settings.SettingsHeading
 import com.galaxyrio.gracelauncher.ui.settings.SettingsFeatureBanner
 import com.galaxyrio.gracelauncher.ui.settings.SettingsActionItem
 import com.galaxyrio.gracelauncher.ui.settings.SettingsList
@@ -163,11 +164,19 @@ internal fun HomepageEditorScreen(uiState: LauncherUiState, actions: LauncherAct
     ItemSelectionScreen(
         title = stringResource(R.string.edit_homepage), tag = "favorites",
         header = {
-            Column {
-                SettingsFeatureBanner(stringResource(R.string.favorites_lock_editing), uiState.settings.homeLayout.editingLocked,
-                    "favorites_lock_editing") { locked ->
+            Column(verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap)) {
+                SettingsHeading(stringResource(R.string.home_list_heading))
+                SettingsToggleItem(stringResource(R.string.favorites_lock_editing),
+                    null, uiState.settings.homeLayout.editingLocked,
+                    0, 2, "favorites_lock_editing") { locked ->
                     actions.updateSettings { it.copy(homeLayout = it.homeLayout.copy(editingLocked = locked)) }
                 }
+                SettingsToggleItem(stringResource(R.string.favorites_list_stretch),
+                    null, uiState.settings.homeLayout.listStretch,
+                    1, 2, "favorites_list_stretch") { stretch ->
+                    actions.updateSettings { it.copy(homeLayout = it.homeLayout.copy(listStretch = stretch)) }
+                }
+                SettingsHeading(stringResource(R.string.home_layout_heading))
                 SettingsActionItem(stringResource(R.string.homepage_adjust_height), null, 0, 1, "homepage_adjust_height",
                     enabled = !uiState.isLoadingSettings && !uiState.settingsLoadFailed,
                     leading = { LauncherIcon(LauncherSymbol.Move) }, onClick = actions.moveWidget)

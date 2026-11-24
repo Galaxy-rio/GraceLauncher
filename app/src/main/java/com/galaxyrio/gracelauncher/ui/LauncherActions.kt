@@ -26,6 +26,8 @@ import com.galaxyrio.gracelauncher.data.media.MediaCommand
 /** Platform actions are injected so all launcher surfaces can be previewed and tested. */
 data class LauncherActions(
     val requestDefaultHome: () -> Unit = {},
+    val exportBackup: suspend (Uri) -> Result<Unit> = { Result.failure(UnsupportedOperationException()) },
+    val restoreBackup: suspend (Uri) -> Result<Unit> = { Result.failure(UnsupportedOperationException()) },
     val openHome: () -> Unit = {},
     val chooseWallpaper: () -> Unit = {},
     val requestUsageAccess: () -> Unit = {},
@@ -102,6 +104,7 @@ data class LauncherActions(
     val controlMedia: (String, MediaCommand) -> Unit = { _, _ -> },
     val dismissMedia: (String, Long) -> Boolean = { _, _ -> false },
     val dismissNotification: (String, Long) -> Boolean = { _, _ -> false },
+    val dismissAllNotifications: (String) -> Boolean = { false },
     val openNotification: (String, Long) -> Boolean = { _, _ -> false },
     val requestWeatherAccess: () -> Unit = {},
     val requestCalendarAccess: () -> Unit = {},

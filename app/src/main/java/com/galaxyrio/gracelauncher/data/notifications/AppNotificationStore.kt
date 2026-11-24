@@ -29,6 +29,16 @@ data class AppNotification(
     val silent: Boolean = false,
 )
 
+/** True when the body already names the sender (MessagingStyle prefixes "Sender: "), so the title repeats it. */
+internal fun isTitleRedundant(title: String, text: String): Boolean =
+    title.isNotBlank() && (text == title || text.startsWith("$title: "))
+
+/** Slack/Instagram titles are "Channel: Sender"; keep the channel and drop the sender the body already shows. */
+internal fun stripSenderFromTitle(title: String, text: String): String {
+    val sender = title.substringAfterLast(": ", "")
+    return if (sender.isNotBlank() && text.startsWith("$sender: ")) title.removeSuffix(": $sender") else title
+}
+
 /** Notification presence is profile-specific and does not retain any notification content. */
 data class NotificationAppId(val packageName: String, val user: UserHandle)
 
@@ -102,6 +112,15 @@ internal class AppNotificationStore {
         return cancel?.invoke(entry.display.key) == true
     }
 
+    /** Clears every dismissable notification of the app, including group summaries that the list hides. */
+    fun dismissAll(packageName: String): Boolean {
+        val keys = entries.values.filter {
+            it.display.packageName == packageName && it.display.canDismiss && classification(it.display.key).visible
+        }.map { it.display.key }
+        // Cancel every key even if one fails; any success counts as handled.
+        return keys.map { cancel?.invoke(it) == true }.any { it }
+    }
+
     fun open(context: Context, key: String, revision: Long): Boolean {
         val entry = entries[key]?.takeIf { it.display.revision == revision && classification(key).visible } ?: return false
         val intent = entry.contentIntent ?: return false
@@ -141,10 +160,14 @@ internal class AppNotificationStore {
         val messages = messaging?.messages.orEmpty().takeLast(8)
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim().orEmpty()
         val body = when {
-            messages.isNotEmpty() -> messages.joinToString("\n") { message ->
-                val sender = message.person?.name?.toString()?.trim().orEmpty()
-                val text = message.text?.toString().orEmpty()
-                if (sender.isEmpty()) text else "$sender: $text"
+            // Skip attachment-only messages (blank text) and repeat the sender only when it changes.
+            messages.isNotEmpty() -> {
+                var previous = ""
+                messages.filter { !it.text.isNullOrBlank() }.joinToString("\n") { message ->
+                    val sender = message.person?.name?.toString()?.trim().orEmpty()
+                    val text = message.text.toString()
+                    (if (sender.isEmpty() || sender == previous) text else "$sender: $text").also { previous = sender }
+                }
             }
             !extras.getCharSequence(Notification.EXTRA_BIG_TEXT).isNullOrBlank() -> extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString()
             !extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES).isNullOrEmpty() -> extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)!!.joinToString("\n")
@@ -152,7 +175,8 @@ internal class AppNotificationStore {
         }.trim()
         if (title.isBlank() && body.isBlank()) return null
         Entry(
-            display = AppNotification(sbn.key, sbn.packageName, title.take(256), body.take(8192),
+            display = AppNotification(sbn.key, sbn.packageName, // shortcut: Instagram's conversation title is the user's own username, so drop it; per-package, generalize if more apps do this.
+                if (sbn.packageName == "com.instagram.android" && messages.isNotEmpty()) "" else stripSenderFromTitle(title, body).take(256), body.take(8192),
                 sbn.postTime, ++revision, sbn.isClearable, notification.contentIntent != null,
                 notification.getLargeIcon()),
             groupKey = sbn.groupKey,

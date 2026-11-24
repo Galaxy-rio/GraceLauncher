@@ -34,32 +34,36 @@ internal fun AdvancedSettings(onBack: () -> Unit,
             item { Spacer(Modifier.height(24.dp)) }
             item { SettingsHeading(stringResource(R.string.settings_lab)) }
             item {
-                SettingsActionItem(stringResource(R.string.settings_screens), null, 0, 6, "lab_open_screens",
+                SettingsActionItem(stringResource(R.string.settings_screens), null, 0, 7, "lab_open_screens",
                     leading = { LauncherIcon(LauncherSymbol.SplitscreenLandscape) }) {
                     navigate(SettingsPage.Screens)
                 }
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_grace_button), null, 1, 6, "lab_open_grace_button",
+                SettingsActionItem(stringResource(R.string.settings_grace_button), null, 1, 7, "lab_open_grace_button",
                     leading = { Icon(painterResource(R.drawable.ic_grace_solid), null,
                         Modifier.size(24.dp).graphicsLayer { scaleX = 5f / 3f; scaleY = 5f / 3f }) }) {
                     navigate(SettingsPage.LabGraceButton)
                 }
             }
             item {
-                SettingsActionItem(stringResource(R.string.settings_gestures), null, 2, 6, "lab_open_gesture",
+                SettingsActionItem(stringResource(R.string.settings_gestures), null, 2, 7, "lab_open_gesture",
                     leading = { LauncherIcon(LauncherSymbol.Gesture) }) { navigate(SettingsPage.LabGesture) }
             }
             item {
-                SettingsActionItem(stringResource(R.string.lab_popup), null, 3, 6, "lab_open_popup",
+                SettingsActionItem(stringResource(R.string.lab_popup), null, 3, 7, "lab_open_popup",
                     leading = { LauncherIcon(LauncherSymbol.Outbound) }) { navigate(SettingsPage.LabPopup) }
             }
             item {
-                SettingsActionItem(stringResource(R.string.lab_swipe_dismiss), null, 4, 6, "lab_open_dismiss",
+                SettingsActionItem(stringResource(R.string.lab_swipe_dismiss), null, 4, 7, "lab_open_dismiss",
                     leading = { LauncherIcon(LauncherSymbol.Delete) }) { navigate(SettingsPage.LabDismiss) }
             }
             item {
-                SettingsActionItem(stringResource(R.string.lab_accessibility), null, 5, 6, "lab_open_accessibility",
+                SettingsActionItem(stringResource(R.string.settings_backup), null, 5, 7,
+                    "settings_open_backup", leading = { LauncherIcon(LauncherSymbol.Cloud) }) { navigate(SettingsPage.Backup) }
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.lab_accessibility), null, 6, 7, "lab_open_accessibility",
                     leading = { LauncherIcon(LauncherSymbol.Settings) }) { navigate(SettingsPage.LabAccessibility) }
             }
             item { SettingsHeading(stringResource(R.string.settings_debug)) }

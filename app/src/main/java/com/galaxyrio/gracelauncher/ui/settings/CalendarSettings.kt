@@ -9,6 +9,7 @@ import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.CalendarPreferences
+import com.galaxyrio.gracelauncher.data.DateTapAction
 import com.galaxyrio.gracelauncher.data.CalendarRefreshMode
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
@@ -27,6 +28,14 @@ internal fun CalendarSettings(
             { it.toString() }, { pluralStringResource(R.plurals.calendar_days_value, it, it) },
             onSelect = { days ->
                 actions.updateSettings { it.copy(calendar = it.calendar.copy(daysAhead = days)) }
+                dialog = null
+            }, onDismiss = { dialog = null },
+        )
+        "date_tap" -> SettingsSelectionDialog(
+            stringResource(R.string.calendar_date_tap), DateTapAction.entries, calendar.dateTapAction,
+            "calendar_date_tap", { it.name }, { it.label() },
+            onSelect = { action ->
+                actions.updateSettings { it.copy(calendar = it.calendar.copy(dateTapAction = action)) }
                 dialog = null
             }, onDismiss = { dialog = null },
         )
@@ -88,7 +97,11 @@ internal fun CalendarSettings(
             item { SettingsHeading(stringResource(R.string.calendar_open_events)) }
             item {
                 SettingsActionItem(stringResource(R.string.calendar_app), calendarAppSummary(uiState),
-                    0, 1, "calendar_app", onClick = onCalendarApp)
+                    0, 2, "calendar_app", onClick = onCalendarApp)
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.calendar_date_tap), calendar.dateTapAction.label(),
+                    1, 2, "calendar_date_tap_item", onClick = { dialog = "date_tap" })
             }
             item { SettingsHeading(stringResource(R.string.settings_tasks)) }
             item {
@@ -98,6 +111,12 @@ internal fun CalendarSettings(
         }
     }
 }
+
+@Composable
+private fun DateTapAction.label(): String = stringResource(when (this) {
+    DateTapAction.TapCalendar -> R.string.calendar_date_tap_calendar
+    DateTapAction.LongPressCalendar -> R.string.calendar_date_long_press_calendar
+})
 
 @Composable
 private fun CalendarRefreshMode.label(): String = stringResource(when (this) {

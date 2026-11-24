@@ -4,6 +4,18 @@ import androidx.compose.animation.core.Animatable
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
+import com.galaxyrio.gracelauncher.ui.components.LocalLauncherInputEnabled
+import com.galaxyrio.gracelauncher.ui.components.LocalPopupGestureSettings
+import com.galaxyrio.gracelauncher.ui.components.PopupSwipeIntent
+import com.galaxyrio.gracelauncher.ui.components.detectPopupDragGestures
+import com.galaxyrio.gracelauncher.data.PopupGestureAction
+import com.galaxyrio.gracelauncher.ui.firstGestureNotification
+import com.galaxyrio.gracelauncher.ui.PopupGestureTarget
+import com.galaxyrio.gracelauncher.ui.notificationDismissNeedsConfirmation
+import com.galaxyrio.gracelauncher.ui.allGestureNotifications
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -304,9 +316,55 @@ fun ShortcutPopup(
                         val itemDisplay = itemApp.effectiveDisplay(LocalLauncherAppearance.current)
                         val hiddenIcon = itemDisplay.style == IconDisplayStyle.Hidden
                         val notification = uiState.ownNotificationsFor(itemApp, expanded = true).firstOrNull()
+                        // Same left-swipe rule as home rows: more than one notification asks first.
+                        val popupSettings = LocalPopupGestureSettings.current
+                        val inputEnabled = LocalLauncherInputEnabled.current
+                        // Popup rows only honor the dismiss actions; opening is meaningless inside the popup.
+                        val dismissAction = popupSettings.swipeLeft.enabledActions.firstOrNull {
+                            it == PopupGestureAction.DismissAllNotifications || it == PopupGestureAction.DismissFirstNotification }
+                        val swipeDismiss = dismissAction != null
+                        val dismissLabel = stringResource(if (dismissAction == PopupGestureAction.DismissFirstNotification)
+                            R.string.popup_action_dismiss_first else R.string.popup_action_dismiss_all)
+                        var pendingDismiss by remember { mutableStateOf<List<AppNotification>?>(null) }
+                        val clearNotifications by rememberUpdatedState { found: List<AppNotification> ->
+                            if (dismissAction == PopupGestureAction.DismissFirstNotification)
+                                found.forEach { actions.dismissNotification(it.key, it.revision) }
+                            else found.groupBy { it.packageName }.forEach { (pkg, list) ->
+                                // App-wide clear also takes group summaries the list hides.
+                                if (!actions.dismissAllNotifications(pkg))
+                                    list.forEach { actions.dismissNotification(it.key, it.revision) }
+                            }
+                        }
+                        val dismissItem by rememberUpdatedState { app: LauncherApp ->
+                            val target = PopupGestureTarget(app)
+                            val found = (if (dismissAction == PopupGestureAction.DismissFirstNotification)
+                                listOfNotNull(uiState.firstGestureNotification(target)) else uiState.allGestureNotifications(target))
+                                .filter { it.canDismiss }
+                            if (notificationDismissNeedsConfirmation(found)) pendingDismiss = found else clearNotifications(found)
+                        }
+                        pendingDismiss?.let { found ->
+                            DismissNotificationsDialog(found.size, onConfirm = { pendingDismiss = null; clearNotifications(found) },
+                                onDismiss = { pendingDismiss = null })
+                        }
                         Row(
                             Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(if (isFolder) "folder_app:${itemApp.key}" else "shortcut:${itemApp.shortcut?.id ?: itemApp.key}")
-                                .semantics { if (!showNames && !hiddenIcon) contentDescription = itemApp.label }
+                                .semantics {
+                                    if (!showNames && !hiddenIcon) contentDescription = itemApp.label
+                                    if (swipeDismiss) customActions = listOf(CustomAccessibilityAction(dismissLabel) { dismissItem(itemApp); true })
+                                }
+                                .pointerInput(itemApp.key, swipeDismiss, inputEnabled, reveal.expanded, reveal.dragging,
+                                    popupSettings.popupSwipeDistanceDp, popupSettings.popupSwipeAngleDegrees) {
+                                    if (!swipeDismiss || !inputEnabled || !reveal.expanded || reveal.dragging) return@pointerInput
+                                    val swipe = PopupSwipeIntent(reversalSlop = 8.dp.toPx(), firstItemSlop = 40.dp.toPx())
+                                    detectPopupDragGestures(
+                                        extraDistance = popupSettings.popupSwipeDistanceDp.coerceIn(0, 48).dp.toPx(),
+                                        maxAngleDegrees = popupSettings.popupSwipeAngleDegrees.coerceIn(10, 90),
+                                        leftEnabled = true,
+                                        onDragStart = { swipe.reset() },
+                                        onDragCancel = { swipe.reset() },
+                                        onDragEnd = { if (swipe.opensFirst) dismissItem(itemApp); swipe.reset() },
+                                    ) { _, amount -> swipe.drag(amount) }
+                                }
                                 .clip(RoundedCornerShape(16.dp))
                                 .combinedClickable(enabled = !reveal.dragging && reveal.expanded, onLongClick = { onDetails(itemApp) }, onClick = {
                                     onLaunchItem(itemApp, iconBounds)

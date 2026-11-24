@@ -29,6 +29,12 @@ internal suspend fun calendarAppPackages(context: Context): Set<String> = withCo
     }.toSet()
 }
 
+/** Opens whichever calendar app Android resolves as default; no-op when none is installed. */
+internal fun openDefaultCalendar(context: Context): Boolean {
+    val intent = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_APP_CALENDAR)
+    return runCatching { context.startActivity(intent) }.isSuccess
+}
+
 /** Preserve Android's default resolver unless the user explicitly selected a calendar app. */
 internal fun openCalendarEvent(context: Context, event: ScheduleEvent, appPackage: String?): Boolean {
     val intent = calendarEventIntent(event.id)

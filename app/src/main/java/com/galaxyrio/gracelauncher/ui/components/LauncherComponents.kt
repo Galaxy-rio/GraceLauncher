@@ -90,6 +90,7 @@ import com.galaxyrio.gracelauncher.data.WorkProfileFolderId
 import com.galaxyrio.gracelauncher.data.RecentlyInstalledFolderId
 import com.galaxyrio.gracelauncher.data.icons.iconShapePath
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
+import com.galaxyrio.gracelauncher.data.notifications.isTitleRedundant
 import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
 import com.galaxyrio.gracelauncher.ui.theme.effectiveDisplay
 
@@ -533,7 +534,7 @@ internal fun AppNotificationLabel(
                 notificationContent(notification) {
                     Column {
                         val previewStyle = style.copy(fontSize = (list.fontSize - 2).sp, color = style.color.copy(alpha = 0.88f))
-                        if (notification.title.isNotBlank()) Text(notification.title,
+                        if (notification.title.isNotBlank() && !isTitleRedundant(notification.title, notification.text)) Text(notification.title,
                             style = previewStyle, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         if (notification.text.isNotBlank()) Text(
                             text = if (notificationBodyLines > 1) notification.text else notification.text.replace('\n', ' '),

@@ -78,6 +78,9 @@
     <string name="calendar_hidden">Hidden in the system calendar</string>
     <string name="calendar_open_events">Open events</string>
     <string name="calendar_app">Default calendar app</string>
+    <string name="calendar_date_tap">Date tap</string>
+    <string name="calendar_date_tap_calendar">Tap opens calendar</string>
+    <string name="calendar_date_long_press_calendar">Long press opens calendar</string>
     <string name="calendar_system_default_app">System default</string>
     <string name="calendar_choose_app_description">Choose the app used to open calendar events.</string>
     <string name="calendar_read_days">Days to read ahead</string>
@@ -318,6 +321,7 @@
     <!-- Search and app drawer -->
     <string name="search_apps">Search apps</string>
     <string name="search_no_results">No matching apps</string>
+    <string name="app_archived_label">Archived</string>
     <string name="launcher_fab_description">Search apps. Touch and hold for settings.</string>
     <string name="drawer_folders">Folders</string>
     <string name="recently_installed">Recently Installed</string>
@@ -944,6 +948,9 @@
     <string name="lab_dp">%1$d dp</string>
     <string name="lab_degrees">±%1$d°</string>
     <string name="favorites_lock_editing">Lock editing</string>
+    <string name="favorites_list_stretch">Allow scrolling the home list</string>
+    <string name="home_list_heading">Home list</string>
+    <string name="home_layout_heading">Home layout</string>
     <string name="widget_settings_button">Settings</string>
     <string name="widget_bind_error">Couldn’t bind this widget. Please try again.</string>
     <string name="widget_configuration_launch_error">Couldn’t open this widget’s settings. Please try again.</string>
@@ -1234,5 +1241,23 @@
     <string name="popup_action_first_notification">Open the first notification</string>
     <string name="popup_action_dismiss_first">Dismiss the first notification</string>
     <string name="popup_action_dismiss_all">Dismiss all app notifications</string>
+    <string name="dismiss_notifications_title">Dismiss notifications?</string>
+    <plurals name="dismiss_notifications_message">
+        <item quantity="one">Dismiss %1$d notification? This can’t be undone.</item>
+        <item quantity="other">Dismiss all %1$d notifications? This can’t be undone.</item>
+    </plurals>
+    <string name="dismiss_notifications_confirm">Dismiss</string>
     <string name="popup_double_tap_delay">Enabling double-tap gestures delays single taps.</string>
+    <string name="settings_backup">Backup and restore</string>
+    <string name="settings_backup_summary">Save or restore your layout, settings, folders and icons</string>
+    <string name="backup_export">Back up to file</string>
+    <string name="backup_export_summary">Save everything to a .zip file you choose</string>
+    <string name="backup_restore">Restore from file</string>
+    <string name="backup_restore_summary">Replace the current setup with a backup</string>
+    <string name="backup_restore_title">Replace current setup?</string>
+    <string name="backup_restore_message">Your layout, favorites, folders and settings will be replaced by the backup. The launcher will restart.</string>
+    <string name="backup_restore_confirm">Restore</string>
+    <string name="backup_exported">Backup saved.</string>
+    <string name="backup_export_failed">The backup could not be saved.</string>
+    <string name="backup_restore_failed">The backup could not be restored.</string>
 </resources>

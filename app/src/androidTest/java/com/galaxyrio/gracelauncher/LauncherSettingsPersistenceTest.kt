@@ -119,6 +119,17 @@ class LauncherSettingsPersistenceTest {
     }
 
     @Test
+    fun dateTapActionRoundTripsAndFallsBackToLongPress() {
+        val chosen = com.galaxyrio.gracelauncher.data.CalendarPreferences(
+            dateTapAction = com.galaxyrio.gracelauncher.data.DateTapAction.TapCalendar)
+        assertEquals(chosen, com.galaxyrio.gracelauncher.data.CalendarPreferences.decode(chosen.encode()))
+        for (stored in listOf(null, "{}", """{"dateTapAction":"Bogus"}""")) {
+            assertEquals(com.galaxyrio.gracelauncher.data.DateTapAction.LongPressCalendar,
+                com.galaxyrio.gracelauncher.data.CalendarPreferences.decode(stored).dateTapAction)
+        }
+    }
+
+    @Test
     fun privateSpaceDefaultsFollowSystemWithoutEnablingLauncherProtection() = runBlocking {
         val saved = withTimeout(10_000) { openRepository().snapshots.first().settings.privateSpace }
         for (settings in listOf(saved, ProfileSettings.decode(null), ProfileSettings.decode("{}"))) {
