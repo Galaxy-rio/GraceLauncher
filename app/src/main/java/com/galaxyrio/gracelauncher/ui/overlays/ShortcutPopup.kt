@@ -235,6 +235,11 @@ fun ShortcutPopup(
                     gesturesEnabled = !reveal.dragging && reveal.expanded,
                     dismissResistance = uiState.settings.dismissResistance,
                     dismissThresholdDp = uiState.settings.dismissThresholdDp,
+                    onAction = { action, text, choice ->
+                        actions.performNotificationAction(notification.key, notification.revision, action.id, text, choice).also {
+                            if (it == com.galaxyrio.gracelauncher.data.notifications.NotificationActionResult.Sent && action.opensActivity) onDismiss()
+                        }
+                    },
                 )
             }
         if (isFolder && entries.isEmpty()) item {
@@ -458,7 +463,7 @@ internal fun SwipeRevealPanel(
         if (finishedClosing) currentOnDismiss()
     }
     var origin by remember { mutableStateOf(Offset.Zero) }
-    Box(Modifier.fillMaxSize().onGloballyPositioned { origin = it.boundsInWindow().topLeft }) {
+    Box(Modifier.fillMaxSize().imePadding().onGloballyPositioned { origin = it.boundsInWindow().topLeft }) {
         Box(Modifier.matchParentSize().clickable(
             interactionSource = remember { MutableInteractionSource() }, indication = null,
             onClick = { reveal.expanded = false },

@@ -45,14 +45,38 @@ internal fun ShortcutsFoldersSettingsScreen(uiState: LauncherUiState, actions: L
             item { SettingsHeading(stringResource(R.string.popup_notifications_heading)) }
             item {
                 NotificationDisplayItem(stringResource(R.string.popup_silent_notifications),
-                    settings.silentNotifications, settings.enabled, 0, 2, "popup_silent") { mode ->
+                    settings.silentNotifications, settings.enabled, 0, 6, "popup_silent") { mode ->
                     update { it.copy(silentNotifications = mode) }
                 }
             }
             item {
                 NotificationDisplayItem(stringResource(R.string.popup_normal_notifications),
-                    settings.normalNotifications, settings.enabled, 1, 2, "popup_normal") { mode ->
+                    settings.normalNotifications, settings.enabled, 1, 6, "popup_normal") { mode ->
                     update { it.copy(normalNotifications = mode) }
+                }
+            }
+            item {
+                SettingsToggleItem(stringResource(R.string.popup_notification_actions), null,
+                    settings.notificationActions, 2, 6, "popup_notification_actions", enabled = settings.enabled) { value ->
+                    update { it.copy(notificationActions = value) }
+                }
+            }
+            item {
+                SettingsToggleItem(stringResource(R.string.popup_notification_direct_reply), null,
+                    settings.notificationDirectReply, 3, 6, "popup_notification_direct_reply", enabled = settings.enabled) { value ->
+                    update { it.copy(notificationDirectReply = value) }
+                }
+            }
+            item {
+                SettingsToggleItem(stringResource(R.string.popup_notification_suggested_replies), null,
+                    settings.notificationSuggestedReplies, 4, 6, "popup_notification_suggested_replies", enabled = settings.enabled) { value ->
+                    update { it.copy(notificationSuggestedReplies = value) }
+                }
+            }
+            item {
+                SettingsToggleItem(stringResource(R.string.popup_notification_progress), null,
+                    settings.notificationProgress, 5, 6, "popup_notification_progress", enabled = settings.enabled) { value ->
+                    update { it.copy(notificationProgress = value) }
                 }
             }
             item { SettingsHeading(stringResource(R.string.popup_gestures_heading)) }

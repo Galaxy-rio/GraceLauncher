@@ -371,6 +371,19 @@
     <string name="empty_folder">No apps in this folder</string>
 
     <!-- Notifications -->
+    <string name="popup_notification_actions">Action buttons</string>
+    <string name="popup_notification_direct_reply">Direct reply</string>
+    <string name="popup_notification_suggested_replies">Suggested replies</string>
+    <string name="popup_notification_progress">Progress notifications</string>
+    <string name="notification_wider_details">Wider notification details</string>
+    <string name="notification_wider_details_summary">Use the full width below the avatar in pop-ups</string>
+    <string name="notification_reply_hint">Type a reply…</string>
+    <string name="notification_reply_send">Send reply</string>
+    <string name="notification_reply_close">Close reply</string>
+    <string name="notification_reply_sent">Reply sent</string>
+    <string name="notification_action_failed">This action is no longer available. Open the app to continue.</string>
+    <string name="notification_unlock_required">Unlock your device to continue</string>
+    <string name="notification_progress_label">Progress</string>
     <string name="notification_dismiss">Dismiss</string>
     <string name="notification_now">now</string>
     <string name="notification_minutes">%1$dm</string>

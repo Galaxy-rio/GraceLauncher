@@ -1365,6 +1365,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun dismissAllNotifications(packageName: String): Boolean = appNotifications.dismissAll(packageName)
     fun openNotification(key: String, revision: Long): Boolean = appNotifications.open(getApplication(), key, revision)
 
+    fun performNotificationAction(key: String, revision: Long, actionId: String, reply: String?, fromChoice: Boolean) =
+        appNotifications.performAction(getApplication(), key, revision, actionId, reply, fromChoice)
+
     fun renameApp(app: LauncherApp, label: String) {
         if (app.folderId == RecentlyInstalledFolderId) {
             updateSettings { it.copy(listAppearance = it.listAppearance.copy(

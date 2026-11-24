@@ -391,6 +391,19 @@
     <string name="edit_folder">编辑文件夹</string>
     <string name="empty_folder">文件夹中暂无应用</string>
     <!-- 通知 -->
+    <string name="popup_notification_actions">操作按钮</string>
+    <string name="popup_notification_direct_reply">直接回复</string>
+    <string name="popup_notification_suggested_replies">候选回复</string>
+    <string name="popup_notification_progress">进度通知</string>
+    <string name="notification_wider_details">更宽的通知详情</string>
+    <string name="notification_wider_details_summary">在弹出窗口中使用头像下方的完整宽度</string>
+    <string name="notification_reply_hint">输入回复…</string>
+    <string name="notification_reply_send">发送回复</string>
+    <string name="notification_reply_close">关闭回复</string>
+    <string name="notification_reply_sent">已回复</string>
+    <string name="notification_action_failed">此操作已失效，请打开应用继续</string>
+    <string name="notification_unlock_required">请先解锁设备</string>
+    <string name="notification_progress_label">进度</string>
     <string name="notification_dismiss">清除</string>
     <string name="notification_now">刚刚</string>
     <string name="notification_minutes">%1$d分钟前</string>

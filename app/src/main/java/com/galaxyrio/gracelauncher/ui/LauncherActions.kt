@@ -3,6 +3,7 @@ package com.galaxyrio.gracelauncher.ui
 import com.galaxyrio.gracelauncher.data.FontShadow
 import androidx.compose.ui.geometry.Rect
 import android.net.Uri
+import com.galaxyrio.gracelauncher.data.notifications.NotificationActionResult
 import com.galaxyrio.gracelauncher.data.ItemIcon
 import com.galaxyrio.gracelauncher.data.AppCategory
 import com.galaxyrio.gracelauncher.data.PopupItem
@@ -106,6 +107,8 @@ data class LauncherActions(
     val dismissNotification: (String, Long) -> Boolean = { _, _ -> false },
     val dismissAllNotifications: (String) -> Boolean = { false },
     val openNotification: (String, Long) -> Boolean = { _, _ -> false },
+    val performNotificationAction: (String, Long, String, String?, Boolean) -> NotificationActionResult =
+        { _, _, _, _, _ -> NotificationActionResult.Unavailable },
     val requestWeatherAccess: () -> Unit = {},
     val requestCalendarAccess: () -> Unit = {},
     val addWidget: () -> Unit = {},

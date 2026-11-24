@@ -442,6 +442,7 @@ fun LauncherRoute(
         dismissMedia = viewModel::dismissMedia,
         dismissNotification = viewModel::dismissNotification,
         dismissAllNotifications = viewModel::dismissAllNotifications,
+        performNotificationAction = viewModel::performNotificationAction,
         openNotification = { key, revision ->
             viewModel.openNotification(key, revision).also { opened ->
                 if (!opened) Toast.makeText(context, R.string.notification_unavailable, Toast.LENGTH_SHORT).show()

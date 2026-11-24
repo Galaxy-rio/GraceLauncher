@@ -3,9 +3,14 @@ package com.galaxyrio.gracelauncher.data.notifications
 import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.KeyguardManager
+import android.app.RemoteInput
 import android.content.Context
+import android.content.Intent
 import android.graphics.drawable.Icon
 import android.os.Process
+import android.os.Build
+import android.os.Bundle
 import android.os.UserHandle
 import android.service.notification.StatusBarNotification
 import androidx.annotation.MainThread
@@ -29,6 +34,9 @@ data class AppNotification(
     val silent: Boolean = false,
     val originalTitle: String = title,
     val originalText: String = text,
+    val actions: List<AppNotificationAction> = emptyList(),
+    val suggestedReplies: List<NotificationSuggestedReply> = emptyList(),
+    val progress: NotificationProgress? = null,
 )
 
 /** Both projections are prepared once when the notification arrives; toggling needs no system query. */
@@ -57,7 +65,9 @@ internal fun stripSenderFromTitle(title: String, text: String): String {
 data class NotificationAppId(val packageName: String, val user: UserHandle)
 
 internal data class AppNotificationRanking(val visible: Boolean = true, val silent: Boolean = false,
-    val importance: Int = NotificationManager.IMPORTANCE_DEFAULT) {
+    val importance: Int = NotificationManager.IMPORTANCE_DEFAULT,
+    val smartActions: List<Notification.Action> = emptyList(),
+    val smartReplies: List<String> = emptyList()) {
     val categoryLevel: CategoryNotificationLevel get() = when {
         importance in NotificationManager.IMPORTANCE_MIN..NotificationManager.IMPORTANCE_LOW -> CategoryNotificationLevel.Silent
         importance >= NotificationManager.IMPORTANCE_HIGH -> CategoryNotificationLevel.High
@@ -73,20 +83,26 @@ internal class AppNotificationStore {
         val summary: Boolean,
         val contentIntent: PendingIntent?,
         val autoCancel: Boolean,
+        val actions: List<Notification.Action>,
+        val allowSystemActions: Boolean,
+        val interactions: NotificationInteractions = NotificationInteractions(emptyList(), emptyList()),
     )
     private val entries = linkedMapOf<String, Entry>()
     private val categoryEntries = linkedMapOf<String, NotificationAppId>()
     private var cancel: ((String) -> Boolean)? = null
     private var classification: (String) -> AppNotificationRanking = { AppNotificationRanking() }
     private var revision = 0L
+    private var context: Context? = null
     private val _state = MutableStateFlow<Map<String, List<AppNotification>>>(emptyMap())
     val state = _state.asStateFlow()
     private val _categoryState = MutableStateFlow<Map<NotificationAppId, Set<CategoryNotificationLevel>>>(emptyMap())
     val categoryState = _categoryState.asStateFlow()
 
     fun connected(notifications: List<StatusBarNotification>,
-        ranking: (String) -> AppNotificationRanking = { AppNotificationRanking() }, cancelNotification: (String) -> Boolean) {
+        ranking: (String) -> AppNotificationRanking = { AppNotificationRanking() },
+        context: Context? = null, cancelNotification: (String) -> Boolean) {
         entries.clear(); categoryEntries.clear()
+        this.context = context?.applicationContext
         cancel = cancelNotification
         classification = ranking
         notifications.forEach { sbn ->
@@ -115,6 +131,7 @@ internal class AppNotificationStore {
 
     fun disconnected() {
         cancel = null; classification = { AppNotificationRanking() }
+        context = null
         entries.clear(); categoryEntries.clear()
         publish()
     }
@@ -144,6 +161,38 @@ internal class AppNotificationStore {
         }.isSuccess
     }
 
+    fun performAction(context: Context, key: String, revision: Long, actionId: String,
+        reply: String? = null, fromChoice: Boolean = false): NotificationActionResult {
+        val entry = entries[key]?.takeIf { it.display.revision == revision && classification(key).visible }
+            ?: return NotificationActionResult.Unavailable
+        val binding = entry.interactions.bindings.firstOrNull { it.display.id == actionId }
+            ?: return NotificationActionResult.Unavailable
+        val input = binding.display.reply
+        if (input != null && reply == null || input == null && reply != null) return NotificationActionResult.Unavailable
+        if (reply != null) {
+            if (reply.isBlank() || reply.length > 4096) return NotificationActionResult.Unavailable
+            val choice = entry.display.suggestedReplies.any { it.actionId == actionId && it.text == reply }
+            if ((!input!!.allowFreeForm || fromChoice) && !choice) return NotificationActionResult.Unavailable
+        }
+        if ((binding.display.requiresAuthentication || reply != null) &&
+            context.getSystemService(KeyguardManager::class.java)?.isDeviceLocked == true) {
+            return NotificationActionResult.UnlockRequired
+        }
+        return runCatching {
+            val fillIn = reply?.let { text ->
+                Intent().addFlags(Intent.FLAG_RECEIVER_FOREGROUND).also { intent ->
+                    RemoteInput.addResultsToIntent(binding.inputs.toTypedArray(), intent,
+                        Bundle().apply { putCharSequence(input!!.resultKey, text) })
+                    RemoteInput.setResultsSource(intent,
+                        if (fromChoice) RemoteInput.SOURCE_CHOICE else RemoteInput.SOURCE_FREE_FORM_INPUT)
+                }
+            }
+            binding.intent.send(context, 0, fillIn, null, null, null, mediaPlayerLaunchOptions().toBundle())
+            // The posting app decides when to update/remove its notification after an action.
+            NotificationActionResult.Sent
+        }.getOrDefault(NotificationActionResult.Unavailable)
+    }
+
     private fun publish() {
         // Both projections use the same ranking snapshot. Category membership deliberately
         // includes media/blank/profile notifications that are unsuitable as text previews.
@@ -155,7 +204,16 @@ internal class AppNotificationStore {
         }
         val eligible = entries.values.mapNotNull { entry ->
             val ranking = rankings.getValue(entry.display.key)
-            if (ranking.visible) entry.copy(display = entry.display.copy(silent = ranking.silent)) else null
+            if (!ranking.visible) null else {
+                val interactions = notificationInteractions(entry.actions, ranking, entry.allowSystemActions, entry.interactions)
+                val updated = entry.copy(interactions = interactions, display = entry.display.copy(
+                    silent = ranking.silent,
+                    revision = if (entry.interactions.sameTargets(interactions)) entry.display.revision else ++revision,
+                    actions = interactions.bindings.map { it.display }, suggestedReplies = interactions.suggestions,
+                ))
+                entries[entry.display.key] = updated
+                updated
+            }
         }
         val groupsWithChildren = eligible.filterNot { it.summary }.map { it.display.packageName to it.groupKey }.toSet()
         _state.value = eligible.filterNot { it.summary && (it.display.packageName to it.groupKey) in groupsWithChildren }
@@ -181,18 +239,21 @@ internal class AppNotificationStore {
             !extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES).isNullOrEmpty() -> extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)!!.joinToString("\n")
             else -> extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
         }.trim()
-        if (title.isBlank() && body.isBlank()) return null
+        val progress = notificationProgress(notification, context)
+        if (title.isBlank() && body.isBlank() && progress == null) return null
         Entry(
             display = AppNotification(sbn.key, sbn.packageName,
                 stripSenderFromTitle(title, body).take(256), body.take(8192),
                 sbn.postTime, ++revision, sbn.isClearable, notification.contentIntent != null,
                 notification.getLargeIcon(), originalTitle = title.take(256),
                 originalText = (if (messages.isNotEmpty()) formatNotificationMessages(messageText, reduceRepeatedSenders = false)
-                    else body).trim().take(8192)),
+                    else body).trim().take(8192), progress = progress),
             groupKey = sbn.groupKey,
             summary = notification.flags and Notification.FLAG_GROUP_SUMMARY != 0,
             contentIntent = notification.contentIntent,
             autoCancel = notification.flags and Notification.FLAG_AUTO_CANCEL != 0,
+            actions = notification.actions.orEmpty().toList(),
+            allowSystemActions = Build.VERSION.SDK_INT >= 29 && notification.allowSystemGeneratedContextualActions,
         )
     }.getOrNull()
 }
