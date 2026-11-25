@@ -41,6 +41,8 @@ internal fun SwipeDismissContainer(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     canDismiss: Boolean = true,
+    /** False for notifications: only a left swipe clears them, a right swipe just resists. */
+    dismissRight: Boolean = true,
     resistance: Int = 75,
     thresholdDp: Int = 72,
     backgroundColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -68,13 +70,15 @@ internal fun SwipeDismissContainer(
     var catchUp by remember(itemKey) { mutableStateOf<Job?>(null) }
     val label = stringResource(R.string.notification_dismiss)
 
+    fun canDismissAt(offset: Float) = currentCanDismiss && (dismissRight || offset <= 0f)
+
     fun displayedOffset(): Float = if (!dragging) restingOffset.value else
-        if (!currentCanDismiss || breakaway == 0) resistedDismissOffset(travel, threshold, resistance) else releasedDismissOffset(travel, gap.value)
+        if (!canDismissAt(travel) || breakaway == 0) resistedDismissOffset(travel, threshold, resistance) else releasedDismissOffset(travel, gap.value)
 
     fun finishDrag(cancelled: Boolean) {
         if (!dragging || settling) return
         val from = displayedOffset()
-        val dismiss = currentEnabled && shouldDismissDrag(travel, threshold, cancelled, currentCanDismiss)
+        val dismiss = currentEnabled && shouldDismissDrag(travel, threshold, cancelled, canDismissAt(travel))
         val direction = sign(travel)
         // The drag callback does not receive UP. Do not reuse a fling velocity after a held pause.
         val velocity = if (cancelled || SystemClock.uptimeMillis() - lastMovementTime > 100L) 0f
@@ -142,7 +146,7 @@ internal fun SwipeDismissContainer(
                     tracker.addPosition(change.uptimeMillis, change.position)
                     lastMovementTime = change.uptimeMillis
                     travel = (travel + delta).coerceIn(-width.toFloat(), width.toFloat())
-                    val next = dismissBreakawayDirection(breakaway, travel, threshold, currentCanDismiss)
+                    val next = dismissBreakawayDirection(breakaway, travel, threshold, canDismissAt(travel))
                     if (next != breakaway) {
                         catchUp?.cancel()
                         if (next == 0) breakaway = 0 else {
@@ -166,7 +170,7 @@ internal fun SwipeDismissContainer(
         },
     ) {
         val offset = displayedOffset()
-        if (canDismiss && abs(offset) > .5f) {
+        if (canDismiss && (dismissRight || offset <= 0f) && abs(offset) > .5f) {
             Row(Modifier.matchParentSize().background(backgroundColor, LauncherLayout.RowShape).padding(horizontal = 16.dp),
                 horizontalArrangement = if (offset > 0f) Arrangement.Absolute.Left else Arrangement.Absolute.Right,
                 verticalAlignment = Alignment.CenterVertically) {
