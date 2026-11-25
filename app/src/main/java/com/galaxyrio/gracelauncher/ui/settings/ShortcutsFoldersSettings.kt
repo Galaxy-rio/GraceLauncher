@@ -6,6 +6,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -83,6 +85,9 @@ internal fun ShortcutsFoldersSettingsScreen(uiState: LauncherUiState, actions: L
             PopupGesture.entries.forEach { gesture ->
                 item("popup_gesture:${gesture.id}") {
                     val options = settings.gesture(gesture).normalized()
+                    // The list height is fixed, so follow the confirm row's real height when text wraps or scales.
+                    val density = LocalDensity.current
+                    var confirmHeight by remember { mutableStateOf(80.dp) }
                     Column {
                         Text(stringResource(when (gesture) {
                             PopupGesture.SwipeLeft -> R.string.grace_button_swipe_left
@@ -104,11 +109,12 @@ internal fun ShortcutsFoldersSettingsScreen(uiState: LauncherUiState, actions: L
                             } },
                             onReorder = { order -> update { current -> current.withGesture(gesture, current.gesture(gesture).copy(order = order)) } },
                             modifier = Modifier.height(64.dp * options.order.size + 2.dp * (options.order.size - 1) +
-                                if (PopupGestureAction.DismissAllNotifications in options.selected) 80.dp else 0.dp),
+                                if (PopupGestureAction.DismissAllNotifications in options.selected) confirmHeight else 0.dp),
                             containerColor = MaterialTheme.colorScheme.surfaceBright,
                             fieldSupportingContent = { action ->
                                 if (action == PopupGestureAction.DismissAllNotifications && action in options.selected) {
-                                    Box(Modifier.height(80.dp).padding(start = 40.dp, end = 8.dp),
+                                    Box(Modifier.heightIn(min = 80.dp).onSizeChanged { confirmHeight = with(density) { it.height.toDp() } }
+                                        .padding(start = 40.dp, end = 8.dp),
                                         contentAlignment = androidx.compose.ui.Alignment.Center) {
                                         SettingsToggleItem(stringResource(R.string.popup_confirm_multiple_apps), null,
                                             options.confirmDismissAll, 0, 1, "popup_confirm_multiple_apps_${gesture.id}") { confirm ->
