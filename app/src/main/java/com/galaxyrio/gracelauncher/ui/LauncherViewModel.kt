@@ -258,8 +258,16 @@ data class LauncherUiState(
         }.distinctBy { it.key }.sortedByDescending { it.postedAt }
     }
 
+    /** A folder row mixes apps, so each preview also names the app it came from. */
     fun notificationPreviewsFor(app: LauncherApp): List<AppNotification> =
-        settings.shortcutsFolders.previewNotifications(notificationsFor(app, expanded = false))
+        settings.shortcutsFolders.previewNotifications(notificationsFor(app, expanded = false)).let { previews ->
+            if (app.folderId == null) previews
+            else previews.map { it.copy(sourceLabel = sourceLabelFor(it.packageName)) }
+        }
+
+    private fun sourceLabelFor(packageName: String): String =
+        apps.firstOrNull { it.packageName == packageName && it.user == null && it.shortcut == null && it.folderId == null }
+            ?.label?.takeIf { it.isNotBlank() } ?: packageName
 
     /** Resolve the exact first configured item, without skipping an unavailable item. */
     fun firstPopupApp(owner: LauncherApp, defaults: List<LauncherApp>): LauncherApp? {
