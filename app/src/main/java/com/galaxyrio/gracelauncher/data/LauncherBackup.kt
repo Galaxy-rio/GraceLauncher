@@ -17,6 +17,8 @@ import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONException
@@ -65,28 +67,32 @@ class LauncherBackup(
      */
     suspend fun restore(input: InputStream) = withContext(Dispatchers.IO) {
         val staging = newStagingDir()
-        val snapshot = File(filesRoot, SNAPSHOT_FILE_NAME)
+        val snapshot = File(filesRoot, SNAPSHOT_FILE_NAME).let {
+            // Never overwrite a recovery snapshot retained after an earlier rollback failure.
+            if (it.exists()) File.createTempFile("pre_restore_snapshot_", ".zip", filesRoot) else it
+        }
+        var restoreStarted = false
         try {
             val plan = plan(input, staging)
+            currentCoroutineContext().ensureActive()
             FileOutputStream(snapshot).use { writeArchive(it, scrubWidgets = false) }
-            try {
-                applyPlan(plan)
-            } catch (failure: Throwable) {
-                rollBack(snapshot, failure)
-                throw failure
-            }
+            currentCoroutineContext().ensureActive()
+            restoreStarted = true
+            applyBackupWithRollback(
+                apply = { applyPlan(plan) },
+                rollback = { rollBack(snapshot) },
+                discardSnapshot = { snapshot.delete() },
+            )
         } finally {
-            snapshot.delete()
+            if (!restoreStarted) snapshot.delete()
             staging.deleteRecursively()
         }
     }
 
-    private suspend fun rollBack(snapshot: File, failure: Throwable) {
+    private suspend fun rollBack(snapshot: File) {
         val staging = newStagingDir()
         try {
-            FileInputStream(snapshot).use { applyPlan(plan(it, staging)) }
-        } catch (rollback: Throwable) {
-            failure.addSuppressed(rollback)
+            FileInputStream(snapshot).use { applyPlan(plan(it, staging), reportSteps = false) }
         } finally {
             staging.deleteRecursively()
         }
@@ -101,19 +107,19 @@ class LauncherBackup(
         throw LauncherBackupException("The backup file is damaged.")
     }
 
-    private suspend fun applyPlan(plan: Plan) {
+    private suspend fun applyPlan(plan: Plan, reportSteps: Boolean = true) {
         database.withTransaction {
             val db = database.openHelper.writableDatabase
             for (table in TABLES) db.delete(table, null, null)
             for ((table, values) in plan.rows) values.forEach { db.insert(table, SQLiteDatabase.CONFLICT_ABORT, it) }
         }
-        afterStep("database")
+        if (reportSteps) afterStep("database")
         for (dir in FILE_DIRS) {
             val target = File(filesRoot, dir)
             target.deleteRecursively()
             if (!File(plan.staging, dir).renameTo(target)) throw LauncherBackupException("Could not place $dir files.")
         }
-        afterStep("files")
+        if (reportSteps) afterStep("files")
         for ((name, values) in plan.preferences) {
             val editor = context.getSharedPreferences(name, Context.MODE_PRIVATE).edit().clear()
             values.forEach { (key, value) ->
@@ -128,7 +134,7 @@ class LauncherBackup(
             }
             if (!editor.commit()) throw LauncherBackupException("Could not write preferences.")
         }
-        afterStep("preferences")
+        if (reportSteps) afterStep("preferences")
     }
 
     private fun databaseJson(scrubWidgets: Boolean): JSONObject {

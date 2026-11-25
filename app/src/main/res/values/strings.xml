@@ -371,6 +371,19 @@
     <string name="empty_folder">No apps in this folder</string>
 
     <!-- Notifications -->
+    <string name="popup_notification_actions">Action buttons</string>
+    <string name="popup_notification_direct_reply">Direct reply</string>
+    <string name="popup_notification_suggested_replies">Suggested replies</string>
+    <string name="popup_notification_progress">Progress notifications</string>
+    <string name="notification_wider_details">Wider notification details</string>
+    <string name="notification_wider_details_summary">Use the full width below the avatar in pop-ups</string>
+    <string name="notification_reply_hint">Type a reply…</string>
+    <string name="notification_reply_send">Send reply</string>
+    <string name="notification_reply_close">Close reply</string>
+    <string name="notification_reply_sent">Reply sent</string>
+    <string name="notification_action_failed">This action is no longer available. Open the app to continue.</string>
+    <string name="notification_unlock_required">Unlock your device to continue</string>
+    <string name="notification_progress_label">Progress</string>
     <string name="notification_dismiss">Dismiss</string>
     <string name="notification_now">now</string>
     <string name="notification_minutes">%1$dm</string>
@@ -1249,7 +1262,7 @@
     <string name="dismiss_notifications_confirm">Dismiss</string>
     <string name="popup_double_tap_delay">Enabling double-tap gestures delays single taps.</string>
     <string name="settings_backup">Backup and restore</string>
-    <string name="settings_backup_summary">Save or restore your layout, settings, folders and icons</string>
+    <string name="settings_backup_summary">Save and restore settings</string>
     <string name="backup_export">Back up to file</string>
     <string name="backup_export_summary">Save everything to a .zip file you choose</string>
     <string name="backup_restore">Restore from file</string>
@@ -1260,4 +1273,16 @@
     <string name="backup_exported">Backup saved.</string>
     <string name="backup_export_failed">The backup could not be saved.</string>
     <string name="backup_restore_failed">The backup could not be restored.</string>
+    <string name="home_screen_enable">Enable home screen</string>
+    <string name="home_disable_scrolling">Disable scrolling</string>
+    <string name="home_disable_scrolling_summary">Lock the home screen. Some home screen content may be hidden.</string>
+    <string name="home_disable_stretch">Disable stretch effect</string>
+    <string name="calendar_date_long_press">Date long press</string>
+    <string name="calendar_action_open_calendar">Open calendar</string>
+    <string name="calendar_action_open_agenda">Open agenda</string>
+    <string name="calendar_action_new_event">New event</string>
+    <string name="calendar_action_new_task">New task</string>
+    <string name="notification_reduce_repeated_senders">Reduce repeated sender information</string>
+    <string name="popup_confirm_multiple_apps">Confirm before clearing notifications from multiple apps</string>
+    <string name="backup_in_progress">Please wait…</string>
 </resources>

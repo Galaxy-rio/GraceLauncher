@@ -25,14 +25,16 @@ data class HomeLayout(
     /** Offset from the old home origin, captured once to preserve its existing visual position. */
     val baselineOffsetDp: Float? = null,
     val editingLocked: Boolean = false,
-    /** Off keeps the home list still at its edges; on restores the platform stretch. */
-    val listStretch: Boolean = false,
+    val enabled: Boolean = true,
+    val disableScrolling: Boolean = false,
+    val disableStretch: Boolean = false,
 ) {
     val hasWidget: Boolean get() = widgetId >= 0
 
     fun withoutWidget() = HomeLayout(topOffsetDp = topOffsetDp, homeOrder = homeOrder,
         baselineEnabled = baselineEnabled, clockCalendarEnabled = clockCalendarEnabled,
-        baselineOffsetDp = baselineOffsetDp, editingLocked = editingLocked, listStretch = listStretch)
+        baselineOffsetDp = baselineOffsetDp, editingLocked = editingLocked, enabled = enabled,
+        disableScrolling = disableScrolling, disableStretch = disableStretch)
 
     fun encode(): String = JSONObject().apply {
         put("topOffsetDp", topOffsetDp.takeIf { it.isFinite() }?.coerceIn(-1200f, 1200f) ?: 0f)
@@ -50,7 +52,9 @@ data class HomeLayout(
         put("baselineEnabled", baselineEnabled)
         put("clockCalendarEnabled", clockCalendarEnabled)
         put("editingLocked", editingLocked)
-        put("listStretch", listStretch)
+        put("enabled", enabled)
+        put("disableScrolling", disableScrolling)
+        put("disableStretch", disableStretch)
         baselineOffsetDp?.takeIf { it.isFinite() }?.let { put("baselineOffsetDp", it.coerceIn(0f, 1600f)) }
     }.toString()
 
@@ -79,7 +83,11 @@ data class HomeLayout(
                 baselineEnabled = data.optBoolean("baselineEnabled", true),
                 clockCalendarEnabled = data.optBoolean("clockCalendarEnabled", true),
                 editingLocked = data.optBoolean("editingLocked", false),
-                listStretch = data.optBoolean("listStretch", false),
+                // The old listStretch flag also locked scrolling by default. Do not carry that
+                // accidental lock into the two independent, opt-in controls.
+                enabled = data.optBoolean("enabled", true),
+                disableScrolling = data.optBoolean("disableScrolling", false),
+                disableStretch = data.optBoolean("disableStretch", false),
                 baselineOffsetDp = data.optDouble("baselineOffsetDp", Double.NaN).toFloat().takeIf { it.isFinite() }?.coerceIn(0f, 1600f),
             )
         }.getOrDefault(HomeLayout())

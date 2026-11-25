@@ -81,7 +81,7 @@ class HomeGestureInteractionTest {
     // A slight drag past either edge must not stretch the list; Niagara-style lock.
     // Compares rendered pixels: overscroll stretch is a draw transform, so layout bounds stay put.
     @Test fun homeListDoesNotStretchPastTopEdge() {
-        showHome()
+        showHome(disableStretch = true)
         val before = listPixels()
         compose.onNodeWithTag("home_content").performTouchInput {
             down(Offset(centerX, 20f))
@@ -92,7 +92,7 @@ class HomeGestureInteractionTest {
     }
 
     @Test fun homeListDoesNotStretchPastBottomEdge() {
-        showHome()
+        showHome(disableStretch = true)
         val before = listPixels()
         compose.onNodeWithTag("home_content").performTouchInput {
             down(Offset(centerX, height - 20f))
@@ -106,15 +106,15 @@ class HomeGestureInteractionTest {
     private val overflowingApps = List(30) { LauncherApp(ComponentName("test.row$it", "Row"), "Row %02d".format(it), null) }
 
     @Test fun favoritesDoNotScrollOnASlightDragWhenLocked() {
-        showHome(overflowingApps)
+        showHome(overflowingApps, disableScrolling = true)
         val before = rowTop(overflowingApps.first())
         dragUp(40f)
         compose.waitForIdle()
         assertEquals(before, rowTop(overflowingApps.first()))
     }
 
-    @Test fun favoritesScrollOnASlightDragWhenStretchToggleIsOn() {
-        showHome(overflowingApps, listStretch = true)
+    @Test fun favoritesStillScrollWhenStretchIsDisabled() {
+        showHome(overflowingApps, disableStretch = true)
         val before = rowTop(overflowingApps.first())
         dragUp(40f)
         compose.waitForIdle()
@@ -122,7 +122,7 @@ class HomeGestureInteractionTest {
     }
 
     @Test fun deliberateSwipeUpStillFiresWhenLocked() {
-        showHome(overflowingApps, gestureSettings = GraceButtonSettings(
+        showHome(overflowingApps, disableScrolling = true, gestureSettings = GraceButtonSettings(
             swipeUp = GraceButtonTarget(GraceButtonAction.Search, enabled = true),
             doubleTap = GraceButtonTarget(GraceButtonAction.Search)))
         dragUp(400f)
@@ -130,7 +130,7 @@ class HomeGestureInteractionTest {
     }
 
     @Test fun flickUpStillFiresWhenLocked() {
-        showHome(overflowingApps, gestureSettings = swipeUpSettings())
+        showHome(overflowingApps, disableScrolling = true, gestureSettings = swipeUpSettings())
         compose.onNodeWithTag("home_content").performTouchInput {
             val start = Offset(centerX, height * 0.6f)
             swipeWithVelocity(start, start + Offset(0f, -80f * compose.density.density),
@@ -140,7 +140,7 @@ class HomeGestureInteractionTest {
     }
 
     @Test fun slowDragUpFiresWhenLocked() {
-        showHome(overflowingApps, gestureSettings = swipeUpSettings())
+        showHome(overflowingApps, disableScrolling = true, gestureSettings = swipeUpSettings())
         dragUp(120f * compose.density.density)
         compose.runOnIdle { assertEquals(listOf(GraceButtonGesture.SwipeUp), homeGestures) }
     }
@@ -220,7 +220,8 @@ class HomeGestureInteractionTest {
 
     private fun showHome(
         apps: List<LauncherApp> = listOf(app),
-        listStretch: Boolean = false,
+        disableScrolling: Boolean = false,
+        disableStretch: Boolean = false,
         gestureSettings: GraceButtonSettings = GraceButtonSettings(doubleTap = GraceButtonTarget(GraceButtonAction.Search)),
     ) {
         val state = LauncherUiState(
@@ -229,7 +230,7 @@ class HomeGestureInteractionTest {
             isLoadingApps = false,
             settings = LauncherSettings(
                 clockEnabled = false, calendarAgenda = false, weatherEnabled = false, mediaPlayer = false,
-                homeGestures = gestureSettings, homeLayout = HomeLayout(listStretch = listStretch),
+                homeGestures = gestureSettings, homeLayout = HomeLayout(disableScrolling = disableScrolling, disableStretch = disableStretch),
             ),
         )
         compose.setContent {

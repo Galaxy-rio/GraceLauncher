@@ -72,9 +72,9 @@ internal fun LauncherUiState.resolvePopupGesture(
     } }
 }
 
-/** Clearing more than one notification asks first; a single notification does not. */
+/** Only a clear spanning multiple apps needs the optional confirmation. */
 internal fun notificationDismissNeedsConfirmation(notifications: List<AppNotification>): Boolean =
-    notifications.size > 1
+    notifications.asSequence().filter { it.canDismiss }.map { it.packageName }.distinct().take(2).count() > 1
 
 /** Shared by desktop rows and the simulated preview; platform actions are injected. */
 internal suspend fun performPopupGesture(
@@ -114,7 +114,7 @@ internal suspend fun performPopupGesture(
             PopupGestureAction.DismissAllNotifications -> {
                 val pending = latest.allGestureNotifications(latest.dismissAllTarget(owner, target)).filter { it.canDismiss }
                 // A declined confirmation ends the gesture instead of falling through to the next action.
-                if (pending.isNotEmpty() && notificationDismissNeedsConfirmation(pending) && !confirmDismiss(pending)) return@performFirstAvailable true
+                if (plan.confirmDismissAll && notificationDismissNeedsConfirmation(pending) && !confirmDismiss(pending)) return@performFirstAvailable true
                 val (refreshed, refreshedTarget) = if (pending.isEmpty()) latest to target
                     else current() ?: return@performFirstAvailable false
                 var dismissed = false

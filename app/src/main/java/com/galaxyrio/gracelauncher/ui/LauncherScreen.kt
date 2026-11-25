@@ -86,7 +86,7 @@ import androidx.core.content.ContextCompat
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.platform.openCalendarEvent
 import com.galaxyrio.gracelauncher.platform.openDefaultCalendar
-import com.galaxyrio.gracelauncher.data.DateTapAction
+import com.galaxyrio.gracelauncher.data.DateAction
 import com.galaxyrio.gracelauncher.data.tasks.TasksRepository
 import com.galaxyrio.gracelauncher.data.tasks.TaskCompletionResult
 import com.galaxyrio.gracelauncher.MainActivity
@@ -442,6 +442,7 @@ fun LauncherRoute(
         dismissMedia = viewModel::dismissMedia,
         dismissNotification = viewModel::dismissNotification,
         dismissAllNotifications = viewModel::dismissAllNotifications,
+        performNotificationAction = viewModel::performNotificationAction,
         openNotification = { key, revision ->
             viewModel.openNotification(key, revision).also { opened ->
                 if (!opened) Toast.makeText(context, R.string.notification_unavailable, Toast.LENGTH_SHORT).show()
@@ -677,7 +678,8 @@ internal fun LauncherScreen(
     onCalendarHomeVisible: (Boolean) -> Unit = {},
     preserveScreenOnReturn: () -> Boolean = { false },
 ) {
-    var drawerOpen by rememberSaveable { mutableStateOf(initialDrawerOpen) }
+    val homeEnabled = uiState.settings.homeLayout.enabled
+    var drawerOpen by rememberSaveable(homeEnabled) { mutableStateOf(initialDrawerOpen || !homeEnabled) }
     val homePager = rememberPagerState { if (uiState.settings.widgetScreen.enabled) 2 else 1 }
     val pageScope = rememberCoroutineScope()
     var editingWidgetScreen by rememberSaveable { mutableStateOf(false) }
@@ -745,7 +747,7 @@ internal fun LauncherScreen(
         uiState.settings.iconDesign?.design?.iconSize ?: 100, uiState.settings.iconDisplay)
     val context = LocalContext.current
     val lifecycle = LocalLifecycleOwner.current.lifecycle
-    val calendarHomeVisible = !drawerOpen && overlay == null && !systemActionAccess &&
+    val calendarHomeVisible = homeEnabled && !drawerOpen && overlay == null && !systemActionAccess &&
         homePager.settledPage == 0 && !homePager.isScrollInProgress
     val reportCalendarHomeVisible by rememberUpdatedState(onCalendarHomeVisible)
     DisposableEffect(lifecycle, calendarHomeVisible) {
@@ -890,7 +892,7 @@ internal fun LauncherScreen(
 
     suspend fun returnHome() {
         popupGestureJob?.cancel()
-        drawerOpen = false; selectedLetter = null; overlay = null; editingHome = false
+        drawerOpen = !latestUiState.settings.homeLayout.enabled; selectedLetter = null; overlay = null; editingHome = false
         editingWidgetScreen = false
         privateListOpen = false; workListOpen = false
         homePager.scrollToPage(0)
@@ -920,14 +922,18 @@ internal fun LauncherScreen(
     BackHandler(enabled = buttonTransition == null && overlay != LauncherOverlay.Search && !(overlay == null && drawerOpen)) {
         when {
             overlay != null -> overlay = (overlay as? LauncherOverlay.AppDetails)?.returnTo
-            editingHome -> editingHome = false
+            editingHome -> { editingHome = false; drawerOpen = !homeEnabled }
             editingWidgetScreen -> editingWidgetScreen = false
-            homePager.currentPage != 0 -> pageScope.launch { homePager.animateScrollToPage(0) }
+            homePager.currentPage != 0 -> { drawerOpen = !homeEnabled; pageScope.launch { homePager.animateScrollToPage(0) } }
             selectedLetter != null -> selectedLetter = null
-            else -> drawerOpen = false
+            else -> drawerOpen = !homeEnabled
         }
     }
-    PredictiveBackHandler(enabled = buttonTransition == null && (overlay == LauncherOverlay.Search || (overlay == null && drawerOpen))) { events ->
+    BackHandler(enabled = buttonTransition == null && overlay == null && drawerOpen && !homeEnabled) {
+        selectedLetter = null
+        drawerState.requestScrollToItem(0)
+    }
+    PredictiveBackHandler(enabled = buttonTransition == null && (overlay == LauncherOverlay.Search || (overlay == null && drawerOpen && homeEnabled))) { events ->
         val fromSearch = overlay == LauncherOverlay.Search
         try {
             events.collect { backProgress.snapTo(it.progress) }
@@ -950,7 +956,7 @@ internal fun LauncherScreen(
             buttonTransition = null
             overlay = null
             // Search and lock transitions may now start in the app list; keep that page.
-            if (openingAppList) drawerOpen = false
+            if (openingAppList) drawerOpen = !homeEnabled
         }
     }
 
@@ -1247,18 +1253,26 @@ internal fun LauncherScreen(
         val drawerTop = homeContentTop?.takeIf { uiState.settings.listAppearance.appList.alignWithHome }
             ?.coerceAtLeast(statusBarHeight + 8.dp) ?: (statusBarHeight + safeHeight * 0.28f)
         val alphabet = uiState.settings.listAppearance.alphabet.normalized()
-        val railLayout = alphabet.layout(maxHeight.value, model.letters.size + 1)
+        val railLayout = alphabet.layout(maxHeight.value, model.letters.size + if (homeEnabled) 1 else 0)
 
-        val dateTapAction = uiState.settings.calendar.dateTapAction
-        val openCalendar: () -> Unit = { openDefaultCalendar(context) }
         val openAgenda: () -> Unit = {
             actions.refreshWeatherIfNeeded()
             overlay = LauncherOverlay.Agenda
         }
+        val performDateAction: (DateAction) -> Unit = { action ->
+            when (action) {
+                DateAction.Calendar -> if (!openDefaultCalendar(context)) {
+                    Toast.makeText(context, R.string.app_unavailable, Toast.LENGTH_SHORT).show()
+                }
+                DateAction.Agenda -> openAgenda()
+                DateAction.NewEvent -> actions.newEvent()
+                DateAction.NewTask -> actions.newTask()
+            }
+        }
         CompositionLocalProvider(LocalHomeAnimationTarget provides true) {
           HorizontalPager(
             state = homePager, beyondViewportPageCount = 1,
-            userScrollEnabled = uiState.settings.widgetScreen.enabled &&
+            userScrollEnabled = homeEnabled && uiState.settings.widgetScreen.enabled &&
                 (uiState.settings.widgetScreen.swipeToOpen || homePager.currentPage == 1) &&
                 !drawerOpen && overlay == null && !editingHome && !editingWidgetScreen && !editingHomeContent &&
                 buttonTransition == null && !systemActionAccess,
@@ -1272,7 +1286,7 @@ internal fun LauncherScreen(
                 .graceReveal(drawerTransition, reveal = false)
                 .then(if (drawerTransition != null) Modifier.background(homeScrim) else Modifier),
           ) { page ->
-           if (page == 0) {
+           if (page == 0 && (homeEnabled || editingHome)) {
             HomeScreen(
                 uiState = uiState,
                 topSpace = homeTop,
@@ -1281,8 +1295,8 @@ internal fun LauncherScreen(
                 onAppDetails = { overlay = LauncherOverlay.AppDetails(it) },
                 onAppShortcuts = openAppPopup,
                 onDateClick = openAgenda,
-                onCalendarClick = if (dateTapAction == DateTapAction.TapCalendar) openCalendar else openAgenda,
-                onCalendarLongClick = if (dateTapAction == DateTapAction.LongPressCalendar) openCalendar else null,
+                onCalendarClick = { performDateAction(uiState.settings.calendar.dateTapAction) },
+                onCalendarLongClick = { performDateAction(uiState.settings.calendar.dateLongPressAction) },
                 onClockClick = onClockClick,
                 onWeatherClick = actions.openWeatherApp,
                 onWidgetMenu = { overlay = LauncherOverlay.HomeWidgetMenu },
@@ -1311,7 +1325,7 @@ internal fun LauncherScreen(
                 onDismissMedia = actions.dismissMedia,
                 modifier = Modifier.fillMaxSize(),
             )
-           } else {
+           } else if (page != 0) {
             CompositionLocalProvider(LocalHomeAnimationTarget provides false) {
             WidgetScreen(uiState, actions, statusBarHeight, bottomInset, editingWidgetScreen,
                 enabled = !drawerOpen && overlay == null && !systemActionAccess && buttonTransition == null &&
@@ -1386,6 +1400,7 @@ internal fun LauncherScreen(
         )
         val showHomeAlphabet = alphabet.showsOnHome(uiState.settings.hideAlphabet)
         if (!editingHome) AlphabetRail(
+            includeHome = homeEnabled,
             enabled = !homePager.isScrollInProgress && !editingWidgetScreen && !editingHomeContent,
             alphabet = alphabet,
             leftTouchEnabled = uiState.settings.listAppearance.leftAlphabet,
@@ -1397,7 +1412,7 @@ internal fun LauncherScreen(
             touchHeight = maxHeight,
             onLetterSelected = { letter ->
                 if (letter == null) {
-                    drawerOpen = false
+                    drawerOpen = !homeEnabled
                     selectedLetter = null
                 } else {
                     selectedLetter = letter

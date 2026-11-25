@@ -20,6 +20,12 @@ data class ShortcutsFoldersSettings(
     val popupSwipeAngleDegrees: Int = 45,
     val singleLineNotificationPreviews: Boolean = false,
     val multipleAppNotificationPreviews: Boolean = false,
+    val reduceRepeatedSenders: Boolean = true,
+    val notificationActions: Boolean = true,
+    val notificationDirectReply: Boolean = true,
+    val notificationSuggestedReplies: Boolean = true,
+    val notificationProgress: Boolean = true,
+    val widerNotificationDetails: Boolean = false,
 ) {
     fun gesture(gesture: PopupGesture): PopupGestureActions = when (gesture) {
         PopupGesture.SwipeLeft -> swipeLeft
@@ -48,6 +54,12 @@ data class ShortcutsFoldersSettings(
         .put("normalNotifications", normalNotifications.id)
         .put("singleLineNotificationPreviews", singleLineNotificationPreviews)
         .put("multipleAppNotificationPreviews", multipleAppNotificationPreviews)
+        .put("reduceRepeatedSenders", reduceRepeatedSenders)
+        .put("notificationActions", notificationActions)
+        .put("notificationDirectReply", notificationDirectReply)
+        .put("notificationSuggestedReplies", notificationSuggestedReplies)
+        .put("notificationProgress", notificationProgress)
+        .put("widerNotificationDetails", widerNotificationDetails)
         .put("popupSwipeDistanceDp", popupSwipeDistanceDp.coerceIn(0, 48))
         .put("popupSwipeAngleDegrees", popupSwipeAngleDegrees.coerceIn(10, 90)).toString()
 
@@ -64,6 +76,12 @@ data class ShortcutsFoldersSettings(
                 doubleTap = PopupGestureActions.decode(json.optJSONArray("doubleTap"), PopupGestureActions.defaults(PopupGesture.DoubleTap)),
                 singleLineNotificationPreviews = json.optBoolean("singleLineNotificationPreviews", false),
                 multipleAppNotificationPreviews = json.optBoolean("multipleAppNotificationPreviews", false),
+                reduceRepeatedSenders = json.optBoolean("reduceRepeatedSenders", true),
+                notificationActions = json.optBoolean("notificationActions", true),
+                notificationDirectReply = json.optBoolean("notificationDirectReply", true),
+                notificationSuggestedReplies = json.optBoolean("notificationSuggestedReplies", true),
+                notificationProgress = json.optBoolean("notificationProgress", true),
+                widerNotificationDetails = json.optBoolean("widerNotificationDetails", false),
                 popupSwipeDistanceDp = json.optInt("popupSwipeDistanceDp", 8).coerceIn(0, 48),
                 popupSwipeAngleDegrees = json.optInt("popupSwipeAngleDegrees", 45).coerceIn(10, 90),
                 silentNotifications = NotificationDisplay.entries.firstOrNull { it.id == json.optString("silentNotifications") }

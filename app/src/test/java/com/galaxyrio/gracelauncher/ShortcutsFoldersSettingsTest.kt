@@ -18,6 +18,11 @@ class ShortcutsFoldersSettingsTest {
         assertTrue(settings.doubleTap.enabledActions.isEmpty())
         assertFalse(settings.singleLineNotificationPreviews)
         assertFalse(settings.multipleAppNotificationPreviews)
+        assertTrue(settings.notificationActions)
+        assertTrue(settings.notificationDirectReply)
+        assertTrue(settings.notificationSuggestedReplies)
+        assertTrue(settings.notificationProgress)
+        assertFalse(settings.widerNotificationDetails)
         listOf(false, true).forEach { expanded ->
             assertFalse(settings.showsNotification(silent = true, expanded))
             assertTrue(settings.showsNotification(silent = false, expanded))

@@ -3,9 +3,14 @@ package com.galaxyrio.gracelauncher.data.notifications
 import android.app.Notification
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.KeyguardManager
+import android.app.RemoteInput
 import android.content.Context
+import android.content.Intent
 import android.graphics.drawable.Icon
 import android.os.Process
+import android.os.Build
+import android.os.Bundle
 import android.os.UserHandle
 import android.service.notification.StatusBarNotification
 import androidx.annotation.MainThread
@@ -27,22 +32,41 @@ data class AppNotification(
     val canOpen: Boolean,
     val icon: Icon? = null,
     val silent: Boolean = false,
+    val originalTitle: String = title,
+    val originalText: String = text,
+    val actions: List<AppNotificationAction> = emptyList(),
+    val suggestedReplies: List<NotificationSuggestedReply> = emptyList(),
+    val progress: NotificationProgress? = null,
     /** Name of the app that posted it. Filled only where the row does not already name that app. */
     val sourceLabel: String = "",
 )
+
+/** Both projections are prepared once when the notification arrives; toggling needs no system query. */
+internal fun AppNotification.forDisplay(reduceRepeatedSenders: Boolean): AppNotification =
+    if (reduceRepeatedSenders) this else copy(title = originalTitle, text = originalText)
+
+internal fun formatNotificationMessages(messages: List<Pair<String, String>>, reduceRepeatedSenders: Boolean): String {
+    var previous = ""
+    return messages.filter { it.second.isNotBlank() }.joinToString("\n") { (sender, text) ->
+        (if (sender.isEmpty() || (reduceRepeatedSenders && sender == previous)) text else "$sender: $text")
+            .also { previous = sender }
+    }
+}
 
 /** True when the body already names the sender (MessagingStyle prefixes "Sender: "), so the title repeats it. */
 internal fun isTitleRedundant(title: String, text: String): Boolean =
     title.isNotBlank() && (text == title || text.startsWith("$title: "))
 
-/** First preview line of a notification (`appName` is the name the row already shows): the source app, then the title when the body does not repeat it. */
-internal fun previewTitle(sourceLabel: String, title: String, text: String, appName: String = sourceLabel): String {
+/** First preview line (`appName` is whatever name the row already shows): the source app, then the title unless the setting hides a title the body repeats. */
+internal fun previewTitle(
+    sourceLabel: String, title: String, text: String, reduceRepeatedSenders: Boolean = true, appName: String = sourceLabel,
+): String {
     // Some apps (LinkedIn) title their notifications with their own name, which the row or source label already shows.
-    val shown = title.takeIf { !it.equals(appName, ignoreCase = true) && !isTitleRedundant(it, text) }.orEmpty()
+    val shown = title.takeIf { !it.equals(appName, ignoreCase = true) && (!reduceRepeatedSenders || !isTitleRedundant(it, text)) }.orEmpty()
     return listOf(sourceLabel, shown).filter { it.isNotBlank() }.joinToString(" · ")
 }
 
-/** Slack/Instagram titles are "Channel: Sender"; keep the channel and drop the sender the body already shows. */
+/** For "Channel: Sender" titles, keep the channel and drop the sender the body already shows. */
 internal fun stripSenderFromTitle(title: String, text: String): String {
     val sender = title.substringAfterLast(": ", "")
     return if (sender.isNotBlank() && text.startsWith("$sender: ")) title.removeSuffix(": $sender") else title
@@ -52,7 +76,9 @@ internal fun stripSenderFromTitle(title: String, text: String): String {
 data class NotificationAppId(val packageName: String, val user: UserHandle)
 
 internal data class AppNotificationRanking(val visible: Boolean = true, val silent: Boolean = false,
-    val importance: Int = NotificationManager.IMPORTANCE_DEFAULT) {
+    val importance: Int = NotificationManager.IMPORTANCE_DEFAULT,
+    val smartActions: List<Notification.Action> = emptyList(),
+    val smartReplies: List<String> = emptyList()) {
     val categoryLevel: CategoryNotificationLevel get() = when {
         importance in NotificationManager.IMPORTANCE_MIN..NotificationManager.IMPORTANCE_LOW -> CategoryNotificationLevel.Silent
         importance >= NotificationManager.IMPORTANCE_HIGH -> CategoryNotificationLevel.High
@@ -68,20 +94,26 @@ internal class AppNotificationStore {
         val summary: Boolean,
         val contentIntent: PendingIntent?,
         val autoCancel: Boolean,
+        val actions: List<Notification.Action>,
+        val allowSystemActions: Boolean,
+        val interactions: NotificationInteractions = NotificationInteractions(emptyList(), emptyList()),
     )
     private val entries = linkedMapOf<String, Entry>()
     private val categoryEntries = linkedMapOf<String, NotificationAppId>()
     private var cancel: ((String) -> Boolean)? = null
     private var classification: (String) -> AppNotificationRanking = { AppNotificationRanking() }
     private var revision = 0L
+    private var context: Context? = null
     private val _state = MutableStateFlow<Map<String, List<AppNotification>>>(emptyMap())
     val state = _state.asStateFlow()
     private val _categoryState = MutableStateFlow<Map<NotificationAppId, Set<CategoryNotificationLevel>>>(emptyMap())
     val categoryState = _categoryState.asStateFlow()
 
     fun connected(notifications: List<StatusBarNotification>,
-        ranking: (String) -> AppNotificationRanking = { AppNotificationRanking() }, cancelNotification: (String) -> Boolean) {
+        ranking: (String) -> AppNotificationRanking = { AppNotificationRanking() },
+        context: Context? = null, cancelNotification: (String) -> Boolean) {
         entries.clear(); categoryEntries.clear()
+        this.context = context?.applicationContext
         cancel = cancelNotification
         classification = ranking
         notifications.forEach { sbn ->
@@ -110,6 +142,7 @@ internal class AppNotificationStore {
 
     fun disconnected() {
         cancel = null; classification = { AppNotificationRanking() }
+        context = null
         entries.clear(); categoryEntries.clear()
         publish()
     }
@@ -139,6 +172,38 @@ internal class AppNotificationStore {
         }.isSuccess
     }
 
+    fun performAction(context: Context, key: String, revision: Long, actionId: String,
+        reply: String? = null, fromChoice: Boolean = false): NotificationActionResult {
+        val entry = entries[key]?.takeIf { it.display.revision == revision && classification(key).visible }
+            ?: return NotificationActionResult.Unavailable
+        val binding = entry.interactions.bindings.firstOrNull { it.display.id == actionId }
+            ?: return NotificationActionResult.Unavailable
+        val input = binding.display.reply
+        if (input != null && reply == null || input == null && reply != null) return NotificationActionResult.Unavailable
+        if (reply != null) {
+            if (reply.isBlank() || reply.length > 4096) return NotificationActionResult.Unavailable
+            val choice = entry.display.suggestedReplies.any { it.actionId == actionId && it.text == reply }
+            if ((!input!!.allowFreeForm || fromChoice) && !choice) return NotificationActionResult.Unavailable
+        }
+        if ((binding.display.requiresAuthentication || reply != null) &&
+            context.getSystemService(KeyguardManager::class.java)?.isDeviceLocked == true) {
+            return NotificationActionResult.UnlockRequired
+        }
+        return runCatching {
+            val fillIn = reply?.let { text ->
+                Intent().addFlags(Intent.FLAG_RECEIVER_FOREGROUND).also { intent ->
+                    RemoteInput.addResultsToIntent(binding.inputs.toTypedArray(), intent,
+                        Bundle().apply { putCharSequence(input!!.resultKey, text) })
+                    RemoteInput.setResultsSource(intent,
+                        if (fromChoice) RemoteInput.SOURCE_CHOICE else RemoteInput.SOURCE_FREE_FORM_INPUT)
+                }
+            }
+            binding.intent.send(context, 0, fillIn, null, null, null, mediaPlayerLaunchOptions().toBundle())
+            // The posting app decides when to update/remove its notification after an action.
+            NotificationActionResult.Sent
+        }.getOrDefault(NotificationActionResult.Unavailable)
+    }
+
     private fun publish() {
         // Both projections use the same ranking snapshot. Category membership deliberately
         // includes media/blank/profile notifications that are unsuitable as text previews.
@@ -150,7 +215,16 @@ internal class AppNotificationStore {
         }
         val eligible = entries.values.mapNotNull { entry ->
             val ranking = rankings.getValue(entry.display.key)
-            if (ranking.visible) entry.copy(display = entry.display.copy(silent = ranking.silent)) else null
+            if (!ranking.visible) null else {
+                val interactions = notificationInteractions(entry.actions, ranking, entry.allowSystemActions, entry.interactions)
+                val updated = entry.copy(interactions = interactions, display = entry.display.copy(
+                    silent = ranking.silent,
+                    revision = if (entry.interactions.sameTargets(interactions)) entry.display.revision else ++revision,
+                    actions = interactions.bindings.map { it.display }, suggestedReplies = interactions.suggestions,
+                ))
+                entries[entry.display.key] = updated
+                updated
+            }
         }
         val groupsWithChildren = eligible.filterNot { it.summary }.map { it.display.packageName to it.groupKey }.toSet()
         _state.value = eligible.filterNot { it.summary && (it.display.packageName to it.groupKey) in groupsWithChildren }
@@ -167,31 +241,30 @@ internal class AppNotificationStore {
         if (extras.containsKey(Notification.EXTRA_MEDIA_SESSION) || notification.visibility == Notification.VISIBILITY_SECRET) return null
         val messaging = NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(notification)
         val messages = messaging?.messages.orEmpty().takeLast(8)
+        val messageText = messages.map { it.person?.name?.toString()?.trim().orEmpty() to it.text?.toString().orEmpty() }
         val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()?.trim().orEmpty()
         val body = when {
             // Skip attachment-only messages (blank text) and repeat the sender only when it changes.
-            messages.isNotEmpty() -> {
-                var previous = ""
-                messages.filter { !it.text.isNullOrBlank() }.joinToString("\n") { message ->
-                    val sender = message.person?.name?.toString()?.trim().orEmpty()
-                    val text = message.text.toString()
-                    (if (sender.isEmpty() || sender == previous) text else "$sender: $text").also { previous = sender }
-                }
-            }
+            messages.isNotEmpty() -> formatNotificationMessages(messageText, reduceRepeatedSenders = true)
             !extras.getCharSequence(Notification.EXTRA_BIG_TEXT).isNullOrBlank() -> extras.getCharSequence(Notification.EXTRA_BIG_TEXT).toString()
             !extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES).isNullOrEmpty() -> extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)!!.joinToString("\n")
             else -> extras.getCharSequence(Notification.EXTRA_TEXT)?.toString().orEmpty()
         }.trim()
-        if (title.isBlank() && body.isBlank()) return null
+        val progress = notificationProgress(notification, context)
+        if (title.isBlank() && body.isBlank() && progress == null) return null
         Entry(
-            display = AppNotification(sbn.key, sbn.packageName, // shortcut: Instagram's conversation title is the user's own username, so drop it; per-package, generalize if more apps do this.
-                if (sbn.packageName == "com.instagram.android" && messages.isNotEmpty()) "" else stripSenderFromTitle(title, body).take(256), body.take(8192),
+            display = AppNotification(sbn.key, sbn.packageName,
+                stripSenderFromTitle(title, body).take(256), body.take(8192),
                 sbn.postTime, ++revision, sbn.isClearable, notification.contentIntent != null,
-                notification.getLargeIcon()),
+                notification.getLargeIcon(), originalTitle = title.take(256),
+                originalText = (if (messages.isNotEmpty()) formatNotificationMessages(messageText, reduceRepeatedSenders = false)
+                    else body).trim().take(8192), progress = progress),
             groupKey = sbn.groupKey,
             summary = notification.flags and Notification.FLAG_GROUP_SUMMARY != 0,
             contentIntent = notification.contentIntent,
             autoCancel = notification.flags and Notification.FLAG_AUTO_CANCEL != 0,
+            actions = notification.actions.orEmpty().toList(),
+            allowSystemActions = Build.VERSION.SDK_INT >= 29 && notification.allowSystemGeneratedContextualActions,
         )
     }.getOrNull()
 }

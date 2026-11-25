@@ -112,6 +112,9 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.NonCancellable
+import kotlin.coroutines.EmptyCoroutineContext
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -152,6 +155,7 @@ data class LauncherUiState(
     val isLoadingSettings: Boolean = false,
     val settingsLoadFailed: Boolean = false,
     val settingsSaveFailed: Boolean = false,
+    val backupInProgress: Boolean = false,
     val iconPacks: List<IconPackInfo> = emptyList(),
     val isLoadingIconPacks: Boolean = false,
     val iconPacksLoadFailed: Boolean = false,
@@ -1369,6 +1373,9 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
     fun dismissAllNotifications(packageName: String): Boolean = appNotifications.dismissAll(packageName)
     fun openNotification(key: String, revision: Long): Boolean = appNotifications.open(getApplication(), key, revision)
 
+    fun performNotificationAction(key: String, revision: Long, actionId: String, reply: String?, fromChoice: Boolean) =
+        appNotifications.performAction(getApplication(), key, revision, actionId, reply, fromChoice)
+
     fun renameApp(app: LauncherApp, label: String) {
         if (app.folderId == RecentlyInstalledFolderId) {
             updateSettings { it.copy(listAppearance = it.listAppearance.copy(
@@ -1410,21 +1417,40 @@ class LauncherViewModel(application: Application) : AndroidViewModel(application
 
     private val launcherBackup by lazy { LauncherBackup(application, LauncherDatabase.getInstance(application)) }
 
-    suspend fun exportBackup(uri: Uri): Result<Unit> = settingsWriteMutex.withLock {
-        runCatching {
-            val output = getApplication<Application>().contentResolver.openOutputStream(uri, "wt")
-                ?: throw java.io.IOException("The backup file could not be opened.")
-            output.use { launcherBackup.export(it) }
-        }
-    }
+    suspend fun exportBackup(uri: Uri): Result<Unit> = runBackup(uri, restoring = false)
 
-    /** Callers must restart the launcher afterwards: in-memory caches still hold the old setup. */
-    suspend fun restoreBackup(uri: Uri): Result<Unit> = settingsWriteMutex.withLock {
-        runCatching {
-            val input = getApplication<Application>().contentResolver.openInputStream(uri)
-                ?: throw java.io.IOException("The backup file could not be opened.")
-            input.use { launcherBackup.restore(it) }
-        }
+    suspend fun restoreBackup(uri: Uri): Result<Unit> = runBackup(uri, restoring = true)
+
+    private suspend fun runBackup(uri: Uri, restoring: Boolean): Result<Unit> {
+        if (_uiState.value.backupInProgress) return Result.failure(IllegalStateException("A backup operation is already running."))
+        // Awaiting from a page does not give that page ownership of this job. Navigating away
+        // cannot cancel a restore, its rollback, or the required cache-reset restart afterwards.
+        return viewModelScope.async(start = CoroutineStart.UNDISPATCHED) {
+            _uiState.update { it.copy(backupInProgress = true) }
+            try {
+                withContext(if (restoring) NonCancellable else EmptyCoroutineContext) {
+                  settingsWriteMutex.withLock {
+                    withContext(Dispatchers.IO) {
+                        val resolver = getApplication<Application>().contentResolver
+                        if (restoring) {
+                            val input = resolver.openInputStream(uri) ?: throw java.io.IOException("The backup file could not be opened.")
+                            input.use { launcherBackup.restore(it) }
+                        } else {
+                            val output = resolver.openOutputStream(uri, "wt") ?: throw java.io.IOException("The backup file could not be opened.")
+                            output.use { launcherBackup.export(it) }
+                        }
+                    }
+                  }
+                  if (restoring) com.galaxyrio.gracelauncher.platform.restartAfterRestore(getApplication())
+                }
+                Result.success(Unit)
+            } catch (error: Exception) {
+                if (error is CancellationException) throw error
+                Result.failure(error)
+            } finally {
+                _uiState.update { it.copy(backupInProgress = false) }
+            }
+        }.await()
     }
 
     suspend fun resetWorkProfileAppearance(): Boolean {

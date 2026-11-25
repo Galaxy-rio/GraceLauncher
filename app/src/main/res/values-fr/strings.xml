@@ -959,4 +959,6 @@
     <string name="calendar_app">Application agenda par défaut</string>
     <string name="calendar_system_default_app">Par défaut</string>
     <string name="calendar_choose_app_description">Choisir l\'application utilisée pur ouvrir les événements de l\'agenda</string>
+    <string name="calendar_date_tap">appui sur la date</string>
+    <string name="calendar_date_tap_calendar">appuyer montre le calendrier</string>
 </resources>

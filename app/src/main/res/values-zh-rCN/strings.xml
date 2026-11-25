@@ -391,6 +391,19 @@
     <string name="edit_folder">编辑文件夹</string>
     <string name="empty_folder">文件夹中暂无应用</string>
     <!-- 通知 -->
+    <string name="popup_notification_actions">操作按钮</string>
+    <string name="popup_notification_direct_reply">直接回复</string>
+    <string name="popup_notification_suggested_replies">候选回复</string>
+    <string name="popup_notification_progress">进度通知</string>
+    <string name="notification_wider_details">更宽的通知详情</string>
+    <string name="notification_wider_details_summary">在弹出窗口中使用头像下方的完整宽度</string>
+    <string name="notification_reply_hint">输入回复…</string>
+    <string name="notification_reply_send">发送回复</string>
+    <string name="notification_reply_close">关闭回复</string>
+    <string name="notification_reply_sent">已回复</string>
+    <string name="notification_action_failed">此操作已失效，请打开应用继续</string>
+    <string name="notification_unlock_required">请先解锁设备</string>
+    <string name="notification_progress_label">进度</string>
     <string name="notification_dismiss">清除</string>
     <string name="notification_now">刚刚</string>
     <string name="notification_minutes">%1$d分钟前</string>
@@ -1199,4 +1212,17 @@
     <string name="popup_action_dismiss_first">删除内部第一条通知</string>
     <string name="popup_action_dismiss_all">删除应用的所有通知</string>
     <string name="popup_double_tap_delay">开启双击手势会增加单击延迟。</string>
+    <string name="home_screen_enable">启用主页</string>
+    <string name="home_disable_scrolling">禁用滚动</string>
+    <string name="home_disable_scrolling_summary">锁定桌面，可能会遮挡主页信息</string>
+    <string name="home_disable_stretch">禁用拉伸效果</string>
+    <string name="calendar_date_long_press">长按日期</string>
+    <string name="calendar_action_open_calendar">打开日历</string>
+    <string name="calendar_action_open_agenda">打开日程页面</string>
+    <string name="calendar_action_new_event">新建日程</string>
+    <string name="calendar_action_new_task">新建任务</string>
+    <string name="notification_reduce_repeated_senders">减少重复发送者信息</string>
+    <string name="popup_confirm_multiple_apps">清除多个应用的通知前确认</string>
+    <string name="backup_in_progress">请稍候…</string>
+    <string name="settings_backup_summary">保存和恢复设置</string>
 </resources>

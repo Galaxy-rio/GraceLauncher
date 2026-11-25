@@ -33,6 +33,7 @@ import com.galaxyrio.gracelauncher.ui.popupGestureTarget
 import com.galaxyrio.gracelauncher.ui.resolvePopupGesture
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LocalListAppearance
+import com.galaxyrio.gracelauncher.ui.components.LocalPopupGestureSettings
 import com.galaxyrio.gracelauncher.ui.overlays.FolderPopup
 import com.galaxyrio.gracelauncher.ui.overlays.ShortcutPopup
 import com.galaxyrio.gracelauncher.ui.overlays.ShortcutRevealState
@@ -236,7 +237,14 @@ internal fun ListAppearancePreviewPopup(
         current.reveal.dragging = false
         current.reveal.expanded = false
     }
-    CompositionLocalProvider(LocalFontShadowEnabled provides false, LocalLauncherAppearance provides appearance, LocalListAppearance provides list) {
+    // This overlay is outside the inline preview's composition locals. Supply its
+    // current notification settings here too, so the real popup layout stays in sync.
+    CompositionLocalProvider(
+        LocalFontShadowEnabled provides false,
+        LocalLauncherAppearance provides appearance,
+        LocalListAppearance provides list,
+        LocalPopupGestureSettings provides sampleState.settings.shortcutsFolders,
+    ) {
         val app = current.app
         if (app == null) FolderPopup(
             folder = content.folder, apps = content.apps, anchor = current.anchor, reveal = current.reveal,
