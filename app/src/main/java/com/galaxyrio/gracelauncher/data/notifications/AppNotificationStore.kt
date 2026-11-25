@@ -27,11 +27,20 @@ data class AppNotification(
     val canOpen: Boolean,
     val icon: Icon? = null,
     val silent: Boolean = false,
+    /** Name of the app that posted it. Filled only where the row does not already name that app. */
+    val sourceLabel: String = "",
 )
 
 /** True when the body already names the sender (MessagingStyle prefixes "Sender: "), so the title repeats it. */
 internal fun isTitleRedundant(title: String, text: String): Boolean =
     title.isNotBlank() && (text == title || text.startsWith("$title: "))
+
+/** First preview line of a notification (`appName` is the name the row already shows): the source app, then the title when the body does not repeat it. */
+internal fun previewTitle(sourceLabel: String, title: String, text: String, appName: String = sourceLabel): String {
+    // Some apps (LinkedIn) title their notifications with their own name, which the row or source label already shows.
+    val shown = title.takeIf { !it.equals(appName, ignoreCase = true) && !isTitleRedundant(it, text) }.orEmpty()
+    return listOf(sourceLabel, shown).filter { it.isNotBlank() }.joinToString(" · ")
+}
 
 /** Slack/Instagram titles are "Channel: Sender"; keep the channel and drop the sender the body already shows. */
 internal fun stripSenderFromTitle(title: String, text: String): String {
