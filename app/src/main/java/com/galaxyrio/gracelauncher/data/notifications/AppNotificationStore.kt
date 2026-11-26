@@ -62,7 +62,7 @@ internal fun previewTitle(
     sourceLabel: String, title: String, text: String, reduceRepeatedSenders: Boolean = true, appName: String = sourceLabel,
 ): String {
     // Some apps (LinkedIn) title their notifications with their own name, which the row or source label already shows.
-    val shown = title.takeIf { !it.equals(appName, ignoreCase = true) && (!reduceRepeatedSenders || !isTitleRedundant(it, text)) }.orEmpty()
+    val shown = title.takeIf { !reduceRepeatedSenders || (!it.equals(appName, ignoreCase = true) && !isTitleRedundant(it, text)) }.orEmpty()
     return listOf(sourceLabel, shown).filter { it.isNotBlank() }.joinToString(" · ")
 }
 

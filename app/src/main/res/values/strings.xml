@@ -1283,6 +1283,7 @@
     <string name="calendar_action_new_event">New event</string>
     <string name="calendar_action_new_task">New task</string>
     <string name="notification_reduce_repeated_senders">Reduce repeated sender information</string>
+    <string name="notification_swipe_right_dismiss">Swipe right to dismiss notifications</string>
     <string name="popup_confirm_multiple_apps">Confirm before clearing notifications from multiple apps</string>
     <string name="backup_in_progress">Please wait…</string>
 </resources>

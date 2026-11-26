@@ -206,7 +206,7 @@ internal fun NotificationPopupItem(
     if (replyTarget != null) Box(modifier.fillMaxWidth().testTag("notification:${notification.key}")) { body() }
     else SwipeDismissContainer(notification.key to notification.revision, onDismiss,
         modifier.fillMaxWidth().testTag("notification:${notification.key}"),
-        enabled = notification.canDismiss && gesturesEnabled, dismissRight = false,
+        enabled = notification.canDismiss && gesturesEnabled, dismissRight = settings.notificationSwipeRightDismiss,
         resistance = dismissResistance, thresholdDp = dismissThresholdDp, content = body)
 }
 

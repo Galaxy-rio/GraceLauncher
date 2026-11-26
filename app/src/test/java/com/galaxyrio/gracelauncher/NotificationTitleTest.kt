@@ -72,6 +72,11 @@ class NotificationTitleTest {
         assertEquals("Anna", previewTitle("", "Anna", "hi", appName = "WhatsApp"))
     }
 
+    @Test fun previewTitleKeepsTheAppNameTitleWhenTheSettingIsOff() {
+        assertEquals("LinkedIn · Linkedin", previewTitle("LinkedIn", "Linkedin", "New job alert", reduceRepeatedSenders = false))
+        assertEquals("LinkedIn", previewTitle("", "LinkedIn", "New job alert", reduceRepeatedSenders = false, appName = "LinkedIn"))
+    }
+
     @Test fun previewTitleWithoutSourceKeepsTheOldBehavior() {
         assertEquals("Anna", previewTitle("", "Anna", "Good morning"))
         assertEquals("", previewTitle("", "Anna", "Anna: Good morning"))
