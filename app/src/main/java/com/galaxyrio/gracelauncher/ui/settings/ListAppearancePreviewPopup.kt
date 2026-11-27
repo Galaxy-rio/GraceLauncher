@@ -29,7 +29,6 @@ import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.performPopupGesture
-import com.galaxyrio.gracelauncher.ui.popupGestureTarget
 import com.galaxyrio.gracelauncher.ui.resolvePopupGesture
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.LocalListAppearance
@@ -206,15 +205,12 @@ internal fun rememberListPreviewGestures(sampleState: LauncherUiState, state: Li
     }
     return AppRowGestures(
         onLaunchAt = state::openNotificationApp,
-        resolveGesture = { owner, gesture, notification -> latest.resolvePopupGesture(owner, gesture, notification, actions.cachedShortcuts) },
+        resolveGesture = { owner, gesture, notification -> latest.resolvePopupGesture(owner, gesture, notification, cachedShortcuts = actions.cachedShortcuts) },
         onGesture = { owner, gesture, bounds, notification -> scope.launch {
             performPopupGesture(owner, gesture, notification, state = { latest }, actions = { actions },
                 canContinue = { state.panel == null }, openPopup = { open(it, bounds) }, launchItem = { open(it, bounds) })
         } },
         onDrag = state::dragNotificationApp,
-        onNotificationDrag = { owner, notification, bounds, expanded ->
-            latest.popupGestureTarget(owner, notification)?.let { state.dragNotificationApp(it.app, bounds, expanded) }
-        },
         onDragEnd = state::finishNotificationAppDrag,
     )
 }

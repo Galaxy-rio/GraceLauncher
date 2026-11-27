@@ -716,7 +716,9 @@
     <string name="settings_open_home">Vai direttamente alla home</string>
     <string name="settings_open_home_summary">Vai direttamente alla home senza impostare Grace come il launcher predefinito</string>
     <string name="icon_designer_apply_to_shortcuts">Applica impostazioni anche alle scorciatoie</string>
-    <string name="popups_title">Pop-up</string>
+    <string name="popups_title">Pop-up e notifiche</string>
+    <string name="popup_list_gesture">Gesti nella lista</string>
+    <string name="popup_inside_gesture">Gesti nei pop-up</string>
     <string name="widget_settings_button">Impostazioni</string>
     <string name="widget_bind_error">Impossibile collegare questo widget. Riprova.</string>
     <string name="widget_configuration_launch_error">Impossibile aprire le impostazioni di questo widget. Riprova.</string>
@@ -1027,4 +1029,5 @@
     <string name="alphabet_show_in">Mostra in</string>
     <string name="list_symbol_horizontal_offset">Spostamento orizzontale simbolo</string>
     <string name="alphabet_touch_area">Mostra area di tocco</string>
+    <string name="popup_action_dismiss_notification">Ignora questa notifica</string>
 </resources>

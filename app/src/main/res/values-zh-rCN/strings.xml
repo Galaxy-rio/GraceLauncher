@@ -889,7 +889,9 @@
     <string name="list_names_in_folders">同时影响文件夹内部</string>
     <string name="list_left_alphabet">从左侧使用</string>
     <string name="shortcuts_folders_title">快捷方式与文件夹</string>
-    <string name="popups_title">弹出窗口</string>
+    <string name="popups_title">弹出窗口与通知</string>
+    <string name="popup_list_gesture">列表手势</string>
+    <string name="popup_inside_gesture">弹出窗口内手势</string>
     <string name="shortcuts_folders_enable">启用应用弹出窗口</string>
     <string name="popup_silent_notifications">静默通知</string>
     <string name="popup_normal_notifications">普通通知</string>
@@ -1211,6 +1213,7 @@
     <string name="popup_action_first_notification">打开内部第一条通知</string>
     <string name="popup_action_dismiss_first">删除内部第一条通知</string>
     <string name="popup_action_dismiss_all">删除应用的所有通知</string>
+    <string name="popup_action_dismiss_notification">清除当前通知卡片</string>
     <string name="popup_double_tap_delay">开启双击手势会增加单击延迟。</string>
     <string name="home_screen_enable">启用主页</string>
     <string name="home_disable_scrolling">禁用滚动</string>

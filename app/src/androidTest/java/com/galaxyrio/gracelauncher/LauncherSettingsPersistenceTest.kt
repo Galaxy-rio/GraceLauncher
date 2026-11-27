@@ -21,6 +21,8 @@ import com.galaxyrio.gracelauncher.data.LauncherDatabase
 import com.galaxyrio.gracelauncher.data.SearchSettings
 import com.galaxyrio.gracelauncher.data.ShortcutsFoldersSettings
 import com.galaxyrio.gracelauncher.data.PopupGestureAction
+import com.galaxyrio.gracelauncher.data.PopupGesture
+import com.galaxyrio.gracelauncher.data.PopupGestureScope
 import com.galaxyrio.gracelauncher.data.PopupGestureActions
 import com.galaxyrio.gracelauncher.data.NotificationDisplay
 import com.galaxyrio.gracelauncher.data.LauncherFolder
@@ -631,6 +633,15 @@ class LauncherSettingsPersistenceTest {
         assertEquals(setOf(PopupGestureAction.OpenPopup), partial.swipeLeft.selected)
         assertFalse(oldOptions.singleLineNotificationPreviews)
         assertFalse(oldOptions.multipleAppNotificationPreviews)
+        val upgraded = ShortcutsFoldersSettings.decode("""{"notificationSwipeRightDismiss":false,"swipeLeft":[
+            {"action":"dismissAllNotifications","enabled":true,"confirmMultipleApps":true}]}""")
+        val inside = PopupGestureScope.InsidePopup
+        assertEquals(listOf(PopupGestureAction.OpenPopup), upgraded.gesture(PopupGesture.SwipeRight, inside).enabledActions)
+        assertTrue(upgraded.gesture(PopupGesture.SwipeLeft, inside).confirmDismissAll)
+        val independent = upgraded.withGesture(PopupGesture.SwipeRight,
+            PopupGestureActions(selected = setOf(PopupGestureAction.DismissNotification)), inside)
+        assertEquals(listOf(PopupGestureAction.OpenPopup), independent.swipeRight.enabledActions)
+        assertEquals(independent, ShortcutsFoldersSettings.decode(independent.encode()))
         openRepository().mutateSettings { it.copy(shortcutsFolders = options) }
         assertEquals(options, withTimeout(10_000) { openRepository().snapshots.first().settings.shortcutsFolders })
     }

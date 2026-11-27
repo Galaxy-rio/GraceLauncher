@@ -658,7 +658,9 @@
     <string name="list_names_in_folders">Aplicar também dentro das pastas</string>
     <string name="list_left_alphabet">Utilizar o alfabeto na esquerda</string>
     <string name="shortcuts_folders_title">Atalhos e pastas</string>
-    <string name="popups_title">Janelas flutuantes</string>
+    <string name="popups_title">Janelas flutuantes e notificações</string>
+    <string name="popup_list_gesture">Gestos na lista</string>
+    <string name="popup_inside_gesture">Gestos nas janelas flutuantes</string>
     <string name="shortcuts_folders_enable">Ativar janela flutuante de aplicativos</string>
     <string name="popup_silent_notifications">Notificações silenciosas</string>
     <string name="popup_normal_notifications">Notificações normais</string>
@@ -727,4 +729,5 @@
     <string name="lab_dismiss_resistance_summary" formatted="false">Compartilhado por notificações e pelo reprodutor de mídia. Valores mais altos criam maior resistência; 0% acompanha o seu dedo.</string>
     <string name="lab_dismiss_threshold">Limite de rompimento</string>
     <string name="lab_dismiss_threshold_summary">Distância antes que a resistência seja liberada. Compartilhada por notificações e pelo reprodutor de mídia; limitada pela largura disponível.</string>
+    <string name="popup_action_dismiss_notification">Dispensar esta notificação</string>
 </resources>

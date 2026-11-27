@@ -1103,17 +1103,12 @@ internal fun LauncherScreen(
         onLaunchAt = actions.launchAppAt,
         popupsEnabled = popupSettings.enabled,
         resolveGesture = { owner, gesture, notification ->
-            uiState.resolvePopupGesture(owner, gesture, notification, actions.cachedShortcuts)
+            uiState.resolvePopupGesture(owner, gesture, notification, cachedShortcuts = actions.cachedShortcuts)
         },
         onGesture = executeGesture,
         onDrag = { app, bounds, expanded ->
             if (app.folderId != null) latestUiState.popupGestureFolder(app)?.let { dragFolder(it, bounds, expanded) }
             else dragAppPopup(app, bounds, expanded)
-        },
-        onNotificationDrag = { owner, notification, bounds, expanded ->
-            // A folder row's preview opens the folder, never the previewed app's own pop-up.
-            if (owner.folderId != null) latestUiState.popupGestureFolder(owner)?.let { dragFolder(it, bounds, expanded) }
-            else latestUiState.popupGestureTarget(owner, notification)?.let { dragAppPopup(it.app, bounds, expanded) }
         },
         onDragEnd = { commit ->
             if (overlay is LauncherOverlay.Folder || privateSwipeAnchor != null) endFolderDrag(commit)

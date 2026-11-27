@@ -77,7 +77,7 @@ class PopupGestureActionsTest {
         assertEquals(listOf(newest.key), removed)
     }
 
-    @Test fun unavailableOrFailedActionsFallThroughToTheTouchedAppsPopup() = runBlocking {
+    @Test fun unavailableNotificationActionsFallThroughToTheOwningFoldersPopup() = runBlocking {
         val state = state(PopupGestureAction.DismissFirstNotification, PopupGestureAction.OpenFirstItem, PopupGestureAction.OpenPopup)
         val queried = mutableListOf<String>()
         val opened = mutableListOf<String>()
@@ -85,7 +85,7 @@ class PopupGestureActionsTest {
             LauncherActions(dismissNotification = { _, _ -> false }, shortcuts = { queried.add(it.key); ready }),
             open = { opened.add(it.key) }))
         assertEquals(listOf(second.key), queried)
-        assertEquals(listOf(second.key), opened)
+        assertEquals(listOf(folder.key), opened)
     }
 
     @Test fun firstItemFromTouchedPreviewUsesThatAppsPopupAndOpeningUsesThatExactNotification() = runBlocking {

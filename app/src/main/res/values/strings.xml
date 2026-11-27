@@ -897,7 +897,9 @@
     <string name="list_names_in_folders">Also apply inside folders</string>
     <string name="list_left_alphabet">Use from the left</string>
     <string name="shortcuts_folders_title">Shortcuts &amp; folders</string>
-    <string name="popups_title">Pop-ups</string>
+    <string name="popups_title">Pop-ups &amp; Notifications</string>
+    <string name="popup_list_gesture">List gesture</string>
+    <string name="popup_inside_gesture">Inside pop-up gesture</string>
     <string name="shortcuts_folders_enable">Enable app pop-ups</string>
     <string name="popup_silent_notifications">Silent notifications</string>
     <string name="popup_normal_notifications">Normal notifications</string>
@@ -1283,7 +1285,7 @@
     <string name="calendar_action_new_event">New event</string>
     <string name="calendar_action_new_task">New task</string>
     <string name="notification_reduce_repeated_senders">Reduce repeated sender information</string>
-    <string name="notification_swipe_right_dismiss">Swipe right to dismiss notifications</string>
+    <string name="popup_action_dismiss_notification">Dismiss this notification</string>
     <string name="popup_confirm_multiple_apps">Confirm before clearing notifications from multiple apps</string>
     <string name="backup_in_progress">Please wait…</string>
 </resources>

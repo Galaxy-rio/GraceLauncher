@@ -78,7 +78,8 @@ class NotificationPopupFeaturesTest {
                                 },
                             ), onLaunchApp = {}, onDismiss = {}, reveal = remember { ShortcutRevealState(animationsEnabled = false) },
                             notifications = notifications,
-                            uiState = LauncherUiState(apps = listOf(fixtureApp), settings = LauncherSettings(shortcutsFolders = settings)))
+                            uiState = LauncherUiState(apps = listOf(fixtureApp), notifications = notifications.groupBy { it.packageName },
+                                settings = LauncherSettings(shortcutsFolders = settings)))
                     }
                 }
             }
@@ -161,7 +162,7 @@ class NotificationPopupFeaturesTest {
         var state by mutableStateOf(LauncherUiState(settings = LauncherSettings(shortcutsFolders = settings)))
         compose.setContent {
             GraceLauncherTheme(darkTheme = false, dynamicColor = false, seedColor = Color(0xff88542c)) {
-                ShortcutsFoldersSettingsScreen(state, LauncherActions(updateSettings = { update -> state = state.copy(settings = update(state.settings)) }), {})
+                ShortcutsFoldersSettingsScreen(state, LauncherActions(updateSettings = { update -> state = state.copy(settings = update(state.settings)) }), {}, {})
             }
         }
         compose.onNodeWithTag("popup_notification_progress").performScrollTo().assertIsDisplayed()

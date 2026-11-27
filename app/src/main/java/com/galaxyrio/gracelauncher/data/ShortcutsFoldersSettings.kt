@@ -21,24 +21,28 @@ data class ShortcutsFoldersSettings(
     val singleLineNotificationPreviews: Boolean = false,
     val multipleAppNotificationPreviews: Boolean = false,
     val reduceRepeatedSenders: Boolean = true,
-    val notificationSwipeRightDismiss: Boolean = true,
+    val insideGestures: Map<PopupGesture, PopupGestureActions> = DefaultInsideGestures,
     val notificationActions: Boolean = true,
     val notificationDirectReply: Boolean = true,
     val notificationSuggestedReplies: Boolean = true,
     val notificationProgress: Boolean = true,
     val widerNotificationDetails: Boolean = false,
 ) {
-    fun gesture(gesture: PopupGesture): PopupGestureActions = when (gesture) {
-        PopupGesture.SwipeLeft -> swipeLeft
-        PopupGesture.SwipeRight -> swipeRight
-        PopupGesture.DoubleTap -> doubleTap
-    }
+    fun gesture(gesture: PopupGesture, scope: PopupGestureScope = PopupGestureScope.List): PopupGestureActions =
+        if (scope == PopupGestureScope.InsidePopup) insideGestures[gesture] ?: DefaultInsideGestures.getValue(gesture)
+        else when (gesture) {
+            PopupGesture.SwipeLeft -> swipeLeft
+            PopupGesture.SwipeRight -> swipeRight
+            PopupGesture.DoubleTap -> doubleTap
+        }
 
-    fun withGesture(gesture: PopupGesture, value: PopupGestureActions): ShortcutsFoldersSettings = when (gesture) {
-        PopupGesture.SwipeLeft -> copy(swipeLeft = value.normalized())
-        PopupGesture.SwipeRight -> copy(swipeRight = value.normalized())
-        PopupGesture.DoubleTap -> copy(doubleTap = value.normalized())
-    }
+    fun withGesture(gesture: PopupGesture, value: PopupGestureActions, scope: PopupGestureScope = PopupGestureScope.List): ShortcutsFoldersSettings =
+        if (scope == PopupGestureScope.InsidePopup) copy(insideGestures = insideGestures + (gesture to value.normalized()))
+        else when (gesture) {
+            PopupGesture.SwipeLeft -> copy(swipeLeft = value.normalized())
+            PopupGesture.SwipeRight -> copy(swipeRight = value.normalized())
+            PopupGesture.DoubleTap -> copy(doubleTap = value.normalized())
+        }
 
     fun showsNotification(silent: Boolean, expanded: Boolean): Boolean = enabled &&
         (if (silent) silentNotifications else normalNotifications).visible(expanded)
@@ -56,7 +60,9 @@ data class ShortcutsFoldersSettings(
         .put("singleLineNotificationPreviews", singleLineNotificationPreviews)
         .put("multipleAppNotificationPreviews", multipleAppNotificationPreviews)
         .put("reduceRepeatedSenders", reduceRepeatedSenders)
-        .put("notificationSwipeRightDismiss", notificationSwipeRightDismiss)
+        .put("insideGestures", JSONObject().apply {
+            PopupGesture.entries.forEach { put(it.id, gesture(it, PopupGestureScope.InsidePopup).json()) }
+        })
         .put("notificationActions", notificationActions)
         .put("notificationDirectReply", notificationDirectReply)
         .put("notificationSuggestedReplies", notificationSuggestedReplies)
@@ -66,20 +72,29 @@ data class ShortcutsFoldersSettings(
         .put("popupSwipeAngleDegrees", popupSwipeAngleDegrees.coerceIn(10, 90)).toString()
 
     companion object {
+        private val DefaultInsideGestures = PopupGestureActions.legacyInsideGestures()
+
         fun decode(value: String?): ShortcutsFoldersSettings = runCatching {
             val json = JSONObject(value ?: "{}")
+            val left = PopupGestureActions.decode(json.optJSONArray("swipeLeft"),
+                if (json.has("swipeLeftToOpenFirst")) PopupGestureActions(selected =
+                    if (json.optBoolean("swipeLeftToOpenFirst")) setOf(PopupGestureAction.OpenFirstItem) else emptySet())
+                else PopupGestureActions.defaults(PopupGesture.SwipeLeft))
+            val right = PopupGestureActions.decode(json.optJSONArray("swipeRight"), PopupGestureActions.defaults(PopupGesture.SwipeRight))
+            val inside = json.optJSONObject("insideGestures")
             ShortcutsFoldersSettings(
                 enabled = json.optBoolean("enabled", true),
-                swipeLeft = PopupGestureActions.decode(json.optJSONArray("swipeLeft"),
-                    if (json.has("swipeLeftToOpenFirst")) PopupGestureActions(selected =
-                        if (json.optBoolean("swipeLeftToOpenFirst")) setOf(PopupGestureAction.OpenFirstItem) else emptySet())
-                    else PopupGestureActions.defaults(PopupGesture.SwipeLeft)),
-                swipeRight = PopupGestureActions.decode(json.optJSONArray("swipeRight"), PopupGestureActions.defaults(PopupGesture.SwipeRight)),
+                swipeLeft = left,
+                swipeRight = right,
+                insideGestures = if (inside == null) PopupGestureActions.legacyInsideGestures(left, right,
+                    json.optBoolean("notificationSwipeRightDismiss", true))
+                else PopupGesture.entries.associateWith { gesture ->
+                    PopupGestureActions.decode(inside.optJSONArray(gesture.id), DefaultInsideGestures.getValue(gesture))
+                },
                 doubleTap = PopupGestureActions.decode(json.optJSONArray("doubleTap"), PopupGestureActions.defaults(PopupGesture.DoubleTap)),
                 singleLineNotificationPreviews = json.optBoolean("singleLineNotificationPreviews", false),
                 multipleAppNotificationPreviews = json.optBoolean("multipleAppNotificationPreviews", false),
                 reduceRepeatedSenders = json.optBoolean("reduceRepeatedSenders", true),
-                notificationSwipeRightDismiss = json.optBoolean("notificationSwipeRightDismiss", true),
                 notificationActions = json.optBoolean("notificationActions", true),
                 notificationDirectReply = json.optBoolean("notificationDirectReply", true),
                 notificationSuggestedReplies = json.optBoolean("notificationSuggestedReplies", true),

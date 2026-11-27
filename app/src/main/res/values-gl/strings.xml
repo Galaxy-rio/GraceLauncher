@@ -708,7 +708,9 @@
     <string name="usage_hours">%1$d h %2$d m</string>
     <string name="usage_less_minute">&lt;1 m</string>
     <string name="usage_value">%1$s · %2$s</string>
-    <string name="popups_title">Fiestras emerxentes</string>
+    <string name="popups_title">Fiestras emerxentes e notificacións</string>
+    <string name="popup_list_gesture">Xestos na lista</string>
+    <string name="popup_inside_gesture">Xestos nas fiestras emerxentes</string>
     <string name="widget_settings_button">Configuración</string>
     <string name="widget_configuration_launch_error">Non foi posible abrir a configuración deste widget. Téntao de novo.</string>
     <string name="media_keep_while_playing">Manter mentres reproduce</string>
@@ -1245,4 +1247,5 @@
     <string name="notification_reduce_repeated_senders">Reduce a información repetida do remitente</string>
     <string name="popup_confirm_multiple_apps">Confirmar antes de eliminar notificacións de varias aplicacións</string>
     <string name="backup_in_progress">Agarda, por favor…</string>
+    <string name="popup_action_dismiss_notification">Descartar esta notificación</string>
 </resources>

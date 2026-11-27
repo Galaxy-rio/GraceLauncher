@@ -19,6 +19,8 @@ import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.NotificationDisplay
 import com.galaxyrio.gracelauncher.data.PopupGesture
 import com.galaxyrio.gracelauncher.data.PopupGestureAction
+import com.galaxyrio.gracelauncher.data.PopupGestureActions
+import com.galaxyrio.gracelauncher.data.PopupGestureScope
 import com.galaxyrio.gracelauncher.data.ShortcutsFoldersSettings
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
@@ -26,7 +28,8 @@ import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
 
 @Composable
-internal fun ShortcutsFoldersSettingsScreen(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit) {
+internal fun ShortcutsFoldersSettingsScreen(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
+    navigate: (SettingsPage) -> Unit) {
     val settings = uiState.settings.shortcutsFolders
     var requestAccess by rememberSaveable { mutableStateOf(false) }
     fun update(change: (ShortcutsFoldersSettings) -> ShortcutsFoldersSettings) =
@@ -82,52 +85,14 @@ internal fun ShortcutsFoldersSettingsScreen(uiState: LauncherUiState, actions: L
                 }
             }
             item { SettingsHeading(stringResource(R.string.popup_gestures_heading)) }
-            PopupGesture.entries.forEach { gesture ->
-                item("popup_gesture:${gesture.id}") {
-                    val options = settings.gesture(gesture).normalized()
-                    // The list height is fixed, so follow the confirm row's real height when text wraps or scales.
-                    val density = LocalDensity.current
-                    var confirmHeight by remember { mutableStateOf(80.dp) }
-                    Column {
-                        Text(stringResource(when (gesture) {
-                            PopupGesture.SwipeLeft -> R.string.grace_button_swipe_left
-                            PopupGesture.SwipeRight -> R.string.grace_button_swipe_right
-                            PopupGesture.DoubleTap -> R.string.grace_button_double_tap
-                        }), Modifier.padding(start = 4.dp, top = 16.dp, bottom = 8.dp), style = MaterialTheme.typography.titleMedium)
-                        ClockFieldOrder(options.order, options.selected, LocalSettingsStorageState.current.canEdit,
-                            uiState.settings.allowHapticFeedback, "popup_gesture_${gesture.id}",
-                            label = { action -> stringResource(when (action) {
-                                PopupGestureAction.OpenPopup -> R.string.popup_action_open
-                                PopupGestureAction.OpenFirstItem -> R.string.popup_action_first_item
-                                PopupGestureAction.OpenFirstNotification -> R.string.popup_action_first_notification
-                                PopupGestureAction.DismissFirstNotification -> R.string.popup_action_dismiss_first
-                                PopupGestureAction.DismissAllNotifications -> R.string.popup_action_dismiss_all
-                            }) },
-                            onSelect = { action, checked -> update { current ->
-                                val value = current.gesture(gesture)
-                                current.withGesture(gesture, value.copy(selected = if (checked) value.selected + action else value.selected - action))
-                            } },
-                            onReorder = { order -> update { current -> current.withGesture(gesture, current.gesture(gesture).copy(order = order)) } },
-                            modifier = Modifier.height(64.dp * options.order.size + 2.dp * (options.order.size - 1) +
-                                if (PopupGestureAction.DismissAllNotifications in options.selected) confirmHeight else 0.dp),
-                            containerColor = MaterialTheme.colorScheme.surfaceBright,
-                            fieldSupportingContent = { action ->
-                                if (action == PopupGestureAction.DismissAllNotifications && action in options.selected) {
-                                    Box(Modifier.heightIn(min = 80.dp).onSizeChanged { confirmHeight = with(density) { it.height.toDp() } }
-                                        .padding(start = 40.dp, end = 8.dp),
-                                        contentAlignment = androidx.compose.ui.Alignment.Center) {
-                                        SettingsToggleItem(stringResource(R.string.popup_confirm_multiple_apps), null,
-                                            options.confirmDismissAll, 0, 1, "popup_confirm_multiple_apps_${gesture.id}") { confirm ->
-                                            update { current -> current.withGesture(gesture, current.gesture(gesture).copy(confirmDismissAll = confirm)) }
-                                        }
-                                    }
-                                }
-                            })
-                        if (gesture == PopupGesture.DoubleTap && options.selected.isNotEmpty()) Text(
-                            stringResource(R.string.popup_double_tap_delay),
-                            Modifier.padding(horizontal = 4.dp, vertical = 8.dp).testTag("popup_double_tap_delay"),
-                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+            item {
+                SettingsActionItem(stringResource(R.string.popup_list_gesture), null, 0, 2, "open_list_gesture") {
+                    navigate(SettingsPage.ListPopupGestures)
+                }
+            }
+            item {
+                SettingsActionItem(stringResource(R.string.popup_inside_gesture), null, 1, 2, "open_inside_popup_gesture") {
+                    navigate(SettingsPage.InsidePopupGestures)
                 }
             }
         }
@@ -145,6 +110,71 @@ internal fun ShortcutsFoldersSettingsScreen(uiState: LauncherUiState, actions: L
             TextButton(onClick = { requestAccess = false }) { Text(stringResource(R.string.settings_cancel)) }
         },
     )
+}
+
+@Composable
+internal fun PopupGestureSettingsScreen(uiState: LauncherUiState, actions: LauncherActions, onBack: () -> Unit,
+    scope: PopupGestureScope) {
+    val settings = uiState.settings.shortcutsFolders
+    val title = if (scope == PopupGestureScope.List) R.string.popup_list_gesture else R.string.popup_inside_gesture
+    fun update(gesture: PopupGesture, change: (PopupGestureActions) -> PopupGestureActions) = actions.updateSettings {
+        val current = it.shortcutsFolders
+        it.copy(shortcutsFolders = current.withGesture(gesture, change(current.gesture(gesture, scope)), scope))
+    }
+    SettingsScaffold(stringResource(title), "popup_gestures_${scope.name}", onBack) { padding ->
+        SettingsList(padding) {
+            PopupGesture.entries.forEach { gesture ->
+                item("popup_gesture:${gesture.id}") {
+                    val options = settings.gesture(gesture, scope).normalized()
+                    val order = if (scope == PopupGestureScope.InsidePopup) options.order
+                        else options.order - PopupGestureAction.DismissNotification
+                    // The list height is fixed, so follow the confirm row's real height when text wraps or scales.
+                    val density = LocalDensity.current
+                    var confirmHeight by remember { mutableStateOf(80.dp) }
+                    Column {
+                        Text(stringResource(when (gesture) {
+                            PopupGesture.SwipeLeft -> R.string.grace_button_swipe_left
+                            PopupGesture.SwipeRight -> R.string.grace_button_swipe_right
+                            PopupGesture.DoubleTap -> R.string.grace_button_double_tap
+                        }), Modifier.padding(start = 4.dp, top = 16.dp, bottom = 8.dp), style = MaterialTheme.typography.titleMedium)
+                        ClockFieldOrder(order, options.selected, LocalSettingsStorageState.current.canEdit,
+                            uiState.settings.allowHapticFeedback, "popup_gesture_${gesture.id}",
+                            label = { action -> stringResource(when (action) {
+                                PopupGestureAction.OpenPopup -> R.string.popup_action_open
+                                PopupGestureAction.OpenFirstItem -> R.string.popup_action_first_item
+                                PopupGestureAction.OpenFirstNotification -> R.string.popup_action_first_notification
+                                PopupGestureAction.DismissFirstNotification -> R.string.popup_action_dismiss_first
+                                PopupGestureAction.DismissAllNotifications -> R.string.popup_action_dismiss_all
+                                PopupGestureAction.DismissNotification -> R.string.popup_action_dismiss_notification
+                            }) },
+                            onSelect = { action, checked -> update(gesture) { value ->
+                                value.copy(selected = if (checked) value.selected + action else value.selected - action)
+                            } },
+                            onReorder = { order -> update(gesture) { it.copy(order = order) } },
+                            modifier = Modifier.height(64.dp * order.size + 2.dp * (order.size - 1) +
+                                if (PopupGestureAction.DismissAllNotifications in options.selected) confirmHeight else 0.dp),
+                            containerColor = MaterialTheme.colorScheme.surfaceBright,
+                            fieldSupportingContent = { action ->
+                                if (action == PopupGestureAction.DismissAllNotifications && action in options.selected) {
+                                    Box(Modifier.heightIn(min = 80.dp).onSizeChanged { confirmHeight = with(density) { it.height.toDp() } }
+                                        .padding(start = 40.dp, end = 8.dp),
+                                        contentAlignment = androidx.compose.ui.Alignment.Center) {
+                                        SettingsToggleItem(stringResource(R.string.popup_confirm_multiple_apps), null,
+                                            options.confirmDismissAll, 0, 1, "popup_confirm_multiple_apps_${gesture.id}") { confirm ->
+                                            update(gesture) { it.copy(confirmDismissAll = confirm) }
+                                        }
+                                    }
+                                }
+                            })
+                        if (gesture == PopupGesture.DoubleTap && options.selected.isNotEmpty()) Text(
+                            stringResource(R.string.popup_double_tap_delay),
+                            Modifier.padding(horizontal = 4.dp, vertical = 8.dp).testTag("popup_double_tap_delay"),
+                            style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

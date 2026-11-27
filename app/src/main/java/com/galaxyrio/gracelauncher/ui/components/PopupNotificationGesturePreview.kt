@@ -24,26 +24,25 @@ import com.galaxyrio.gracelauncher.data.ShortcutsFoldersSettings
 @Composable
 internal fun PopupNotificationGesturePreview(
     key: String, revision: Long, enabled: Boolean, settings: ShortcutsFoldersSettings,
-    resolve: (PopupGesture) -> PopupGestureAction?, perform: (PopupGesture, Rect) -> Unit,
-    onDrag: (Rect, Boolean) -> Unit, onDragEnd: (Boolean) -> Unit,
+    resolve: (PopupGesture) -> PopupGestureAction?, perform: (PopupGesture) -> Unit,
+    onDrag: (Boolean) -> Unit, onDragEnd: (Boolean) -> Unit,
     onBoundsChanged: (Rect) -> Unit,
     onClick: () -> Unit, onLongClick: (() -> Unit)?, content: @Composable () -> Unit,
 ) {
-    var bounds by remember(key) { mutableStateOf(Rect.Zero) }
     var pull by remember(key) { mutableFloatStateOf(0f) }
     var dragging by remember(key) { mutableStateOf(false) }
     val resistance = with(LocalDensity.current) { 72.dp.toPx() }
     val offset by animateFloatAsState(resistedSignedPopupPull(pull, resistance),
         animationSpec = if (dragging) snap() else spring(dampingRatio = .58f, stiffness = 420f), label = "notificationPull")
     Box(Modifier.fillMaxWidth().testTag("notification_gesture:$key")
-        .onGloballyPositioned { bounds = it.boundsInWindow(); onBoundsChanged(bounds) }
-        .popupRowGestureInput("$key:$revision", enabled, settings, resolve, { perform(it, bounds) }, prepare = {},
-            onPopupDrag = { onDrag(bounds, it) }, onPopupDragEnd = onDragEnd,
+        .onGloballyPositioned { onBoundsChanged(it.boundsInWindow()) }
+        .popupRowGestureInput("$key:$revision", enabled, settings, resolve, perform, prepare = {},
+            onPopupDrag = onDrag, onPopupDragEnd = onDragEnd,
             onPull = { distance, active -> pull = distance; dragging = active })
         .combinedClickable(enabled = enabled,
             interactionSource = remember { MutableInteractionSource() }, indication = null,
             onClick = onClick, onLongClick = onLongClick,
-            onDoubleClick = if (settings.doubleTap.selected.isNotEmpty()) ({ perform(PopupGesture.DoubleTap, bounds) }) else null)) {
+            onDoubleClick = if (settings.doubleTap.selected.isNotEmpty()) ({ perform(PopupGesture.DoubleTap) }) else null)) {
         Column(Modifier.fillMaxWidth().graphicsLayer { translationX = offset }) { content() }
     }
 }

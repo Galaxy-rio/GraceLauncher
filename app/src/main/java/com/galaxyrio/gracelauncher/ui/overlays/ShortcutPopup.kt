@@ -5,17 +5,10 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import com.galaxyrio.gracelauncher.ui.components.LocalLauncherInputEnabled
-import com.galaxyrio.gracelauncher.ui.components.LocalPopupGestureSettings
-import com.galaxyrio.gracelauncher.ui.components.PopupSwipeIntent
-import com.galaxyrio.gracelauncher.ui.components.detectPopupDragGestures
-import com.galaxyrio.gracelauncher.data.PopupGestureAction
-import com.galaxyrio.gracelauncher.ui.firstGestureNotification
-import com.galaxyrio.gracelauncher.ui.PopupGestureTarget
-import com.galaxyrio.gracelauncher.ui.notificationDismissNeedsConfirmation
-import com.galaxyrio.gracelauncher.ui.allGestureNotifications
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.semantics.CustomAccessibilityAction
-import androidx.compose.ui.semantics.customActions
+import com.galaxyrio.gracelauncher.data.PopupGesture
+import com.galaxyrio.gracelauncher.data.PopupGestureScope
+import com.galaxyrio.gracelauncher.ui.performPopupGesture
+import com.galaxyrio.gracelauncher.ui.resolvePopupGesture
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -28,7 +21,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.geometry.*
 import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.graphics.Shape
@@ -38,7 +30,6 @@ import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -50,13 +41,11 @@ import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.dismiss
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.*
 import androidx.compose.ui.zIndex
 import com.galaxyrio.gracelauncher.R
-import com.galaxyrio.gracelauncher.data.IconDisplayStyle
 import com.galaxyrio.gracelauncher.data.HomeLayout
 import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
@@ -66,16 +55,13 @@ import com.galaxyrio.gracelauncher.data.ShortcutStatus
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.ui.LauncherActions
 import com.galaxyrio.gracelauncher.ui.LauncherUiState
-import com.galaxyrio.gracelauncher.ui.components.AppIcon
-import com.galaxyrio.gracelauncher.ui.components.AppNotificationLabel
 import com.galaxyrio.gracelauncher.ui.components.AppStack
 import com.galaxyrio.gracelauncher.ui.components.LauncherIcon
 import com.galaxyrio.gracelauncher.ui.components.LauncherLayout
 import com.galaxyrio.gracelauncher.ui.components.LauncherSymbol
-import com.galaxyrio.gracelauncher.ui.components.LocalListAppearance
-import com.galaxyrio.gracelauncher.ui.theme.LocalLauncherAppearance
-import com.galaxyrio.gracelauncher.ui.theme.effectiveDisplay
 import kotlin.math.roundToInt
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.isActive
 
@@ -121,10 +107,54 @@ fun ShortcutPopup(
     onLaunchItem: (LauncherApp, Rect) -> Unit = { item, bounds ->
         item.shortcut?.let { actions.launchShortcutAt?.invoke(it, bounds) ?: actions.launchShortcut(it) }
     },
-) {
+) = key(app.key, reveal) {
     val isFolder = app.folderId != null
-    val listAppearance = LocalListAppearance.current
     val isPrivateFolder = app.folderId == PrivateSpaceFolderId
+    val gestureScope = rememberCoroutineScope()
+    val gestureLock = remember { Mutex() }
+    val gesturesEnabled = LocalLauncherInputEnabled.current && reveal.expanded && !reveal.dragging
+    val inputEnabled by rememberUpdatedState(gesturesEnabled)
+    val latestState by rememberUpdatedState(uiState)
+    val launch by rememberUpdatedState(onLaunchItem)
+    val openAppPopup by rememberUpdatedState(onOpenAppPopup)
+    val dismiss by rememberUpdatedState(onDismiss)
+    val latestActions by rememberUpdatedState(actions)
+    var confirmation by remember { mutableStateOf<Pair<Int, CompletableDeferred<Boolean>>?>(null) }
+    confirmation?.let { (count, answer) ->
+        DismissNotificationsDialog(count, onConfirm = { answer.complete(true) }, onDismiss = { answer.complete(false) })
+    }
+    fun canOpenChild(item: LauncherApp) = item.key != app.key && item.shortcut == null &&
+        (item.folderId != null || (openAppPopup != null && latestState.settings.shortcutsFolders.enabled))
+    fun openChild(item: LauncherApp, bounds: Rect): Boolean {
+        if (!canOpenChild(item)) return false
+        if (item.folderId != null) launch(item, bounds) else openAppPopup?.invoke(item, bounds)
+        return true
+    }
+    fun launchItem(item: LauncherApp, bounds: Rect): Boolean {
+        launch(item, bounds)
+        if (!isPrivateFolder && item.folderId == null) dismiss()
+        return true
+    }
+    fun resolve(item: LauncherApp, gesture: PopupGesture, note: AppNotification? = null) =
+        uiState.resolvePopupGesture(item, gesture, note, PopupGestureScope.InsidePopup,
+            canOpenPopup = canOpenChild(item), cachedShortcuts = actions.cachedShortcuts)
+
+    suspend fun perform(item: LauncherApp, gesture: PopupGesture, bounds: Rect, note: AppNotification? = null): Boolean {
+        if (!gestureLock.tryLock()) return false
+        try {
+            return performPopupGesture(item, gesture, note, state = { latestState }, actions = { latestActions },
+                canContinue = { inputEnabled && gestureScope.isActive && reveal.expanded && !reveal.dragging },
+                openPopup = { openChild(it, bounds) }, launchItem = { launchItem(it, bounds) },
+                confirmDismiss = { found ->
+                    val answer = CompletableDeferred<Boolean>()
+                    confirmation = found.size to answer
+                    try { answer.await() } finally { confirmation = null }
+                }, scope = PopupGestureScope.InsidePopup, canOpenPopup = canOpenChild(item),
+                onNotificationOpened = { dismiss() })
+        } finally {
+            gestureLock.unlock()
+        }
+    }
     var retry by remember { mutableIntStateOf(0) }
     val loadShortcuts by rememberUpdatedState(actions.shortcuts)
     val initialResult = remember(app.key, hasAccess) {
@@ -232,7 +262,9 @@ fun ShortcutPopup(
                     onOpen = { if (actions.openNotification(notification.key, notification.revision)) onDismiss() },
                     onDismiss = { actions.dismissNotification(notification.key, notification.revision) },
                     modifier = Modifier.animateItem().padding(horizontal = 6.dp),
-                    gesturesEnabled = !reveal.dragging && reveal.expanded,
+                    gesturesEnabled = gesturesEnabled,
+                    resolveGesture = { resolve(app, it, notification) },
+                    performGesture = { perform(app, it, Rect.Zero, notification) },
                     dismissResistance = uiState.settings.dismissResistance,
                     dismissThresholdDp = uiState.settings.dismissThresholdDp,
                     onAction = { action, text, choice ->
@@ -316,100 +348,16 @@ fun ShortcutPopup(
                             if (!cancelled) editingWidget = entry.key
                         })
                 }
-                itemApp != null -> {
-                        var iconBounds by remember { mutableStateOf(Rect.Zero) }
-                        val itemDisplay = itemApp.effectiveDisplay(LocalLauncherAppearance.current)
-                        val hiddenIcon = itemDisplay.style == IconDisplayStyle.Hidden
-                        val notification = uiState.ownNotificationsFor(itemApp, expanded = true).firstOrNull()
-                        // Apply the same optional multi-app confirmation as desktop rows.
-                        val popupSettings = LocalPopupGestureSettings.current
-                        val inputEnabled = LocalLauncherInputEnabled.current
-                        // Popup rows only honor the dismiss actions; opening is meaningless inside the popup.
-                        val dismissAction = popupSettings.swipeLeft.enabledActions.firstOrNull {
-                            it == PopupGestureAction.DismissAllNotifications || it == PopupGestureAction.DismissFirstNotification }
-                        val swipeDismiss = dismissAction != null
-                        val canOpen = notification != null && onOpenAppPopup != null &&
-                            PopupGestureAction.OpenPopup in popupSettings.swipeRight.enabledActions
-                        val dismissLabel = stringResource(if (dismissAction == PopupGestureAction.DismissFirstNotification)
-                            R.string.popup_action_dismiss_first else R.string.popup_action_dismiss_all)
-                        var pendingDismiss by remember { mutableStateOf<List<AppNotification>?>(null) }
-                        val clearNotifications by rememberUpdatedState { found: List<AppNotification> ->
-                            if (dismissAction == PopupGestureAction.DismissFirstNotification)
-                                found.forEach { actions.dismissNotification(it.key, it.revision) }
-                            else found.groupBy { it.packageName }.forEach { (pkg, list) ->
-                                // App-wide clear also takes group summaries the list hides.
-                                if (!actions.dismissAllNotifications(pkg))
-                                    list.forEach { actions.dismissNotification(it.key, it.revision) }
-                            }
-                        }
-                        val dismissItem by rememberUpdatedState { app: LauncherApp ->
-                            val target = PopupGestureTarget(app)
-                            val found = (if (dismissAction == PopupGestureAction.DismissFirstNotification)
-                                listOfNotNull(uiState.firstGestureNotification(target)) else uiState.allGestureNotifications(target))
-                                .filter { it.canDismiss }
-                            if (popupSettings.swipeLeft.confirmDismissAll && notificationDismissNeedsConfirmation(found))
-                                pendingDismiss = found else clearNotifications(found)
-                        }
-                        pendingDismiss?.let { found ->
-                            DismissNotificationsDialog(found.size, onConfirm = { pendingDismiss = null; clearNotifications(found) },
-                                onDismiss = { pendingDismiss = null })
-                        }
-                        Row(
-                            Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(if (isFolder) "folder_app:${itemApp.key}" else "shortcut:${itemApp.shortcut?.id ?: itemApp.key}")
-                                .semantics {
-                                    if (!showNames && !hiddenIcon) contentDescription = itemApp.label
-                                    if (swipeDismiss) customActions = listOf(CustomAccessibilityAction(dismissLabel) { dismissItem(itemApp); true })
-                                }
-                                .pointerInput(itemApp.key, swipeDismiss, canOpen, inputEnabled, reveal.expanded, reveal.dragging,
-                                    popupSettings.popupSwipeDistanceDp, popupSettings.popupSwipeAngleDegrees) {
-                                    if ((!swipeDismiss && !canOpen) || !inputEnabled || !reveal.expanded || reveal.dragging) return@pointerInput
-                                    val swipe = PopupSwipeIntent(reversalSlop = 8.dp.toPx(), firstItemSlop = 40.dp.toPx())
-                                    detectPopupDragGestures(
-                                        extraDistance = popupSettings.popupSwipeDistanceDp.coerceIn(0, 48).dp.toPx(),
-                                        maxAngleDegrees = popupSettings.popupSwipeAngleDegrees.coerceIn(10, 90),
-                                        leftEnabled = swipeDismiss,
-                                        rightEnabled = canOpen,
-                                        onDragStart = { swipe.reset() },
-                                        onDragCancel = { swipe.reset() },
-                                        // Left clears the notification, right opens it like the arrow. Right never dismisses.
-                                        onDragEnd = {
-                                            if (swipe.opensFirst) dismissItem(itemApp)
-                                            // Pulling back before release cancels the open.
-                                            else if (swipe.expanded) onOpenAppPopup?.invoke(itemApp, iconBounds)
-                                            swipe.reset()
-                                        },
-                                    ) { _, amount -> swipe.drag(amount) }
-                                }
-                                .clip(RoundedCornerShape(16.dp))
-                                .combinedClickable(enabled = !reveal.dragging && reveal.expanded, onLongClick = { onDetails(itemApp) }, onClick = {
-                                    onLaunchItem(itemApp, iconBounds)
-                                    // A folder replaces this panel with its own hero transition.
-                                    if (!isPrivateFolder && itemApp.folderId == null) onDismiss()
-                                }).padding(horizontal = LauncherLayout.PopupContentInset, vertical = (listAppearance.appSpacing / 2f).dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            if (!hiddenIcon) {
-                                AppIcon(itemApp, Modifier.onGloballyPositioned { iconBounds = it.boundsInWindow() },
-                                    size = 36.dp, display = itemDisplay)
-                                if (showNames || notification != null) {
-                                    Spacer(Modifier.width(listAppearance.iconNameGap.dp))
-                                }
-                            }
-                            AppNotificationLabel(itemApp.label, listOfNotNull(notification), showNames || hiddenIcon,
-                                modifier = Modifier.weight(1f).then(if (hiddenIcon)
-                                    Modifier.onGloballyPositioned { iconBounds = it.boundsInWindow() } else Modifier),
-                                onWallpaper = false, maxLines = 2)
-                            if (notification != null && onOpenAppPopup != null) IconButton(
-                                onClick = { onOpenAppPopup(itemApp, iconBounds) },
-                                enabled = !reveal.dragging && reveal.expanded,
-                                modifier = Modifier.size(48.dp).testTag("popup_notification_arrow:${itemApp.key}")
-                                    .semantics { contentDescription = itemApp.label },
-                            ) {
-                                LauncherIcon(LauncherSymbol.Chevron,
-                                    Modifier.rotate(if (LocalLayoutDirection.current == LayoutDirection.Ltr) -90f else 90f))
-                            }
-                        }
-                }
+                itemApp != null -> PopupAppRow(
+                    item = itemApp, folder = isFolder, showNames = showNames,
+                    notification = uiState.ownNotificationsFor(itemApp, expanded = true).firstOrNull(),
+                    enabled = gesturesEnabled,
+                    resolve = { resolve(itemApp, it) },
+                    perform = { gesture, bounds -> gestureScope.launch { perform(itemApp, gesture, bounds) } },
+                    onOpenPopup = if (canOpenChild(itemApp)) ({ bounds -> openChild(itemApp, bounds) }) else null,
+                    onLaunch = { bounds -> launchItem(itemApp, bounds) },
+                    onDetails = { onDetails(itemApp) },
+                )
                 else -> Text(stringResource(R.string.popup_item_unavailable), Modifier.fillMaxWidth().clickable(enabled = onEdit != null, onClick = { onEdit?.invoke() }).padding(16.dp),
                     color = MaterialTheme.colorScheme.onSurfaceVariant)
             }

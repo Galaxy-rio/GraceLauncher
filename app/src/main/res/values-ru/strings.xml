@@ -841,7 +841,9 @@
     <string name="list_names_in_folders">Применять и внутри папок</string>
     <string name="list_left_alphabet">Использовать слева</string>
     <string name="shortcuts_folders_title">Ярлыки и папки</string>
-    <string name="popups_title">Всплывающие окна</string>
+    <string name="popups_title">Всплывающие окна и уведомления</string>
+    <string name="popup_list_gesture">Жесты в списке</string>
+    <string name="popup_inside_gesture">Жесты во всплывающем окне</string>
     <string name="shortcuts_folders_enable">Включить всплывающие меню приложений</string>
     <string name="popup_silent_notifications">Беззвучные уведомления</string>
     <string name="popup_normal_notifications">Обычные уведомления</string>
@@ -1290,4 +1292,5 @@
     <string name="notification_reduce_repeated_senders">Сократить количество повторной отправки информации</string>
     <string name="popup_confirm_multiple_apps">Подтверждать перед очисткой уведомлений от нескольких приложений</string>
     <string name="backup_in_progress">Пожалуйста подождите…</string>
+    <string name="popup_action_dismiss_notification">Убрать эту карточку уведомления</string>
 </resources>

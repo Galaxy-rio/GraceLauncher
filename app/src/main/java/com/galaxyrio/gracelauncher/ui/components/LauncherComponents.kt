@@ -376,7 +376,8 @@ private fun LauncherRow(
             it == PopupGestureAction.OpenPopup || (it == PopupGestureAction.OpenFirstItem && onSwipeLeft != null)
         }
     }
-    fun perform(gesture: PopupGesture, notification: AppNotification? = null, anchor: Rect = iconBounds()) {
+    fun perform(gesture: PopupGesture, notification: AppNotification? = null) {
+        val anchor = iconBounds()
         val handler = gestureActions.onGesture
         if (handler != null) handler(gestureOwner, gesture, anchor, notification)
         else when (resolve(gesture, notification)) {
@@ -438,17 +439,14 @@ private fun LauncherRow(
                 icon(Modifier.testTag("$rowKey:icon").onGloballyPositioned { iconCoordinates = it })
                 Spacer(Modifier.width(list.iconNameGap.dp))
             }
-            Column(Modifier.weight(1f).then(
-                // Hidden mode drops the icon slot, so the label cell keeps the
-                // popup anchor and the launch/return animation target alive.
-                if (hideIcon) Modifier
-                    .onGloballyPositioned { iconCoordinates = it }
-                    .then(if (animationComponents.isNotEmpty())
-                        Modifier.launcherAnimationTarget(animationComponents, animationFolder, animationUser) else Modifier)
-                else Modifier)) {
+            Column(Modifier.weight(1f)) {
                 AppNotificationLabel(label, notifications, labelVisible,
                     usageText = usageText,
-                    labelModifier = Modifier.testTag("$rowKey:label"),
+                    labelModifier = Modifier.testTag("$rowKey:label").then(
+                        if (hideIcon) Modifier.onGloballyPositioned { iconCoordinates = it }
+                            .then(if (animationComponents.isNotEmpty())
+                                Modifier.launcherAnimationTarget(animationComponents, animationFolder, animationUser) else Modifier)
+                        else Modifier),
                     notificationBodyLines = if (popupSettings.singleLineNotificationPreviews) 1 else 2,
                     categoryIcon = if (showLabel) categoryIcon else CategoryIcon.None,
                     notificationContent = { notification, content ->
@@ -456,10 +454,8 @@ private fun LauncherRow(
                         else PopupNotificationGesturePreview(
                             notification.key, notification.revision, inputEnabled && popupsEnabled, popupSettings,
                             resolve = { resolve(it, notification) },
-                            perform = { gesture, anchor -> perform(gesture, notification, anchor) },
-                            onDrag = { anchor, expanded ->
-                                gestureActions.onNotificationDrag?.invoke(gestureOwner, notification, anchor, expanded)
-                            }, onDragEnd = gestureActions.onDragEnd,
+                            perform = { gesture -> perform(gesture, notification) },
+                            onDrag = { expanded -> onDrag(iconBounds(), expanded) }, onDragEnd = onDragEnd,
                             onBoundsChanged = { notificationBounds[notification.key] = it },
                             onClick = { onClick(bounds, iconBounds()) }, onLongClick = onLongClick,
                             content = content)
@@ -564,5 +560,4 @@ data class AppRowGestures(
     val onOpenFirst: ((LauncherApp, Rect) -> Unit)? = null,
     val resolveGesture: ((LauncherApp, PopupGesture, AppNotification?) -> PopupGestureAction?)? = null,
     val onGesture: ((LauncherApp, PopupGesture, Rect, AppNotification?) -> Unit)? = null,
-    val onNotificationDrag: ((LauncherApp, AppNotification, Rect, Boolean) -> Unit)? = null,
 )

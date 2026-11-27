@@ -716,7 +716,9 @@
     <string name="usage_hours">%1$d h %2$d m</string>
     <string name="usage_less_minute">&lt;1 m</string>
     <string name="usage_value">%1$s · %2$s</string>
-    <string name="popups_title">Ventanas emergentes</string>
+    <string name="popups_title">Ventanas emergentes y notificaciones</string>
+    <string name="popup_list_gesture">Gestos de la lista</string>
+    <string name="popup_inside_gesture">Gestos dentro de ventanas emergentes</string>
     <string name="widget_settings_button">Configuración</string>
     <string name="widget_bind_error">No se pudo vincular este widget. Por favor, inténtalo de nuevo.</string>
     <string name="widget_configuration_launch_error">No se pudo abrir la configuración de este widget. Por favor, inténtalo de nuevo.</string>
@@ -1259,4 +1261,5 @@
     <string name="notification_reduce_repeated_senders">Reducir la información repetida del remitente</string>
     <string name="popup_confirm_multiple_apps">Confirmar antes de borrar las notificaciones de varias aplicaciones</string>
     <string name="backup_in_progress">Espera, por favor…</string>
+    <string name="popup_action_dismiss_notification">Descartar esta tarjeta de notificación</string>
 </resources>

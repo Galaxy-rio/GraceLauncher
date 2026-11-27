@@ -1,6 +1,7 @@
 package com.galaxyrio.gracelauncher
 
 import androidx.compose.ui.test.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -50,6 +51,25 @@ class ProductivityStructureTest {
         assertTrue(haptics.bottom <= wellbeing.fetchSemanticsNode().boundsInRoot.top)
         wellbeing.performClick()
         compose.onNodeWithTag("digital_wellbeing").assertIsDisplayed()
+    }
+
+    @Test fun listAndInsidePopupEditorsStoreIndependentActions() {
+        var state by mutableStateOf(LauncherUiState())
+        val actions = LauncherActions(updateSettings = { change -> state = state.copy(settings = change(state.settings)) })
+        compose.setContent {
+            GraceLauncherTheme(dynamicColor = false) {
+                LauncherSettingsScreen(state, actions, onBack = {}, initialPage = "ShortcutsFolders")
+            }
+        }
+        val item = "popup_gesture_swipeLeft_selected:OpenFirstItem"
+        setting("open_inside_popup_gesture").performClick()
+        compose.onNodeWithTag(item).performScrollTo().assertIsOff().performClick()
+        compose.onNodeWithTag("settings_back").performClick()
+        setting("open_list_gesture").performClick()
+        compose.onNodeWithTag(item).performScrollTo().assertIsOn().performClick()
+        compose.onNodeWithTag("settings_back").performClick()
+        setting("open_inside_popup_gesture").performClick()
+        compose.onNodeWithTag(item).performScrollTo().assertIsOn()
     }
 
     @Test fun homepageEditorPlacesHeightActionBetweenBannerAndSelected() {

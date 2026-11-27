@@ -22,10 +22,10 @@ internal fun Modifier.popupRowGestureInput(
     settings: ShortcutsFoldersSettings,
     resolve: (PopupGesture) -> PopupGestureAction?,
     perform: (PopupGesture) -> Unit,
-    prepare: () -> Unit,
-    onPopupDrag: (Boolean) -> Unit,
-    onPopupDragEnd: (Boolean) -> Unit,
-    onPull: (Float, Boolean) -> Unit,
+    prepare: () -> Unit = {},
+    onPopupDrag: ((Boolean) -> Unit)? = null,
+    onPopupDragEnd: (Boolean) -> Unit = {},
+    onPull: (Float, Boolean) -> Unit = { _, _ -> },
     canStart: (Offset) -> Boolean = { true },
 ): Modifier {
     val currentResolve by rememberUpdatedState(resolve)
@@ -62,7 +62,12 @@ internal fun Modifier.popupRowGestureInput(
                 onDragStart = { reset(); currentPull(0f, true) },
                 onDragCancel = { if (popup.revealed) currentEnd(false); reset() },
                 onDragEnd = {
-                    if (popup.revealed) currentEnd(popup.expanded)
+                    if (popup.revealed) {
+                        // A nested panel replaces this row. Keep the gesture alive until UP
+                        // so reversing it can still cancel navigation.
+                        if (currentDrag != null) currentEnd(popup.expanded)
+                        else if (popup.expanded) direction?.let(currentPerform)
+                    }
                     else if (travel >= 40.dp.toPx()) direction?.let(currentPerform)
                     reset()
                 },
@@ -74,7 +79,7 @@ internal fun Modifier.popupRowGestureInput(
                 }
                 val sign = if (direction == PopupGesture.SwipeLeft) -1f else 1f
                 if (action == PopupGestureAction.OpenPopup) {
-                    popup.drag(amount * sign)?.let(currentDrag)
+                    popup.drag(amount * sign)?.let { currentDrag?.invoke(it) }
                 } else {
                     travel = (travel + amount * sign).coerceAtLeast(0f)
                     currentPull(travel * sign, true)

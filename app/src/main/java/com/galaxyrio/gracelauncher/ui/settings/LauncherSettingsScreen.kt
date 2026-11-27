@@ -61,6 +61,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
+import com.galaxyrio.gracelauncher.data.PopupGestureScope
 import com.galaxyrio.gracelauncher.data.icons.GraceButtonIcon
 import com.galaxyrio.gracelauncher.data.GraceButtonAction
 import com.galaxyrio.gracelauncher.data.GraceButtonGesture
@@ -86,7 +87,7 @@ internal enum class SettingsPage {
     GraceButtonAppearance, GraceButtonPosition, AgendaAppearance, SearchAppearance, MediaPlayerAppearance,
     WidgetScreen, WidgetScreenEditor, HomeScreen, Homepage, AppList, FeedScreen, StatusScreen, DigitalWellbeing, TabletsFoldables,
     Wallpaper, WallpaperDesigner, Screens,
-    AppCategories, CategoryEditor, TasksOrg, TaskLists,
+    AppCategories, CategoryEditor, TasksOrg, TaskLists, ListPopupGestures, InsidePopupGestures,
 }
 
 /** The window's existing system-bar owner follows the active settings surface. */
@@ -237,7 +238,9 @@ fun LauncherSettingsScreen(
                     SettingsPage.StatusScreen -> SettingsPlaceholder(stringResource(R.string.settings_status_screen), "status_screen_settings", back)
                     SettingsPage.Clock -> ClockSettings(uiState, actions, back) { navigate(SettingsPage.ClockStyle) }
                     SettingsPage.Search -> SearchSettingsScreen(uiState, actions, back)
-                    SettingsPage.ShortcutsFolders -> ShortcutsFoldersSettingsScreen(uiState, actions, back)
+                    SettingsPage.ShortcutsFolders -> ShortcutsFoldersSettingsScreen(uiState, actions, back, navigate)
+                    SettingsPage.ListPopupGestures -> PopupGestureSettingsScreen(uiState, actions, back, PopupGestureScope.List)
+                    SettingsPage.InsidePopupGestures -> PopupGestureSettingsScreen(uiState, actions, back, PopupGestureScope.InsidePopup)
                     SettingsPage.WidgetScreen -> WidgetScreenSettingsPage(uiState, actions, back) { navigate(SettingsPage.WidgetScreenEditor) }
                     SettingsPage.WidgetScreenEditor -> com.galaxyrio.gracelauncher.ui.overlays.WidgetScreenEditor(uiState, actions, back)
                     SettingsPage.MediaPlayer -> MediaPlayerSettings(uiState, actions, back) { navigate(SettingsPage.MediaPlayerAppearance) }

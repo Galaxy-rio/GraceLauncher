@@ -715,7 +715,9 @@
     <string name="usage_hours">%1$d h %2$d m</string>
     <string name="usage_less_minute">&lt;1 min</string>
     <string name="usage_value">%1$s · %2$s</string>
-    <string name="popups_title">Pop-ups</string>
+    <string name="popups_title">Pop-ups et notifications</string>
+    <string name="popup_list_gesture">Gestes dans la liste</string>
+    <string name="popup_inside_gesture">Gestes dans les pop-ups</string>
     <string name="usage_percentage_short">Partager</string>
     <string name="widget_settings_button">Paramètres</string>
     <string name="widget_bind_error">Impossible de relier ce widget. Réssayez.</string>
@@ -961,4 +963,5 @@
     <string name="calendar_choose_app_description">Choisir l\'application utilisée pur ouvrir les événements de l\'agenda</string>
     <string name="calendar_date_tap">appui sur la date</string>
     <string name="calendar_date_tap_calendar">appuyer montre le calendrier</string>
+    <string name="popup_action_dismiss_notification">Effacer cette notification</string>
 </resources>

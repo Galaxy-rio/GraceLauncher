@@ -648,7 +648,9 @@
     <string name="list_color_default">Utilizar cor padrão</string>
     <string name="list_show_names">Mostrar nome das aplicações</string>
     <string name="shortcuts_folders_title">Atalhos e pastas</string>
-    <string name="popups_title">Pop-ups</string>
+    <string name="popups_title">Pop-ups e notificações</string>
+    <string name="popup_list_gesture">Gestos na lista</string>
+    <string name="popup_inside_gesture">Gestos nos pop-ups</string>
     <string name="popup_notification_normal">Mostrar normalmente</string>
     <string name="popup_notification_expanded">Apenas expandidas</string>
     <string name="popup_notification_hidden">Ocultar</string>
@@ -1237,4 +1239,5 @@
     <string name="notification_reduce_repeated_senders">Reduzir informação repetida do remetente</string>
     <string name="popup_confirm_multiple_apps">Confirmar antes de rejeitar as notificações de diversas aplicações</string>
     <string name="backup_in_progress">Por favor, aguarde…</string>
+    <string name="popup_action_dismiss_notification">Dispensar esta notificação</string>
 </resources>

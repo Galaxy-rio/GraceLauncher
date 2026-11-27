@@ -5,12 +5,16 @@ import org.json.JSONObject
 
 enum class PopupGesture(val id: String) { SwipeLeft("swipeLeft"), SwipeRight("swipeRight"), DoubleTap("doubleTap") }
 
+enum class PopupGestureScope { List, InsidePopup }
+
 enum class PopupGestureAction(val id: String) {
     DismissFirstNotification("dismissFirstNotification"),
     OpenFirstItem("openFirstItem"),
     OpenPopup("openPopup"),
     OpenFirstNotification("openFirstNotification"),
     DismissAllNotifications("dismissAllNotifications"),
+    /** A single expanded card, independent of the first notification on an app row. */
+    DismissNotification("dismissNotification"),
 }
 
 data class PopupGestureActions(
@@ -37,6 +41,27 @@ data class PopupGestureActions(
     }
 
     companion object {
+        // Card dismissal used to be independent of what a swipe on an app row did.
+        // Keep both behaviors by putting the card-only action first on upgrade.
+        internal fun legacyInsideGestures(
+            listLeft: PopupGestureActions = defaults(PopupGesture.SwipeLeft),
+            listRight: PopupGestureActions = defaults(PopupGesture.SwipeRight),
+            dismissRight: Boolean = true,
+        ): Map<PopupGesture, PopupGestureActions> {
+            val card = PopupGestureAction.DismissNotification
+            val clearActions = setOf(PopupGestureAction.DismissFirstNotification, PopupGestureAction.DismissAllNotifications)
+            fun inside(previous: PopupGestureActions, allowed: Set<PopupGestureAction>, dismissCard: Boolean) =
+                previous.copy(
+                    order = (listOf(card) + previous.order).distinct(),
+                    selected = previous.selected.intersect(allowed) + if (dismissCard) setOf(card) else emptySet(),
+                ).normalized()
+            return mapOf(
+                PopupGesture.SwipeLeft to inside(listLeft, clearActions, true),
+                PopupGesture.SwipeRight to inside(listRight, setOf(PopupGestureAction.OpenPopup), dismissRight),
+                PopupGesture.DoubleTap to PopupGestureActions(),
+            )
+        }
+
         fun defaults(gesture: PopupGesture) = PopupGestureActions(selected = when (gesture) {
             PopupGesture.SwipeLeft -> setOf(PopupGestureAction.OpenFirstItem)
             PopupGesture.SwipeRight -> setOf(PopupGestureAction.OpenPopup)

@@ -33,6 +33,8 @@ import kotlinx.coroutines.launch
 import kotlin.math.abs
 import kotlin.math.sign
 
+internal enum class CardSwipeAction { Dismiss, Activate }
+
 /** Shared bidirectional drag: resistance, spring breakaway, then direct finger tracking. */
 @Composable
 internal fun SwipeDismissContainer(
@@ -41,8 +43,9 @@ internal fun SwipeDismissContainer(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     canDismiss: Boolean = true,
-    /** False for notifications: only a left swipe clears them, a right swipe just resists. */
-    dismissRight: Boolean = true,
+    swipeLeft: CardSwipeAction? = CardSwipeAction.Dismiss,
+    swipeRight: CardSwipeAction? = CardSwipeAction.Dismiss,
+    onSwipe: suspend (right: Boolean) -> Boolean = { onDismiss() },
     resistance: Int = 75,
     thresholdDp: Int = 72,
     backgroundColor: Color = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -55,6 +58,9 @@ internal fun SwipeDismissContainer(
     // Media buttons and artwork keep their native ripples and transitions across updates.
     val scope = key(itemKey) { rememberCoroutineScope() }
     val currentDismiss by rememberUpdatedState(onDismiss)
+    val currentSwipe by rememberUpdatedState(onSwipe)
+    val leftAction by rememberUpdatedState(swipeLeft)
+    val rightAction by rememberUpdatedState(swipeRight)
     val currentEnabled by rememberUpdatedState(enabled)
     val currentCanDismiss by rememberUpdatedState(canDismiss)
     var width by remember { mutableIntStateOf(1) }
@@ -70,7 +76,9 @@ internal fun SwipeDismissContainer(
     var catchUp by remember(itemKey) { mutableStateOf<Job?>(null) }
     val label = stringResource(R.string.notification_dismiss)
 
-    fun canDismissAt(offset: Float) = currentCanDismiss && (dismissRight || offset <= 0f)
+    fun actionAt(offset: Float) = (if (offset > 0f) rightAction else leftAction)
+        ?.takeUnless { it == CardSwipeAction.Dismiss && !currentCanDismiss }
+    fun canDismissAt(offset: Float) = actionAt(offset) == CardSwipeAction.Dismiss
 
     fun displayedOffset(): Float = if (!dragging) restingOffset.value else
         if (!canDismissAt(travel) || breakaway == 0) resistedDismissOffset(travel, threshold, resistance) else releasedDismissOffset(travel, gap.value)
@@ -78,7 +86,8 @@ internal fun SwipeDismissContainer(
     fun finishDrag(cancelled: Boolean) {
         if (!dragging || settling) return
         val from = displayedOffset()
-        val dismiss = currentEnabled && shouldDismissDrag(travel, threshold, cancelled, canDismissAt(travel))
+        val action = actionAt(travel)?.takeIf { currentEnabled && shouldDismissDrag(travel, threshold, cancelled, true) }
+        val dismiss = action == CardSwipeAction.Dismiss
         val direction = sign(travel)
         // The drag callback does not receive UP. Do not reuse a fling velocity after a held pause.
         val velocity = if (cancelled || SystemClock.uptimeMillis() - lastMovementTime > 100L) 0f
@@ -95,8 +104,10 @@ internal fun SwipeDismissContainer(
                         spring(dampingRatio = 1f, stiffness = 800f),
                         initialVelocity = if (velocity * direction > 0f) velocity else 0f)
                     // Data owns removal. If cancellation is rejected, return the same item.
-                    val accepted = currentEnabled && currentCanDismiss && currentDismiss()
+                    val accepted = currentEnabled && canDismissAt(direction) && currentSwipe(direction > 0f)
                     if (accepted) delay(600)
+                } else if (action == CardSwipeAction.Activate && currentEnabled && actionAt(direction) == action) {
+                    currentSwipe(direction > 0f)
                 }
                 restingOffset.animateTo(0f, spring(dampingRatio = .8f, stiffness = 550f),
                     initialVelocity = if (dismiss) 0f else velocity * .45f)
@@ -170,7 +181,7 @@ internal fun SwipeDismissContainer(
         },
     ) {
         val offset = displayedOffset()
-        if (canDismiss && (dismissRight || offset <= 0f) && abs(offset) > .5f) {
+        if (canDismissAt(offset) && abs(offset) > .5f) {
             Row(Modifier.matchParentSize().background(backgroundColor, LauncherLayout.RowShape).padding(horizontal = 16.dp),
                 horizontalArrangement = if (offset > 0f) Arrangement.Absolute.Left else Arrangement.Absolute.Right,
                 verticalAlignment = Alignment.CenterVertically) {

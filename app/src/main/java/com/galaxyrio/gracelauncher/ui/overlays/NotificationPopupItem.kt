@@ -8,6 +8,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
@@ -37,12 +38,16 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.galaxyrio.gracelauncher.R
 import com.galaxyrio.gracelauncher.data.LauncherApp
+import com.galaxyrio.gracelauncher.data.PopupGesture
+import com.galaxyrio.gracelauncher.data.PopupGestureAction
 import com.galaxyrio.gracelauncher.data.notifications.*
 import com.galaxyrio.gracelauncher.ui.components.LocalPopupGestureSettings
 import com.galaxyrio.gracelauncher.ui.components.AppIcon
+import com.galaxyrio.gracelauncher.ui.components.CardSwipeAction
 import com.galaxyrio.gracelauncher.ui.components.SwipeDismissContainer
 import com.galaxyrio.gracelauncher.ui.components.notificationAge
 import com.galaxyrio.gracelauncher.ui.theme.FontShadowText as Text
+import kotlinx.coroutines.launch
 
 @Composable
 internal fun NotificationPopupItem(
@@ -50,6 +55,8 @@ internal fun NotificationPopupItem(
     notification: AppNotification,
     onOpen: () -> Unit,
     onDismiss: () -> Boolean,
+    resolveGesture: (PopupGesture) -> PopupGestureAction?,
+    performGesture: suspend (PopupGesture) -> Boolean,
     modifier: Modifier = Modifier,
     gesturesEnabled: Boolean = true,
     dismissResistance: Int = 75,
@@ -57,6 +64,7 @@ internal fun NotificationPopupItem(
     onAction: (AppNotificationAction, String?, Boolean) -> NotificationActionResult = { _, _, _ -> NotificationActionResult.Unavailable },
 ) {
     val settings = LocalPopupGestureSettings.current
+    val scope = rememberCoroutineScope()
     val display = remember(notification, settings.reduceRepeatedSenders) { notification.forDisplay(settings.reduceRepeatedSenders) }
     val icon = rememberNotificationImage(notification.icon)
     val context = LocalContext.current
@@ -118,7 +126,10 @@ internal fun NotificationPopupItem(
         Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(MaterialTheme.colorScheme.surface)
             .padding(12.dp)) {
             val wide = settings.widerNotificationDetails
-            Column(Modifier.fillMaxWidth().clickable(enabled = notification.canOpen && interactive, onClick = onOpen)) {
+            val doubleTap = replyTarget == null && resolveGesture(PopupGesture.DoubleTap) != null
+            Column(Modifier.fillMaxWidth().combinedClickable(enabled = interactive && (notification.canOpen || doubleTap),
+                onClick = { if (notification.canOpen) onOpen() },
+                onDoubleClick = if (doubleTap) ({ scope.launch { performGesture(PopupGesture.DoubleTap) } }) else null)) {
                 Row(verticalAlignment = if (wide) Alignment.CenterVertically else Alignment.Top) {
                     if (icon != null) Image(icon, null, Modifier.size(36.dp).clip(CircleShape), contentScale = ContentScale.Crop)
                     else AppIcon(app, size = 36.dp)
@@ -204,10 +215,20 @@ internal fun NotificationPopupItem(
     }
     // Keep text selection and cursor drags out of the card's horizontal dismiss recognizer.
     if (replyTarget != null) Box(modifier.fillMaxWidth().testTag("notification:${notification.key}")) { body() }
-    else SwipeDismissContainer(notification.key to notification.revision, onDismiss,
+    else SwipeDismissContainer(Triple(notification.key, notification.revision, settings.insideGestures), onDismiss,
         modifier.fillMaxWidth().testTag("notification:${notification.key}"),
-        enabled = notification.canDismiss && gesturesEnabled, dismissRight = settings.notificationSwipeRightDismiss,
+        enabled = interactive, canDismiss = notification.canDismiss,
+        swipeLeft = resolveGesture(PopupGesture.SwipeLeft).cardSwipe(),
+        swipeRight = resolveGesture(PopupGesture.SwipeRight).cardSwipe(),
+        onSwipe = { right -> performGesture(if (right) PopupGesture.SwipeRight else PopupGesture.SwipeLeft) },
         resistance = dismissResistance, thresholdDp = dismissThresholdDp, content = body)
+}
+
+private fun PopupGestureAction?.cardSwipe(): CardSwipeAction? = when (this) {
+    PopupGestureAction.DismissNotification, PopupGestureAction.DismissFirstNotification -> CardSwipeAction.Dismiss
+    // A bulk clear can show a confirmation while the card is still on screen.
+    PopupGestureAction.DismissAllNotifications, PopupGestureAction.OpenFirstNotification -> CardSwipeAction.Activate
+    else -> null
 }
 
 @Composable

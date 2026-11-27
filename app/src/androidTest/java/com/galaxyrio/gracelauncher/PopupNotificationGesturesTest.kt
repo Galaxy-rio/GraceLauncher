@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalViewConfiguration
 import androidx.compose.ui.test.*
@@ -19,6 +20,7 @@ import com.galaxyrio.gracelauncher.ui.LauncherUiState
 import com.galaxyrio.gracelauncher.ui.resolvePopupGesture
 import com.galaxyrio.gracelauncher.ui.components.AppRowGestures
 import com.galaxyrio.gracelauncher.ui.components.FolderRow
+import com.galaxyrio.gracelauncher.ui.components.LauncherAppRow
 import com.galaxyrio.gracelauncher.ui.components.LocalPopupGestureSettings
 import com.galaxyrio.gracelauncher.ui.theme.GraceLauncherTheme
 import org.junit.Assert.*
@@ -35,8 +37,7 @@ class PopupNotificationGesturesTest {
     private var density = 1f
     private var slop = 0f
     private val gestures = mutableListOf<Pair<PopupGesture, String?>>()
-    private val popupApps = mutableListOf<String>()
-    private var folderReveals = 0
+    private val folderAnchors = mutableListOf<Rect>()
 
     private fun showFolder(canDismiss: Boolean = true) {
         val notifications = listOf(first, second).mapIndexed { index, app ->
@@ -54,13 +55,12 @@ class PopupNotificationGesturesTest {
                 CompositionLocalProvider(LocalPopupGestureSettings provides settings) {
                     Box(Modifier.fillMaxSize().padding(top = 48.dp)) {
                         FolderRow(folder, {}, null, notifications = notifications,
-                            onDrag = { _, expanded -> if (expanded) folderReveals++ },
+                            onDrag = { bounds, expanded -> if (expanded) folderAnchors += bounds },
                             gestures = AppRowGestures(
                                 resolveGesture = { owner, gesture, notification ->
                                     state.resolvePopupGesture(owner, gesture, notification) { ShortcutResult(ShortcutStatus.Ready) }
                                 },
                                 onGesture = { _, gesture, _, notification -> gestures += gesture to notification?.key },
-                                onNotificationDrag = { _, notification, _, expanded -> if (expanded) popupApps += notification.packageName },
                             ))
                     }
                 }
@@ -85,16 +85,39 @@ class PopupNotificationGesturesTest {
         compose.runOnIdle { assertEquals(listOf(PopupGesture.SwipeLeft to "notice1"), gestures) }
     }
 
-    @Test fun notificationOpensItsOwnAppWhileHeaderStillOpensFolder() {
+    @Test fun notificationAndHeaderBothOpenTheFolderFromItsIcon() {
         showFolder()
+        val icon = compose.onNodeWithTag("folder:${folder.id}:icon", useUnmergedTree = true).fetchSemanticsNode().boundsInWindow
+        assertTrue(icon.width > 0 && icon.height > 0)
         compose.onNodeWithTag("notification_gesture:notice1", useUnmergedTree = true).performTouchInput {
             swipe(center, center + Offset(slop + 24f * density, 0f), 250)
         }
-        compose.runOnIdle { assertEquals(listOf(second.packageName), popupApps); assertEquals(0, folderReveals) }
         compose.onNodeWithTag("folder:${folder.id}:label", useUnmergedTree = true).performTouchInput {
             swipe(center, center + Offset(slop + 24f * density, 0f), 250)
         }
-        compose.runOnIdle { assertEquals(1, folderReveals) }
+        compose.runOnIdle { assertEquals(listOf(icon, icon), folderAnchors) }
+    }
+
+    @Test fun appNotificationSwipeAndArrowUseTheSameAppIconBounds() {
+        val notification = AppNotification("notice", first.packageName, "Title", "Body", 10L, 1, true, true)
+        val anchors = mutableListOf<Rect>()
+        compose.setContent {
+            GraceLauncherTheme(dynamicColor = false) {
+                Box(Modifier.fillMaxSize().padding(top = 48.dp)) {
+                    LauncherAppRow(first, {}, {}, notifications = listOf(notification),
+                        onSwipeRight = { anchors.add(it) },
+                        gestures = AppRowGestures(
+                            resolveGesture = { _, gesture, _ -> PopupGestureAction.OpenPopup.takeIf { gesture == PopupGesture.SwipeRight } },
+                            onDrag = { _, bounds, expanded -> if (expanded) anchors.add(bounds) },
+                            onGesture = { _, _, _, _ -> },
+                        ))
+                }
+            }
+        }
+        val icon = compose.onNodeWithTag("app:${first.key}:icon", true).fetchSemanticsNode().boundsInWindow
+        compose.onNodeWithTag("notification_gesture:notice", true).performTouchInput { swipeRight() }
+        compose.onNodeWithTag("notification_arrow:app:${first.key}").performClick()
+        compose.runOnIdle { assertEquals(listOf(icon, icon), anchors) }
     }
 
     @Test fun unavailableNotificationActionDoesNotFallBackToItsParentFoldersGesture() {

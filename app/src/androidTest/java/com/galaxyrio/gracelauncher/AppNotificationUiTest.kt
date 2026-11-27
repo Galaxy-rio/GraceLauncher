@@ -97,12 +97,56 @@ class AppNotificationUiTest {
 
     @Test fun folderPopupRowLeftSwipeDismissesItsAppWithoutConfirmationWhenDismissIsChosen() {
         val folder = LauncherFolder(id = "chats", name = "Chats", appKeys = listOf(app.key), placement = FolderPlacement.Favorites)
-        show(folders = listOf(folder), shortcutsFolders = ShortcutsFoldersSettings(
-            swipeLeft = PopupGestureActions(selected = setOf(PopupGestureAction.DismissAllNotifications))))
+        show(folders = listOf(folder), shortcutsFolders = ShortcutsFoldersSettings().withGesture(PopupGesture.SwipeLeft,
+            PopupGestureActions(selected = setOf(PopupGestureAction.DismissAllNotifications)), PopupGestureScope.InsidePopup))
         compose.onNodeWithTag("folder:${folder.id}").performClick()
         compose.onNodeWithTag("folder_app:${app.key}").assertIsDisplayed().performTouchInput { swipeLeft() }
         compose.onNodeWithTag("notification:${message.key}").assertDoesNotExist()
         compose.runOnIdle { assertEquals(listOf(message.key), dismissed); assertEquals(0, launchedApps) }
+    }
+
+    @Test fun reopeningFolderAfterViewingMemberNotificationAlwaysStartsAtFolder() {
+        val folder = LauncherFolder("mail", "Mail", listOf(app.key, browser.key), FolderPlacement.Favorites)
+        show(folders = listOf(folder))
+        val folderRow = compose.onNodeWithTag(folder.key)
+        val summary = compose.onNode(hasTestTag("notification_gesture:${message.key}") and
+            hasAnyAncestor(hasTestTag(folder.key)), useUnmergedTree = true)
+        val member = compose.onNodeWithTag("folder_app:${app.key}")
+        val child = compose.onNodeWithTag("shortcut_popup")
+        folderRow.performClick()
+        // Enter through the member arrow, leave the unread notification in place, then reopen from its summary.
+        compose.onNodeWithTag("popup_notification_arrow:${app.key}").performClick()
+        child.assertIsDisplayed().performSemanticsAction(SemanticsActions.Dismiss)
+        child.assertDoesNotExist()
+        summary.performTouchInput { swipeRight() }
+        member.assertIsDisplayed()
+        child.assertDoesNotExist()
+        // Re-enter using the member's gesture and reopen using the folder's arrow.
+        member.performTouchInput { swipeRight() }
+        child.assertIsDisplayed().performSemanticsAction(SemanticsActions.Dismiss)
+        child.assertDoesNotExist()
+        compose.onNodeWithTag("notification_arrow:${folder.key}").performClick()
+        member.assertIsDisplayed()
+        child.assertDoesNotExist()
+        compose.runOnIdle { assertTrue(opened.isEmpty()); assertTrue(dismissed.isEmpty()) }
+    }
+
+    @Test fun insideRightSwipeDismissesOnlyTouchedCardAndInsideDoubleTapOpensMember() {
+        val folder = LauncherFolder("mail", "Mail", listOf(app.key), FolderPlacement.Favorites)
+        val second = message.copy(key = "second", title = "Second")
+        notifications = listOf(message, second)
+        val right = PopupGestureActions(order = listOf(PopupGestureAction.OpenPopup, PopupGestureAction.DismissNotification),
+            selected = setOf(PopupGestureAction.OpenPopup, PopupGestureAction.DismissNotification))
+        show(folders = listOf(folder), shortcutsFolders = ShortcutsFoldersSettings()
+            .withGesture(PopupGesture.SwipeRight, right, PopupGestureScope.InsidePopup)
+            .withGesture(PopupGesture.DoubleTap, PopupGestureActions(selected = setOf(PopupGestureAction.OpenPopup)),
+                PopupGestureScope.InsidePopup))
+        compose.onNodeWithTag(folder.key).performClick()
+        compose.onNodeWithTag("folder_app:${app.key}").performTouchInput { doubleClick() }
+        compose.onNodeWithTag("notification:${second.key}").assertIsDisplayed().performTouchInput { swipeRight() }
+        compose.onNodeWithTag("notification:${second.key}").assertDoesNotExist()
+        compose.onNodeWithTag("notification:${message.key}").assertIsDisplayed()
+        compose.runOnIdle { assertEquals(listOf(second.key), dismissed); assertEquals(0, launchedApps) }
     }
 
     @Test fun homeFolderSwipeAsksBeforeClearingSeveralAppsAndCancelClearsNothing() {
@@ -111,7 +155,7 @@ class AppNotificationUiTest {
         // Previews are hidden so the swipe lands on the folder row itself, not a notification preview.
         show(folders = listOf(folder), otherNotifications = mapOf(browser.packageName to listOf(browserMessage)),
             shortcutsFolders = ShortcutsFoldersSettings(normalNotifications = NotificationDisplay.Hidden,
-                swipeLeft = PopupGestureActions(selected = setOf(PopupGestureAction.DismissAllNotifications))))
+                swipeLeft = PopupGestureActions(selected = setOf(PopupGestureAction.DismissAllNotifications), confirmDismissAll = true)))
         compose.onNodeWithTag("folder:${folder.id}").performTouchInput { swipeLeft() }
         compose.onNodeWithTag("dismiss_notifications_confirm").assertIsDisplayed()
         compose.onNodeWithText("Cancel").performClick()
@@ -136,9 +180,10 @@ class AppNotificationUiTest {
 
     @Test fun drawerRightSwipeOpensSamePanelAndOnlyLeftDismissesKeepingOtherMessages() {
         notifications = listOf(message, message.copy(key = "message-2", title = "Another message", revision = 2))
-        show(drawer = true)
+        show(drawer = true, shortcutsFolders = ShortcutsFoldersSettings().withGesture(PopupGesture.SwipeRight,
+            PopupGestureActions(selected = setOf(PopupGestureAction.OpenPopup)), PopupGestureScope.InsidePopup))
         compose.onNodeWithTag("app:${app.key}").performTouchInput { swipeRight() }
-        // A right swipe on a card never dismisses it.
+        // The list opens the panel. Its card has no action assigned to a right swipe.
         compose.onNodeWithTag("notification:${message.key}").assertIsDisplayed().performTouchInput { swipeRight() }
         compose.onNodeWithTag("notification:${message.key}").assertIsDisplayed()
         compose.runOnIdle { assertTrue(dismissed.isEmpty()) }

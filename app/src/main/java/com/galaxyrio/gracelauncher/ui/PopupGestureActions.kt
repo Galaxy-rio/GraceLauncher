@@ -4,6 +4,7 @@ import com.galaxyrio.gracelauncher.data.LauncherApp
 import com.galaxyrio.gracelauncher.data.LauncherFolder
 import com.galaxyrio.gracelauncher.data.PopupGesture
 import com.galaxyrio.gracelauncher.data.PopupGestureAction
+import com.galaxyrio.gracelauncher.data.PopupGestureScope
 import com.galaxyrio.gracelauncher.data.PrivateSpaceFolderId
 import com.galaxyrio.gracelauncher.data.RecentlyInstalledFolderId
 import com.galaxyrio.gracelauncher.data.ShortcutResult
@@ -13,7 +14,7 @@ import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 
 internal data class PopupGestureTarget(val app: LauncherApp, val notification: AppNotification? = null)
 
-/** A notification preview targets its own app, not the folder or another notification. */
+/** Notification operations use the touched revision; opening a pop-up uses the row owner. */
 internal fun LauncherUiState.popupGestureTarget(owner: LauncherApp, notification: AppNotification?): PopupGestureTarget? {
     if (notification == null) return findItem(owner.key)?.let { PopupGestureTarget(it) }
     val current = notifications[notification.packageName]?.firstOrNull {
@@ -53,51 +54,72 @@ private fun LauncherUiState.needsPopupShortcuts(owner: LauncherApp): Boolean {
 /** Optimistic only while shortcuts are loading; execution checks again before falling through. */
 internal fun LauncherUiState.resolvePopupGesture(
     owner: LauncherApp, gesture: PopupGesture, notification: AppNotification?,
+    scope: PopupGestureScope = PopupGestureScope.List, canOpenPopup: Boolean = true,
     cachedShortcuts: (LauncherApp) -> ShortcutResult?,
 ): PopupGestureAction? {
-    val target = popupGestureTarget(owner, notification) ?: return null
     val options = settings.shortcutsFolders
+    val plan = options.gesture(gesture, scope)
+    if (plan.selected.isEmpty() || (scope == PopupGestureScope.InsidePopup && owner.shortcut != null)) return null
+    val target = popupGestureTarget(owner, notification) ?: return null
     if (!options.enabled && target.app.folderId == null) return null
-    return options.gesture(gesture).enabledActions.firstOrNull { action -> when (action) {
-        PopupGestureAction.OpenPopup -> target.app.folderId == null || popupGestureFolder(target.app) != null
-        PopupGestureAction.OpenFirstItem -> {
-            val needsShortcuts = needsPopupShortcuts(target.app)
-            val cached = if (needsShortcuts) cachedShortcuts(target.app) else null
-            firstPopupApp(target.app, cached?.asApps(target.app).orEmpty()) != null ||
-                (needsShortcuts && (cached == null || cached.status == ShortcutStatus.Loading))
+    return plan.enabledActions.firstOrNull { action ->
+        if (!action.appliesTo(scope, notification, canOpenPopup)) return@firstOrNull false
+        when (action) {
+            PopupGestureAction.OpenPopup -> owner.folderId == null || popupGestureFolder(owner) != null
+            PopupGestureAction.OpenFirstItem -> {
+                val needsShortcuts = needsPopupShortcuts(target.app)
+                val cached = if (needsShortcuts) cachedShortcuts(target.app) else null
+                firstPopupApp(target.app, cached?.asApps(target.app).orEmpty()) != null ||
+                    (needsShortcuts && (cached == null || cached.status == ShortcutStatus.Loading))
+            }
+            PopupGestureAction.OpenFirstNotification -> firstGestureNotification(target)?.canOpen == true
+            PopupGestureAction.DismissFirstNotification, PopupGestureAction.DismissNotification ->
+                firstGestureNotification(target)?.canDismiss == true
+            PopupGestureAction.DismissAllNotifications -> allGestureNotifications(dismissAllTarget(owner, target)).any { it.canDismiss }
         }
-        PopupGestureAction.OpenFirstNotification -> firstGestureNotification(target)?.canOpen == true
-        PopupGestureAction.DismissFirstNotification -> firstGestureNotification(target)?.canDismiss == true
-        PopupGestureAction.DismissAllNotifications -> allGestureNotifications(dismissAllTarget(owner, target)).any { it.canDismiss }
-    } }
+    }
+}
+
+private fun PopupGestureAction.appliesTo(scope: PopupGestureScope, notification: AppNotification?, canOpenPopup: Boolean): Boolean {
+    val card = scope == PopupGestureScope.InsidePopup && notification != null
+    return when (this) {
+        PopupGestureAction.DismissNotification -> card
+        PopupGestureAction.OpenPopup -> canOpenPopup && !card
+        PopupGestureAction.OpenFirstItem -> !card
+        else -> true
+    }
 }
 
 /** Only a clear spanning multiple apps needs the optional confirmation. */
 internal fun notificationDismissNeedsConfirmation(notifications: List<AppNotification>): Boolean =
     notifications.asSequence().filter { it.canDismiss }.map { it.packageName }.distinct().take(2).count() > 1
 
-/** Shared by desktop rows and the simulated preview; platform actions are injected. */
+/** Both list levels and their settings preview use the same ordered actions. */
 internal suspend fun performPopupGesture(
     owner: LauncherApp, gesture: PopupGesture, notification: AppNotification?,
     state: () -> LauncherUiState, actions: () -> LauncherActions,
     canContinue: () -> Boolean,
     openPopup: (LauncherApp) -> Boolean, launchItem: (LauncherApp) -> Boolean,
     confirmDismiss: suspend (List<AppNotification>) -> Boolean = { true },
+    scope: PopupGestureScope = PopupGestureScope.List, canOpenPopup: Boolean = true,
+    onNotificationOpened: () -> Unit = {},
 ): Boolean {
-    val plan = state().settings.shortcutsFolders.gesture(gesture)
+    if (scope == PopupGestureScope.InsidePopup && owner.shortcut != null) return false
+    val plan = state().settings.shortcutsFolders.gesture(gesture, scope)
     fun current(): Pair<LauncherUiState, PopupGestureTarget>? {
         if (!canContinue()) return null
         val latest = state()
         val options = latest.settings.shortcutsFolders
-        if (options.gesture(gesture) != plan) return null
+        if (options.gesture(gesture, scope) != plan) return null
         val target = latest.popupGestureTarget(owner, notification) ?: return null
         if (!options.enabled && target.app.folderId == null) return null
         return latest to target
     }
     return plan.performFirstAvailable { action ->
+        if (!action.appliesTo(scope, notification, canOpenPopup)) return@performFirstAvailable false
         val (latest, target) = current() ?: return@performFirstAvailable false
         when (action) {
-            PopupGestureAction.OpenPopup -> openPopup(if (owner.folderId != null) owner else target.app)
+            PopupGestureAction.OpenPopup -> openPopup(owner)
             PopupGestureAction.OpenFirstItem -> {
                 val defaults = if (latest.needsPopupShortcuts(target.app))
                     actions().shortcuts(target.app).asApps(target.app) else emptyList()
@@ -106,9 +128,11 @@ internal suspend fun performPopupGesture(
                 refreshed.firstPopupApp(refreshedTarget.app, defaults)?.let(launchItem) == true
             }
             PopupGestureAction.OpenFirstNotification -> latest.firstGestureNotification(target)?.let {
-                it.canOpen && actions().openNotification(it.key, it.revision)
+                (it.canOpen && actions().openNotification(it.key, it.revision)).also { opened ->
+                    if (opened) onNotificationOpened()
+                }
             } == true
-            PopupGestureAction.DismissFirstNotification -> latest.firstGestureNotification(target)?.let {
+            PopupGestureAction.DismissFirstNotification, PopupGestureAction.DismissNotification -> latest.firstGestureNotification(target)?.let {
                 it.canDismiss && actions().dismissNotification(it.key, it.revision)
             } == true
             PopupGestureAction.DismissAllNotifications -> {
