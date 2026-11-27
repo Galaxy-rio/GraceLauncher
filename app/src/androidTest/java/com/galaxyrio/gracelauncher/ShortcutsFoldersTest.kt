@@ -80,9 +80,14 @@ class ShortcutsFoldersTest {
             popups = mapOf(owner.key to apps, folder.key to apps))
         val multiple = state.copy(settings = state.settings.copy(shortcutsFolders =
             state.settings.shortcutsFolders.copy(multipleAppNotificationPreviews = true)))
+        // Folder rows also name the app each preview came from; plain app rows do not.
+        fun shown(row: LauncherApp, vararg notes: AppNotification) = notes.map { note ->
+            if (row.folderId == null) note
+            else note.copy(sourceLabel = state.apps.first { it.packageName == note.packageName }.label.ifBlank { note.packageName })
+        }
         listOf(owner, folder.asApp()).forEach { row ->
-            assertEquals(listOf(child), state.notificationPreviewsFor(row))
-            assertEquals(listOf(child, own), multiple.notificationPreviewsFor(row))
+            assertEquals(shown(row, child), state.notificationPreviewsFor(row))
+            assertEquals(shown(row, child, own), multiple.notificationPreviewsFor(row))
             assertEquals(listOf(child, own, olderChild), multiple.notificationsFor(row, expanded = true))
             assertTrue(multiple.copy(settings = multiple.settings.copy(shortcutsFolders =
                 multiple.settings.shortcutsFolders.copy(enabled = false))).notificationPreviewsFor(row).isEmpty())

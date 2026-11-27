@@ -37,6 +37,8 @@ data class AppNotification(
     val actions: List<AppNotificationAction> = emptyList(),
     val suggestedReplies: List<NotificationSuggestedReply> = emptyList(),
     val progress: NotificationProgress? = null,
+    /** Name of the app that posted it. Filled only where the row does not already name that app. */
+    val sourceLabel: String = "",
 )
 
 /** Both projections are prepared once when the notification arrives; toggling needs no system query. */
@@ -54,6 +56,15 @@ internal fun formatNotificationMessages(messages: List<Pair<String, String>>, re
 /** True when the body already names the sender (MessagingStyle prefixes "Sender: "), so the title repeats it. */
 internal fun isTitleRedundant(title: String, text: String): Boolean =
     title.isNotBlank() && (text == title || text.startsWith("$title: "))
+
+/** First preview line (`appName` is whatever name the row already shows): the source app, then the title unless the setting hides a title the body repeats. */
+internal fun previewTitle(
+    sourceLabel: String, title: String, text: String, reduceRepeatedSenders: Boolean = true, appName: String = sourceLabel,
+): String {
+    // Some apps (LinkedIn) title their notifications with their own name, which the row or source label already shows.
+    val shown = title.takeIf { !reduceRepeatedSenders || (!it.equals(appName, ignoreCase = true) && !isTitleRedundant(it, text)) }.orEmpty()
+    return listOf(sourceLabel, shown).filter { it.isNotBlank() }.joinToString(" · ")
+}
 
 /** For "Channel: Sender" titles, keep the channel and drop the sender the body already shows. */
 internal fun stripSenderFromTitle(title: String, text: String): String {

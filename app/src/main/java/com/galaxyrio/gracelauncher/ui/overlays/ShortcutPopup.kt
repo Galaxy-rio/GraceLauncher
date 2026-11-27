@@ -328,6 +328,8 @@ fun ShortcutPopup(
                         val dismissAction = popupSettings.swipeLeft.enabledActions.firstOrNull {
                             it == PopupGestureAction.DismissAllNotifications || it == PopupGestureAction.DismissFirstNotification }
                         val swipeDismiss = dismissAction != null
+                        val canOpen = notification != null && onOpenAppPopup != null &&
+                            PopupGestureAction.OpenPopup in popupSettings.swipeRight.enabledActions
                         val dismissLabel = stringResource(if (dismissAction == PopupGestureAction.DismissFirstNotification)
                             R.string.popup_action_dismiss_first else R.string.popup_action_dismiss_all)
                         var pendingDismiss by remember { mutableStateOf<List<AppNotification>?>(null) }
@@ -358,18 +360,24 @@ fun ShortcutPopup(
                                     if (!showNames && !hiddenIcon) contentDescription = itemApp.label
                                     if (swipeDismiss) customActions = listOf(CustomAccessibilityAction(dismissLabel) { dismissItem(itemApp); true })
                                 }
-                                .pointerInput(itemApp.key, swipeDismiss, inputEnabled, reveal.expanded, reveal.dragging,
+                                .pointerInput(itemApp.key, swipeDismiss, canOpen, inputEnabled, reveal.expanded, reveal.dragging,
                                     popupSettings.popupSwipeDistanceDp, popupSettings.popupSwipeAngleDegrees) {
-                                    if (!swipeDismiss || !inputEnabled || !reveal.expanded || reveal.dragging) return@pointerInput
+                                    if ((!swipeDismiss && !canOpen) || !inputEnabled || !reveal.expanded || reveal.dragging) return@pointerInput
                                     val swipe = PopupSwipeIntent(reversalSlop = 8.dp.toPx(), firstItemSlop = 40.dp.toPx())
                                     detectPopupDragGestures(
                                         extraDistance = popupSettings.popupSwipeDistanceDp.coerceIn(0, 48).dp.toPx(),
                                         maxAngleDegrees = popupSettings.popupSwipeAngleDegrees.coerceIn(10, 90),
-                                        leftEnabled = true,
-                                        rightEnabled = false,
+                                        leftEnabled = swipeDismiss,
+                                        rightEnabled = canOpen,
                                         onDragStart = { swipe.reset() },
                                         onDragCancel = { swipe.reset() },
-                                        onDragEnd = { if (swipe.opensFirst) dismissItem(itemApp); swipe.reset() },
+                                        // Left clears the notification, right opens it like the arrow. Right never dismisses.
+                                        onDragEnd = {
+                                            if (swipe.opensFirst) dismissItem(itemApp)
+                                            // Pulling back before release cancels the open.
+                                            else if (swipe.expanded) onOpenAppPopup?.invoke(itemApp, iconBounds)
+                                            swipe.reset()
+                                        },
                                     ) { _, amount -> swipe.drag(amount) }
                                 }
                                 .clip(RoundedCornerShape(16.dp))

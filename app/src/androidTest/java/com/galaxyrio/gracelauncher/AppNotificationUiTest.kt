@@ -134,11 +134,15 @@ class AppNotificationUiTest {
         compose.runOnIdle { assertEquals(listOf(message.key), dismissed) }
     }
 
-    @Test fun drawerRightSwipeOpensSamePanelAndRightDismissKeepsOtherMessages() {
+    @Test fun drawerRightSwipeOpensSamePanelAndOnlyLeftDismissesKeepingOtherMessages() {
         notifications = listOf(message, message.copy(key = "message-2", title = "Another message", revision = 2))
         show(drawer = true)
         compose.onNodeWithTag("app:${app.key}").performTouchInput { swipeRight() }
+        // A right swipe on a card never dismisses it.
         compose.onNodeWithTag("notification:${message.key}").assertIsDisplayed().performTouchInput { swipeRight() }
+        compose.onNodeWithTag("notification:${message.key}").assertIsDisplayed()
+        compose.runOnIdle { assertTrue(dismissed.isEmpty()) }
+        compose.onNodeWithTag("notification:${message.key}").performTouchInput { swipeLeft() }
         compose.onNodeWithTag("notification:${message.key}").assertDoesNotExist()
         compose.onNodeWithTag("notification:message-2").assertIsDisplayed()
         compose.runOnIdle { assertEquals(listOf(message.key), dismissed); assertEquals(0, launchedApps) }

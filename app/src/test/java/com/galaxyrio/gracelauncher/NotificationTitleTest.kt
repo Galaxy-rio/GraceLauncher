@@ -1,6 +1,7 @@
 package com.galaxyrio.gracelauncher
 
 import com.galaxyrio.gracelauncher.data.notifications.isTitleRedundant
+import com.galaxyrio.gracelauncher.data.notifications.previewTitle
 import com.galaxyrio.gracelauncher.data.notifications.stripSenderFromTitle
 import com.galaxyrio.gracelauncher.data.notifications.AppNotification
 import com.galaxyrio.gracelauncher.data.notifications.forDisplay
@@ -49,5 +50,36 @@ class NotificationTitleTest {
         assertFalse(isTitleRedundant("Dada", "Good morning"))
         assertFalse(isTitleRedundant("Dad", "Dada: Good morning"))
         assertFalse(isTitleRedundant("", "Dada: Good morning"))
+    }
+
+    @Test fun previewTitleNamesTheSourceApp() {
+        assertEquals("Slack · Anna", previewTitle("Slack", "Anna", "Good morning"))
+        assertEquals("Slack", previewTitle("Slack", "Anna", "Anna: Good morning"))
+        assertEquals("Slack", previewTitle("Slack", "", "Good morning"))
+        assertEquals("com.Slack · Anna", previewTitle("com.Slack", "Anna", "hi"))
+    }
+
+    @Test fun previewTitleKeepsARepeatedTitleWhenTheSettingIsOff() {
+        assertEquals("Slack · Anna", previewTitle("Slack", "Anna", "Anna: Good morning", reduceRepeatedSenders = false))
+    }
+
+    @Test fun previewTitleDropsATitleThatIsTheSourceName() {
+        assertEquals("LinkedIn", previewTitle("LinkedIn", "Linkedin", "New job alert"))
+    }
+
+    @Test fun previewTitleDropsATitleThatIsTheShownAppLabel() {
+        assertEquals("", previewTitle("", "LinkedIn", "New job alert", appName = "LinkedIn"))
+        assertEquals("Anna", previewTitle("", "Anna", "hi", appName = "WhatsApp"))
+    }
+
+    @Test fun previewTitleKeepsTheAppNameTitleWhenTheSettingIsOff() {
+        assertEquals("LinkedIn · Linkedin", previewTitle("LinkedIn", "Linkedin", "New job alert", reduceRepeatedSenders = false))
+        assertEquals("LinkedIn", previewTitle("", "LinkedIn", "New job alert", reduceRepeatedSenders = false, appName = "LinkedIn"))
+    }
+
+    @Test fun previewTitleWithoutSourceKeepsTheOldBehavior() {
+        assertEquals("Anna", previewTitle("", "Anna", "Good morning"))
+        assertEquals("", previewTitle("", "Anna", "Anna: Good morning"))
+        assertEquals("", previewTitle("", "", "Good morning"))
     }
 }

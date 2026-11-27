@@ -21,6 +21,7 @@ data class ShortcutsFoldersSettings(
     val singleLineNotificationPreviews: Boolean = false,
     val multipleAppNotificationPreviews: Boolean = false,
     val reduceRepeatedSenders: Boolean = true,
+    val notificationSwipeRightDismiss: Boolean = true,
     val notificationActions: Boolean = true,
     val notificationDirectReply: Boolean = true,
     val notificationSuggestedReplies: Boolean = true,
@@ -55,6 +56,7 @@ data class ShortcutsFoldersSettings(
         .put("singleLineNotificationPreviews", singleLineNotificationPreviews)
         .put("multipleAppNotificationPreviews", multipleAppNotificationPreviews)
         .put("reduceRepeatedSenders", reduceRepeatedSenders)
+        .put("notificationSwipeRightDismiss", notificationSwipeRightDismiss)
         .put("notificationActions", notificationActions)
         .put("notificationDirectReply", notificationDirectReply)
         .put("notificationSuggestedReplies", notificationSuggestedReplies)
@@ -77,6 +79,7 @@ data class ShortcutsFoldersSettings(
                 singleLineNotificationPreviews = json.optBoolean("singleLineNotificationPreviews", false),
                 multipleAppNotificationPreviews = json.optBoolean("multipleAppNotificationPreviews", false),
                 reduceRepeatedSenders = json.optBoolean("reduceRepeatedSenders", true),
+                notificationSwipeRightDismiss = json.optBoolean("notificationSwipeRightDismiss", true),
                 notificationActions = json.optBoolean("notificationActions", true),
                 notificationDirectReply = json.optBoolean("notificationDirectReply", true),
                 notificationSuggestedReplies = json.optBoolean("notificationSuggestedReplies", true),

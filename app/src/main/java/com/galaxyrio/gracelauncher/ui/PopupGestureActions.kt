@@ -97,7 +97,7 @@ internal suspend fun performPopupGesture(
     return plan.performFirstAvailable { action ->
         val (latest, target) = current() ?: return@performFirstAvailable false
         when (action) {
-            PopupGestureAction.OpenPopup -> openPopup(target.app)
+            PopupGestureAction.OpenPopup -> openPopup(if (owner.folderId != null) owner else target.app)
             PopupGestureAction.OpenFirstItem -> {
                 val defaults = if (latest.needsPopupShortcuts(target.app))
                     actions().shortcuts(target.app).asApps(target.app) else emptyList()

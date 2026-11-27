@@ -20,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.layout.ContentScale
@@ -176,9 +177,13 @@ internal fun NotificationPopupItem(
                             if (action.emphasized) Button(click, tag, enabled = enabled,
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 10.dp)) {
                                 Text(action.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                            } else TextButton(click, tag, enabled = enabled,
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 8.dp)) {
-                                Text(action.title, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                            } else Box(tag.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp).clip(RoundedCornerShape(24.dp))
+                                .clickable(enabled = enabled, role = Role.Button, onClick = click),
+                                contentAlignment = Alignment.CenterStart) {
+                                // Plain text, not TextButton: its padding and minimum width push the label off the text's left edge.
+                                Text(action.title, Modifier.padding(end = 12.dp), maxLines = 2, overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary.copy(alpha = if (enabled) 1f else .38f))
                             }
                         }
                     }
@@ -201,7 +206,7 @@ internal fun NotificationPopupItem(
     if (replyTarget != null) Box(modifier.fillMaxWidth().testTag("notification:${notification.key}")) { body() }
     else SwipeDismissContainer(notification.key to notification.revision, onDismiss,
         modifier.fillMaxWidth().testTag("notification:${notification.key}"),
-        enabled = notification.canDismiss && gesturesEnabled,
+        enabled = notification.canDismiss && gesturesEnabled, dismissRight = settings.notificationSwipeRightDismiss,
         resistance = dismissResistance, thresholdDp = dismissThresholdDp, content = body)
 }
 
